@@ -12,6 +12,7 @@ let webpush = null; try { webpush = require('web-push'); } catch (e) {}
 const PORT         = process.env.PORT || 8787;
 const POLL_MS      = Number(process.env.POLL_MS || 15000);
 const SCHEDULE_URL = process.env.SCHEDULE_URL || 'https://texasleaguestats.prestosports.com/sports/bsb/2026/schedule';
+const SITE_URL     = (process.env.SITE_URL || 'https://gators.onrender.com').replace(/\/$/, '');
 const VAPID_PUB    = process.env.VAPID_PUBLIC_KEY || '';
 const VAPID_PRIV   = process.env.VAPID_PRIVATE_KEY || '';
 const VAPID_MAIL   = process.env.VAPID_CONTACT || 'mailto:you@example.com';
@@ -689,6 +690,70 @@ async function pollRoster() {
   } catch (e) { /* keep previous */ }
   finally { rosterPolling = false; }
 }
+// ----- per-game pitching walks (BB) from box scores --------------------------
+// Presto's per-game pitching LOG omits BB, but each game's full box score lists
+// it per pitcher. We match a game-log row to its game, read BB from that box,
+// and cache boxes (shared across pitchers; a season is only ~20-30 games).
+const boxWalkCache = {};   // gameId -> { ts, map:{ nameKey -> bb } }
+const MON = { jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12 };
+// Order-independent name key so "Daniel Midkiff" matches a box's "Midkiff, Daniel".
+const nameKey = s => String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+  .replace(/[^a-z\s]/g,' ').trim().split(/\s+/).filter(t => t.length > 1).sort().join('');
+function glRowMD(s){ const m=String(s||'').match(/([A-Za-z]{3,})\.?\s+(\d{1,2})/); if(!m) return null;
+  const mo=MON[m[1].slice(0,3).toLowerCase()]; return mo ? { mo, d:+m[2] } : null; }
+// nameKey -> BB from one box-score pitching table.
+function parsePitchingBB(tableHtml){
+  const rows=rowsOf(tableHtml); if(rows.length<2) return {};
+  const head=cellsOf(rows[0]).map(x=>bsText(x).split(/\s+/)[0].toLowerCase());
+  const bbi=head.indexOf('bb'); if(bbi===-1) return {};
+  const out={};
+  for(let i=1;i<rows.length;i++){
+    const c=cellsOf(rows[i]); if(c.length<=bbi) continue;
+    const name=bsText(c[0]); if(!name || /^totals?$/i.test(name)) continue;
+    const k=nameKey(name); if(!k) continue;
+    out[k]=bsText(c[bbi]);
+  }
+  return out;
+}
+async function boxWalks(gid){
+  const c=boxWalkCache[gid];
+  if(c && c.map && Date.now()-c.ts < 6*60*60*1000) return c.map;
+  let map=null;
+  try{
+    const page=await fetchText(boxscoreUrl(gid)+'?view=plays', SCHEDULE_URL);
+    if(page.ok && page.body){
+      const p=parseBoxscore(page.body); const m={};
+      for(const b of p.box){ if(/Pitching/i.test(b.label)) Object.assign(m, parsePitchingBB(b.html)); }
+      if(Object.keys(m).length) map=m;
+    }
+  }catch(e){}
+  if(map) boxWalkCache[gid]={ ts:Date.now(), map };   // cache successes only; failures retry next open
+  return map;
+}
+// Find the Gators game id for a game-log row (month/day match, opponent tiebreak).
+function gameIdForRow(row){
+  const md=glRowMD(row.date); if(!md) return null;
+  const opp=String(row.opp||'').toLowerCase();
+  const sameDay=games.filter(g => +g.date.slice(4,6)===md.mo && +g.date.slice(6,8)===md.d);
+  if(!sameDay.length) return null;
+  if(sameDay.length===1) return sameDay[0].id;
+  const hit=sameDay.find(g => { const n=String(g.opponent.name||'').toLowerCase(), s=String(g.opponent.short||'').toLowerCase();
+    return (n && opp.indexOf(n)!==-1) || (s && opp.indexOf(s)!==-1); });
+  return (hit||sameDay[0]).id;
+}
+// Fill BB into a pitcher's game-log rows from box scores — gentle, cached.
+async function enrichPitchingWalks(name, glPit){
+  if(!glPit || !glPit.length) return;
+  const key=nameKey(name); if(!key) return;
+  for(const row of glPit){
+    if(row.bb && row.bb!=='-' && row.bb!=='') continue;
+    const gid=gameIdForRow(row); if(!gid) continue;
+    const wasCached=!!(boxWalkCache[gid] && boxWalkCache[gid].map);
+    const map=await boxWalks(gid);
+    if(map && map[key]!=null && map[key]!=='') row.bb=map[key];
+    if(!wasCached) await sleep(500);   // pace only on real network fetches
+  }
+}
 async function getPlayer(slug) {
   const cached = playerCache[slug];
   const fresh = cached && (Date.now() - cached.ts < 10 * 60 * 1000);
@@ -885,8 +950,32 @@ app.get('/api/roster', (_q, r) => { if (!rosterPolling && Object.keys(rosterStat
 app.get('/api/player', async (q, r) => {
   const slug = String((q.query && q.query.slug) || '');
   if (!/^[a-z0-9_]+$/i.test(slug)) return r.status(400).json({ error: 'bad slug' });
-  try { const p = await getPlayer(slug); r.json(p || {}); }
-  catch (e) { r.status(502).json({ error: e.message }); }
+  try {
+    const p = await getPlayer(slug);
+    if (p && p.glPit && p.glPit.length) {
+      const pl = ROSTER.find(x => x.slug === slug);
+      await enrichPitchingWalks(pl ? pl.name : '', p.glPit);
+    }
+    r.json(p || {});
+  } catch (e) { r.status(502).json({ error: e.message }); }
+});
+app.get('/debug/walks', async (q, r) => {
+  try {
+    const slug = String((q.query && q.query.slug) || '');
+    const pl = ROSTER.find(x => x.slug === slug);
+    if (!pl) return r.status(404).json({ error: 'unknown slug', hint: 'use a slug from /api/roster' });
+    const p = await getPlayer(slug);
+    const key = nameKey(pl.name);
+    const rows = [];
+    for (const row of (p && p.glPit) || []) {
+      const gid = gameIdForRow(row);
+      const map = gid ? await boxWalks(gid) : null;
+      rows.push({ date: row.date, opp: row.opp, gid, bbForPitcher: map ? (map[key] != null ? map[key] : null) : null,
+        boxHasPitchers: map ? Object.keys(map).length : 0, boxNameKeys: map ? Object.keys(map) : null });
+      await sleep(300);
+    }
+    r.json({ who: pl.name, nameKey: key, scheduleGames: games.length, rows });
+  } catch (e) { r.status(502).json({ error: e.message, stack: e.stack }); }
 });
 app.get('/debug/roster', async (_q, r) => {
   try {
@@ -970,6 +1059,17 @@ const APP = `<!DOCTYPE html>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#16102b"><link rel="manifest" href="manifest.json">
 <title>Gators GameTracker</title>
+<meta name="description" content="Live scores, schedule, and roster for the Lake Charles Gumbeaux Gators.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Gators GameTracker">
+<meta property="og:title" content="Gators GameTracker">
+<meta property="og:description" content="Live scores, schedule, and roster for the Lake Charles Gumbeaux Gators.">
+<meta property="og:url" content="${SITE_URL}/">
+<meta property="og:image" content="${SITE_URL}/gators-logo.jpg">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Gators GameTracker">
+<meta name="twitter:description" content="Live scores, schedule, and roster for the Lake Charles Gumbeaux Gators.">
+<meta name="twitter:image" content="${SITE_URL}/gators-logo.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@500;600;700&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
 <style>
