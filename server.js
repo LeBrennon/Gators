@@ -8,6 +8,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const cors = require('cors');
+const fs = require('fs');
 let webpush = null; try { webpush = require('web-push'); } catch (e) {}
 
 const PORT         = process.env.PORT || 8787;
@@ -614,8 +615,19 @@ let rosterStats = {};       // slug -> light { kind, hit, pit, hitRanks, pitRank
 const playerCache = {};     // slug -> full { ...light, glBat, glPit, ts } for profiles
 let rosterUpdated = 0;
 let rosterPolling = false;
-let rosterStartOffset = 0;  // rotates each cycle so the same tail isn't always last
 const isThrottle = s => s === 459 || s === 429 || s === 503 || s === 403;
+// Persist the scraped stats so a restart serves them instantly (no cold scrape)
+// and only refreshes in the background. Best-effort: a read-only FS just no-ops.
+const CACHE_FILE = (process.env.CACHE_DIR || '.') + '/roster-cache.json';
+function saveCache() {
+  try { fs.writeFileSync(CACHE_FILE, JSON.stringify({ rosterStats, playerCache, rosterUpdated })); } catch (e) {}
+}
+function loadCache() {
+  try {
+    const d = JSON.parse(fs.readFileSync(CACHE_FILE, 'utf8'));
+    if (d && d.rosterStats) { rosterStats = d.rosterStats; Object.assign(playerCache, d.playerCache || {}); rosterUpdated = d.rosterUpdated || 0; }
+  } catch (e) { /* no cache yet */ }
+}
 
 // One fetch of a player page -> { primary, status }. No internal retries; the
 // caller decides pacing so we don't hammer Presto into rate-limiting us.
@@ -682,7 +694,8 @@ async function pollRoster() {
       if (hit || pit) rosterStats[pl.slug] = { kind: pit ? 'pitching' : 'batting', hit, pit, hitRanks: {}, pitRanks: {} };
     }
     if (Object.keys(rosterStats).length && !rosterUpdated) rosterUpdated = Date.now();
-    let pass = 0, backoff = 0;
+    saveCache(); // persist the fast seed right away
+    let pass = 0;
     while (pass < 5) {
       // Players with no card stats first (so they appear ASAP), then ones that
       // have card stats but no full record yet (to cache game logs for profiles).
@@ -690,21 +703,25 @@ async function pollRoster() {
       const stale = ROSTER.filter(pl => !playerNeedsData(pl.slug) && !recHasData(playerCache[pl.slug]));
       const todo = missing.concat(stale);
       if (!todo.length) break;
-      // rotate the order so a throttle mid-pass doesn't always starve the same tail
-      const off = rosterStartOffset % todo.length;
-      const ordered = todo.slice(off).concat(todo.slice(0, off));
-      let throttled = false;
-      for (const pl of ordered) {
-        const pg = await fetchPlayerPage(pl.slug);
-        storePlayer(pl.slug, buildRecord(pl.slug, pg.primary, batMap, pitMap));
-        if (isThrottle(pg.status)) { throttled = true; backoff = Math.min(backoff ? backoff * 2 : 4000, 20000); await sleep(backoff); }
-        else { backoff = 0; await sleep(800); }
-      }
+      // Fetch player pages with limited concurrency so a full cold scrape lands
+      // in a few seconds, not ~30. Workers share the queue and flag throttling.
+      let i = 0, throttled = false;
+      const worker = async () => {
+        while (i < todo.length) {
+          const pl = todo[i++];
+          const pg = await fetchPlayerPage(pl.slug);
+          storePlayer(pl.slug, buildRecord(pl.slug, pg.primary, batMap, pitMap));
+          if (isThrottle(pg.status)) { throttled = true; await sleep(2500); }
+          else await sleep(120);
+        }
+      };
+      await Promise.all(Array.from({ length: 6 }, worker));
+      saveCache();
       pass++;
-      rosterStartOffset = (rosterStartOffset + 7) % ROSTER.length;
-      if (throttled) await sleep(6000); // breathe before re-attempting the stragglers
+      if (throttled) await sleep(5000); // breathe before re-attempting stragglers
     }
     rosterUpdated = Date.now();
+    saveCache();
   } catch (e) { /* keep previous */ }
   finally { rosterPolling = false; }
 }
@@ -1277,6 +1294,7 @@ app.get('/api/stream', (q, r) => {
 });
 
 if (require.main === module) {
+  loadCache(); // serve last-saved player stats instantly, then refresh below
   app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); pollRoster(); scheduleDailyRoster(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); pollPhotos(); setInterval(pollPhotos, 24 * 60 * 60 * 1000); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, extractEventAuth,
