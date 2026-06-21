@@ -548,8 +548,12 @@ function parseGameLog(tables) {
       const num = v => v && v !== '-' && v !== '';
       const date = bsText(c[0]), opp = bsText(c[1]), score = bsText(c[2]);
       if (isPit) {
-        const ip = get('ip'); if (!num(ip)) continue;
-        pit.push({ date, opp, score, ip, h: get('h'), r: get('r'), er: get('er'), bb: get('bb'), k: get('k'), era: get('era') });
+        const ip = get('ip'), h = get('h'), r = get('r'), er = get('er'), bb = get('bb'), k = get('k');
+        // Only games the pitcher actually appeared in: recorded outs, or faced
+        // batters (a hit/run/walk/strikeout). Skips listed-but-didn't-pitch rows.
+        const appeared = ipToOuts(ip) > 0 || [h, r, er, bb, k].some(v => NUM(v) > 0);
+        if (!appeared) continue;
+        pit.push({ date, opp, score, ip, h, r, er, bb, k, era: get('era') });
       } else {
         const pa = get('pa'), ab = get('ab');
         if (!num(pa) && !num(ab)) continue;
@@ -715,7 +719,7 @@ async function pollRoster() {
           else await sleep(120);
         }
       };
-      await Promise.all(Array.from({ length: 6 }, worker));
+      await Promise.all(Array.from({ length: 8 }, worker));
       saveCache();
       pass++;
       if (throttled) await sleep(5000); // breathe before re-attempting stragglers
@@ -1298,7 +1302,7 @@ if (require.main === module) {
   app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); pollRoster(); scheduleDailyRoster(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); pollPhotos(); setInterval(pollPhotos, 24 * 60 * 60 * 1000); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, extractEventAuth,
-  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats };
+  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseGameLog };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
@@ -1820,4 +1824,4 @@ $('plClose').addEventListener('click',function(){$('plModal').classList.remove('
 $('plModal').addEventListener('click',function(e){if(e.target===this)this.classList.remove('show');});
 $('bxClose').addEventListener('click',function(){$('bxModal').classList.remove('show');});
 $('bxModal').addEventListener('click',function(e){if(e.target===this)this.classList.remove('show');});
-connect();loadSched();resubscribe();</script></body></html>`;
+connect();loadSched();resubscribe();loadRoster();</script></body></html>`;
