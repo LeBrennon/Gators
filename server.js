@@ -609,16 +609,20 @@ let rosterStats = {};       // slug -> light { kind, hit, pit, hitRanks, pitRank
 const playerCache = {};     // slug -> full { ...light, glBat, glPit, ts } for profiles
 let rosterUpdated = 0;
 let rosterPolling = false;
+let rosterStartOffset = 0;  // rotates each cycle so the same tail isn't always last
+const isThrottle = s => s === 459 || s === 429 || s === 503 || s === 403;
 
-async function fetchPlayer(slug, batMap, pitMap) {
-  let primary = null;
-  for (let attempt = 0; attempt < 3 && !primary; attempt++) {
-    try {
-      const r = await fetchText(playerUrl(slug), SPORT_BASE + '/schedule');
-      if (r.ok && r.body && r.body.indexOf('Player Stats') !== -1) primary = parsePlayerPage(r.body);
-    } catch (e) {}
-    if (!primary) await sleep(800 + attempt * 700);
-  }
+// One fetch of a player page -> { primary, status }. No internal retries; the
+// caller decides pacing so we don't hammer Presto into rate-limiting us.
+async function fetchPlayerPage(slug) {
+  try {
+    const r = await fetchText(playerUrl(slug), SPORT_BASE + '/schedule');
+    if (r.ok && r.body && r.body.indexOf('Player Stats') !== -1) return { primary: parsePlayerPage(r.body), status: r.status };
+    return { primary: null, status: r.status || 0 };
+  } catch (e) { return { primary: null, status: 0 }; }
+}
+// Build the cache record from a parsed page (+ optional league hitter fallback).
+function buildRecord(slug, primary, batMap, pitMap) {
   const rec = { kind: null, hit: null, pit: null, hitRanks: {}, pitRanks: {}, glBat: [], glPit: [], ts: Date.now() };
   const pMap = (primary && primary.kind && Object.keys(primary.map).length) ? primary.map : null;
   if (pMap) { rec.kind = primary.kind; rec.glBat = primary.glBat || []; rec.glPit = primary.glPit || []; }
@@ -632,14 +636,27 @@ async function fetchPlayer(slug, batMap, pitMap) {
   else if (rec.glPit.length) rec.pit = aggPit(rec.glPit);
   return rec;
 }
+// On-demand fetch (taps + lazy-fill): a few gentle retries so a single open succeeds.
+async function fetchPlayer(slug, batMap, pitMap, tries) {
+  tries = tries || 3; let primary = null;
+  for (let a = 0; a < tries && !primary; a++) {
+    const pg = await fetchPlayerPage(slug);
+    if (pg.primary) { primary = pg.primary; break; }
+    if (a < tries - 1) await sleep(700 + a * 600);
+  }
+  return buildRecord(slug, primary, batMap, pitMap);
+}
+const recHasData = rec => !!(rec && (rec.hit || rec.pit || rec.glBat.length || rec.glPit.length));
 function storePlayer(slug, rec) {
   const had = playerCache[slug];
-  const hasData = rec.hit || rec.pit || rec.glBat.length || rec.glPit.length;
-  if (hasData || !had) {
+  if (recHasData(rec) || !had) {
     playerCache[slug] = rec;
     rosterStats[slug] = { kind: rec.kind, hit: rec.hit, pit: rec.pit, hitRanks: rec.hitRanks, pitRanks: rec.pitRanks };
   }
 }
+const playerNeedsData = slug => { const s = rosterStats[slug]; return !s || (s.hit == null && s.pit == null); };
+// Gentle, persistent fill: only chase players still missing stats, back off hard
+// when Presto throttles, and keep going across a few passes until everyone's in.
 async function pollRoster() {
   if (rosterPolling) return;
   rosterPolling = true;
@@ -649,9 +666,23 @@ async function pollRoster() {
       const [hRes, pRes] = await Promise.all([fetchText(leagueStatsUrl('h')), fetchText(leagueStatsUrl('p'))]);
       batMap = parseLeagueStats(hRes.body, 'h'); pitMap = parseLeagueStats(pRes.body, 'p');
     } catch (e) {}
-    for (const pl of ROSTER) {
-      storePlayer(pl.slug, await fetchPlayer(pl.slug, batMap, pitMap));
-      await sleep(500);
+    let pass = 0, backoff = 0;
+    while (pass < 5) {
+      const todo = ROSTER.filter(pl => playerNeedsData(pl.slug));
+      if (!todo.length) break;
+      // rotate the order so a throttle mid-pass doesn't always starve the same tail
+      const off = rosterStartOffset % todo.length;
+      const ordered = todo.slice(off).concat(todo.slice(0, off));
+      let throttled = false;
+      for (const pl of ordered) {
+        const pg = await fetchPlayerPage(pl.slug);
+        storePlayer(pl.slug, buildRecord(pl.slug, pg.primary, batMap, pitMap));
+        if (isThrottle(pg.status)) { throttled = true; backoff = Math.min(backoff ? backoff * 2 : 4000, 20000); await sleep(backoff); }
+        else { backoff = 0; await sleep(800); }
+      }
+      pass++;
+      rosterStartOffset = (rosterStartOffset + 7) % ROSTER.length;
+      if (throttled) await sleep(6000); // breathe before re-attempting the stragglers
     }
     rosterUpdated = Date.now();
   } catch (e) { /* keep previous */ }
@@ -659,7 +690,9 @@ async function pollRoster() {
 }
 async function getPlayer(slug) {
   const cached = playerCache[slug];
-  if (cached && Date.now() - cached.ts < 10 * 60 * 1000) return cached;
+  const fresh = cached && (Date.now() - cached.ts < 10 * 60 * 1000);
+  // Only serve cache if it actually holds stats — an empty (throttled) entry must refetch.
+  if (fresh && recHasData(cached)) return cached;
   storePlayer(slug, await fetchPlayer(slug, null, null));
   return playerCache[slug] || null;
 }
@@ -669,8 +702,9 @@ function rosterPayload() {
     const s = rosterStats[p.slug] || { kind: null, hit: null, pit: null, hitRanks: {}, pitRanks: {} };
     return Object.assign({}, p, s, { photo: playerPhotos[p.slug] || null });
   });
+  const complete = ROSTER.every(p => { const s = rosterStats[p.slug]; return s && (s.hit != null || s.pit != null); });
   return { players, updated: rosterUpdated, loading: Object.keys(rosterStats).length === 0,
-           settled: rosterUpdated > 0 && !rosterPolling };
+           settled: rosterUpdated > 0 && !rosterPolling, complete };
 }
 
 // ===== Game location label + TCL TV watch links + player headshots ==========
@@ -1065,7 +1099,7 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 <div class="toasts" id="toasts"></div>
 <div class="wrap">
 <div class="topbar"><div><div class="lead">Gators GameTracker</div><div class="sub">Texas Collegiate League</div></div>
-<div class="trail"><a class="shopbtn" id="shopBtn" href="https://gumbeauxgators.myshopify.com/" target="_blank" rel="noopener" title="Shop the Gators store">🛒 Shop</a><div class="chip" id="chip"><span class="dot"></span><span id="chiptx">Connecting</span></div></div></div>
+<div class="trail"><a class="shopbtn" id="shopBtn" href="https://gumbeauxgators.myshopify.com/collections/all" target="_blank" rel="noopener" title="Shop the Gators store">🛒 Gators Team Shop</a><div class="chip" id="chip"><span class="dot"></span><span id="chiptx">Connecting</span></div></div></div>
 <div class="nav"><button class="navb on" id="navScores">Scores</button><button class="navb" id="navRoster">Roster</button></div>
 <div id="viewScores">
 <div class="jumbo">
@@ -1226,6 +1260,27 @@ $('tabBox').addEventListener('click',function(){showTab('box');});
 $('tabPbp').addEventListener('click',function(){showTab('pbp');});
 // ---- roster + player profiles ----
 var rosterData=null,rosterReq=false,rosterPolls=0;
+var statCache={};            // slug -> {hit,pit,hitRanks,pitRanks}; survives refreshes
+var fillQueue=[],filling={},fillBusy=false;
+// Re-apply any stats we've already learned (server or lazy-fill) onto a fresh payload,
+// and absorb newly-arrived ones, so a refresh never blanks a card we'd filled.
+function mergeStats(list){
+  (list||[]).forEach(function(p){
+    var c=statCache[p.slug]||(statCache[p.slug]={});
+    if(p.hit){c.hit=p.hit;c.hitRanks=p.hitRanks;}
+    if(p.pit){c.pit=p.pit;c.pitRanks=p.pitRanks;}
+    if(c.hit&&!p.hit){p.hit=c.hit;p.hitRanks=c.hitRanks;}
+    if(c.pit&&!p.pit){p.pit=c.pit;p.pitRanks=c.pitRanks;}
+  });
+}
+function clientComplete(){return !!rosterData&&rosterData.every(function(p){return p.hit||p.pit;});}
+function setRmeta(d){
+  if(!rosterData)return;
+  var meta=rosterData.length+' players';
+  if(!clientComplete())meta+=' · loading stats…';
+  else if(d&&d.updated)meta+=' · stats updated '+agoTxt(d.updated);
+  var el=$('rmeta');if(el)el.textContent=meta;
+}
 function setView(v){
   $('viewScores').style.display=v==='roster'?'none':'';
   $('viewRoster').style.display=v==='roster'?'':'none';
@@ -1237,9 +1292,37 @@ function setView(v){
 function loadRoster(){
   if(rosterReq)return;rosterReq=true;
   fetch('/api/roster').then(function(r){return r.json();}).then(function(d){
-    rosterReq=false;rosterData=d.players||[];renderRoster(d);
-    if(!d.settled&&rosterPolls<40){rosterPolls++;setTimeout(function(){rosterData=null;loadRoster();},4000);}
+    rosterReq=false;rosterData=d.players||[];mergeStats(rosterData);renderRoster(d);
+    lazyFill();
+    if(!clientComplete()&&rosterPolls<60){rosterPolls++;setTimeout(function(){loadRoster();},4000);}
   }).catch(function(){rosterReq=false;$('rosterBody').innerHTML='<div class="spin">Could not load the roster. Tap Roster again to retry.</div>';});
+}
+// Safety net: individually pull any card still blank (same call a tap makes),
+// one at a time and gently, so the list finishes filling even if the poll lagged.
+function lazyFill(){
+  if(!rosterData)return;
+  rosterData.forEach(function(p){
+    if(!p.hit&&!p.pit&&!filling[p.slug]){filling[p.slug]=1;fillQueue.push(p.slug);}
+  });
+  if(!fillBusy)pumpFill();
+}
+function pumpFill(){
+  if(!fillQueue.length){fillBusy=false;return;}
+  fillBusy=true;var slug=fillQueue.shift();
+  fetch('/api/player?slug='+encodeURIComponent(slug)).then(function(r){return r.json();}).then(function(d){
+    if(!d||(!d.hit&&!d.pit))return;
+    var c=statCache[slug]||(statCache[slug]={});
+    if(d.hit){c.hit=d.hit;c.hitRanks=d.hitRanks||{};}
+    if(d.pit){c.pit=d.pit;c.pitRanks=d.pitRanks||{};}
+    var p=null;for(var i=0;i<rosterData.length;i++)if(rosterData[i].slug===slug)p=rosterData[i];
+    if(p){if(d.hit){p.hit=d.hit;p.hitRanks=d.hitRanks||p.hitRanks;}if(d.pit){p.pit=d.pit;p.pitRanks=d.pitRanks||p.pitRanks;}updateCardStats(p);setRmeta();}
+  }).catch(function(){}).then(function(){setTimeout(pumpFill,600);});
+}
+function updateCardStats(p){
+  var card=document.querySelector('.pcard[data-slug="'+p.slug+'"]');if(!card)return;
+  var st=card.querySelector('.pstat');if(!st)return;
+  var tmp=document.createElement('div');tmp.innerHTML=cardStats(p);
+  var neu=tmp.firstChild;if(neu)card.replaceChild(neu,st);
 }
 function agoTxt(ts){if(!ts)return '';var m=Math.round((Date.now()-ts)/60000);if(m<1)return 'just now';if(m<60)return m+'m ago';return Math.round(m/60)+'h ago';}
 function sline(o,keys){var out=[];for(var i=0;i<keys.length;i++){var k=keys[i][0],lab=keys[i][1];if(o&&o[k]!=null&&o[k]!==''&&o[k]!=='-')out.push('<span class="k">'+lab+'</span>'+o[k]);}return out.join('  ');}
@@ -1260,9 +1343,7 @@ function renderRoster(d){
        cardStats(p)+'<div class="pchev">›</div></div>';
   }
   $('rosterBody').innerHTML=h;
-  var meta=arr.length+' players';
-  if(d&&!d.settled)meta+=' · loading stats…';else if(d&&d.updated)meta+=' · stats updated '+agoTxt(d.updated);
-  $('rmeta').textContent=meta;
+  setRmeta(d);
   var cards=document.querySelectorAll('.pcard');
   for(var j=0;j<cards.length;j++)cards[j].addEventListener('click',function(){openPlayer(this.getAttribute('data-slug'));});
 }
