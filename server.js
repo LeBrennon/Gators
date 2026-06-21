@@ -1182,7 +1182,7 @@ html,body{margin:0;background:var(--bayou);}
 body{font-family:'Inter',system-ui,sans-serif;color:var(--bone);min-height:100vh;
 background:var(--bayou);-webkit-font-smoothing:antialiased;}
 .bgfx{position:fixed;inset:0;z-index:-1;background-color:var(--bayou);
-background:radial-gradient(1200px 600px at 50% -10%,rgba(111,79,212,.20),transparent 60%),radial-gradient(900px 500px at 80% 110%,rgba(79,49,145,.22),transparent 55%),linear-gradient(rgba(22,16,43,.50),rgba(22,16,43,.60)),url(${BG_PATH}) center center / cover no-repeat;}
+background:radial-gradient(1100px 550px at 50% -10%,rgba(111,79,212,.10),transparent 60%),linear-gradient(rgba(22,16,43,.12),rgba(22,16,43,.20)),url(${BG_PATH}) center center / cover no-repeat;}
 .wrap{max-width:520px;margin:0 auto;padding:0 14px 120px;}
 .topbar{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:10px;padding:14px 4px 12px;background:linear-gradient(180deg,var(--bayou) 70%,transparent);}
 .lead{font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:.06em;font-size:20px;text-transform:uppercase;background:linear-gradient(90deg,var(--gold2),var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent;}
