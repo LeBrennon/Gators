@@ -696,9 +696,16 @@ async function pollRoster() {
 // and cache boxes (shared across pitchers; a season is only ~20-30 games).
 const boxWalkCache = {};   // gameId -> { ts, map:{ nameKey -> bb } }
 const MON = { jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12 };
-// Order-independent name key so "Daniel Midkiff" matches a box's "Midkiff, Daniel".
-const nameKey = s => String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-  .replace(/[^a-z\s]/g,' ').trim().split(/\s+/).filter(t => t.length > 1).sort().join('');
+// Pitcher decision/credit tokens Presto appends to a box-score name cell.
+const PITCH_DECISION = new Set(['w','l','s','sv','bs','h','hld','hd','cg','sho','gs','nd']);
+// Order-independent name key. Strips trailing decision tokens (e.g. a box's
+// "John Munnerlyn SV") so it still matches the roster name "John Munnerlyn".
+const nameKey = s => {
+  let toks = String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z\s]/g,' ').trim().split(/\s+/).filter(Boolean);
+  while (toks.length > 2 && PITCH_DECISION.has(toks[toks.length - 1])) toks.pop();
+  return toks.filter(t => t.length > 1).sort().join('');
+};
 function glRowMD(s){ const m=String(s||'').match(/([A-Za-z]{3,})\.?\s+(\d{1,2})/); if(!m) return null;
   const mo=MON[m[1].slice(0,3).toLowerCase()]; return mo ? { mo, d:+m[2] } : null; }
 // nameKey -> BB from one box-score pitching table.
