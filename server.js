@@ -1068,8 +1068,38 @@ function recordStr(team) {
   if (!rec) return null;
   return rec.t > 0 ? (rec.w + '-' + rec.l + '-' + rec.t) : (rec.w + '-' + rec.l);
 }
+// ----- single-game tickets (Gators home games on TicketSpice) ----------------
+// Home-game ticket pages follow lake-charles-gumbeaux-gators-vs-<opp>-<M><DD><YY>
+// (e.g. ...-baton-rouge-rougarou-62726). A bad slug 301-redirects to the site
+// root, so we build candidates per upcoming home game and keep the one that
+// actually returns 200 — no dead "Tickets" buttons.
+const ticketSlugify = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+let ticketIndex = {};       // gameId -> verified ticket URL
+let ticketsCheckedAt = 0;
+function ticketCandidates(g) {
+  if (!g || !g.gatorsHome || (g.state !== 'scheduled' && g.state !== 'live')) return [];
+  if (!g.date || g.date.length !== 8 || !g.opponent || !g.opponent.name) return [];
+  const opp = ticketSlugify(g.opponent.name); if (!opp) return [];
+  const mo = String(parseInt(g.date.slice(4, 6), 10));
+  const dd = g.date.slice(6, 8), dNo = String(parseInt(dd, 10)), yy = g.date.slice(2, 4);
+  const base = 'https://gumbeauxgators.ticketspice.com/lake-charles-gumbeaux-gators-vs-' + opp + '-';
+  return [...new Set([base + mo + dd + yy, base + mo + dNo + yy])];
+}
+async function pollTickets() {
+  try {
+    for (const g of games) {
+      if (ticketIndex[g.id]) continue;
+      const cands = ticketCandidates(g); if (!cands.length) continue;
+      for (const url of cands) {
+        try { const r = await fetch(url, { headers: { 'user-agent': UA }, redirect: 'manual' }); if (r.status === 200) { ticketIndex[g.id] = url; break; } } catch (e) {}
+        await sleep(250);
+      }
+    }
+    ticketsCheckedAt = Date.now();
+  } catch (e) { /* keep previous */ }
+}
 // Attaches the derived display fields a game needs on the client.
-function decorateGame(g) { return Object.assign({}, g, { location: gameLocation(g), watchUrl: watchUrlFor(g), replayUrl: replayUrlFor(g) }); }
+function decorateGame(g) { return Object.assign({}, g, { location: gameLocation(g), watchUrl: watchUrlFor(g), replayUrl: replayUrlFor(g), ticketUrl: ticketIndex[g.id] || null }); }
 
 // ----- server ---------------------------------------------------------------
 const app = express();
@@ -1321,10 +1351,10 @@ app.get('/api/stream', (q, r) => {
 
 if (require.main === module) {
   loadCache(); // serve last-saved player stats instantly, then refresh below
-  app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); pollRoster(); scheduleDailyRoster(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); pollPhotos(); setInterval(pollPhotos, 24 * 60 * 60 * 1000); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); });
+  app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); pollRoster(); scheduleDailyRoster(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); pollPhotos(); setInterval(pollPhotos, 24 * 60 * 60 * 1000); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, extractEventAuth,
-  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseGameLog };
+  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseGameLog, ticketCandidates };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
@@ -1372,8 +1402,9 @@ background:radial-gradient(1100px 550px at 50% -10%,rgba(111,79,212,.10),transpa
 .lead{font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:.06em;font-size:20px;text-transform:uppercase;background:linear-gradient(90deg,var(--gold2),var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent;}
 .sub{font-size:9.5px;letter-spacing:.28em;color:var(--mute);text-transform:uppercase;font-weight:600;margin-top:3px;}
 .chip{margin-left:auto;display:flex;align-items:center;gap:7px;font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);background:rgba(242,183,5,.1);border:1px solid rgba(242,183,5,.3);padding:6px 10px;border-radius:999px;}
-.trail{margin-left:auto;display:flex;align-items:center;gap:8px;}
+.trail{justify-self:end;display:flex;flex-direction:column;align-items:stretch;gap:6px;}
 .trail .chip{margin-left:0;}
+.ticketbtn{display:flex;align-items:center;justify-content:center;gap:5px;font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:.05em;text-transform:uppercase;font-size:10.5px;color:#1a1330;background:linear-gradient(180deg,var(--gold2),var(--gold));border:1px solid var(--gold);padding:7px 12px;border-radius:16px;text-decoration:none;white-space:nowrap;}
 .shopbtn{display:flex;align-items:center;gap:6px;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:10.5px;color:var(--gold2);background:rgba(242,183,5,.1);border:1px solid rgba(242,183,5,.3);padding:7px 12px;border-radius:16px;text-decoration:none;white-space:nowrap;}
 .shopbtn .shoptxt{display:inline-block;line-height:1.1;text-align:center;}
 .chip.live{color:var(--gator);background:rgba(157,92,255,.1);border-color:rgba(157,92,255,.3);}
@@ -1406,6 +1437,8 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .watchmini{flex:none;display:flex;align-items:center;gap:5px;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.04em;font-size:10px;color:var(--gold2);border:1px solid rgba(242,183,5,.4);background:rgba(242,183,5,.1);border-radius:999px;padding:4px 10px;text-decoration:none;}
 .watchmini.replay{color:var(--gator);border-color:rgba(157,92,255,.45);background:rgba(157,92,255,.12);}
 .watchbtn.replay{color:var(--gator);border-color:rgba(157,92,255,.45);background:rgba(157,92,255,.13);}
+.watchmini.tickets{color:#1a1330;border-color:var(--gold);background:linear-gradient(180deg,var(--gold2),var(--gold));font-weight:700;}
+.watchbtn.ticket{color:#1a1330;border-color:var(--gold);background:linear-gradient(180deg,var(--gold2),var(--gold));}
 .sec{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.08em;font-size:13px;color:var(--mute);margin:22px 4px 10px;}
 .card{background:var(--bayou2);border:1px solid var(--line);border-radius:14px;padding:11px 13px;margin-bottom:8px;cursor:pointer;}
 .card.glive{border-color:rgba(157,92,255,.45);}
@@ -1510,7 +1543,7 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 <div class="bgfx"></div>
 <div class="toasts" id="toasts"></div>
 <div class="wrap">
-<div class="topbar"><img class="hdrlogo tcl" src="/tcl-logo.png" alt="Texas Collegiate League"><img class="gglogo" src="/gg-logo.jpg" alt="Lake Charles Gumbeaux Gators"><a class="shopbtn" id="shopBtn" href="https://gumbeauxgators.myshopify.com/collections/all" target="_blank" rel="noopener" title="Shop the Gators store">🛒<span class="shoptxt">Gators<br>Team<br>Store</span></a></div>
+<div class="topbar"><img class="hdrlogo tcl" src="/tcl-logo.png" alt="Texas Collegiate League"><img class="gglogo" src="/gg-logo.jpg" alt="Lake Charles Gumbeaux Gators"><div class="trail"><a class="ticketbtn" href="https://gumbeauxgators.com/tickets/" target="_blank" rel="noopener" title="Buy game tickets">🎟 Tickets</a><a class="shopbtn" id="shopBtn" href="https://gumbeauxgators.myshopify.com/collections/all" target="_blank" rel="noopener" title="Shop the Gators store">🛒<span class="shoptxt">Gators<br>Team<br>Store</span></a></div></div>
 <div class="nav"><button class="navb on" id="navScores">Scores</button><button class="navb" id="navRoster">Roster</button><button class="navb" id="navStandings">Standings</button></div>
 <div id="viewScores">
 <div class="jumbo">
@@ -1521,6 +1554,7 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 </div>
 <div class="jloc" id="jloc"></div>
 <a class="watchbtn" id="watchBtn" target="_blank" rel="noopener" style="display:none">▶ Watch on TCL TV</a>
+<a class="watchbtn ticket" id="ticketBtn" target="_blank" rel="noopener" style="display:none">🎟 Buy Tickets</a>
 <div class="note">Live score and inning, straight from the league feed. Tap <b>Get alerts</b> for a buzz at first pitch, every run, and the final.</div>
 </div>
 <div class="sec">Gators Schedule</div>
@@ -1572,6 +1606,8 @@ function renderGame(g){
     else if(g.state==='final'&&g.replayUrl){wb.href=g.replayUrl;wb.textContent='▶ Watch Full Replay';wb.classList.add('replay');wb.style.display='';}
     else{wb.style.display='none';}
   }
+  var tk=$('ticketBtn');
+  if(tk){if(g.ticketUrl){tk.href=g.ticketUrl;tk.style.display='';}else{tk.style.display='none';}}
   setChip(g.status);
 }
 function setChip(status){var c=$('chip'),t=$('chiptx');if(!c||!t)return;c.className='chip';
@@ -1594,6 +1630,7 @@ function renderSched(list){
       +row(g.away,g.away.id==='et1bt9sixrz5lnnl',aw)+row(g.home,g.home.id==='et1bt9sixrz5lnnl',hw)
       +'<div class="cfoot"><span class="cloc">'+esc(g.location||'')+'</span>'
       +(g.state==='final'&&g.replayUrl?('<a class="watchmini replay" href="'+esc(g.replayUrl)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">▶ Replay</a>'):'')
+      +(g.state==='scheduled'&&g.ticketUrl?('<a class="watchmini tickets" href="'+esc(g.ticketUrl)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">🎟 Tickets</a>'):'')
       +'</div></div>';
   });
   $('sched').innerHTML=h||'<div class="note">No Gators games found yet.</div>';
