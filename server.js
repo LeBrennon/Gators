@@ -289,7 +289,7 @@ function normalizeFeatured(g) {
 // ----- state ----------------------------------------------------------------
 let games = [], featured = null, prevFeatured = null, pinnedId = null;
 let lastHtml = '', lastFetchAt = 0;
-const sseClients = new Set(), subscribers = new Set();
+const sseClients = new Set(), subscribers = new Set(), startedAnnounced = new Set();
 
 function pick(list) {
   if (pinnedId) { const p = list.find(x => x.id === pinnedId); if (p) return p; }
@@ -306,7 +306,13 @@ function notify(title, body, tag) {
   subscribers.forEach(s => webpush.sendNotification(s, payload).catch(err => { if (err.statusCode === 404 || err.statusCode === 410) subscribers.delete(s); }));
 }
 function diffAlert(cur) {
-  if (!prevFeatured || prevFeatured.id !== cur.id || cur.status === 'pregame') return;
+  if (!prevFeatured || prevFeatured.id !== cur.id) return;
+  // Game start: fire once when this game flips from pregame to live.
+  if (cur.status === 'live' && prevFeatured.status === 'pregame' && !startedAnnounced.has(cur.id)) {
+    notify('Game starting \u26BE', 'Gators ' + (cur.gatorsHome ? 'vs ' : 'at ') + cur.opponent.short, 'start');
+    startedAnnounced.add(cur.id);
+  }
+  if (cur.status === 'pregame') return;
   const g = x => x.gatorsHome ? x.home.runs : x.away.runs, o = x => x.gatorsHome ? x.away.runs : x.home.runs;
   const sc = g(cur) + '\u2013' + o(cur), opp = cur.opponent.short;
   if (g(cur) > g(prevFeatured)) notify('Gators score! \uD83D\uDC0A', 'Gators ' + sc + ' ' + opp, 'run');
@@ -510,7 +516,7 @@ background:linear-gradient(180deg,rgba(91,42,134,.22),transparent 40%),linear-gr
 </div>
 <div class="mom"><div class="mh"><span id="mAwayL">Away</span><span>Win Momentum</span><span id="mHomeL">Home</span></div>
 <div class="mb"><div class="mfa" id="mfa" style="width:50%"></div><div class="mfh" id="mfh" style="width:50%"></div></div></div>
-<div class="note">Live score and inning, straight from the league feed. Tap <b>Get alerts</b> for a buzz on every run, lead change, and the final.</div>
+<div class="note">Live score and inning, straight from the league feed. Tap <b>Get alerts</b> for a buzz at first pitch, every run, and the final.</div>
 </div>
 <div class="sec">Gators Schedule</div>
 <div id="sched"></div>
@@ -567,7 +573,7 @@ function toast(e,t,s,cls){var el=document.createElement('div');el.className='toa
   requestAnimationFrame(function(){requestAnimationFrame(function(){el.classList.add('show');});});
   setTimeout(function(){el.classList.remove('show');setTimeout(function(){el.remove();},500);},4200);
   if(alertsOn&&'Notification'in window&&Notification.permission==='granted'){try{new Notification(t,{body:s});}catch(x){}}}
-function emo(tag){return tag==='lead'?'📣':tag==='final'?'🏁':tag==='run'?'🔥':'🐊';}
+function emo(tag){return tag==='lead'?'📣':tag==='final'?'🏁':tag==='run'?'🔥':tag==='start'?'⚾':'🐊';}
 function loadSched(){fetch('/api/schedule').then(function(r){return r.json();}).then(function(d){renderSched(d.games||[]);}).catch(function(){});}
 function connect(){var es;function open(){try{es=new EventSource('/api/stream');}catch(e){setChip('off');return setTimeout(open,4000);}
   es.onmessage=function(ev){var m=JSON.parse(ev.data);if(m.type==='game'){renderGame(m.game);loadSched();}else if(m.type==='alert')toast(emo(m.tag),m.title,m.body,m.tag==='lead'||m.tag==='final'?'lead':'');};
