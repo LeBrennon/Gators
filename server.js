@@ -183,6 +183,20 @@ function scanForAuth(html) {
   out.patterns.eParam = grab('[?&]e=[a-z0-9]{8,}');
   out.patterns.hParam = grab('[?&]h=[A-Za-z0-9_\\-]{8,}');
   out.patterns.dataAttrs = grab('data-[a-z]*(?:event|hash|game)[a-z]*\\s*=\\s*["\'][^"\']{6,}["\']');
+  // How the live widget actually loads: script srcs, iframes, inline setup code.
+  const scriptSrc = []; { let m; const r = /<script[^>]+src\s*=\s*["']([^"']+)["']/ig; while ((m = r.exec(s)) && scriptSrc.length < 40) scriptSrc.push(m[1]); }
+  out.scripts = scriptSrc;
+  const iframes = []; { let m; const r = /<iframe[^>]+src\s*=\s*["']([^"']+)["']/ig; while ((m = r.exec(s)) && iframes.length < 10) iframes.push(m[1]); }
+  out.iframes = iframes;
+  const inlineHits = []; {
+    let m; const r = /<script\b[^>]*>([\s\S]*?)<\/script>/ig;
+    const kw = /live|update|event|hash|poll|genId|widget|socket|statbroadcast|sidearm|\.json/i;
+    while ((m = r.exec(s)) && inlineHits.length < 10) {
+      const body = m[1]; const k = body.search(kw);
+      if (k >= 0) inlineHits.push(body.slice(Math.max(0, k - 60), k + 240).replace(/\s+/g, ' ').trim());
+    }
+  }
+  out.inlineHits = inlineHits;
   return out;
 }
 
