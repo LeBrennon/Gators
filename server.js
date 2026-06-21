@@ -837,16 +837,22 @@ function watchUrlFor(g) {
   const k = aw + '|' + hm + '|' + mmddyyyy(g.date || '');
   return watchIndex[k] || watchIndex['loose:' + aw + '|' + hm] || WATCH_FALLBACK;
 }
-// ----- finished-game replays (VODs from the Gators' TCL TV category) ---------
-// The league site (texascollegiateleague.live) is a Vewbie front end backed by
-// vms.api.vewbie.com. We pull the Gators' category VOD list and key each video
-// by game date + the opponent's distinctive token, keeping the longest clip per
-// game (the full broadcast, not a pre-game/rain-delay fragment). A finished game
-// is matched directly to its VOD by date + opponent. media_slug carries the
-// game's *local* date and times, e.g.
-//   Victoria-Generals-Brazos-Valley-Wed-Jul-30-2025-650-PM-to-831-PM
+// ----- finished-game replays (VODs from the league's Vewbie catalog) ---------
+// texascollegiateleague.live is a Vewbie front end backed by vms.api.vewbie.com.
+// We pull VODs from the Gators' own category (older seasons) AND the current
+// "<year>-season" league category (where current games land), then index each
+// Gators game by date + opponent, keeping the longest clip (the full broadcast,
+// not a pre-game/rain-delay fragment). media_slug carries the game's *local*
+// date and times, but the naming differs by season:
+//   2024/25 team names:  Acadiana-Cane-Cutters-Gumbeaux-Gators-Sat-Jul-12-2025-...
+//   2026+   city + "At": Acadiana-At-Lake-Charles-Wed-Jun-17-2026-...
+// So the Gators side is "gumbeaux" OR "lake-charles", and an opponent matches by
+// either its city or its team-name token. A finished game maps to its VOD by
+// date + opponent id, so the Replay button always opens the correct game.
 const REPLAY_SITE = 'https://texascollegiateleague.live';
-const REPLAY_API_URL = 'https://vms.api.vewbie.com/api/categories/lake-charles-gumbeaux-gators/videos?limit=200';
+const SEASON_YEAR = (SCHEDULE_URL.match(/\/(\d{4})\//) || [])[1] || '';
+const REPLAY_API_URLS = ['https://vms.api.vewbie.com/api/categories/lake-charles-gumbeaux-gators/videos?limit=300']
+  .concat(SEASON_YEAR ? ['https://vms.api.vewbie.com/api/categories/' + SEASON_YEAR + '-season/videos?limit=300'] : []);
 const REPLAY_TOKEN = {
   cz8qei0rxijys6nm: 'cane',       // Acadiana Cane Cutters
   z10kgms3gvy1eszs: 'rougarou',   // Baton Rouge Rougarou
@@ -857,7 +863,10 @@ const REPLAY_TOKEN = {
   jm9r4btii24hhtfp: 'generals',   // Victoria Generals
 };
 const RP_MONTHS = { jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06', jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12' };
-let replayIndex = {};       // 'YYYYMMDD|<oppToken>' -> { url, secs }
+const citySlugOf = id => (CITY[id] || '').toLowerCase().replace(/\s+/g, '-');
+// The strings that identify an opponent in a slug: its team-name token + city.
+const oppMarks = id => [REPLAY_TOKEN[id], citySlugOf(id)].filter(Boolean);
+let replayIndex = {};       // 'YYYYMMDD|<oppTeamId>' -> { url, secs }
 let replayLoadedAt = 0;
 function durationSecs(d) { // "01:41:30" -> seconds
   const m = String(d || '').match(/^(\d+):(\d{2}):(\d{2})$/);
@@ -874,13 +883,13 @@ function parseReplayList(data) {
     if (!dm) continue;
     const mon = RP_MONTHS[dm[1].toLowerCase()]; if (!mon) continue;
     const ymd = dm[3] + mon + ('0' + dm[2]).slice(-2);
+    const s = slug.toLowerCase();
+    if (s.indexOf('gumbeaux') === -1 && s.indexOf('lake-charles') === -1) continue; // Gators games only
     const secs = durationSecs(it.duration);
-    const teams = slug.toLowerCase();
     const url = REPLAY_SITE + '/video/' + slug;
     for (const id of Object.keys(REPLAY_TOKEN)) {
-      const tok = REPLAY_TOKEN[id];
-      if (teams.indexOf(tok) === -1) continue;
-      const k = ymd + '|' + tok;
+      if (!oppMarks(id).some(mk => s.indexOf(mk) !== -1)) continue;
+      const k = ymd + '|' + id;
       if (!idx[k] || secs > idx[k].secs) idx[k] = { url, secs };
     }
   }
@@ -888,10 +897,16 @@ function parseReplayList(data) {
 }
 async function pollReplays() {
   try {
-    const r = await fetchText(REPLAY_API_URL, REPLAY_SITE + '/');
-    if (!r.ok || !r.body) return;
-    let data = null; try { data = JSON.parse(r.body); } catch (e) { return; }
-    const idx = parseReplayList(data);
+    const all = [];
+    for (const u of REPLAY_API_URLS) {
+      const r = await fetchText(u, REPLAY_SITE + '/');
+      if (!r.ok || !r.body) continue;
+      let data = null; try { data = JSON.parse(r.body); } catch (e) { continue; }
+      const arr = Array.isArray(data) ? data : (data && data.categories_medias) || [];
+      all.push.apply(all, arr);
+    }
+    if (!all.length) return;
+    const idx = parseReplayList(all);
     if (Object.keys(idx).length) { replayIndex = idx; replayLoadedAt = Date.now(); }
   } catch (e) { /* keep previous index */ }
 }
@@ -901,9 +916,8 @@ async function pollReplays() {
 function replayUrlFor(g) {
   if (g.state !== 'final') return null;
   const oppId = g.away.id === GATORS_ID ? g.home.id : g.away.id;
-  const tok = REPLAY_TOKEN[oppId];
-  if (!tok || !g.date) return null;
-  const hit = replayIndex[g.date + '|' + tok];
+  if (!oppId || !g.date) return null;
+  const hit = replayIndex[g.date + '|' + oppId];
   return hit ? hit.url : null;
 }
 
