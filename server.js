@@ -399,6 +399,157 @@ async function pollSchedule() {
   } catch (err) { process.stdout.write('\r[poll error] ' + err.message + '        '); }
 }
 
+// ===== Roster + player season stats =========================================
+// Official gameday roster (TCL gameday sheet, updated 6/20). Bios are static;
+// season stats are pulled live from the league stats site and cached.
+const GATORS_SLUG = 'lakecharlesgumbeauxgators';
+const playerUrl = slug => SPORT_BASE + '/players/' + slug;
+const leagueStatsUrl = pos => SPORT_BASE + '/players?view=&r=0&pos=' + pos + '&sort=' + (pos === 'p' ? 'era' : 'avg');
+
+const ROSTER = [
+  { num: 2,  name: 'Jaxon Landreneau', slug: 'jaxonlandreneautqp8',  pos: 'Utility', cls: 'Junior',       ht: '5-10', wt: '190', b: 'R', t: 'R', bday: '10/20/2004', home: 'Lake Charles, LA', school: 'LSU-Eunice' },
+  { num: 4,  name: 'Jake Smith',       slug: 'jakesmith8yx5',        pos: 'IF',      cls: 'Junior',       ht: '5-10', wt: '170', b: 'R', t: 'R', bday: '',           home: 'Rosepine, LA',     school: 'LSU-Eunice' },
+  { num: 5,  name: 'Davis Duhon',      slug: 'davisduhons0vw',       pos: 'P',       cls: 'Junior',       ht: '6-0',  wt: '185', b: 'L', t: 'L', bday: '03/12/2005', home: 'Katy, TX',         school: 'Louisiana Christian' },
+  { num: 6,  name: 'Nathan McDonald',  slug: 'nathanmcdonaldftgl',   pos: 'Utility', cls: 'Senior',       ht: '6-0',  wt: '175', b: 'R', t: 'R', bday: '07/17/2004', home: 'McComb, MS',       school: 'Loyola-New Orleans' },
+  { num: 9,  name: 'James Reina',      slug: 'jamesreinaluai',       pos: 'IF',      cls: 'Junior',       ht: '5-9',  wt: '180', b: 'R', t: 'R', bday: '10/07/2004', home: 'Lake Charles, LA', school: 'Stephen F. Austin' },
+  { num: 11, name: 'Diego Corrales',   slug: 'diegocorrales91v5',    pos: 'P',       cls: 'Junior',       ht: '5-8',  wt: '185', b: 'L', t: 'L', bday: '08/01/2005', home: 'Lake Charles, LA', school: 'McNeese State' },
+  { num: 14, name: 'Brandon Levy',     slug: 'brandonlevyejo5',      pos: 'P',       cls: 'Junior',       ht: '5-10', wt: '180', b: 'R', t: 'R', bday: '05/25/2004', home: 'Bossier City, LA', school: 'New Orleans' },
+  { num: 16, name: 'Daniel Midkiff',   slug: 'danielmidkifffqkb',    pos: 'P',       cls: 'Sophomore',    ht: '6-2',  wt: '208', b: 'R', t: 'R', bday: '',           home: 'Buna, TX',         school: 'Lamar' },
+  { num: 17, name: 'Ayden Sunday',     slug: 'aydensundayyp1j',      pos: 'OF',      cls: 'Sophomore',    ht: '6-0',  wt: '185', b: 'R', t: 'R', bday: '',           home: 'Nederland, TX',    school: 'Lamar' },
+  { num: 18, name: 'Bryson Pierce',    slug: 'brysonpiercex3u3',     pos: 'Two-Way', cls: 'Sophomore',    ht: '6-2',  wt: '185', b: 'L', t: 'L', bday: '11/17/2005', home: 'Benton, LA',       school: 'Benton' },
+  { num: 19, name: 'Jack Garcille',    slug: 'jackgarcille9sq9',     pos: 'P',       cls: 'HS Senior',    ht: '6-6',  wt: '210', b: 'R', t: 'R', bday: '07/07/2008', home: 'Lake Charles, LA', school: 'McNeese State' },
+  { num: 20, name: 'Connor Walker',    slug: 'connorwalkerbj77',     pos: 'Utility', cls: 'Sophomore',    ht: '5-10', wt: '200', b: 'R', t: 'R', bday: '02/12/2007', home: 'Lake Charles, LA', school: 'McNeese State' },
+  { num: 21, name: 'Bankston Lembcke', slug: 'bankstonlembckeoxyb',  pos: 'IF',      cls: 'Junior',       ht: '5-11', wt: '205', b: 'R', t: 'R', bday: '11/14/2005', home: 'Klein, TX',        school: 'Bradley' },
+  { num: 22, name: 'Matthew McKinley', slug: 'matthewmckinleylgvq',  pos: 'Two-Way', cls: 'Sophomore',    ht: '5-11', wt: '205', b: 'L', t: 'L', bday: '12/14/2006', home: 'Brandon, MS',      school: 'Meridian CC' },
+  { num: 24, name: 'John Munnerlyn',   slug: 'johnmunnerlynzovp',    pos: 'P',       cls: 'Sophomore',    ht: '6-4',  wt: '205', b: 'R', t: 'R', bday: '11/20/2006', home: 'Loreauville, LA',  school: 'Bossier Parish CC' },
+  { num: 25, name: 'Reid Snider',      slug: 'reidsnidern8g1',       pos: 'Utility', cls: 'Junior',       ht: '6-4',  wt: '210', b: 'R', t: 'R', bday: '08/30/2004', home: 'Lake Charles, LA', school: 'Louisiana Tech' },
+  { num: 26, name: 'Chance Fouts',     slug: 'chancefouts0mpc',      pos: 'P',       cls: 'Sophomore',    ht: '6-0',  wt: '210', b: 'R', t: 'R', bday: '11/04/2005', home: 'Spring Branch, TX', school: 'Vernon College' },
+  { num: 27, name: 'Easton Culp',      slug: 'eastonculpilgr',       pos: 'C',       cls: 'Senior',       ht: '6-0',  wt: '200', b: 'R', t: 'R', bday: '07/20/2004', home: 'Salado, TX',       school: 'Lamar' },
+  { num: 28, name: 'Andrew Ramos',     slug: 'andrewramos4y33',      pos: 'Utility', cls: 'Sophomore',    ht: '5-10', wt: '',    b: 'R', t: 'R', bday: '',           home: 'Deer Park, TX',    school: 'San Jacinto CC' },
+  { num: 29, name: 'Sawyer Simmons',   slug: 'sawyersimmonss92p',    pos: 'P',       cls: 'Senior',       ht: '6-1',  wt: '193', b: 'R', t: 'L', bday: '03/30/2005', home: 'Bossier City, LA', school: 'Southeastern Louisiana' },
+  { num: 30, name: 'Kasen Bellard',    slug: 'kasenbellard59c8',     pos: 'OF',      cls: 'Junior',       ht: '6-0',  wt: '180', b: 'R', t: 'R', bday: '10/07/2005', home: 'Lake Charles, LA', school: 'Nicholls State' },
+  { num: 33, name: 'Asa Thompson',     slug: 'asathompsonz8vo',      pos: 'P',       cls: 'Junior',       ht: '6-5',  wt: '210', b: 'L', t: 'L', bday: '06/22/2006', home: 'San Antonio, TX',  school: 'Charleston Southern' },
+  { num: 35, name: 'Jeremiah Torres',  slug: 'jeremiahtorrescsuy',   pos: 'IF',      cls: 'Junior',       ht: '6-0',  wt: '210', b: 'R', t: 'R', bday: '05/10/2006', home: 'Klein, TX',        school: 'Southern Indiana' },
+  { num: 36, name: 'Jake Rider',       slug: 'jakeridergyu4',        pos: 'P',       cls: 'Junior',       ht: '6-4',  wt: '220', b: 'R', t: 'R', bday: '10/11/2005', home: 'Lake Charles, LA', school: 'Nunez CC' },
+  { num: 37, name: 'Landon Richards',  slug: 'landonrichards2fu3',   pos: 'P',       cls: 'Sophomore',    ht: '5-11', wt: '235', b: 'R', t: 'R', bday: '06/22/2007', home: 'Orange, TX',       school: 'Angelina College' },
+  { num: 40, name: 'Chris Melvin',     slug: 'chrismelvinnddm',      pos: 'P',       cls: 'R-Sophomore',  ht: '6-4',  wt: '220', b: 'L', t: 'R', bday: '09/12/2005', home: 'Waterloo, Ontario',school: 'Paris JC' },
+  { num: 41, name: 'Cole Flanagan',    slug: 'coleflanaganemnl',     pos: 'P',       cls: 'Freshman',     ht: '6-1',  wt: '230', b: 'L', t: 'L', bday: '',           home: 'Moss Bluff, LA',   school: 'Louisiana' },
+  { num: 42, name: 'Kale Cropper',     slug: 'kalecropperuden',      pos: 'P',       cls: 'Sophomore',    ht: '6-4',  wt: '210', b: 'R', t: 'R', bday: '08/25/2006', home: 'Port Neches, TX',  school: 'Hill College' },
+  { num: 45, name: 'Cannon Faulk',     slug: 'cannonfaulk0l9x',      pos: 'P',       cls: 'R-Sophomore',  ht: '6-4',  wt: '225', b: 'L', t: 'L', bday: '12/02/2005', home: 'Port Neches, TX',  school: 'Angelina College' },
+  { num: 50, name: 'Ty Dagley',        slug: 'tydagleywril',         pos: 'P',       cls: 'Junior',       ht: '5-11', wt: '175', b: 'L', t: 'L', bday: '',           home: 'Katy, TX',         school: 'Lamar' },
+];
+
+// ---- small HTML-table helpers (reuse bsText from box-score parser) ----------
+function rowsOf(table) { return table.match(/<tr\b[\s\S]*?<\/tr>/gi) || []; }
+function cellsOf(row) { return row.match(/<t[dh]\b[\s\S]*?<\/t[dh]>/gi) || []; }
+function firstLink(cell) {
+  const a = cell.match(/<a\b[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/i);
+  return a ? { href: a[1], text: bsText(a[2]) } : { href: '', text: bsText(cell) };
+}
+function slugFromHref(href) { const m = href.match(/\/players\/([a-z0-9_]+)/i); return m ? m[1] : ''; }
+function teamIdFromHref(href) { const m = href.match(/[?&]id=([a-z0-9]+)/i); return m ? m[1] : ''; }
+
+// "Player Stats" vertical table on a player page: label | Overall | rank.
+const STAT_KEYS = {
+  'games': 'gp', 'at bats': 'ab', 'runs': 'r', 'hits': 'h', 'doubles': '2b', 'triples': '3b',
+  'home runs': 'hr', 'runs batted in': 'rbi', 'total bases': 'tb', 'walks': 'bb', 'strikeouts': 'k',
+  'stolen bases': 'sb', 'caught stealing': 'cs', 'batting average': 'avg', 'on base percentage': 'obp',
+  'slugging percentage': 'slg', 'hit by pitch': 'hbp', 'plate appearances': 'pa',
+  'sacrifice flies': 'sf', 'sacrifice hits': 'sh',
+  'appearances': 'app', 'games started': 'gs', 'wins': 'w', 'losses': 'l', 'saves': 'sv',
+  'complete games': 'cg', 'shutouts': 'sho', 'innings pitched': 'ip', 'earned runs': 'er',
+  'strikeouts per game': 'k9', 'whip': 'whip', 'earned run average': 'era',
+  'batting average against': 'baa', 'home runs allows': 'hra', 'wild pitches': 'wp', 'hit batters': 'hb',
+};
+function parsePlayerPage(html) {
+  const nameM = html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i);
+  const name = nameM ? bsText(nameM[1]) : '';
+  const tables = html.match(/<table\b[\s\S]*?<\/table>/gi) || [];
+  let kind = null; const map = {};
+  for (const t of tables) {
+    const low = bsText(t).toLowerCase();
+    if (low.indexOf('overall') === -1) continue;
+    if (!kind) kind = (low.indexOf('earned run average') !== -1 || low.indexOf('innings pitched') !== -1) ? 'pitching' : 'batting';
+    for (const row of rowsOf(t)) {
+      const c = cellsOf(row); if (c.length < 2) continue;
+      const label = bsText(c[0]).toLowerCase().replace(/\s+/g, ' ').trim();
+      const key = STAT_KEYS[label]; if (!key) continue;
+      const v = bsText(c[1]); const r = c[2] ? bsText(c[2]) : '';
+      if (v === '' || v === '-') continue;
+      map[key] = { v: v, r: (r && r !== '-') ? r : '' };
+    }
+  }
+  return { name, kind, map };
+}
+function flatVals(map) { const o = {}; for (const k in map) o[k] = map[k].v; return o; }
+function flatRanks(map) { const o = {}; for (const k in map) if (map[k].r) o[k] = map[k].r; return o; }
+
+// League hitting/pitching leaderboard (wide table) -> { slug: {col: val} } for Gators only.
+function parseLeagueStats(html) {
+  const tables = html.match(/<table\b[\s\S]*?<\/table>/gi) || [];
+  let tbl = null;
+  for (const t of tables) {
+    const h = bsText(t).toLowerCase();
+    if (h.indexOf('team') !== -1 && (h.indexOf('avg') !== -1 || h.indexOf('era') !== -1)) { tbl = t; break; }
+  }
+  if (!tbl) return {};
+  const rows = rowsOf(tbl); if (rows.length < 2) return {};
+  const head = cellsOf(rows[0]).map(x => bsText(x).split(/\s+/)[0].toLowerCase());
+  const out = {};
+  for (let i = 1; i < rows.length; i++) {
+    const c = cellsOf(rows[i]); if (c.length < 4) continue;
+    const nameLink = firstLink(c[1]); const slug = slugFromHref(nameLink.href);
+    const teamLink = firstLink(c[2]); const teamId = teamIdFromHref(teamLink.href);
+    if (!slug || teamId !== GATORS_ID) continue;
+    const o = {};
+    for (let k = 3; k < c.length && k < head.length; k++) { const key = head[k]; if (key) o[key] = bsText(c[k]); }
+    out[slug] = o;
+  }
+  return out;
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+let rosterStats = {};       // slug -> { kind, hit, pit, hitRanks, pitRanks }
+let rosterUpdated = 0;
+let rosterPolling = false;
+
+async function pollRoster() {
+  if (rosterPolling) return;
+  rosterPolling = true;
+  try {
+    let batMap = {}, pitMap = {};
+    try {
+      const [hRes, pRes] = await Promise.all([fetchText(leagueStatsUrl('h')), fetchText(leagueStatsUrl('p'))]);
+      batMap = parseLeagueStats(hRes.body); pitMap = parseLeagueStats(pRes.body);
+    } catch (e) {}
+    const next = {};
+    for (const pl of ROSTER) {
+      let primary = null;
+      try { const r = await fetchText(playerUrl(pl.slug)); primary = parsePlayerPage(r.body); } catch (e) {}
+      const rec = { kind: null, hit: null, pit: null, hitRanks: {}, pitRanks: {} };
+      if (primary && primary.kind) {
+        rec.kind = primary.kind;
+        if (primary.kind === 'batting') { rec.hit = flatVals(primary.map); rec.hitRanks = flatRanks(primary.map); }
+        else { rec.pit = flatVals(primary.map); rec.pitRanks = flatRanks(primary.map); }
+      }
+      if (!rec.hit && batMap[pl.slug]) rec.hit = batMap[pl.slug];
+      if (!rec.pit && pitMap[pl.slug]) rec.pit = pitMap[pl.slug];
+      next[pl.slug] = rec;
+      await sleep(200);
+    }
+    rosterStats = next; rosterUpdated = Date.now();
+  } catch (e) { /* keep previous */ }
+  finally { rosterPolling = false; }
+}
+
+function rosterPayload() {
+  const players = ROSTER.map(p => {
+    const s = rosterStats[p.slug] || { kind: null, hit: null, pit: null, hitRanks: {}, pitRanks: {} };
+    return Object.assign({}, p, s);
+  });
+  return { players, updated: rosterUpdated, loading: Object.keys(rosterStats).length === 0 };
+}
+
 // ----- server ---------------------------------------------------------------
 const app = express();
 app.use(cors());
@@ -463,6 +614,21 @@ app.get('/api/boxscore', async (q, r) => {
   } catch (err) { r.status(500).json({ error: String(err && err.message || err) }); }
 });
 app.get('/api/schedule', (_q, r) => r.json({ games }));
+app.get('/api/roster', (_q, r) => { if (!rosterPolling && Object.keys(rosterStats).length === 0) pollRoster(); r.json(rosterPayload()); });
+app.get('/debug/roster', async (_q, r) => {
+  try {
+    const [hRes, pRes] = await Promise.all([fetchText(leagueStatsUrl('h')), fetchText(leagueStatsUrl('p'))]);
+    const batMap = parseLeagueStats(hRes.body), pitMap = parseLeagueStats(pRes.body);
+    const sample = await fetchText(playerUrl(ROSTER[19].slug)); // Kasen Bellard
+    const parsed = parsePlayerPage(sample.body);
+    r.json({
+      urls: { hit: leagueStatsUrl('h'), pit: leagueStatsUrl('p'), player: playerUrl(ROSTER[19].slug) },
+      leagueHitGators: Object.keys(batMap).length, leaguePitGators: Object.keys(pitMap).length,
+      hitSlugs: Object.keys(batMap), pitSlugs: Object.keys(pitMap),
+      samplePlayer: parsed, statsLoaded: Object.keys(rosterStats).length, rosterUpdated,
+    });
+  } catch (e) { r.status(502).json({ error: e.message }); }
+});
 app.post('/api/follow', (q, r) => { pinnedId = (q.body && q.body.id) || null; pollSchedule(); r.json({ ok: true, pinned: pinnedId }); });
 app.get('/api/vapidPublicKey', (_q, r) => r.json({ key: VAPID_PUB, enabled: pushReady }));
 app.post('/api/subscribe', (q, r) => { if (!pushReady) return r.status(501).json({ error: 'push off' }); subscribers.add(q.body); r.json({ ok: true }); });
@@ -479,7 +645,7 @@ app.get('/api/stream', (q, r) => {
 });
 
 if (require.main === module) {
-  app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); });
+  app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); pollRoster(); setInterval(pollRoster, 20 * 60 * 1000); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, extractEventAuth };
 
@@ -589,11 +755,44 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .pbp td{text-align:left;white-space:normal;font-size:12px;color:var(--bone);padding:6px 10px;border-top:1px solid var(--line);line-height:1.45;}
 .pbp td b{color:var(--gator);font-weight:700;}
 .spin{padding:34px 16px;text-align:center;color:var(--mute);font-size:13px;}
+.nav{display:flex;gap:8px;margin:2px 4px 12px;}
+.navb{flex:1;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.05em;font-size:12.5px;padding:11px;border-radius:12px;border:1px solid var(--line);color:var(--mute);background:var(--bayou2);cursor:pointer;}
+.navb.on{color:#fff;background:linear-gradient(180deg,var(--purple),var(--gator2));border-color:var(--purple);}
+.rmeta{font-size:10.5px;letter-spacing:.04em;color:var(--mute);margin:0 4px 12px;}
+.pcard{background:var(--bayou2);border:1px solid var(--line);border-radius:14px;padding:11px 13px;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;gap:12px;}
+.pnum{flex:none;width:40px;height:40px;border-radius:11px;background:linear-gradient(180deg,var(--panel),var(--bayou2));border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-weight:700;font-size:17px;color:var(--gator);}
+.pmain{flex:1;min-width:0;}
+.pname{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;font-size:14px;letter-spacing:.02em;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pmeta{font-size:10.5px;color:var(--mute);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pmeta b{color:var(--bone);font-weight:600;}
+.pstat{flex:none;text-align:right;display:flex;flex-direction:column;gap:3px;align-items:flex-end;}
+.pstline{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;color:var(--gold2);white-space:nowrap;}
+.pstline.pit{color:var(--gator);}
+.pstline .k{color:var(--mute);margin-right:3px;}
+.pchev{flex:none;color:var(--mute);font-size:18px;}
+.plimited{font-size:10.5px;color:var(--mute);font-style:italic;}
+.phead{display:flex;align-items:center;gap:13px;padding:16px 16px 8px;}
+.phnum{flex:none;width:48px;height:48px;border-radius:13px;background:linear-gradient(180deg,var(--panel),var(--bayou2));border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-weight:700;font-size:20px;color:var(--gator);}
+.phname{font-family:'Oswald',sans-serif;font-weight:700;text-transform:uppercase;font-size:17px;line-height:1.1;}
+.phsub{font-size:11px;color:var(--mute);margin-top:3px;}
+.bio{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;padding:8px 16px 6px;}
+.bio .bi{font-size:12px;color:var(--bone);}
+.bio .bi span{color:var(--mute);display:block;font-size:9px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:2px;}
+.statblock{margin:12px 14px 0;}
+.statblock h4{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;font-size:11px;letter-spacing:.1em;color:var(--gator);margin:0 0 9px;border-bottom:1px solid var(--line);padding-bottom:6px;}
+.statblock h4.bat{color:var(--gold2);}
+.sgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.scell{background:var(--bayou);border:1px solid var(--line);border-radius:11px;padding:9px 8px;text-align:center;}
+.scell .v{font-family:'Oswald',sans-serif;font-weight:700;font-size:18px;color:var(--bone);line-height:1;}
+.scell .l{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin-top:4px;}
+.scell .rk{font-size:8.5px;color:var(--gold);margin-top:2px;}
 </style></head><body>
 <div class="toasts" id="toasts"></div>
 <div class="wrap">
 <div class="topbar"><div><div class="lead">Gators GameTracker</div><div class="sub">Texas Collegiate League</div></div>
 <div class="chip" id="chip"><span class="dot"></span><span id="chiptx">Connecting</span></div></div>
+<div class="nav"><button class="navb on" id="navScores">Scores</button><button class="navb" id="navRoster">Roster</button></div>
+<div id="viewScores">
 <div class="jumbo">
 <div class="sl">
 <div class="tm" id="awayTm"><img id="awayLogo" alt=""><div class="nm" id="awayNm">—</div><div class="sc" id="awaySc">0</div></div>
@@ -607,11 +806,21 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 <div class="sec">Gators Schedule</div>
 <div id="sched"></div>
 </div>
-<div class="dock"><div class="in"><button class="abtn" id="abtn">🔔 Get alerts</button></div></div>
+<div id="viewRoster" style="display:none">
+<div class="sec">2026 Roster</div>
+<div class="rmeta" id="rmeta">Loading roster…</div>
+<div id="rosterBody"></div>
+</div>
+</div>
+<div class="dock" id="dock"><div class="in"><button class="abtn" id="abtn">🔔 Get alerts</button></div></div>
 <div class="modal" id="bxModal"><div class="sheet">
 <div class="shead"><span class="sttl" id="bxTtl">Box Score</span><span class="sscore" id="bxScore"></span><button class="sclose" id="bxClose" aria-label="Close">✕</button></div>
 <div class="tabs"><button class="tabb on" id="tabBox">Box Score</button><button class="tabb" id="tabPbp">Play-by-Play</button></div>
 <div class="sbody" id="bxBody"><div class="spin">Loading…</div></div>
+</div></div>
+<div class="modal" id="plModal"><div class="sheet">
+<div class="phead"><div class="phnum" id="plNum">0</div><div style="flex:1;min-width:0"><div class="phname" id="plName">Player</div><div class="phsub" id="plSub"></div></div><button class="sclose" id="plClose" aria-label="Close">✕</button></div>
+<div class="sbody" id="plBody" style="border-top:none;padding-top:0"><div class="spin">Loading…</div></div>
 </div></div>
 <script>
 var $=function(i){return document.getElementById(i);};
@@ -733,6 +942,70 @@ function showTab(which){$('tabBox').classList.toggle('on',which==='box');$('tabP
   $('bxBody').innerHTML=h;$('bxBody').scrollTop=0;}
 $('tabBox').addEventListener('click',function(){showTab('box');});
 $('tabPbp').addEventListener('click',function(){showTab('pbp');});
+// ---- roster + player profiles ----
+var rosterData=null,rosterReq=false;
+function setView(v){
+  $('viewScores').style.display=v==='roster'?'none':'';
+  $('viewRoster').style.display=v==='roster'?'':'none';
+  $('navScores').classList.toggle('on',v!=='roster');
+  $('navRoster').classList.toggle('on',v==='roster');
+  $('dock').style.display=v==='roster'?'none':'';
+  if(v==='roster'&&!rosterData)loadRoster();
+}
+function loadRoster(){
+  if(rosterReq)return;rosterReq=true;
+  fetch('/api/roster').then(function(r){return r.json();}).then(function(d){
+    rosterReq=false;rosterData=d.players||[];renderRoster(d);
+    if(d.loading)setTimeout(function(){rosterData=null;loadRoster();},6000);
+  }).catch(function(){rosterReq=false;$('rosterBody').innerHTML='<div class="spin">Could not load the roster. Tap Roster again to retry.</div>';});
+}
+function agoTxt(ts){if(!ts)return '';var m=Math.round((Date.now()-ts)/60000);if(m<1)return 'just now';if(m<60)return m+'m ago';return Math.round(m/60)+'h ago';}
+function sline(o,keys){var out=[];for(var i=0;i<keys.length;i++){var k=keys[i][0],lab=keys[i][1];if(o&&o[k]!=null&&o[k]!==''&&o[k]!=='-')out.push('<span class="k">'+lab+'</span>'+o[k]);}return out.join('  ');}
+function cardStats(p){
+  var bat=p.hit?('<div class="pstline">'+sline(p.hit,[['avg','AVG'],['hr','HR'],['rbi','RBI']])+'</div>'):'';
+  var pit=p.pit?('<div class="pstline pit">'+sline(p.pit,[['era','ERA'],['ip','IP'],['k','K']])+'</div>'):'';
+  if(!bat&&!pit)return '<div class="pstat"><span class="plimited">—</span></div>';
+  return '<div class="pstat">'+bat+pit+'</div>';
+}
+function renderRoster(d){
+  var arr=rosterData.slice().sort(function(a,b){return a.num-b.num;});
+  var h='';
+  for(var i=0;i<arr.length;i++){var p=arr[i];
+    h+='<div class="pcard" data-slug="'+p.slug+'">'+
+       '<div class="pnum">'+p.num+'</div>'+
+       '<div class="pmain"><div class="pname">'+esc(p.name)+'</div>'+
+       '<div class="pmeta"><b>'+esc(p.pos)+'</b> · '+esc(p.cls)+' · '+esc(p.home)+'</div></div>'+
+       cardStats(p)+'<div class="pchev">›</div></div>';
+  }
+  $('rosterBody').innerHTML=h;
+  var meta=arr.length+' players';
+  if(d&&d.loading)meta+=' · loading stats…';else if(d&&d.updated)meta+=' · stats updated '+agoTxt(d.updated);
+  $('rmeta').textContent=meta;
+  var cards=document.querySelectorAll('.pcard');
+  for(var j=0;j<cards.length;j++)cards[j].addEventListener('click',function(){openPlayer(this.getAttribute('data-slug'));});
+}
+function bi(label,val){return '<div class="bi"><span>'+label+'</span>'+esc(val)+'</div>';}
+function scell(o,rk,k,lab){if(!o||o[k]==null||o[k]===''||o[k]==='-')return '';var r=(rk&&rk[k])?'<div class="rk">'+esc(rk[k])+'</div>':'';return '<div class="scell"><div class="v">'+esc(o[k])+'</div><div class="l">'+lab+'</div>'+r+'</div>';}
+function sgrid(o,rk,defs){var c='';for(var i=0;i<defs.length;i++)c+=scell(o,rk,defs[i][0],defs[i][1]);return c?'<div class="sgrid">'+c+'</div>':'<div class="plimited" style="padding:2px">No qualifying stats yet.</div>';}
+function openPlayer(slug){
+  var p=null;for(var i=0;i<rosterData.length;i++)if(rosterData[i].slug===slug)p=rosterData[i];
+  if(!p)return;
+  $('plNum').textContent=p.num;$('plName').textContent=p.name;
+  $('plSub').textContent=p.pos+' · '+p.cls+' · '+p.school;
+  var bio='<div class="bio">'+bi('Bats / Throws',p.b+' / '+p.t)+
+    bi('Ht / Wt',(p.ht||'—')+(p.wt?(' · '+p.wt):''))+
+    bi('Hometown',p.home||'—')+bi('School',p.school||'—')+
+    (p.bday?bi('Birthday',p.bday):'')+'</div>';
+  var batBlock=p.hit?('<div class="statblock"><h4 class="bat">Hitting</h4>'+sgrid(p.hit,p.hitRanks,[['avg','AVG'],['obp','OBP'],['slg','SLG'],['gp','G'],['ab','AB'],['h','H'],['hr','HR'],['rbi','RBI'],['r','R'],['bb','BB'],['k','K'],['sb','SB']])+'</div>'):'';
+  var pitBlock=p.pit?('<div class="statblock"><h4>Pitching</h4>'+sgrid(p.pit,p.pitRanks,[['era','ERA'],['whip','WHIP'],['ip','IP'],['w','W'],['l','L'],['sv','SV'],['app','APP'],['gs','GS'],['k','K'],['bb','BB'],['h','H'],['er','ER']])+'</div>'):'';
+  var body=bio+batBlock+pitBlock;
+  if(!p.hit&&!p.pit)body=bio+'<div class="statblock"><div class="plimited" style="padding:2px">Season stats will appear here once this player records game action.</div></div>';
+  $('plBody').innerHTML=body;$('plModal').classList.add('show');
+}
+$('navScores').addEventListener('click',function(){setView('scores');});
+$('navRoster').addEventListener('click',function(){setView('roster');});
+$('plClose').addEventListener('click',function(){$('plModal').classList.remove('show');});
+$('plModal').addEventListener('click',function(e){if(e.target===this)this.classList.remove('show');});
 $('bxClose').addEventListener('click',function(){$('bxModal').classList.remove('show');});
 $('bxModal').addEventListener('click',function(e){if(e.target===this)this.classList.remove('show');});
 connect();loadSched();resubscribe();</script></body></html>`;
