@@ -847,7 +847,6 @@ function watchUrlFor(g) {
 //   Victoria-Generals-Brazos-Valley-Wed-Jul-30-2025-650-PM-to-831-PM
 const REPLAY_SITE = 'https://texascollegiateleague.live';
 const REPLAY_API_URL = 'https://vms.api.vewbie.com/api/categories/lake-charles-gumbeaux-gators/videos?limit=200';
-const REPLAY_FALLBACK = REPLAY_SITE + '/categories/lake-charles-gumbeaux-gators';
 const REPLAY_TOKEN = {
   cz8qei0rxijys6nm: 'cane',       // Acadiana Cane Cutters
   z10kgms3gvy1eszs: 'rougarou',   // Baton Rouge Rougarou
@@ -896,14 +895,16 @@ async function pollReplays() {
     if (Object.keys(idx).length) { replayIndex = idx; replayLoadedAt = Date.now(); }
   } catch (e) { /* keep previous index */ }
 }
-// Finished games only. The direct VOD when matched, else the Gators' replay hub.
+// Finished games only. Returns the direct VOD for *this* game, or null when we
+// don't have that exact game's replay yet — so the Replay button only ever
+// appears when it can open the correct game (never a misleading catalog/old VOD).
 function replayUrlFor(g) {
   if (g.state !== 'final') return null;
   const oppId = g.away.id === GATORS_ID ? g.home.id : g.away.id;
   const tok = REPLAY_TOKEN[oppId];
-  if (!tok || !g.date) return REPLAY_FALLBACK;
+  if (!tok || !g.date) return null;
   const hit = replayIndex[g.date + '|' + tok];
-  return hit ? hit.url : REPLAY_FALLBACK;
+  return hit ? hit.url : null;
 }
 
 // ---- Player headshots from the official team site ----
