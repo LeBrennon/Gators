@@ -85,18 +85,32 @@ function classify(text) {
 // box-score link. We take the LAST two teamId links in the chunk so nav/filter
 // links earlier on the page can't be mistaken for a matchup. Team identity and
 // names come from the link itself, so the known-team map is optional.
-const TEAM_LINK = /teamId=([a-z0-9]+)[^>]*>\s*([^<]+?)\s*<\/a>/gi;
+// Identify the two teams from the team-logo images that sit just before the
+// box-score link. IDs come from the logo URL (/logos/id/<id>.png) and names from
+// the image alt text ("<Name> team logo"), so we depend only on the logo markup,
+// not on how the name link is nested. We take the LAST two logos in the chunk so
+// header/nav logos can't be mistaken for a matchup. The known-team map is
+// optional — an unrecognized opponent still resolves from its alt text.
+const LOGO = /\/logos\/id\/([a-z0-9]+)\.png/gi;
+function altNameNear(chunk, idx) {
+  // Look at the <img ...> tag containing this logo and read its alt attribute.
+  const lt = chunk.lastIndexOf('<', idx);
+  const gt = chunk.indexOf('>', idx);
+  const tag = chunk.slice(lt < 0 ? 0 : lt, gt < 0 ? chunk.length : gt + 1);
+  const alt = tag.match(/alt\s*=\s*"([^"]*)"/i) || tag.match(/alt\s*=\s*'([^']*)'/i);
+  return alt ? alt[1].replace(/\s*team logo\s*$/i, '').replace(/\s+/g, ' ').trim() : '';
+}
 function teamsFromChunk(chunk) {
-  const links = []; let m; TEAM_LINK.lastIndex = 0;
-  while ((m = TEAM_LINK.exec(chunk)) !== null)
-    links.push({ id: m[1], name: m[2].replace(/\s+/g,' ').trim(), end: TEAM_LINK.lastIndex, start: m.index });
-  if (links.length < 2) return null;
-  const a = links[links.length - 2], h = links[links.length - 1];
-  const mk = (lnk, from, to) => ({
-    id: lnk.id, name: fullName(lnk.id, lnk.name), short: shortName(lnk.id, lnk.name),
-    logo: logo(lnk.id), score: scoreBetween(chunk, from, to),
+  const hits = []; let m; LOGO.lastIndex = 0;
+  while ((m = LOGO.exec(chunk)) !== null)
+    hits.push({ id: m[1], at: m.index, name: altNameNear(chunk, m.index) });
+  if (hits.length < 2) return null;
+  const a = hits[hits.length - 2], h = hits[hits.length - 1];
+  const mk = (t, from, to) => ({
+    id: t.id, name: fullName(t.id, t.name), short: shortName(t.id, t.name),
+    logo: logo(t.id), score: scoreBetween(chunk, from, to),
   });
-  return { away: mk(a, a.end, h.start), home: mk(h, h.end, null) };
+  return { away: mk(a, a.at, h.at), home: mk(h, h.at, null) };
 }
 
 function parseSchedule(html) {
@@ -137,6 +151,7 @@ function normalizeFeatured(g) {
 
 // ----- state ----------------------------------------------------------------
 let games = [], featured = null, prevFeatured = null, pinnedId = null;
+let lastHtml = '', lastFetchAt = 0;
 const sseClients = new Set(), subscribers = new Set();
 
 function pick(list) {
@@ -167,9 +182,16 @@ function diffAlert(cur) {
 }
 async function pollSchedule() {
   try {
-    const res = await fetch(SCHEDULE_URL, { headers: { 'cache-control': 'no-cache' } });
+    const res = await fetch(SCHEDULE_URL, { headers: {
+      'cache-control': 'no-cache',
+      'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+      'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'accept-language': 'en-US,en;q=0.9',
+    } });
     if (!res.ok) throw new Error('schedule HTTP ' + res.status);
-    const parsed = parseSchedule(await res.text());
+    const body = await res.text();
+    lastHtml = body; lastFetchAt = Date.now();
+    const parsed = parseSchedule(body);
     // Don't wipe a known-good schedule on a transient empty/garbled response.
     if (parsed.length) games = parsed;
     else if (!games.length) games = parsed;
@@ -194,6 +216,24 @@ app.get('/', (_q, r) => r.type('html').send(APP));
 app.get('/sw.js', (_q, r) => r.type('application/javascript').send(SW));
 app.get('/manifest.json', (_q, r) => r.type('application/json').send(MANIFEST));
 app.get('/health', (_q, r) => r.json({ ok: true, games: games.length, featured: featured && featured.id, push: pushReady }));
+app.get('/debug', (_q, r) => {
+  const html = lastHtml || '';
+  const boxLinks = (html.match(/\/sports\/bsb\/\d{4}\/boxscores\/\d{8}_[a-z0-9]+\.xml/gi) || []).length;
+  const logoIds = (html.match(/\/logos\/id\/[a-z0-9]+\.png/gi) || []).length;
+  const hasGatorsLogo = html.indexOf(GATORS_ID) !== -1;
+  r.json({
+    scheduleUrl: SCHEDULE_URL,
+    fetchedAgoSec: lastFetchAt ? Math.round((Date.now() - lastFetchAt) / 1000) : null,
+    htmlLength: html.length,
+    boxscoreLinksFound: boxLinks,
+    teamLogosFound: logoIds,
+    gatorsLogoPresent: hasGatorsLogo,
+    gamesParsed: games.length,
+    sample: games.slice(0, 3).map(g => ({ id: g.id, state: g.state, status: g.status,
+      away: g.away.short + ' ' + g.away.score, home: g.home.short + ' ' + g.home.score })),
+    htmlHead: html.slice(0, 500),
+  });
+});
 app.get('/api/game', (_q, r) => featured ? r.json(featured) : r.status(503).json({ status: 'waiting' }));
 app.get('/api/schedule', (_q, r) => r.json({ games }));
 app.post('/api/follow', (q, r) => { pinnedId = (q.body && q.body.id) || null; pollSchedule(); r.json({ ok: true, pinned: pinnedId }); });
