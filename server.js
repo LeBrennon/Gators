@@ -38,23 +38,67 @@ function dateFromId(yyyymmdd) {
   const dt = new Date(Date.UTC(y, m-1, d, 12));
   return { iso: y+'-'+yyyymmdd.slice(4,6)+'-'+yyyymmdd.slice(6,8), label: DOW[dt.getUTCDay()]+' '+m+'/'+d, sortKey: +yyyymmdd };
 }
-function classify(chunk) {
-  if (/Cancelled/i.test(chunk)) return { state: 'cancelled', status: 'Cancelled' };
-  if (/Final/i.test(chunk)) { const ex = chunk.match(/Final[^<]*?(\d+\s*innings|Weather Delay)/i); return { state: 'final', status: ex ? 'Final · ' + ex[1] : 'Final' }; }
-  const live = chunk.match(/(Top|Bottom|Mid|End)\s+of\s+(\w+)/i) || chunk.match(/(Top|Bottom|Mid|End)\s+(\d+\w*)/i);
-  if (live) return { state: 'live', status: live[1] + ' of ' + live[2] };
-  const t = chunk.match(/(\d{1,2}:\d{2}\s*[AP]M(?:\s*[A-Z]{2,4})?)/i);
-  if (t) return { state: 'scheduled', status: t[1].trim() };
+// ----- helpers --------------------------------------------------------------
+function ordinal(n){ const s=['th','st','nd','rd'], v=n%100; return n + (s[(v-20)%10] || s[v] || s[0]); }
+function cap(w){ return w ? w.charAt(0).toUpperCase()+w.slice(1).toLowerCase() : w; }
+// Names/short labels prefer the known-team map, but fall back to the scraped
+// link text so an unrecognized opponent never blanks out a game.
+function fullName(id, name){ return (TEAMS[id] && TEAMS[id].name) || String(name||'').trim() || 'TBD'; }
+function shortName(id, name){
+  if (TEAMS[id]) return TEAMS[id].short;
+  const p = String(name||'').trim().split(/\s+/);
+  return p.length > 2 ? p.slice(-2).join(' ') : (p[p.length-1] || 'TBD');
+}
+// First numeric-only tag (a plausible run total, 0..50) in s[from..to).
+function scoreBetween(s, from, to){
+  const re = />\s*(\d{1,3})\s*</g; re.lastIndex = Math.max(0, from|0);
+  let m;
+  while ((m = re.exec(s)) !== null){
+    if (to != null && m.index >= to) break;
+    const n = +m[1];
+    if (n >= 0 && n <= 50) return n;
+  }
+  return null;
+}
+
+function classify(text) {
+  if (/Postponed/i.test(text))  return { state: 'postponed', status: 'Postponed' };
+  if (/Suspended/i.test(text))  return { state: 'suspended', status: 'Suspended' };
+  if (/Cancell?ed/i.test(text)) return { state: 'cancelled', status: 'Cancelled' };
+  if (/Forfeit/i.test(text))    return { state: 'final',     status: 'Forfeit' };
+  if (/\bFinal\b/i.test(text)) {
+    const ex = text.match(/Final[^<0-9]*?(\d+)\s*innings?/i);
+    return { state: 'final', status: ex ? 'Final/' + ex[1] : 'Final' };
+  }
+  const live = text.match(/\b(Top|Bottom|Mid(?:dle)?|End)\b\s*(?:of\s*)?(\d{1,2})(?:st|nd|rd|th)?\b/i);
+  if (live) {
+    const half = /^mid/i.test(live[1]) ? 'Mid' : cap(live[1]);
+    return { state: 'live', status: half + ' of ' + ordinal(+live[2]) };
+  }
+  if (/\bDelay(ed)?\b/i.test(text)) return { state: 'live', status: 'Delay' };
+  const t = text.match(/(\d{1,2}:\d{2}\s*[AP]M(?:\s*[A-Z]{2,4})?)/i);
+  if (t) return { state: 'scheduled', status: t[1].replace(/\s+/g,' ').trim() };
   return { state: 'scheduled', status: 'Scheduled' };
 }
+
+// Identify the two teams from the team-name links that sit just before the
+// box-score link. We take the LAST two teamId links in the chunk so nav/filter
+// links earlier on the page can't be mistaken for a matchup. Team identity and
+// names come from the link itself, so the known-team map is optional.
+const TEAM_LINK = /teamId=([a-z0-9]+)[^>]*>\s*([^<]+?)\s*<\/a>/gi;
 function teamsFromChunk(chunk) {
-  const ids = [...chunk.matchAll(/\/logos\/id\/([a-z0-9]+)\.png/gi)].map(m => m[1]).filter(id => TEAMS[id]);
-  if (ids.length < 2) return null;
-  const score = afterId => { const i = chunk.indexOf(afterId); if (i < 0) return null; const tail = chunk.slice(i + afterId.length, i + afterId.length + 400); const m = tail.match(/>\s*(\d{1,2})\s*</); return m ? +m[1] : null; };
-  const a = ids[0], h = ids[1];
-  return { away: { id: a, ...TEAMS[a], logo: logo(a), score: score('/logos/id/'+a+'.png') },
-           home: { id: h, ...TEAMS[h], logo: logo(h), score: score('/logos/id/'+h+'.png') } };
+  const links = []; let m; TEAM_LINK.lastIndex = 0;
+  while ((m = TEAM_LINK.exec(chunk)) !== null)
+    links.push({ id: m[1], name: m[2].replace(/\s+/g,' ').trim(), end: TEAM_LINK.lastIndex, start: m.index });
+  if (links.length < 2) return null;
+  const a = links[links.length - 2], h = links[links.length - 1];
+  const mk = (lnk, from, to) => ({
+    id: lnk.id, name: fullName(lnk.id, lnk.name), short: shortName(lnk.id, lnk.name),
+    logo: logo(lnk.id), score: scoreBetween(chunk, from, to),
+  });
+  return { away: mk(a, a.end, h.start), home: mk(h, h.end, null) };
 }
+
 function parseSchedule(html) {
   const re = /\/sports\/bsb\/\d{4}\/boxscores\/(\d{8})_([a-z0-9]+)\.xml/gi;
   const links = []; let m;
@@ -125,7 +169,11 @@ async function pollSchedule() {
   try {
     const res = await fetch(SCHEDULE_URL, { headers: { 'cache-control': 'no-cache' } });
     if (!res.ok) throw new Error('schedule HTTP ' + res.status);
-    games = parseSchedule(await res.text());
+    const parsed = parseSchedule(await res.text());
+    // Don't wipe a known-good schedule on a transient empty/garbled response.
+    if (parsed.length) games = parsed;
+    else if (!games.length) games = parsed;
+    else process.stdout.write('\r[poll] kept ' + games.length + ' cached games (empty parse)        ');
     const chosen = pick(games);
     if (chosen) {
       const norm = normalizeFeatured(chosen);
@@ -157,7 +205,10 @@ app.get('/api/stream', (q, r) => {
   sseClients.add(r); q.on('close', () => sseClients.delete(r));
 });
 
-app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); });
+if (require.main === module) {
+  app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); });
+}
+module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
