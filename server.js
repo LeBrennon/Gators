@@ -414,6 +414,15 @@ async function pollSchedule() {
     const chosen = pick(games);
     if (chosen) {
       const norm = normalizeFeatured(chosen);
+      // For a live game, pull the league's live feed for the at-bat situation
+      // (count/outs/bases/batter/pitcher) and the R/H/E line score.
+      if (norm.status === 'live') {
+        try {
+          const lf = await fetchLiveForGame(chosen.id);
+          if (lf && lf.live) norm.live = lf.live;
+          if (lf && lf.teams && lf.teams.length) norm.lineScore = lf.teams;
+        } catch (e) { /* keep score-only view if the feed is unavailable */ }
+      }
       prevFeatured = featured; featured = norm;
       diffAlert(norm);
       broadcast({ type: 'game', game: norm });
@@ -1431,6 +1440,25 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .note{margin-top:14px;font-size:11.5px;line-height:1.6;color:var(--mute);background:var(--bayou2);border:1px solid var(--line);border-radius:14px;padding:13px 15px;}
 .note b{color:var(--bone);font-weight:600;}
 .jloc{margin-top:13px;text-align:center;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:11px;color:var(--mute);}
+.live{margin-top:14px;padding-top:14px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:13px;}
+.lsit{display:flex;align-items:center;justify-content:center;gap:26px;}
+.lcell{text-align:center;min-width:46px;}
+.lcell .lv{font-family:'Oswald',sans-serif;font-weight:700;font-size:21px;color:var(--bone);line-height:1;display:flex;gap:6px;justify-content:center;align-items:center;min-height:21px;}
+.lcell .ll{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin-top:6px;}
+.diamond{width:58px;height:50px;flex:none;}
+.odot{display:inline-block;width:11px;height:11px;border-radius:50%;border:1.5px solid var(--mute);}
+.odot.on{background:var(--gold);border-color:var(--gold);}
+.lbp{display:flex;flex-direction:column;gap:7px;}
+.bprow{display:flex;align-items:center;gap:10px;font-size:12.5px;}
+.bpk{font-family:'Oswald',sans-serif;font-weight:600;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold2);min-width:84px;}
+.bpn{color:var(--bone);font-weight:600;min-width:0;}
+.lstbl{width:100%;border-collapse:collapse;font-family:'JetBrains Mono',monospace;font-size:12.5px;}
+.lstbl th{color:var(--mute);font-size:9px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;padding:4px 10px;}
+.lstbl td{padding:6px 10px;text-align:center;color:var(--bone);border-top:1px solid var(--line);}
+.lstbl td.lsn{text-align:left;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.02em;}
+.lstbl th.lsn{text-align:left;}
+.lstbl tr.g td{color:var(--gator);}
+.lstbl tr.g td.lsn{color:var(--gator);font-weight:700;}
 .watchbtn{margin-top:12px;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;font-family:'Oswald',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:13px;border-radius:14px;padding:13px;border:1px solid rgba(242,183,5,.45);background:rgba(242,183,5,.13);color:var(--gold2);text-decoration:none;}
 .cfoot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line);}
 .cloc{font-family:'Oswald',sans-serif;font-weight:600;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -1548,6 +1576,7 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 <div class="mid"><div class="statpill" id="statpill">—</div><div class="vs" id="vs">vs</div></div>
 <div class="tm" id="homeTm"><img id="homeLogo" alt=""><div class="nm" id="homeNm">—</div><div class="rec" id="homeRec"></div><div class="sc" id="homeSc">0</div></div>
 </div>
+<div class="live" id="livePanel" style="display:none"></div>
 <div class="jloc" id="jloc"></div>
 <a class="watchbtn" id="watchBtn" target="_blank" rel="noopener" style="display:none">▶ Watch on TCL TV</a>
 <a class="watchbtn ticket" id="ticketBtn" target="_blank" rel="noopener" style="display:none">🎟 Buy Tickets</a>
@@ -1603,7 +1632,40 @@ function renderGame(g){
   }
   var tk=$('ticketBtn');
   if(tk){if(g.ticketUrl){tk.href=g.ticketUrl;tk.style.display='';}else{tk.style.display='none';}}
+  var lp=$('livePanel');
+  if(lp){var lh=buildLive(g);lp.innerHTML=lh;lp.style.display=lh?'':'none';}
   setChip(g.status);
+}
+function baseDiamond(b){
+  b=b||{};
+  var on='var(--gold)',off='rgba(255,255,255,.12)',st='var(--line)';
+  function sq(cx,cy,fl){return '<rect x="'+(cx-7)+'" y="'+(cy-7)+'" width="14" height="14" rx="2" transform="rotate(45 '+cx+' '+cy+')" fill="'+fl+'" stroke="'+st+'" stroke-width="1.5"/>';}
+  return '<svg class="diamond" viewBox="0 0 58 50">'+
+    sq(29,15,b.second?on:off)+sq(43,29,b.first?on:off)+sq(15,29,b.third?on:off)+'</svg>';
+}
+function outsDots(n){n=n||0;var h='';for(var i=0;i<3;i++)h+='<span class="odot'+(i<n?' on':'')+'"></span>';return h;}
+function buildLive(g){
+  var L=g.live;if(!(g.status==='live'&&L))return '';
+  var count=L.count||((L.balls||0)+'-'+(L.strikes||0));
+  var sit='<div class="lsit">'+
+    '<div class="lcell"><div class="lv">'+esc(count)+'</div><div class="ll">Count</div></div>'+
+    baseDiamond(L.bases)+
+    '<div class="lcell"><div class="lv">'+outsDots(L.outs)+'</div><div class="ll">'+((L.outs||0)===1?'Out':'Outs')+'</div></div>'+
+    '</div>';
+  var bp='';
+  if(L.pitcher)bp+='<div class="bprow"><span class="bpk">⚾ Pitching</span><span class="bpn">'+esc(L.pitcher)+'</span></div>';
+  if(L.batter)bp+='<div class="bprow"><span class="bpk">🏏 At bat</span><span class="bpn">'+esc(L.batter)+'</span></div>';
+  var line='';
+  if(g.lineScore&&g.lineScore.length){
+    line='<table class="lstbl"><tr><th class="lsn"></th><th>R</th><th>H</th><th>E</th></tr>';
+    g.lineScore.forEach(function(t){
+      var nm=t.vh==='H'?g.home.short:g.away.short;
+      function c(v){return (v==null||v==='')?'·':v;}
+      line+='<tr'+(t.isGators?' class="g"':'')+'><td class="lsn">'+esc(nm)+'</td><td>'+c(t.runs)+'</td><td>'+c(t.hits)+'</td><td>'+c(t.errs)+'</td></tr>';
+    });
+    line+='</table>';
+  }
+  return sit+(bp?'<div class="lbp">'+bp+'</div>':'')+line;
 }
 function setChip(status){var c=$('chip'),t=$('chiptx');if(!c||!t)return;c.className='chip';
   if(status==='live'){c.classList.add('live');t.textContent='Live';}
