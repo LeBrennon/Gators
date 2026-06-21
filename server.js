@@ -837,13 +837,17 @@ function watchUrlFor(g) {
   const k = aw + '|' + hm + '|' + mmddyyyy(g.date || '');
   return watchIndex[k] || watchIndex['loose:' + aw + '|' + hm] || WATCH_FALLBACK;
 }
-// ----- finished-game replays (VODs on the Gators' TCL TV category page) ------
-// Replays live at /video/<teams>-<Day>-<Mon>-<DD>-<YYYY>-<start>-to-<end>. We
-// scrape the Gators category page and key each VOD by game date + the opponent's
-// distinctive token, keeping the longest clip per game (the full broadcast, not
-// a pre-game segment). Matched directly to a finished game by date + opponent.
-const REPLAY_LIST_URL = 'https://tcl-tv.vewbie.com/categories/lake-charles-gumbeaux-gators';
-const REPLAY_FALLBACK = WATCH_FALLBACK;
+// ----- finished-game replays (VODs from the Gators' TCL TV category) ---------
+// The league site (texascollegiateleague.live) is a Vewbie front end backed by
+// vms.api.vewbie.com. We pull the Gators' category VOD list and key each video
+// by game date + the opponent's distinctive token, keeping the longest clip per
+// game (the full broadcast, not a pre-game/rain-delay fragment). A finished game
+// is matched directly to its VOD by date + opponent. media_slug carries the
+// game's *local* date and times, e.g.
+//   Victoria-Generals-Brazos-Valley-Wed-Jul-30-2025-650-PM-to-831-PM
+const REPLAY_SITE = 'https://texascollegiateleague.live';
+const REPLAY_API_URL = 'https://vms.api.vewbie.com/api/categories/lake-charles-gumbeaux-gators/videos?limit=200';
+const REPLAY_FALLBACK = REPLAY_SITE + '/categories/lake-charles-gumbeaux-gators';
 const REPLAY_TOKEN = {
   cz8qei0rxijys6nm: 'cane',       // Acadiana Cane Cutters
   z10kgms3gvy1eszs: 'rougarou',   // Baton Rouge Rougarou
@@ -854,41 +858,41 @@ const REPLAY_TOKEN = {
   jm9r4btii24hhtfp: 'generals',   // Victoria Generals
 };
 const RP_MONTHS = { jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06', jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12' };
-let replayIndex = {};       // 'YYYYMMDD|<oppToken>' -> { url, mins }
+let replayIndex = {};       // 'YYYYMMDD|<oppToken>' -> { url, secs }
 let replayLoadedAt = 0;
-function vewbieMins(t) { // "722-PM" -> minutes since midnight
-  const m = t.match(/^(\d{1,2})(\d{2})-(AM|PM)$/i); if (!m) return null;
-  let h = parseInt(m[1], 10); const min = parseInt(m[2], 10); const ap = m[3].toUpperCase();
-  if (ap === 'PM' && h !== 12) h += 12; if (ap === 'AM' && h === 12) h = 0;
-  return h * 60 + min;
+function durationSecs(d) { // "01:41:30" -> seconds
+  const m = String(d || '').match(/^(\d+):(\d{2}):(\d{2})$/);
+  return m ? (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]) : 0;
 }
-function parseReplayList(html) {
-  const idx = {}, seen = {};
-  const re = /\/video\/([A-Za-z0-9\-]+)/g; let m;
-  while ((m = re.exec(html)) !== null) {
-    const slug = m[1]; if (seen[slug]) continue; seen[slug] = 1;
-    const dm = slug.match(/-([A-Za-z]{3})-(\d{1,2})-(\d{4})-(\d{3,4}-(?:AM|PM))-to-(\d{3,4}-(?:AM|PM))$/i);
+// Accepts the API payload ({ categories_medias: [...] }) or a bare media array.
+function parseReplayList(data) {
+  const medias = Array.isArray(data) ? data : (data && data.categories_medias) || [];
+  const idx = {};
+  for (const it of medias) {
+    if (!it || it.is_live || /live/i.test(it.type || '')) continue;
+    const slug = it.media_slug; if (!slug) continue;
+    const dm = slug.match(/-([A-Za-z]{3})-(\d{1,2})-(\d{4})-/); // -Mon-DD-YYYY-
     if (!dm) continue;
     const mon = RP_MONTHS[dm[1].toLowerCase()]; if (!mon) continue;
     const ymd = dm[3] + mon + ('0' + dm[2]).slice(-2);
-    const s = vewbieMins(dm[4]), e = vewbieMins(dm[5]);
-    let mins = (s != null && e != null) ? (e - s) : 0; if (mins < 0) mins += 1440;
-    const teams = slug.slice(0, slug.length - dm[0].length + 1).toLowerCase();
-    const url = 'https://tcl-tv.vewbie.com/video/' + slug;
+    const secs = durationSecs(it.duration);
+    const teams = slug.toLowerCase();
+    const url = REPLAY_SITE + '/video/' + slug;
     for (const id of Object.keys(REPLAY_TOKEN)) {
       const tok = REPLAY_TOKEN[id];
       if (teams.indexOf(tok) === -1) continue;
       const k = ymd + '|' + tok;
-      if (!idx[k] || mins > idx[k].mins) idx[k] = { url, mins };
+      if (!idx[k] || secs > idx[k].secs) idx[k] = { url, secs };
     }
   }
   return idx;
 }
 async function pollReplays() {
   try {
-    const r = await fetchText(REPLAY_LIST_URL, 'https://tcl-tv.vewbie.com/');
+    const r = await fetchText(REPLAY_API_URL, REPLAY_SITE + '/');
     if (!r.ok || !r.body) return;
-    const idx = parseReplayList(r.body);
+    let data = null; try { data = JSON.parse(r.body); } catch (e) { return; }
+    const idx = parseReplayList(data);
     if (Object.keys(idx).length) { replayIndex = idx; replayLoadedAt = Date.now(); }
   } catch (e) { /* keep previous index */ }
 }
