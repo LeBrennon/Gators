@@ -479,10 +479,58 @@ function parsePlayerPage(html) {
       map[key] = { v: v, r: (r && r !== '-') ? r : '' };
     }
   }
-  return { name, kind, map };
+  const gl = parseGameLog(tables);
+  return { name, kind, map, glBat: gl.bat, glPit: gl.pit };
+}
+// Per-game log lines from a player page (hitting + pitching game-log tables).
+function parseGameLog(tables) {
+  const bat = [], pit = [];
+  for (const t of tables) {
+    const rows = rowsOf(t); if (rows.length < 2) continue;
+    const head = cellsOf(rows[0]).map(x => bsText(x).split(/\s+/)[0].toLowerCase());
+    if (head.indexOf('opponent') === -1 || head.indexOf('score') === -1) continue;
+    const idx = k => head.indexOf(k);
+    const isPit = idx('ip') !== -1;
+    const isBat = idx('ab') !== -1 && idx('avg') !== -1;
+    if (!isPit && !isBat) continue;
+    for (let i = 1; i < rows.length; i++) {
+      const c = cellsOf(rows[i]); if (c.length < 4) continue;
+      const get = k => { const j = idx(k); return (j >= 0 && c[j] != null) ? bsText(c[j]) : ''; };
+      const num = v => v && v !== '-' && v !== '';
+      const date = bsText(c[0]), opp = bsText(c[1]), score = bsText(c[2]);
+      if (isPit) {
+        const ip = get('ip'); if (!num(ip)) continue;
+        pit.push({ date, opp, score, ip, h: get('h'), r: get('r'), er: get('er'), bb: get('bb'), k: get('k'), era: get('era') });
+      } else {
+        const pa = get('pa'), ab = get('ab');
+        if (!num(pa) && !num(ab)) continue;
+        if ((pa === '0' || pa === '') && (ab === '0' || ab === '')) continue;
+        bat.push({ date, opp, score, ab, h: get('h'), hr: get('hr'), rbi: get('rbi'), bb: get('bb'), k: get('k'), avg: get('avg') });
+      }
+    }
+  }
+  return { bat, pit };
 }
 function flatVals(map) { const o = {}; for (const k in map) o[k] = map[k].v; return o; }
 function flatRanks(map) { const o = {}; for (const k in map) if (map[k].r) o[k] = map[k].r; return o; }
+const NUM = v => { const n = parseInt(v, 10); return isNaN(n) ? 0 : n; };
+function ipToOuts(ip) { const p = String(ip).split('.'); return (NUM(p[0]) * 3) + (p[1] ? NUM(p[1]) : 0); }
+function outsToIp(o) { return Math.floor(o / 3) + '.' + (o % 3); }
+function aggBat(gl) {
+  let ab = 0, h = 0, hr = 0, rbi = 0, bb = 0, k = 0;
+  gl.forEach(g => { ab += NUM(g.ab); h += NUM(g.h); hr += NUM(g.hr); rbi += NUM(g.rbi); bb += NUM(g.bb); k += NUM(g.k); });
+  if (ab + bb === 0) return null;
+  const avg = ab ? (h / ab).toFixed(3).replace(/^0/, '') : '.000';
+  return { gp: String(gl.length), ab: String(ab), h: String(h), hr: String(hr), rbi: String(rbi), bb: String(bb), k: String(k), avg };
+}
+function aggPit(gl) {
+  let outs = 0, h = 0, r = 0, er = 0, bb = 0, k = 0;
+  gl.forEach(g => { outs += ipToOuts(g.ip); h += NUM(g.h); r += NUM(g.r); er += NUM(g.er); bb += NUM(g.bb); k += NUM(g.k); });
+  if (outs === 0) return null;
+  const ipDec = outs / 3;
+  return { app: String(gl.length), ip: outsToIp(outs), h: String(h), r: String(r), er: String(er), bb: String(bb), k: String(k),
+    era: (er * 9 / ipDec).toFixed(2), whip: ((h + bb) / ipDec).toFixed(2) };
+}
 
 // League hitting/pitching leaderboard (wide table) -> { slug: {col: val} } for Gators only.
 function parseLeagueStats(html) {
@@ -509,10 +557,41 @@ function parseLeagueStats(html) {
 }
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-let rosterStats = {};       // slug -> { kind, hit, pit, hitRanks, pitRanks }
+let rosterStats = {};       // slug -> light { kind, hit, pit, hitRanks, pitRanks } for cards
+const playerCache = {};     // slug -> full { ...light, glBat, glPit, ts } for profiles
 let rosterUpdated = 0;
 let rosterPolling = false;
 
+async function fetchPlayer(slug, batMap, pitMap) {
+  let primary = null;
+  for (let attempt = 0; attempt < 2 && !primary; attempt++) {
+    try {
+      const r = await fetchText(playerUrl(slug), SPORT_BASE + '/schedule');
+      if (r.ok && r.body) primary = parsePlayerPage(r.body);
+    } catch (e) {}
+    if (!primary) await sleep(700);
+  }
+  const rec = { kind: null, hit: null, pit: null, hitRanks: {}, pitRanks: {}, glBat: [], glPit: [], ts: Date.now() };
+  if (primary && primary.kind) {
+    rec.kind = primary.kind;
+    if (primary.kind === 'batting') { rec.hit = flatVals(primary.map); rec.hitRanks = flatRanks(primary.map); }
+    else { rec.pit = flatVals(primary.map); rec.pitRanks = flatRanks(primary.map); }
+    rec.glBat = primary.glBat || []; rec.glPit = primary.glPit || [];
+  }
+  if (batMap && !rec.hit && batMap[slug]) rec.hit = batMap[slug];
+  if (pitMap && !rec.pit && pitMap[slug]) rec.pit = pitMap[slug];
+  if (!rec.hit && rec.glBat.length) rec.hit = aggBat(rec.glBat);   // two-way fallback
+  if (!rec.pit && rec.glPit.length) rec.pit = aggPit(rec.glPit);
+  return rec;
+}
+function storePlayer(slug, rec) {
+  const had = playerCache[slug];
+  const hasData = rec.hit || rec.pit || rec.glBat.length || rec.glPit.length;
+  if (hasData || !had) {
+    playerCache[slug] = rec;
+    rosterStats[slug] = { kind: rec.kind, hit: rec.hit, pit: rec.pit, hitRanks: rec.hitRanks, pitRanks: rec.pitRanks };
+  }
+}
 async function pollRoster() {
   if (rosterPolling) return;
   rosterPolling = true;
@@ -522,24 +601,19 @@ async function pollRoster() {
       const [hRes, pRes] = await Promise.all([fetchText(leagueStatsUrl('h')), fetchText(leagueStatsUrl('p'))]);
       batMap = parseLeagueStats(hRes.body); pitMap = parseLeagueStats(pRes.body);
     } catch (e) {}
-    const next = {};
     for (const pl of ROSTER) {
-      let primary = null;
-      try { const r = await fetchText(playerUrl(pl.slug)); primary = parsePlayerPage(r.body); } catch (e) {}
-      const rec = { kind: null, hit: null, pit: null, hitRanks: {}, pitRanks: {} };
-      if (primary && primary.kind) {
-        rec.kind = primary.kind;
-        if (primary.kind === 'batting') { rec.hit = flatVals(primary.map); rec.hitRanks = flatRanks(primary.map); }
-        else { rec.pit = flatVals(primary.map); rec.pitRanks = flatRanks(primary.map); }
-      }
-      if (!rec.hit && batMap[pl.slug]) rec.hit = batMap[pl.slug];
-      if (!rec.pit && pitMap[pl.slug]) rec.pit = pitMap[pl.slug];
-      next[pl.slug] = rec;
-      await sleep(200);
+      storePlayer(pl.slug, await fetchPlayer(pl.slug, batMap, pitMap));
+      await sleep(500);
     }
-    rosterStats = next; rosterUpdated = Date.now();
+    rosterUpdated = Date.now();
   } catch (e) { /* keep previous */ }
   finally { rosterPolling = false; }
+}
+async function getPlayer(slug) {
+  const cached = playerCache[slug];
+  if (cached && Date.now() - cached.ts < 10 * 60 * 1000) return cached;
+  storePlayer(slug, await fetchPlayer(slug, null, null));
+  return playerCache[slug] || null;
 }
 
 function rosterPayload() {
@@ -615,6 +689,12 @@ app.get('/api/boxscore', async (q, r) => {
 });
 app.get('/api/schedule', (_q, r) => r.json({ games }));
 app.get('/api/roster', (_q, r) => { if (!rosterPolling && Object.keys(rosterStats).length === 0) pollRoster(); r.json(rosterPayload()); });
+app.get('/api/player', async (q, r) => {
+  const slug = String((q.query && q.query.slug) || '');
+  if (!/^[a-z0-9_]+$/i.test(slug)) return r.status(400).json({ error: 'bad slug' });
+  try { const p = await getPlayer(slug); r.json(p || {}); }
+  catch (e) { r.status(502).json({ error: e.message }); }
+});
 app.get('/debug/roster', async (_q, r) => {
   try {
     const [hRes, pRes] = await Promise.all([fetchText(leagueStatsUrl('h')), fetchText(leagueStatsUrl('p'))]);
@@ -786,6 +866,13 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .scell .v{font-family:'Oswald',sans-serif;font-weight:700;font-size:18px;color:var(--bone);line-height:1;}
 .scell .l{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin-top:4px;}
 .scell .rk{font-size:8.5px;color:var(--gold);margin-top:2px;}
+.gltbl{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.gltbl table{width:100%;border-collapse:collapse;font-size:11px;white-space:nowrap;}
+.gltbl th{color:var(--mute);font-weight:700;text-transform:uppercase;font-size:9px;padding:6px 8px;border-bottom:1px solid var(--line);}
+.gltbl td{padding:6px 8px;text-align:center;border-bottom:1px solid var(--line);font-family:'JetBrains Mono',monospace;color:var(--bone);}
+.gltbl td:first-child,.gltbl th:first-child{text-align:left;color:var(--mute);}
+.gltbl td:nth-child(2),.gltbl th:nth-child(2){text-align:left;}
+.gltbl tr:last-child td{border-bottom:none;}
 </style></head><body>
 <div class="toasts" id="toasts"></div>
 <div class="wrap">
@@ -850,11 +937,10 @@ function setChip(status){var c=$('chip'),t=$('chiptx');c.className='chip';
   else if(status==='cancelled'){c.classList.add('off');t.textContent='Cancelled';}
   else{t.textContent='Next up';}}
 function renderSched(list){
-  var live=list.filter(function(g){return g.state==='live';});
-  var up=list.filter(function(g){return g.state==='scheduled';});
   var done=list.filter(function(g){return g.state==='final'||g.state==='cancelled';}).reverse();
-  var nextUp=up.slice(0,1),restUp=up.slice(1);
-  var ord=live.concat(nextUp).concat(done).concat(restUp),h='';
+  var up=list.filter(function(g){return g.state==='scheduled';});
+  var restUp=up.slice(1);
+  var ord=done.concat(restUp).filter(function(g){return g.id!==curId;}),h='';
   ord.forEach(function(g){
     var pill=g.state==='live'?'<span class="cpill live"><span class="dot"></span>'+g.status+'</span>':g.state==='final'?'<span class="cpill final">'+g.status+' \u203A</span>':'<span class="cpill">'+esc(g.status)+'</span>';
     var aw=g.state==='final'&&g.away.score>g.home.score,hw=g.state==='final'&&g.home.score>g.away.score;
@@ -987,21 +1073,52 @@ function renderRoster(d){
 function bi(label,val){return '<div class="bi"><span>'+label+'</span>'+esc(val)+'</div>';}
 function scell(o,rk,k,lab){if(!o||o[k]==null||o[k]===''||o[k]==='-')return '';var r=(rk&&rk[k])?'<div class="rk">'+esc(rk[k])+'</div>':'';return '<div class="scell"><div class="v">'+esc(o[k])+'</div><div class="l">'+lab+'</div>'+r+'</div>';}
 function sgrid(o,rk,defs){var c='';for(var i=0;i<defs.length;i++)c+=scell(o,rk,defs[i][0],defs[i][1]);return c?'<div class="sgrid">'+c+'</div>':'<div class="plimited" style="padding:2px">No qualifying stats yet.</div>';}
+function statBlocks(p){
+  var batBlock=p.hit?('<div class="statblock"><h4 class="bat">Hitting</h4>'+sgrid(p.hit,p.hitRanks,[['avg','AVG'],['obp','OBP'],['slg','SLG'],['gp','G'],['ab','AB'],['h','H'],['hr','HR'],['rbi','RBI'],['r','R'],['bb','BB'],['k','K'],['sb','SB']])+'</div>'):'';
+  var pitBlock=p.pit?('<div class="statblock"><h4>Pitching</h4>'+sgrid(p.pit,p.pitRanks,[['era','ERA'],['whip','WHIP'],['ip','IP'],['w','W'],['l','L'],['sv','SV'],['app','APP'],['gs','GS'],['k','K'],['bb','BB'],['h','H'],['er','ER']])+'</div>'):'';
+  if(!batBlock&&!pitBlock)return '<div class="statblock"><div class="plimited" style="padding:2px">Season stats will appear here once this player records game action.</div></div>';
+  return batBlock+pitBlock;
+}
+var plCur=null;
 function openPlayer(slug){
   var p=null;for(var i=0;i<rosterData.length;i++)if(rosterData[i].slug===slug)p=rosterData[i];
-  if(!p)return;
+  if(!p)return;plCur=slug;
   $('plNum').textContent=p.num;$('plName').textContent=p.name;
   $('plSub').textContent=p.pos+' · '+p.cls+' · '+p.school;
   var bio='<div class="bio">'+bi('Bats / Throws',p.b+' / '+p.t)+
     bi('Ht / Wt',(p.ht||'—')+(p.wt?(' · '+p.wt):''))+
     bi('Hometown',p.home||'—')+bi('School',p.school||'—')+
     (p.bday?bi('Birthday',p.bday):'')+'</div>';
-  var batBlock=p.hit?('<div class="statblock"><h4 class="bat">Hitting</h4>'+sgrid(p.hit,p.hitRanks,[['avg','AVG'],['obp','OBP'],['slg','SLG'],['gp','G'],['ab','AB'],['h','H'],['hr','HR'],['rbi','RBI'],['r','R'],['bb','BB'],['k','K'],['sb','SB']])+'</div>'):'';
-  var pitBlock=p.pit?('<div class="statblock"><h4>Pitching</h4>'+sgrid(p.pit,p.pitRanks,[['era','ERA'],['whip','WHIP'],['ip','IP'],['w','W'],['l','L'],['sv','SV'],['app','APP'],['gs','GS'],['k','K'],['bb','BB'],['h','H'],['er','ER']])+'</div>'):'';
-  var body=bio+batBlock+pitBlock;
-  if(!p.hit&&!p.pit)body=bio+'<div class="statblock"><div class="plimited" style="padding:2px">Season stats will appear here once this player records game action.</div></div>';
-  $('plBody').innerHTML=body;$('plModal').classList.add('show');
+  $('plBody').innerHTML=bio+'<div id="plStats">'+statBlocks(p)+'</div><div id="plGl"><div class="spin" style="padding:16px">Loading game log…</div></div>';
+  $('plModal').classList.add('show');
+  fetch('/api/player?slug='+encodeURIComponent(slug)).then(function(r){return r.json();}).then(function(d){
+    if(plCur!==slug)return;
+    var m=Object.assign({},p);
+    if(d.hit){m.hit=d.hit;m.hitRanks=d.hitRanks||p.hitRanks;}
+    if(d.pit){m.pit=d.pit;m.pitRanks=d.pitRanks||p.pitRanks;}
+    var ps=$('plStats');if(ps)ps.innerHTML=statBlocks(m);
+    renderGameLog(d);
+  }).catch(function(){var g=$('plGl');if(g)g.innerHTML='';});
 }
+function renderGameLog(d){
+  var g=$('plGl');if(!g)return;var h='';
+  var bat=(d.glBat||[]).slice().reverse(),pit=(d.glPit||[]).slice().reverse();
+  if(pit.length)h+='<div class="statblock"><h4>Pitching — Game by Game</h4>'+glTable(pit,[['ip','IP'],['h','H'],['r','R'],['er','ER'],['bb','BB'],['k','K'],['era','ERA']])+'</div>';
+  if(bat.length)h+='<div class="statblock"><h4 class="bat">Hitting — Game by Game</h4>'+glTable(bat,[['ab','AB'],['h','H'],['hr','HR'],['rbi','RBI'],['bb','BB'],['k','K'],['avg','AVG']])+'</div>';
+  g.innerHTML=h;
+}
+function glTable(rows,cols){
+  var h='<div class="gltbl"><table><tr><th>Date</th><th>Opp</th>';
+  for(var i=0;i<cols.length;i++)h+='<th>'+cols[i][1]+'</th>';
+  h+='</tr>';
+  for(var j=0;j<rows.length;j++){var g=rows[j];
+    h+='<tr><td>'+esc(g.date)+'</td><td>'+esc(oppShort(g.opp))+'</td>';
+    for(var i2=0;i2<cols.length;i2++){var v=g[cols[i2][0]];h+='<td>'+((v==null||v===''||v==='-')?'·':esc(v))+'</td>';}
+    h+='</tr>';
+  }
+  return h+'</table></div>';
+}
+function oppShort(o){o=(o||'').replace('at ','@ ');var map={'Acadiana Cane Cutters':'Acadiana','Baton Rouge Rougarou':'Baton Rouge','Abilene Flying Bison':'Abilene','Brazos Valley Bombers':'Brazos Valley','San Antonio River Monsters':'San Antonio','Sherman Shadowcats':'Sherman','Victoria Generals':'Victoria','Lake Charles Gumbeaux Gators':'Gators'};for(var k in map)o=o.replace(k,map[k]);return o;}
 $('navScores').addEventListener('click',function(){setView('scores');});
 $('navRoster').addEventListener('click',function(){setView('roster');});
 $('plClose').addEventListener('click',function(){$('plModal').classList.remove('show');});
