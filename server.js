@@ -26,7 +26,7 @@ const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (
 const SPORT_BASE = (() => { try { const u = new URL(SCHEDULE_URL); return u.origin + u.pathname.replace(/\/schedule.*$/, ''); } catch (e) { return ''; } })();
 const ORIGIN = (() => { try { return new URL(SCHEDULE_URL).origin; } catch (e) { return ''; } })();
 const boxscoreUrl = id => SPORT_BASE + '/boxscores/' + id + '.xml';
-
+const STANDINGS_URL = SPORT_BASE + '/standings';
 // ----- league teams (by PrestoSports logo/team id) --------------------------
 const TEAMS = {
   et1bt9sixrz5lnnl: { name: 'Lake Charles Gumbeaux Gators', short: 'Gators' },
@@ -1009,6 +1009,30 @@ app.get('/debug/box', async (q, r) => {
     });
   } catch (e) { r.status(502).json({ error: String(e && e.message || e) }); }
 });
+app.get('/debug/standings', async (_q, r) => {
+  try {
+    const page = await fetchText(STANDINGS_URL, SCHEDULE_URL);
+    const body = page.body || '';
+    const tables = (body.match(/<table\b[\s\S]*?<\/table>/gi) || []).slice(0, 6).map(tbl => {
+      const rows = rowsOf(tbl);
+      const head = rows[0] ? cellsOf(rows[0]).map(c => bsText(c)) : [];
+      const firstRows = rows.slice(1, 4).map(row => cellsOf(row).map(c => bsText(c)));
+      return { headers: head, firstRows };
+    });
+    // team links reveal Presto team ids to match against game.away.id/home.id
+    const teamLinks = (body.match(/href="[^"]*\/teams\/[a-z0-9]+"[^>]*>[^<]+/gi) || [])
+      .slice(0, 30).map(s => {
+        const id = (s.match(/\/teams\/([a-z0-9]+)/i) || [])[1];
+        const name = bsText(s.replace(/^[^>]*>/, ''));
+        return { id, name };
+      });
+    r.json({
+      url: STANDINGS_URL, status: page.status, ok: page.ok, bytes: body.length, contentType: page.contentType,
+      rawTableTags: (body.match(/<table\b/gi) || []).length,
+      tables, teamLinks, head: body.slice(0, 300),
+    });
+  } catch (e) { r.status(502).json({ error: String(e && e.message || e) }); }
+});
 app.get('/debug/roster', async (_q, r) => {
   try {
     const duhon = ROSTER.find(p => p.slug === 'davisduhons0vw');
@@ -1140,11 +1164,6 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .statpill{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12px;letter-spacing:.06em;color:var(--gold2);background:rgba(242,183,5,.08);border:1px solid rgba(242,183,5,.25);border-radius:999px;padding:6px 11px;text-align:center;text-transform:uppercase;white-space:nowrap;}
 .statpill.live{color:var(--gator);background:rgba(157,92,255,.08);border-color:rgba(157,92,255,.3);}
 .vs{font-size:10px;color:var(--mute);letter-spacing:.1em;text-transform:uppercase;}
-.mom{margin-top:16px;}
-.mh{display:flex;justify-content:space-between;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);font-weight:700;margin-bottom:6px;}
-.mb{height:9px;border-radius:999px;overflow:hidden;background:#221038;display:flex;border:1px solid var(--line);}
-.mfa{background:linear-gradient(90deg,var(--away),#ff7a70);transition:width .6s;}
-.mfh{background:linear-gradient(90deg,var(--gator2),var(--gator));transition:width .6s;}
 .note{margin-top:14px;font-size:11.5px;line-height:1.6;color:var(--mute);background:var(--bayou2);border:1px solid var(--line);border-radius:14px;padding:13px 15px;}
 .note b{color:var(--bone);font-weight:600;}
 .jloc{margin-top:13px;text-align:center;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:11px;color:var(--mute);}
@@ -1257,8 +1276,6 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 <div class="mid"><div class="statpill" id="statpill">—</div><div class="vs" id="vs">vs</div></div>
 <div class="tm" id="homeTm"><img id="homeLogo" alt=""><div class="nm" id="homeNm">—</div><div class="sc" id="homeSc">0</div></div>
 </div>
-<div class="mom"><div class="mh"><span id="mAwayL">Away</span><span>Win Momentum</span><span id="mHomeL">Home</span></div>
-<div class="mb"><div class="mfa" id="mfa" style="width:50%"></div><div class="mfh" id="mfh" style="width:50%"></div></div></div>
 <div class="jloc" id="jloc"></div>
 <a class="watchbtn" id="watchBtn" target="_blank" rel="noopener" style="display:none">▶ Watch on TCL TV</a>
 <div class="note">Live score and inning, straight from the league feed. Tap <b>Get alerts</b> for a buzz at first pitch, every run, and the final.</div>
@@ -1293,14 +1310,11 @@ function renderGame(g){
   $('awayTm').classList.toggle('gators',ah);$('homeTm').classList.toggle('gators',hh);
   $('awayLogo').src=g.away.logo;$('homeLogo').src=g.home.logo;
   $('awayNm').textContent=g.away.short;$('homeNm').textContent=g.home.short;
-  $('mAwayL').textContent=g.away.short;$('mHomeL').textContent=g.home.short;
   if(g.id===curId){if(g.away.runs>prev.a)flash($('awaySc'));if(g.home.runs>prev.h)flash($('homeSc'));}
   $('awaySc').textContent=g.away.runs;$('homeSc').textContent=g.home.runs;
   prev={a:g.away.runs,h:g.home.runs};curId=g.id;
   var sp=$('statpill');sp.textContent=g.inningLabel;sp.classList.toggle('live',g.status==='live');
   $('vs').textContent=g.dateLabel+(g.status==='pregame'?' · upcoming':'');
-  var diff=(g.home.runs||0)-(g.away.runs||0);var hp=Math.max(8,Math.min(92,50+diff*9));
-  $('mfh').style.width=hp+'%';$('mfa').style.width=(100-hp)+'%';
   var jl=$('jloc');if(jl)jl.textContent=g.location||'';
   var wb=$('watchBtn');
   if(wb){if(g.watchUrl){wb.href=g.watchUrl;wb.style.display='';}else{wb.style.display='none';}}
