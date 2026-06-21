@@ -217,11 +217,16 @@ const has = x => { const v = val(x); return v != null && String(v).trim() !== ''
 // widget uses. Pull them out so we can call the feed ourselves.
 function extractEventAuth(html) {
   const clean = String(html || '').replace(/&amp;/g, '&');
+  // Older format: a complete liveupdate URL carrying both params.
   let m = clean.match(/liveupdate\?e=([a-z0-9]+)&h=([A-Za-z0-9_\-]+)/i);
   if (m) return { e: m[1], h: m[2], how: 'liveupdate-url' };
-  const e = (clean.match(/(?:eventId|["']e)["']?\s*[:=]\s*["']([a-z0-9]{12,})["']/i) || [])[1];
-  const h = (clean.match(/(?:hash|liveHash|["']h)["']?\s*[:=]\s*["']([A-Za-z0-9_\-]{20,})["']/i) || [])[1];
-  if (e && h) return { e, h, how: 'separate-tokens' };
+  // 2026 PrestoSports gameday config: conf.eventId + conf.eventIdHashCode
+  // (the [:=] guard keeps `eventId` from matching inside `eventIdHashCode`).
+  const e = (clean.match(/eventId\s*[:=]\s*["']([A-Za-z0-9]{8,})["']/i) || [])[1]
+         || (clean.match(/liveupdate\?e=([A-Za-z0-9]+)/i) || [])[1];
+  const h = (clean.match(/eventIdHashCode\s*[:=]\s*["']([A-Za-z0-9_\-]{16,})["']/i) || [])[1]
+         || (clean.match(/(?:liveHash|hash)\s*[:=]\s*["']([A-Za-z0-9_\-]{20,})["']/i) || [])[1];
+  if (e && h) return { e, h, how: 'gameday-conf' };
   return { e: null, h: null, how: 'not-found' };
 }
 

@@ -18,7 +18,17 @@ test('extractEventAuth: reads e + h from separate token fields', () => {
   const out = extractEventAuth(html);
   assert.equal(out.e, 'abc123def456gh');
   assert.equal(out.h, 'ABCdef0123456789hashx');
-  assert.equal(out.how, 'separate-tokens');
+  assert.equal(out.how, 'gameday-conf');
+});
+
+test('extractEventAuth: reads the 2026 PrestoSports gameday conf format', () => {
+  // Real shape: conf.eventId then conf.eventIdHashCode (the latter must not be
+  // captured as the event id).
+  const html = "conf.gamedayServiceEntryPointUrl = '/action/sports/liveupdate?e=k3ibyrasvuknfwhs&';"
+    + " conf.eventId = 'k3ibyrasvuknfwhs'; conf.eventIdHashCode = 'oAsFPOpe6rBzC7h8OOTke8nD8QKvJYUz';";
+  assert.deepEqual(extractEventAuth(html), {
+    e: 'k3ibyrasvuknfwhs', h: 'oAsFPOpe6rBzC7h8OOTke8nD8QKvJYUz', how: 'gameday-conf',
+  });
 });
 
 test('extractEventAuth: not found returns nulls', () => {
