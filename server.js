@@ -1178,9 +1178,9 @@ const APP = `<!DOCTYPE html>
 <style>
 :root{--bayou:#16102b;--bayou2:#1e1640;--panel:#2b1e5c;--line:#41327a;--gator:#b9a6ee;--gator2:#4f3191;--purple:#6f4fd4;--gold:#f2b705;--gold2:#ffd23f;--bone:#f0ede4;--mute:#9a8cc4;--away:#e0524a;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-html,body{margin:0;background:var(--bayou);}
-body{font-family:'Inter',system-ui,sans-serif;color:var(--bone);min-height:100vh;
-background:var(--bayou);-webkit-font-smoothing:antialiased;}
+html{margin:0;background:var(--bayou);}
+body{margin:0;font-family:'Inter',system-ui,sans-serif;color:var(--bone);min-height:100vh;
+background:transparent;-webkit-font-smoothing:antialiased;}
 .bgfx{position:fixed;inset:0;z-index:-1;background-color:var(--bayou);
 background:radial-gradient(1100px 550px at 50% -10%,rgba(111,79,212,.10),transparent 60%),linear-gradient(rgba(22,16,43,.12),rgba(22,16,43,.20)),url(${BG_PATH}) center center / cover no-repeat;}
 .wrap{max-width:520px;margin:0 auto;padding:0 14px 120px;}
