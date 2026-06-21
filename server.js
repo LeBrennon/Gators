@@ -425,7 +425,14 @@ async function pollSchedule() {
         try {
           const lf = await fetchLiveForGame(chosen.id);
           if (lf && lf.live) norm.live = lf.live;
-          if (lf && lf.teams && lf.teams.length) norm.lineScore = lf.teams;
+          if (lf && lf.teams && lf.teams.length) {
+            norm.lineScore = lf.teams;
+            // The schedule page doesn't carry the live score (it reads 0-0 mid-
+            // game), so use the live feed's runs as the authoritative scoreboard.
+            const v = lf.teams.find(t => t.vh === 'V'), h = lf.teams.find(t => t.vh === 'H');
+            if (v && v.runs != null && v.runs !== '') norm.away.runs = Number(v.runs) || 0;
+            if (h && h.runs != null && h.runs !== '') norm.home.runs = Number(h.runs) || 0;
+          }
         } catch (e) { /* keep score-only view if the feed is unavailable */ }
       }
       prevFeatured = featured; featured = norm;
