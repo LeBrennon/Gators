@@ -36,6 +36,20 @@ const TEAMS = {
   w43rx8i07fn44cyl: { name: 'Sherman Shadowcats',           short: 'Shadowcats' },
   jm9r4btii24hhtfp: { name: 'Victoria Generals',            short: 'Generals' },
 };
+// Host city/region per team id — used for the "Away @ <city>" label and for
+// matching games to TCL TV (Vewbie) stream slugs. Regional brands (Acadiana,
+// Brazos Valley) intentionally use the region name.
+const CITY = {
+  et1bt9sixrz5lnnl: 'Lake Charles',
+  cz8qei0rxijys6nm: 'Acadiana',
+  z10kgms3gvy1eszs: 'Baton Rouge',
+  ij0lwtvjsx2mi1nh: 'Abilene',
+  z7w5th537gur3z15: 'Brazos Valley',
+  do9ibktaduhyld7f: 'San Antonio',
+  w43rx8i07fn44cyl: 'Sherman',
+  jm9r4btii24hhtfp: 'Victoria',
+};
+const HOME_VENUE = 'Joe Miller Ballpark';
 const GATORS_ID = 'et1bt9sixrz5lnnl';
 const GATORS_LOGO_B64 = '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';
 
@@ -180,7 +194,7 @@ function parseSchedule(html) {
     if (t.away.id !== GATORS_ID && t.home.id !== GATORS_ID) continue;
     const when = dateFromId(link.date), cls = classify(chunk), gatorsHome = t.home.id === GATORS_ID;
     const opp = gatorsHome ? t.away : t.home;
-    out.push({ id: link.id, dateLabel: when.label, sortKey: when.sortKey, state: cls.state, status: cls.status,
+    out.push({ id: link.id, date: link.date, dateLabel: when.label, sortKey: when.sortKey, state: cls.state, status: cls.status,
       gatorsHome, opponent: { name: opp.name, short: opp.short, logo: opp.logo }, away: t.away, home: t.home });
   }
   const seen = new Set();
@@ -330,6 +344,7 @@ function normalizeFeatured(g) {
     inning: ip.inning, half: ip.half,
     inningLabel: status === 'live' ? g.status : status === 'final' ? 'Final' : status === 'cancelled' ? 'Cancelled' : g.status,
     gatorsHome: g.gatorsHome, opponent: g.opponent,
+    location: gameLocation(g), watchUrl: watchUrlFor(g),
     away: { name: g.away.name, short: g.away.short, logo: g.away.logo, runs: g.away.score || 0 },
     home: { name: g.home.name, short: g.home.short, logo: g.home.logo, runs: g.home.score || 0 },
   };
@@ -652,14 +667,111 @@ async function getPlayer(slug) {
 function rosterPayload() {
   const players = ROSTER.map(p => {
     const s = rosterStats[p.slug] || { kind: null, hit: null, pit: null, hitRanks: {}, pitRanks: {} };
-    return Object.assign({}, p, s);
+    return Object.assign({}, p, s, { photo: playerPhotos[p.slug] || null });
   });
   return { players, updated: rosterUpdated, loading: Object.keys(rosterStats).length === 0,
            settled: rosterUpdated > 0 && !rosterPolling };
 }
 
-// ----- server ---------------------------------------------------------------
-const app = express();
+// ===== Game location label + TCL TV watch links + player headshots ==========
+
+// "Home, Joe Miller Ballpark" / "Away @ <city>". g.home is always the host team.
+function gameLocation(g) {
+  if (g.gatorsHome) return 'Home, ' + HOME_VENUE;
+  const city = CITY[g.home.id] || (g.opponent && g.opponent.short) || 'Away';
+  return 'Away @ ' + city;
+}
+
+// ---- TCL TV (Vewbie) live/upcoming stream links ----
+const WATCH_LIST_URL = 'https://tcl-tv.vewbie.com/livestreams';
+const WATCH_FALLBACK = 'https://tcl-tv.vewbie.com/categories/lake-charles-gumbeaux-gators';
+let watchIndex = {};        // 'away|home|MM/DD/YYYY' and 'loose:away|home' -> stream URL
+let watchLoadedAt = 0;
+const citySlug = id => { const c = CITY[id]; return c ? c.toLowerCase().replace(/\s+/g, '-') : ''; };
+const mmddyyyy = ymd => (ymd && ymd.length === 8) ? (ymd.slice(4, 6) + '/' + ymd.slice(6, 8) + '/' + ymd.slice(0, 4)) : '';
+// Vewbie slugs look like /live/Lake-Charles-At-Abilene or ...-At-Abilene--83636.
+// Repeat matchups get an undecipherable numeric suffix, so we scrape the list
+// and match by away+home city (+ date), rather than constructing URLs.
+function parseWatchList(html) {
+  const idx = {}, seen = {};
+  const re = /\/live\/([A-Za-z0-9\-]+)/g;
+  let m;
+  while ((m = re.exec(html)) !== null) {
+    const slug = m[1];
+    if (seen[slug]) continue; seen[slug] = 1;
+    const seg = html.slice(m.index, m.index + 900);
+    const d = seg.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+    const date = d ? (d[1] + '/' + d[2] + '/' + d[3]) : '';
+    const base = slug.replace(/--\d+$/, '').toLowerCase();
+    const parts = base.split('-at-');
+    if (parts.length !== 2) continue;
+    const url = 'https://tcl-tv.vewbie.com/live/' + slug;
+    if (date) { const k = parts[0] + '|' + parts[1] + '|' + date; if (!idx[k]) idx[k] = url; }
+    const lk = 'loose:' + parts[0] + '|' + parts[1]; if (!idx[lk]) idx[lk] = url;
+  }
+  return idx;
+}
+async function pollWatch() {
+  try {
+    const r = await fetchText(WATCH_LIST_URL, 'https://tcl-tv.vewbie.com/');
+    if (!r.ok || !r.body) return;
+    const idx = parseWatchList(r.body);
+    if (Object.keys(idx).length) { watchIndex = idx; watchLoadedAt = Date.now(); }
+  } catch (e) { /* keep previous index */ }
+}
+// Live + upcoming only. Falls back to the Gators' TCL TV page when unmatched.
+function watchUrlFor(g) {
+  if (g.state !== 'live' && g.state !== 'scheduled') return null;
+  const aw = citySlug(g.away.id), hm = citySlug(g.home.id);
+  if (!aw || !hm) return WATCH_FALLBACK;
+  const k = aw + '|' + hm + '|' + mmddyyyy(g.date || '');
+  return watchIndex[k] || watchIndex['loose:' + aw + '|' + hm] || WATCH_FALLBACK;
+}
+
+// ---- Player headshots from the official team site ----
+const TEAM_ROSTER_URL = 'https://gumbeauxgators.com/roster/';
+let playerPhotos = {};      // roster slug -> headshot URL
+let photosLoadedAt = 0;
+const normName = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z]/g, '');
+// Each player block carries an <img alt="First Last"> headshot; filenames are
+// inconsistent, so we key by the alt name and match to OUR roster.
+function parseTeamPhotos(html) {
+  const map = {};
+  const imgs = html.match(/<img\b[^>]*>/gi) || [];
+  for (const tag of imgs) {
+    const srcM = tag.match(/\bsrc=["']([^"']+)["']/i) || tag.match(/\bdata-src=["']([^"']+)["']/i);
+    const altM = tag.match(/\balt=["']([^"']*)["']/i);
+    if (!srcM || !altM) continue;
+    const url = srcM[1].replace(/&amp;/g, '&');
+    if (!/wp-content\/uploads/i.test(url)) continue;
+    if (/logo|head_tounge|sponsor|ticket/i.test(url)) continue;
+    const key = normName(altM[1]);
+    if (key.length < 4) continue;
+    if (!map[key]) map[key] = url;
+  }
+  return map;
+}
+async function pollPhotos() {
+  try {
+    const r = await fetchText(TEAM_ROSTER_URL, 'https://gumbeauxgators.com/');
+    if (!r.ok || !r.body) return;
+    const map = parseTeamPhotos(r.body);
+    if (!Object.keys(map).length) return;
+    const out = {};
+    for (const pl of ROSTER) {
+      const k = normName(pl.name);
+      if (map[k]) { out[pl.slug] = map[k]; continue; }
+      // loose fallback: match on last name (handles nickname/spelling diffs)
+      const ln = normName(pl.name.split(/\s+/).slice(-1)[0]);
+      if (ln.length >= 4) for (const mk in map) { if (mk.endsWith(ln)) { out[pl.slug] = map[mk]; break; } }
+    }
+    if (Object.keys(out).length) { playerPhotos = out; photosLoadedAt = Date.now(); }
+  } catch (e) { /* keep previous photos */ }
+}
+// Attaches the derived display fields a game needs on the client.
+function decorateGame(g) { return Object.assign({}, g, { location: gameLocation(g), watchUrl: watchUrlFor(g) }); }
+
+
 app.use(cors());
 app.use(express.json());
 
@@ -721,7 +833,17 @@ app.get('/api/boxscore', async (q, r) => {
     r.json({ id, teams: p.teams, line: p.line, box: p.box, pbp: p.pbp, counts: p.counts, types: q.query.debug ? p.types : undefined });
   } catch (err) { r.status(500).json({ error: String(err && err.message || err) }); }
 });
-app.get('/api/schedule', (_q, r) => r.json({ games }));
+app.get('/api/schedule', (_q, r) => r.json({ games: games.map(decorateGame) }));
+app.get('/debug/extras', (_q, r) => {
+  const sample = games.filter(g => g.state === 'live' || g.state === 'scheduled').slice(0, 4)
+    .map(g => ({ id: g.id, location: gameLocation(g), watchUrl: watchUrlFor(g) }));
+  r.json({
+    watch: { keys: Object.keys(watchIndex).length, loadedAgoSec: watchLoadedAt ? Math.round((Date.now() - watchLoadedAt) / 1000) : null },
+    photos: { matched: Object.keys(playerPhotos).length, of: ROSTER.length, loadedAgoSec: photosLoadedAt ? Math.round((Date.now() - photosLoadedAt) / 1000) : null,
+      missing: ROSTER.filter(p => !playerPhotos[p.slug]).map(p => p.name) },
+    sampleGames: sample,
+  });
+});
 app.get('/api/roster', (_q, r) => { if (!rosterPolling && Object.keys(rosterStats).length === 0) pollRoster(); r.json(rosterPayload()); });
 app.get('/api/player', async (q, r) => {
   const slug = String((q.query && q.query.slug) || '');
@@ -780,7 +902,7 @@ app.get('/api/stream', (q, r) => {
 });
 
 if (require.main === module) {
-  app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); pollRoster(); setInterval(pollRoster, 20 * 60 * 1000); });
+  app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); pollRoster(); setInterval(pollRoster, 20 * 60 * 1000); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollPhotos(); setInterval(pollPhotos, 24 * 60 * 60 * 1000); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, extractEventAuth };
 
@@ -812,6 +934,9 @@ background:radial-gradient(1200px 600px at 50% -10%,rgba(111,79,212,.18),transpa
 .lead{font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:.06em;font-size:20px;text-transform:uppercase;background:linear-gradient(90deg,var(--gold2),var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent;}
 .sub{font-size:9.5px;letter-spacing:.28em;color:var(--mute);text-transform:uppercase;font-weight:600;margin-top:3px;}
 .chip{margin-left:auto;display:flex;align-items:center;gap:7px;font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);background:rgba(242,183,5,.1);border:1px solid rgba(242,183,5,.3);padding:6px 10px;border-radius:999px;}
+.trail{margin-left:auto;display:flex;align-items:center;gap:8px;}
+.trail .chip{margin-left:0;}
+.shopbtn{display:flex;align-items:center;gap:6px;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:10.5px;color:var(--gold2);background:rgba(242,183,5,.1);border:1px solid rgba(242,183,5,.3);padding:6px 11px;border-radius:999px;text-decoration:none;white-space:nowrap;}
 .chip.live{color:var(--gator);background:rgba(157,92,255,.1);border-color:rgba(157,92,255,.3);}
 .chip.off{color:#ff7a70;background:rgba(212,56,47,.1);border-color:rgba(212,56,47,.3);}
 .dot{width:7px;height:7px;border-radius:50%;background:currentColor;}
@@ -839,6 +964,11 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .mfh{background:linear-gradient(90deg,var(--gator2),var(--gator));transition:width .6s;}
 .note{margin-top:14px;font-size:11.5px;line-height:1.6;color:var(--mute);background:var(--bayou2);border:1px solid var(--line);border-radius:14px;padding:13px 15px;}
 .note b{color:var(--bone);font-weight:600;}
+.jloc{margin-top:13px;text-align:center;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:11px;color:var(--mute);}
+.watchbtn{margin-top:12px;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;font-family:'Oswald',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:13px;border-radius:14px;padding:13px;border:1px solid rgba(242,183,5,.45);background:rgba(242,183,5,.13);color:var(--gold2);text-decoration:none;}
+.cfoot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line);}
+.cloc{font-family:'Oswald',sans-serif;font-weight:600;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.watchmini{flex:none;display:flex;align-items:center;gap:5px;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.04em;font-size:10px;color:var(--gold2);border:1px solid rgba(242,183,5,.4);background:rgba(242,183,5,.1);border-radius:999px;padding:4px 10px;text-decoration:none;}
 .sec{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.08em;font-size:13px;color:var(--mute);margin:22px 4px 10px;}
 .card{background:var(--bayou2);border:1px solid var(--line);border-radius:14px;padding:11px 13px;margin-bottom:8px;cursor:pointer;}
 .card.glive{border-color:rgba(157,92,255,.45);}
@@ -908,6 +1038,8 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .plimited{font-size:10.5px;color:var(--mute);font-style:italic;}
 .phead{display:flex;align-items:center;gap:13px;padding:16px 16px 8px;}
 .phnum{flex:none;width:48px;height:48px;border-radius:13px;background:linear-gradient(180deg,var(--panel),var(--bayou2));border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-weight:700;font-size:20px;color:var(--gator);}
+.phnum.hasimg{width:60px;height:60px;padding:0;overflow:hidden;background:#16102b;}
+.phnum.hasimg img{width:100%;height:100%;object-fit:cover;display:block;}
 .phname{font-family:'Oswald',sans-serif;font-weight:700;text-transform:uppercase;font-size:17px;line-height:1.1;}
 .phsub{font-size:11px;color:var(--mute);margin-top:3px;}
 .bio{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;padding:8px 16px 6px;}
@@ -932,7 +1064,7 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 <div class="toasts" id="toasts"></div>
 <div class="wrap">
 <div class="topbar"><div><div class="lead">Gators GameTracker</div><div class="sub">Texas Collegiate League</div></div>
-<div class="chip" id="chip"><span class="dot"></span><span id="chiptx">Connecting</span></div></div>
+<div class="trail"><a class="shopbtn" id="shopBtn" href="https://gumbeauxgators.myshopify.com/" target="_blank" rel="noopener" title="Shop the Gators store">🛒 Shop</a><div class="chip" id="chip"><span class="dot"></span><span id="chiptx">Connecting</span></div></div></div>
 <div class="nav"><button class="navb on" id="navScores">Scores</button><button class="navb" id="navRoster">Roster</button></div>
 <div id="viewScores">
 <div class="jumbo">
@@ -943,6 +1075,8 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 </div>
 <div class="mom"><div class="mh"><span id="mAwayL">Away</span><span>Win Momentum</span><span id="mHomeL">Home</span></div>
 <div class="mb"><div class="mfa" id="mfa" style="width:50%"></div><div class="mfh" id="mfh" style="width:50%"></div></div></div>
+<div class="jloc" id="jloc"></div>
+<a class="watchbtn" id="watchBtn" target="_blank" rel="noopener" style="display:none">▶ Watch on TCL TV</a>
 <div class="note">Live score and inning, straight from the league feed. Tap <b>Get alerts</b> for a buzz at first pitch, every run, and the final.</div>
 </div>
 <div class="sec">Gators Schedule</div>
@@ -983,6 +1117,9 @@ function renderGame(g){
   $('vs').textContent=g.dateLabel+(g.status==='pregame'?' · upcoming':'');
   var diff=(g.home.runs||0)-(g.away.runs||0);var hp=Math.max(8,Math.min(92,50+diff*9));
   $('mfh').style.width=hp+'%';$('mfa').style.width=(100-hp)+'%';
+  var jl=$('jloc');if(jl)jl.textContent=g.location||'';
+  var wb=$('watchBtn');
+  if(wb){if(g.watchUrl){wb.href=g.watchUrl;wb.style.display='';}else{wb.style.display='none';}}
   setChip(g.status);
 }
 function setChip(status){var c=$('chip'),t=$('chiptx');c.className='chip';
@@ -1002,7 +1139,10 @@ function renderSched(list){
     function row(t,isG,won){return '<div class="crow'+(isG?' g':'')+(won?' w':'')+'"><img src="'+t.logo+'"><span class="n">'+esc(t.short)+'</span><span class="s">'+(t.score==null?'':t.score)+'</span></div>';}
     h+='<div class="card '+(g.state==='live'?'glive':g.state==='cancelled'?'gcancel':'')+(g.id===curId?' pinned':'')+'" data-state="'+g.state+'" data-id="'+g.id+'">'
       +'<div class="ctop"><span class="cdate">'+g.dateLabel+'</span>'+pill+'</div>'
-      +row(g.away,g.away.id==='et1bt9sixrz5lnnl',aw)+row(g.home,g.home.id==='et1bt9sixrz5lnnl',hw)+'</div>';
+      +row(g.away,g.away.id==='et1bt9sixrz5lnnl',aw)+row(g.home,g.home.id==='et1bt9sixrz5lnnl',hw)
+      +'<div class="cfoot"><span class="cloc">'+esc(g.location||'')+'</span>'
+      +(g.watchUrl?('<a class="watchmini" href="'+esc(g.watchUrl)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">▶ Watch</a>'):'')
+      +'</div></div>';
   });
   $('sched').innerHTML=h||'<div class="note">No Gators games found yet.</div>';
   $('sched').querySelectorAll('.card').forEach(function(c){c.addEventListener('click',function(){
@@ -1138,7 +1278,11 @@ var plCur=null;
 function openPlayer(slug){
   var p=null;for(var i=0;i<rosterData.length;i++)if(rosterData[i].slug===slug)p=rosterData[i];
   if(!p)return;plCur=slug;
-  $('plNum').textContent=p.num;$('plName').textContent=p.name;
+  var ph=$('plNum');ph.classList.remove('hasimg');ph.textContent=p.num;
+  if(p.photo){var im=new Image();im.alt=p.name;
+    im.onload=function(){ph.classList.add('hasimg');ph.innerHTML='';ph.appendChild(im);};
+    im.src=p.photo;}
+  $('plName').textContent=p.name;
   $('plSub').textContent=p.pos+' · '+p.cls+' · '+p.school;
   var bio='<div class="bio">'+bi('Bats / Throws',p.b+' / '+p.t)+
     bi('Ht / Wt',(p.ht||'—')+(p.wt?(' · '+p.wt):''))+
