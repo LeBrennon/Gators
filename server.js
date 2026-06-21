@@ -350,8 +350,8 @@ function normalizeFeatured(g) {
     inningLabel: status === 'live' ? g.status : status === 'final' ? 'Final' : status === 'cancelled' ? 'Cancelled' : g.status,
     gatorsHome: g.gatorsHome, opponent: g.opponent,
     location: gameLocation(g), watchUrl: watchUrlFor(g),
-    away: { name: g.away.name, short: g.away.short, logo: g.away.logo, runs: g.away.score || 0 },
-    home: { name: g.home.name, short: g.home.short, logo: g.home.logo, runs: g.home.score || 0 },
+    away: { name: g.away.name, short: g.away.short, logo: g.away.logo, runs: g.away.score || 0, record: recordStr(g.away) },
+    home: { name: g.home.name, short: g.home.short, logo: g.home.logo, runs: g.home.score || 0, record: recordStr(g.home) },
   };
 }
 
@@ -878,6 +878,45 @@ async function pollPhotos() {
     if (Object.keys(out).length) { playerPhotos = out; photosLoadedAt = Date.now(); }
   } catch (e) { /* keep previous photos */ }
 }
+// ----- league standings (both teams' records on the jumbo) ------------------
+let standings = {};         // normName(teamName) -> { w, l, t }
+let standingsAt = 0;
+function parseStandings(html) {
+  const tbl = (html.match(/<table\b[\s\S]*?<\/table>/i) || [])[0];
+  if (!tbl) return {};
+  const rows = rowsOf(tbl); if (rows.length < 2) return {};
+  const head = cellsOf(rows[0]).map(c => bsText(c).toLowerCase());
+  const wi = head.indexOf('w'), li = head.indexOf('l'), ti = head.indexOf('t');
+  if (wi === -1 || li === -1) return {};
+  const out = {};
+  for (let i = 1; i < rows.length; i++) {
+    const c = cellsOf(rows[i]); if (c.length <= Math.max(wi, li)) continue;
+    const k = normName(bsText(c[0])); if (!k) continue;
+    const w = parseInt(bsText(c[wi]), 10), l = parseInt(bsText(c[li]), 10);
+    if (!isFinite(w) || !isFinite(l)) continue;
+    const t = ti >= 0 ? parseInt(bsText(c[ti]), 10) : 0;
+    out[k] = { w, l, t: isFinite(t) ? t : 0 };
+  }
+  return out;
+}
+async function pollStandings() {
+  try {
+    const r = await fetchText(STANDINGS_URL, SCHEDULE_URL);
+    if (!r.ok || !r.body) return;
+    const map = parseStandings(r.body);
+    if (Object.keys(map).length) { standings = map; standingsAt = Date.now(); }
+  } catch (e) { /* keep previous standings */ }
+}
+// team {name,short} -> "W-L" (or "W-L-T" when t>0); name match then loose fallback.
+function recordStr(team) {
+  if (!team) return null;
+  const keys = Object.keys(standings); if (!keys.length) return null;
+  let rec = standings[normName(team.name)];
+  if (!rec) { const s = normName(team.short || ''); if (s.length >= 4) { const h = keys.find(k => k.indexOf(s) !== -1); if (h) rec = standings[h]; } }
+  if (!rec) { const f = normName(team.name || ''); if (f.length >= 5) { const h = keys.find(k => k.indexOf(f) !== -1 || f.indexOf(k) !== -1); if (h) rec = standings[h]; } }
+  if (!rec) return null;
+  return rec.t > 0 ? (rec.w + '-' + rec.l + '-' + rec.t) : (rec.w + '-' + rec.l);
+}
 // Attaches the derived display fields a game needs on the client.
 function decorateGame(g) { return Object.assign({}, g, { location: gameLocation(g), watchUrl: watchUrlFor(g) }); }
 
@@ -1033,6 +1072,14 @@ app.get('/debug/standings', async (_q, r) => {
     });
   } catch (e) { r.status(502).json({ error: String(e && e.message || e) }); }
 });
+app.get('/debug/standings-map', async (_q, r) => {
+  try {
+    if (!Object.keys(standings).length) await pollStandings();
+    const f = featured;
+    const resolved = f ? { away: { name: f.away && f.away.name, record: recordStr(f.away) }, home: { name: f.home && f.home.name, record: recordStr(f.home) } } : null;
+    r.json({ standingsAt, teams: Object.keys(standings).length, standings, featuredResolved: resolved });
+  } catch (e) { r.status(502).json({ error: String(e && e.message || e) }); }
+});
 app.get('/debug/roster', async (_q, r) => {
   try {
     const duhon = ROSTER.find(p => p.slug === 'davisduhons0vw');
@@ -1096,7 +1143,7 @@ app.get('/api/stream', (q, r) => {
 });
 
 if (require.main === module) {
-  app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); pollRoster(); setInterval(pollRoster, 20 * 60 * 1000); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollPhotos(); setInterval(pollPhotos, 24 * 60 * 60 * 1000); });
+  app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); pollRoster(); setInterval(pollRoster, 20 * 60 * 1000); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollPhotos(); setInterval(pollPhotos, 24 * 60 * 60 * 1000); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, extractEventAuth };
 
@@ -1156,6 +1203,7 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .tm{display:flex;flex-direction:column;align-items:center;gap:8px;min-width:0;}
 .tm img{width:54px;height:54px;border-radius:14px;object-fit:contain;background:#16102b;border:1px solid var(--line);}
 .tm .nm{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.03em;font-size:12px;text-align:center;line-height:1.05;}
+.tm .rec{font-family:'Inter',sans-serif;font-weight:600;font-size:11px;color:var(--mute);letter-spacing:.04em;margin-top:-4px;min-height:13px;}
 .tm.gators .nm{color:var(--gator);}
 .tm .sc{font-family:'Oswald',sans-serif;font-weight:700;font-size:60px;line-height:.9;}
 .tm.gators .sc{color:var(--gator);text-shadow:0 0 24px rgba(157,92,255,.35);}
@@ -1272,9 +1320,9 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 <div id="viewScores">
 <div class="jumbo">
 <div class="sl">
-<div class="tm" id="awayTm"><img id="awayLogo" alt=""><div class="nm" id="awayNm">—</div><div class="sc" id="awaySc">0</div></div>
+<div class="tm" id="awayTm"><img id="awayLogo" alt=""><div class="nm" id="awayNm">—</div><div class="rec" id="awayRec"></div><div class="sc" id="awaySc">0</div></div>
 <div class="mid"><div class="statpill" id="statpill">—</div><div class="vs" id="vs">vs</div></div>
-<div class="tm" id="homeTm"><img id="homeLogo" alt=""><div class="nm" id="homeNm">—</div><div class="sc" id="homeSc">0</div></div>
+<div class="tm" id="homeTm"><img id="homeLogo" alt=""><div class="nm" id="homeNm">—</div><div class="rec" id="homeRec"></div><div class="sc" id="homeSc">0</div></div>
 </div>
 <div class="jloc" id="jloc"></div>
 <a class="watchbtn" id="watchBtn" target="_blank" rel="noopener" style="display:none">▶ Watch on TCL TV</a>
@@ -1310,6 +1358,8 @@ function renderGame(g){
   $('awayTm').classList.toggle('gators',ah);$('homeTm').classList.toggle('gators',hh);
   $('awayLogo').src=g.away.logo;$('homeLogo').src=g.home.logo;
   $('awayNm').textContent=g.away.short;$('homeNm').textContent=g.home.short;
+  var ar=$('awayRec'),hr=$('homeRec');
+  if(ar)ar.textContent=g.away.record||'';if(hr)hr.textContent=g.home.record||'';
   if(g.id===curId){if(g.away.runs>prev.a)flash($('awaySc'));if(g.home.runs>prev.h)flash($('homeSc'));}
   $('awaySc').textContent=g.away.runs;$('homeSc').textContent=g.home.runs;
   prev={a:g.away.runs,h:g.home.runs};curId=g.id;
