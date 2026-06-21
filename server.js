@@ -1374,7 +1374,8 @@ background:radial-gradient(1100px 550px at 50% -10%,rgba(111,79,212,.10),transpa
 .chip{margin-left:auto;display:flex;align-items:center;gap:7px;font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);background:rgba(242,183,5,.1);border:1px solid rgba(242,183,5,.3);padding:6px 10px;border-radius:999px;}
 .trail{margin-left:auto;display:flex;align-items:center;gap:8px;}
 .trail .chip{margin-left:0;}
-.shopbtn{display:flex;align-items:center;gap:6px;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:10.5px;color:var(--gold2);background:rgba(242,183,5,.1);border:1px solid rgba(242,183,5,.3);padding:6px 11px;border-radius:999px;text-decoration:none;white-space:nowrap;}
+.shopbtn{display:flex;align-items:center;gap:6px;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:10.5px;color:var(--gold2);background:rgba(242,183,5,.1);border:1px solid rgba(242,183,5,.3);padding:7px 12px;border-radius:16px;text-decoration:none;white-space:nowrap;}
+.shopbtn .shoptxt{display:inline-block;line-height:1.1;text-align:center;}
 .chip.live{color:var(--gator);background:rgba(157,92,255,.1);border-color:rgba(157,92,255,.3);}
 .chip.off{color:#ff7a70;background:rgba(212,56,47,.1);border-color:rgba(212,56,47,.3);}
 .dot{width:7px;height:7px;border-radius:50%;background:currentColor;}
@@ -1509,7 +1510,7 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 <div class="bgfx"></div>
 <div class="toasts" id="toasts"></div>
 <div class="wrap">
-<div class="topbar"><img class="hdrlogo tcl" src="/tcl-logo.png" alt="Texas Collegiate League"><img class="gglogo" src="/gg-logo.jpg" alt="Lake Charles Gumbeaux Gators"><a class="shopbtn" id="shopBtn" href="https://gumbeauxgators.myshopify.com/collections/all" target="_blank" rel="noopener" title="Shop the Gators store">🛒 Shop</a></div>
+<div class="topbar"><img class="hdrlogo tcl" src="/tcl-logo.png" alt="Texas Collegiate League"><img class="gglogo" src="/gg-logo.jpg" alt="Lake Charles Gumbeaux Gators"><a class="shopbtn" id="shopBtn" href="https://gumbeauxgators.myshopify.com/collections/all" target="_blank" rel="noopener" title="Shop the Gators store">🛒<span class="shoptxt">Gators<br>Team<br>Store</span></a></div>
 <div class="nav"><button class="navb on" id="navScores">Scores</button><button class="navb" id="navRoster">Roster</button><button class="navb" id="navStandings">Standings</button></div>
 <div id="viewScores">
 <div class="jumbo">
