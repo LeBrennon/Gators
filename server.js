@@ -461,9 +461,31 @@ const STAT_KEYS = {
   'strikeouts per game': 'k9', 'whip': 'whip', 'earned run average': 'era',
   'batting average against': 'baa', 'home runs allows': 'hra', 'wild pitches': 'wp', 'hit batters': 'hb',
 };
+// The compact strip just below the player name (e.g. "app 5 ... ip 6.2 era 8.10 whip 1.95 k 8")
+// is server-rendered on EVERY player page and is the most reliable signal. We parse it first.
+const STRIP_PIT = ['app', 'gs', 'w', 'l', 'sv', 'ip', 'era', 'whip', 'k'];
+const STRIP_BAT = ['gp', 'avg', 'obp', 'slg', 'hr', 'rbi', 'r', 'h', 'sb', 'ab'];
+function parseStatStrip(html) {
+  const h1 = html.search(/<\/h1>/i);
+  let start = h1 >= 0 ? h1 + 5 : 0;
+  let end = html.indexOf('Player Profile');
+  if (end < 0 || end <= start) end = html.indexOf('Player Stats');
+  if (end < 0 || end <= start) end = Math.min(html.length, start + 6000);
+  const text = ' ' + bsText(html.slice(start, end)) + ' ';
+  const grab = label => { const m = text.match(new RegExp('\\b' + label + '\\b\\s+([.\\d]+|-)\\b')); return (m && m[1] !== '-') ? m[1] : null; };
+  const isPit = /\bip\b\s+[.\d]/.test(text) || /\bera\b\s+[.\d]/.test(text) || /\bwhip\b\s+[.\d]/.test(text);
+  const isBat = /\bavg\b\s+[.\d]/.test(text) || /\bobp\b\s+[.\d]/.test(text) || /\bslg\b\s+[.\d]/.test(text);
+  const kind = isPit ? 'pitching' : (isBat ? 'batting' : null);
+  if (!kind) return { kind: null, map: {} };
+  const keys = kind === 'pitching' ? STRIP_PIT : STRIP_BAT;
+  const map = {};
+  for (const key of keys) { const v = grab(key); if (v != null) map[key] = { v: v, r: '' }; }
+  return { kind, map };
+}
 function parsePlayerPage(html) {
   const nameM = html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i);
   const name = nameM ? bsText(nameM[1]) : '';
+  const strip = parseStatStrip(html);
   const tables = html.match(/<table\b[\s\S]*?<\/table>/gi) || [];
   let kind = null; const map = {};
   for (const t of tables) {
@@ -479,8 +501,14 @@ function parsePlayerPage(html) {
       map[key] = { v: v, r: (r && r !== '-') ? r : '' };
     }
   }
+  // Strip is authoritative for classification + headline values; merge table in for full stats + ranks.
+  let finalKind = strip.kind || kind;
+  let finalMap;
+  if (strip.kind && kind && strip.kind !== kind) { finalKind = strip.kind; finalMap = Object.assign({}, strip.map); } // table is for the other discipline; trust strip
+  else if (finalKind === kind) { finalMap = Object.assign({}, strip.map, map); } // table wins on overlap (has ranks)
+  else { finalMap = Object.assign({}, map, strip.map); }
   const gl = parseGameLog(tables);
-  return { name, kind, map, glBat: gl.bat, glPit: gl.pit };
+  return { name, kind: finalKind, map: finalMap, glBat: gl.bat, glPit: gl.pit };
 }
 // Per-game log lines from a player page (hitting + pitching game-log tables).
 function parseGameLog(tables) {
@@ -714,6 +742,24 @@ app.get('/debug/roster', async (_q, r) => {
       pitcherRecord: { kind: rec.kind, pit: rec.pit, hit: rec.hit },
       leagueHitGators: Object.keys(batMap).length, leaguePitGators: Object.keys(pitMap).length,
       cacheLoaded: Object.keys(rosterStats).length, rosterUpdated, polling: rosterPolling,
+    });
+  } catch (e) { r.status(502).json({ error: e.message, stack: e.stack }); }
+});
+app.get('/debug/player', async (q, r) => {
+  try {
+    const slug = (q.query.slug || '').trim();
+    const pl = ROSTER.find(p => p.slug === slug);
+    if (!pl) return r.status(404).json({ error: 'unknown slug', hint: 'use a slug from /api/roster' });
+    const pr = await fetchText(playerUrl(slug), SPORT_BASE + '/schedule');
+    const body = pr.body || '';
+    const strip = parseStatStrip(body);
+    const parsed = parsePlayerPage(body);
+    r.json({
+      who: pl.name, slug,
+      fetch: { ok: pr.ok, status: pr.status, bytes: body.length, hasPlayerStats: body.indexOf('Player Stats') !== -1, hasERA: body.toLowerCase().indexOf('earned run average') !== -1 },
+      strip: { kind: strip.kind, map: flatVals(strip.map) },
+      parsed: { kind: parsed.kind, keys: Object.keys(parsed.map), era: parsed.map.era && parsed.map.era.v, ip: parsed.map.ip && parsed.map.ip.v, k: parsed.map.k && parsed.map.k.v },
+      cached: rosterStats[slug] || null,
     });
   } catch (e) { r.status(502).json({ error: e.message, stack: e.stack }); }
 });
@@ -1068,7 +1114,7 @@ function renderRoster(d){
     h+='<div class="pcard" data-slug="'+p.slug+'">'+
        '<div class="pnum">'+p.num+'</div>'+
        '<div class="pmain"><div class="pname">'+esc(p.name)+'</div>'+
-       '<div class="pmeta"><b>'+esc(p.pos)+'</b> · '+esc(p.cls)+' · '+esc(p.home)+'</div></div>'+
+       '<div class="pmeta"><b>'+esc(p.pos)+'</b> · '+esc(p.cls)+' · '+esc(p.school)+'</div></div>'+
        cardStats(p)+'<div class="pchev">›</div></div>';
   }
   $('rosterBody').innerHTML=h;
