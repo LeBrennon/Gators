@@ -1392,7 +1392,7 @@ body{margin:0;font-family:'Inter',system-ui,sans-serif;color:var(--bone);min-hei
 background:transparent;-webkit-font-smoothing:antialiased;}
 .bgfx{position:fixed;inset:0;z-index:-1;background-color:var(--bayou);
 background:radial-gradient(1100px 550px at 50% -10%,rgba(111,79,212,.10),transparent 60%),linear-gradient(rgba(22,16,43,.12),rgba(22,16,43,.20)),url(${BG_PATH}) center center / cover no-repeat;}
-.wrap{max-width:520px;margin:0 auto;padding:0 14px 120px;}
+.wrap{max-width:520px;margin:0 auto;padding:0 14px 40px;}
 .topbar{position:sticky;top:0;z-index:40;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:9px;padding:14px 4px 12px;background:linear-gradient(180deg,var(--bayou) 70%,transparent);}
 .topbar .hdrlogo.tcl{justify-self:start;}
 .topbar .shopbtn{justify-self:end;}
@@ -1456,10 +1456,6 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .crow.g .n{color:var(--gator);}
 .crow .s{font-family:'Oswald',sans-serif;font-weight:700;font-size:18px;min-width:22px;text-align:right;}
 .crow.w .s{color:var(--gold2);}
-.dock{position:fixed;left:0;right:0;bottom:0;z-index:50;background:linear-gradient(180deg,transparent,var(--bayou) 28%);padding:18px 14px;}
-.dock .in{max-width:520px;margin:0 auto;}
-.abtn{width:100%;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.05em;font-size:13px;border-radius:14px;padding:14px;cursor:pointer;border:1px solid rgba(139,92,246,.35);background:rgba(139,92,246,.14);color:var(--purple);box-shadow:0 18px 40px -18px rgba(0,0,0,.8);}
-.abtn.on{background:linear-gradient(180deg,var(--purple),#4f3191);color:#fff;border-color:var(--purple);}
 .toasts{position:fixed;top:14px;left:0;right:0;z-index:60;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;padding:0 14px;}
 .toast{max-width:500px;width:100%;display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,var(--panel),var(--bayou2));border:1px solid rgba(242,183,5,.5);border-radius:14px;padding:12px 14px;box-shadow:0 16px 40px -12px rgba(0,0,0,.85);transform:translateY(-130%);opacity:0;transition:.45s cubic-bezier(.2,.9,.25,1);}
 .toast.show{transform:translateY(0);opacity:1;}
@@ -1555,7 +1551,7 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 <div class="jloc" id="jloc"></div>
 <a class="watchbtn" id="watchBtn" target="_blank" rel="noopener" style="display:none">▶ Watch on TCL TV</a>
 <a class="watchbtn ticket" id="ticketBtn" target="_blank" rel="noopener" style="display:none">🎟 Buy Tickets</a>
-<div class="note">Live score and inning, straight from the league feed. Tap <b>Get alerts</b> for a buzz at first pitch, every run, and the final.</div>
+<div class="note">Live score and inning, straight from the league feed — updates automatically.</div>
 </div>
 <div class="sec">Gators Schedule</div>
 <div id="sched"></div>
@@ -1571,7 +1567,6 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 <div id="standingsBody"></div>
 </div>
 </div>
-<div class="dock" id="dock"><div class="in"><button class="abtn" id="abtn">🔔 Get alerts</button></div></div>
 <div class="modal" id="bxModal"><div class="sheet">
 <div class="shead"><span class="sttl" id="bxTtl">Box Score</span><span class="sscore" id="bxScore"></span><button class="sclose" id="bxClose" aria-label="Close">✕</button></div>
 <div class="tabs"><button class="tabb on" id="tabBox">Box Score</button><button class="tabb" id="tabPbp">Play-by-Play</button></div>
@@ -1583,7 +1578,7 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 </div></div>
 <script>
 var $=function(i){return document.getElementById(i);};
-var alertsOn=false,curId=null;
+var curId=null;
 function esc(s){return (s||'').replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
 function flash(el){el.classList.remove('flash');void el.offsetWidth;el.classList.add('flash');}
 var prev={a:null,h:null};
@@ -1643,8 +1638,7 @@ function renderSched(list){
 function toast(e,t,s,cls){var el=document.createElement('div');el.className='toast '+(cls||'');
   el.innerHTML='<div class="e">'+e+'</div><div><b>'+t+'</b><span>'+s+'</span></div>';$('toasts').appendChild(el);
   requestAnimationFrame(function(){requestAnimationFrame(function(){el.classList.add('show');});});
-  setTimeout(function(){el.classList.remove('show');setTimeout(function(){el.remove();},500);},4200);
-  if(alertsOn&&'Notification'in window&&Notification.permission==='granted'){try{new Notification(t,{body:s});}catch(x){}}}
+  setTimeout(function(){el.classList.remove('show');setTimeout(function(){el.remove();},500);},4200);}
 function emo(tag){return tag==='lead'?'📣':tag==='final'?'🏁':tag==='run'?'🔥':tag==='start'?'⚾':'🐊';}
 function loadSched(){fetch('/api/schedule').then(function(r){return r.json();}).then(function(d){renderSched(d.games||[]);}).catch(function(){});}
 function connect(){var lastData=0;
@@ -1657,35 +1651,6 @@ function connect(){var lastData=0;
     es.onerror=function(){try{es.close();}catch(x){}setTimeout(openSSE,8000);};}
   openSSE();
   setInterval(function(){if(Date.now()-lastData>45000)setChip('off');},10000);}
-function urlB64(b){var p='='.repeat((4-b.length%4)%4),s=(b+p).replace(/-/g,'+').replace(/_/g,'/'),raw=atob(s),o=new Uint8Array(raw.length);for(var i=0;i<raw.length;i++)o[i]=raw.charCodeAt(i);return o;}
-$('abtn').addEventListener('click',function(){
-  var b=this;alertsOn=!alertsOn;b.classList.toggle('on',alertsOn);b.textContent=alertsOn?'🔔 Alerts on':'🔔 Get alerts';
-  if(!alertsOn)return;
-  (async function(){try{
-    var info=await fetch('/api/vapidPublicKey').then(function(r){return r.json();});
-    if('serviceWorker'in navigator&&'PushManager'in window&&info.enabled){
-      var reg=await navigator.serviceWorker.register('sw.js');
-      var perm=await Notification.requestPermission();
-      if(perm==='granted'){var sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64(info.key)});
-        await fetch('/api/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(sub)});
-        toast('🔔','Phone alerts on','Runs, lead changes, and the final','lead');return;}}
-    if('Notification'in window&&Notification.permission!=='denied')await Notification.requestPermission();
-    toast('🔔','Alerts on','Pop-ups while this screen is open','');
-  }catch(e){toast('🔔','Alerts on','Pop-ups while this screen is open','');}})();
-});
-// Re-register an existing push subscription whenever the app opens, so the
-// server's in-memory subscriber list self-heals after a redeploy or sleep.
-function resubscribe(){(async function(){try{
-  if(!('serviceWorker'in navigator)||!('PushManager'in window))return;
-  if(!('Notification'in window)||Notification.permission!=='granted')return;
-  var info=await fetch('/api/vapidPublicKey').then(function(r){return r.json();});
-  if(!info.enabled)return;
-  var reg=await navigator.serviceWorker.register('sw.js');
-  var sub=await reg.pushManager.getSubscription();
-  if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64(info.key)});
-  await fetch('/api/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(sub)});
-  alertsOn=true;var b=$('abtn');b.classList.add('on');b.textContent='🔔 Alerts on';
-}catch(e){}})();}
 var _box=null;
 function bsScoreFromLine(line){try{var rows=line.match(new RegExp('<tr[^]*?</tr>','gi'))||[];var rs=[];rows.forEach(function(r){var c=r.match(new RegExp('<t[dh][^]*?</t[dh]>','gi'))||[];if(c.length>3){var nm=c[0].replace(/<[^>]+>/g,'').trim();if(nm&&!/^final$/i.test(nm))rs.push(c[c.length-3].replace(/<[^>]+>/g,'').trim());}});return rs.length>=2?rs[0]+'\u2013'+rs[1]:'';}catch(e){return'';}}
 function openBox(id){var m=$('bxModal');m.classList.add('show');
@@ -1768,7 +1733,6 @@ function setView(v){
   $('navScores').classList.toggle('on',v==='scores');
   $('navRoster').classList.toggle('on',v==='roster');
   $('navStandings').classList.toggle('on',v==='standings');
-  $('dock').style.display=v==='scores'?'':'none';
   if(v==='roster'&&!rosterData)loadRoster();
   if(v==='standings'&&!standingsData)loadStandings();
 }
@@ -1892,4 +1856,4 @@ $('plClose').addEventListener('click',function(){$('plModal').classList.remove('
 $('plModal').addEventListener('click',function(e){if(e.target===this)this.classList.remove('show');});
 $('bxClose').addEventListener('click',function(){$('bxModal').classList.remove('show');});
 $('bxModal').addEventListener('click',function(e){if(e.target===this)this.classList.remove('show');});
-connect();loadSched();resubscribe();loadRoster();</script></body></html>`;
+connect();loadSched();loadRoster();</script></body></html>`;
