@@ -197,6 +197,9 @@ function scanForAuth(html) {
     }
   }
   out.inlineHits = inlineHits;
+  // htmx drives Presto's live updates — capture its request attributes and any live URLs.
+  out.hx = grab('hx-(?:get|post|trigger|target|swap|vals)\\s*=\\s*["\'][^"\']{0,200}["\']', 25);
+  out.endpoints = grab('(?:hx-get|hx-post|data-url|data-hx-get|src|href)\\s*=\\s*["\'][^"\']*(?:action/|live|update|poll|broadcast|dec=|\\.json)[^"\']*["\']', 25);
   return out;
 }
 
