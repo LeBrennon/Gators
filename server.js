@@ -644,7 +644,8 @@ function renderSched(list){
   var live=list.filter(function(g){return g.state==='live';});
   var up=list.filter(function(g){return g.state==='scheduled';});
   var done=list.filter(function(g){return g.state==='final'||g.state==='cancelled';}).reverse();
-  var ord=live.concat(up).concat(done),h='';
+  var nextUp=up.slice(0,1),restUp=up.slice(1);
+  var ord=live.concat(nextUp).concat(done).concat(restUp),h='';
   ord.forEach(function(g){
     var pill=g.state==='live'?'<span class="cpill live"><span class="dot"></span>'+g.status+'</span>':g.state==='final'?'<span class="cpill final">'+g.status+' \u203A</span>':'<span class="cpill">'+esc(g.status)+'</span>';
     var aw=g.state==='final'&&g.away.score>g.home.score,hw=g.state==='final'&&g.home.score>g.away.score;
