@@ -771,7 +771,8 @@ async function pollPhotos() {
 // Attaches the derived display fields a game needs on the client.
 function decorateGame(g) { return Object.assign({}, g, { location: gameLocation(g), watchUrl: watchUrlFor(g) }); }
 
-
+// ----- server ---------------------------------------------------------------
+const app = express();
 app.use(cors());
 app.use(express.json());
 
