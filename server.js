@@ -671,9 +671,24 @@ async function pollRoster() {
       const [hRes, pRes] = await Promise.all([fetchText(leagueStatsUrl('h')), fetchText(leagueStatsUrl('p'))]);
       batMap = parseLeagueStats(hRes.body, 'h'); pitMap = parseLeagueStats(pRes.body, 'p');
     } catch (e) {}
+    // Fast seed: the league hitting + pitching pages cover most of the roster in
+    // just two fetches, so cards show stats almost immediately. The per-player
+    // pass below then fills game logs, ranks, and any pitchers the league pages
+    // miss — upgrading each card in the background without blocking the display.
+    for (const pl of ROSTER) {
+      if (!playerNeedsData(pl.slug)) continue;
+      const hit = (batMap[pl.slug] && batMap[pl.slug].avg) ? batMap[pl.slug] : null;
+      const pit = (pitMap[pl.slug] && (pitMap[pl.slug].era || pitMap[pl.slug].ip)) ? pitMap[pl.slug] : null;
+      if (hit || pit) rosterStats[pl.slug] = { kind: pit ? 'pitching' : 'batting', hit, pit, hitRanks: {}, pitRanks: {} };
+    }
+    if (Object.keys(rosterStats).length && !rosterUpdated) rosterUpdated = Date.now();
     let pass = 0, backoff = 0;
     while (pass < 5) {
-      const todo = ROSTER.filter(pl => playerNeedsData(pl.slug));
+      // Players with no card stats first (so they appear ASAP), then ones that
+      // have card stats but no full record yet (to cache game logs for profiles).
+      const missing = ROSTER.filter(pl => playerNeedsData(pl.slug));
+      const stale = ROSTER.filter(pl => !playerNeedsData(pl.slug) && !recHasData(playerCache[pl.slug]));
+      const todo = missing.concat(stale);
       if (!todo.length) break;
       // rotate the order so a throttle mid-pass doesn't always starve the same tail
       const off = rosterStartOffset % todo.length;
@@ -681,11 +696,7 @@ async function pollRoster() {
       let throttled = false;
       for (const pl of ordered) {
         const pg = await fetchPlayerPage(pl.slug);
-        const rec = buildRecord(pl.slug, pg.primary, batMap, pitMap);
-        storePlayer(pl.slug, rec);
-        // Fill per-game walks now (during the daily scrape) so opening a
-        // pitcher's profile later is instant instead of fetching box scores.
-        if (rec.glPit && rec.glPit.length) { try { await enrichPitchingWalks(pl.name, rec.glPit); } catch (e) {} }
+        storePlayer(pl.slug, buildRecord(pl.slug, pg.primary, batMap, pitMap));
         if (isThrottle(pg.status)) { throttled = true; backoff = Math.min(backoff ? backoff * 2 : 4000, 20000); await sleep(backoff); }
         else { backoff = 0; await sleep(800); }
       }
@@ -1269,7 +1280,7 @@ if (require.main === module) {
   app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); pollRoster(); scheduleDailyRoster(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); pollPhotos(); setInterval(pollPhotos, 24 * 60 * 60 * 1000); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, extractEventAuth,
-  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight };
+  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
