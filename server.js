@@ -160,6 +160,32 @@ function snippetAround(html, needle, span = 180) {
   return String(html).slice(Math.max(0, i - span), i + span).replace(/\s+/g, ' ').trim();
 }
 
+// Read-only diagnostics: probe the raw page for anything that looks like the
+// live feed's event id / hash, so we can see the real markup without guessing.
+function scanForAuth(html) {
+  const s = String(html || '');
+  const out = { length: s.length, keywords: {}, patterns: {} };
+  const keywords = ['liveupdate', 'live-update', 'live_update', 'livestats', 'live-stats',
+    'action/sports', 'gamecenter', 'genId', 'eventId', 'event_id', 'data-event', 'data-hash',
+    'data-e=', 'data-h=', 'presto', 'sidearm', 'rsObserver', 'iframe', 'feed', '&h=', '?e=', 'hash'];
+  const low = s.toLowerCase();
+  for (const k of keywords) {
+    const i = low.indexOf(k.toLowerCase());
+    if (i >= 0) out.keywords[k] = { at: i, snip: s.slice(Math.max(0, i - 120), i + 160).replace(/\s+/g, ' ').trim() };
+  }
+  const grab = (src, max = 6) => {
+    const hits = []; let m, n = 0;
+    const r = new RegExp(src, 'ig');
+    while ((m = r.exec(s)) && n < max) { hits.push(m[0].slice(0, 140)); n++; }
+    return hits;
+  };
+  out.patterns.actionSports = grab('action/sports/[a-z]+\\?[^"\'<>\\s]{0,160}');
+  out.patterns.eParam = grab('[?&]e=[a-z0-9]{8,}');
+  out.patterns.hParam = grab('[?&]h=[A-Za-z0-9_\\-]{8,}');
+  out.patterns.dataAttrs = grab('data-[a-z]*(?:event|hash|game)[a-z]*\\s*=\\s*["\'][^"\']{6,}["\']');
+  return out;
+}
+
 async function fetchText(url, referer) {
   const headers = { 'user-agent': UA, 'accept-language': 'en-US,en;q=0.9', 'cache-control': 'no-cache' };
   if (referer) headers.referer = referer;
@@ -334,6 +360,18 @@ app.get('/debug/live', async (q, r) => {
     if (!id) return r.status(503).json({ error: 'no game id yet — pass ?id=YYYYMMDD_xxxx or wait for the schedule poll' });
     const result = await fetchLiveForGame(id);
     r.json(result);
+  } catch (err) {
+    r.status(500).json({ error: String(err && err.message || err) });
+  }
+});
+
+app.get('/debug/scan', async (q, r) => {
+  try {
+    const id = (q.query && q.query.id) || (featured && featured.id);
+    if (!id) return r.status(503).json({ error: 'pass ?id=YYYYMMDD_xxxx' });
+    const boxUrl = boxscoreUrl(id);
+    const page = await fetchText(boxUrl, SCHEDULE_URL);
+    r.json({ id, boxUrl, ok: page.ok, status: page.status, scan: scanForAuth(page.body) });
   } catch (err) {
     r.status(500).json({ error: String(err && err.message || err) });
   }
