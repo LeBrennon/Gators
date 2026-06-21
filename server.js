@@ -977,6 +977,28 @@ app.get('/debug/walks', async (q, r) => {
     r.json({ who: pl.name, nameKey: key, scheduleGames: games.length, rows });
   } catch (e) { r.status(502).json({ error: e.message, stack: e.stack }); }
 });
+app.get('/debug/box', async (q, r) => {
+  try {
+    const id = String((q.query && q.query.id) || '');
+    if (!/^[0-9]{8}_[a-z0-9]+$/i.test(id)) return r.status(400).json({ error: 'pass ?id=YYYYMMDD_xxxx (from /debug/walks)' });
+    const url = boxscoreUrl(id) + '?view=plays';
+    const page = await fetchText(url, SCHEDULE_URL);
+    const body = page.body || '';
+    let counts = null, pitchingTables = 0, pitcherWalks = null, parseError = null;
+    try {
+      const p = parseBoxscore(body);
+      counts = p.counts;
+      const m = {};
+      for (const b of p.box) { if (/Pitching/i.test(b.label)) { pitchingTables++; Object.assign(m, parsePitchingBB(b.html)); } }
+      pitcherWalks = m;
+    } catch (e) { parseError = String(e && e.message || e); }
+    r.json({
+      id, url, status: page.status, ok: page.ok, bytes: body.length, contentType: page.contentType,
+      rawTableTags: (body.match(/<table\b/gi) || []).length,
+      counts, pitchingTables, pitcherWalks, parseError, head: body.slice(0, 300),
+    });
+  } catch (e) { r.status(502).json({ error: String(e && e.message || e) }); }
+});
 app.get('/debug/roster', async (_q, r) => {
   try {
     const duhon = ROSTER.find(p => p.slug === 'davisduhons0vw');
