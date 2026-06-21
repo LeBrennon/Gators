@@ -837,6 +837,70 @@ function watchUrlFor(g) {
   const k = aw + '|' + hm + '|' + mmddyyyy(g.date || '');
   return watchIndex[k] || watchIndex['loose:' + aw + '|' + hm] || WATCH_FALLBACK;
 }
+// ----- finished-game replays (VODs on the Gators' TCL TV category page) ------
+// Replays live at /video/<teams>-<Day>-<Mon>-<DD>-<YYYY>-<start>-to-<end>. We
+// scrape the Gators category page and key each VOD by game date + the opponent's
+// distinctive token, keeping the longest clip per game (the full broadcast, not
+// a pre-game segment). Matched directly to a finished game by date + opponent.
+const REPLAY_LIST_URL = 'https://tcl-tv.vewbie.com/categories/lake-charles-gumbeaux-gators';
+const REPLAY_FALLBACK = WATCH_FALLBACK;
+const REPLAY_TOKEN = {
+  cz8qei0rxijys6nm: 'cane',       // Acadiana Cane Cutters
+  z10kgms3gvy1eszs: 'rougarou',   // Baton Rouge Rougarou
+  ij0lwtvjsx2mi1nh: 'bison',      // Abilene Flying Bison
+  z7w5th537gur3z15: 'bombers',    // Brazos Valley Bombers
+  do9ibktaduhyld7f: 'monsters',   // San Antonio / Seguin River Monsters
+  w43rx8i07fn44cyl: 'shadowcats', // Sherman Shadowcats
+  jm9r4btii24hhtfp: 'generals',   // Victoria Generals
+};
+const RP_MONTHS = { jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06', jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12' };
+let replayIndex = {};       // 'YYYYMMDD|<oppToken>' -> { url, mins }
+let replayLoadedAt = 0;
+function vewbieMins(t) { // "722-PM" -> minutes since midnight
+  const m = t.match(/^(\d{1,2})(\d{2})-(AM|PM)$/i); if (!m) return null;
+  let h = parseInt(m[1], 10); const min = parseInt(m[2], 10); const ap = m[3].toUpperCase();
+  if (ap === 'PM' && h !== 12) h += 12; if (ap === 'AM' && h === 12) h = 0;
+  return h * 60 + min;
+}
+function parseReplayList(html) {
+  const idx = {}, seen = {};
+  const re = /\/video\/([A-Za-z0-9\-]+)/g; let m;
+  while ((m = re.exec(html)) !== null) {
+    const slug = m[1]; if (seen[slug]) continue; seen[slug] = 1;
+    const dm = slug.match(/-([A-Za-z]{3})-(\d{1,2})-(\d{4})-(\d{3,4}-(?:AM|PM))-to-(\d{3,4}-(?:AM|PM))$/i);
+    if (!dm) continue;
+    const mon = RP_MONTHS[dm[1].toLowerCase()]; if (!mon) continue;
+    const ymd = dm[3] + mon + ('0' + dm[2]).slice(-2);
+    const s = vewbieMins(dm[4]), e = vewbieMins(dm[5]);
+    let mins = (s != null && e != null) ? (e - s) : 0; if (mins < 0) mins += 1440;
+    const teams = slug.slice(0, slug.length - dm[0].length + 1).toLowerCase();
+    const url = 'https://tcl-tv.vewbie.com/video/' + slug;
+    for (const id of Object.keys(REPLAY_TOKEN)) {
+      const tok = REPLAY_TOKEN[id];
+      if (teams.indexOf(tok) === -1) continue;
+      const k = ymd + '|' + tok;
+      if (!idx[k] || mins > idx[k].mins) idx[k] = { url, mins };
+    }
+  }
+  return idx;
+}
+async function pollReplays() {
+  try {
+    const r = await fetchText(REPLAY_LIST_URL, 'https://tcl-tv.vewbie.com/');
+    if (!r.ok || !r.body) return;
+    const idx = parseReplayList(r.body);
+    if (Object.keys(idx).length) { replayIndex = idx; replayLoadedAt = Date.now(); }
+  } catch (e) { /* keep previous index */ }
+}
+// Finished games only. The direct VOD when matched, else the Gators' replay hub.
+function replayUrlFor(g) {
+  if (g.state !== 'final') return null;
+  const oppId = g.away.id === GATORS_ID ? g.home.id : g.away.id;
+  const tok = REPLAY_TOKEN[oppId];
+  if (!tok || !g.date) return REPLAY_FALLBACK;
+  const hit = replayIndex[g.date + '|' + tok];
+  return hit ? hit.url : REPLAY_FALLBACK;
+}
 
 // ---- Player headshots from the official team site ----
 const TEAM_ROSTER_URL = 'https://gumbeauxgators.com/roster/';
@@ -928,7 +992,7 @@ function recordStr(team) {
   return rec.t > 0 ? (rec.w + '-' + rec.l + '-' + rec.t) : (rec.w + '-' + rec.l);
 }
 // Attaches the derived display fields a game needs on the client.
-function decorateGame(g) { return Object.assign({}, g, { location: gameLocation(g), watchUrl: watchUrlFor(g) }); }
+function decorateGame(g) { return Object.assign({}, g, { location: gameLocation(g), watchUrl: watchUrlFor(g), replayUrl: replayUrlFor(g) }); }
 
 // ----- server ---------------------------------------------------------------
 const app = express();
@@ -1163,10 +1227,10 @@ app.get('/api/stream', (q, r) => {
 });
 
 if (require.main === module) {
-  app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); pollRoster(); setInterval(pollRoster, 20 * 60 * 1000); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollPhotos(); setInterval(pollPhotos, 24 * 60 * 60 * 1000); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); });
+  app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); pollRoster(); setInterval(pollRoster, 20 * 60 * 1000); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); pollPhotos(); setInterval(pollPhotos, 24 * 60 * 60 * 1000); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, extractEventAuth,
-  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings };
+  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
@@ -1240,6 +1304,8 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .cfoot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line);}
 .cloc{font-family:'Oswald',sans-serif;font-weight:600;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .watchmini{flex:none;display:flex;align-items:center;gap:5px;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.04em;font-size:10px;color:var(--gold2);border:1px solid rgba(242,183,5,.4);background:rgba(242,183,5,.1);border-radius:999px;padding:4px 10px;text-decoration:none;}
+.watchmini.replay{color:var(--gator);border-color:rgba(157,92,255,.45);background:rgba(157,92,255,.12);}
+.watchbtn.replay{color:var(--gator);border-color:rgba(157,92,255,.45);background:rgba(157,92,255,.13);}
 .sec{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.08em;font-size:13px;color:var(--mute);margin:22px 4px 10px;}
 .card{background:var(--bayou2);border:1px solid var(--line);border-radius:14px;padding:11px 13px;margin-bottom:8px;cursor:pointer;}
 .card.glive{border-color:rgba(157,92,255,.45);}
@@ -1346,7 +1412,7 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 <div class="wrap">
 <div class="topbar"><div><div class="lead">Gators GameTracker</div><div class="sub">Texas Collegiate League</div></div>
 <div class="trail"><a class="shopbtn" id="shopBtn" href="https://gumbeauxgators.myshopify.com/collections/all" target="_blank" rel="noopener" title="Shop the Gators store">🛒 Gators Team Shop</a><div class="chip" id="chip"><span class="dot"></span><span id="chiptx">Connecting</span></div></div></div>
-<div class="nav"><button class="navb on" id="navScores">Scores</button><button class="navb" id="navStandings">Standings</button><button class="navb" id="navRoster">Roster</button></div>
+<div class="nav"><button class="navb on" id="navScores">Scores</button><button class="navb" id="navRoster">Roster</button><button class="navb" id="navStandings">Standings</button></div>
 <div id="viewScores">
 <div class="jumbo">
 <div class="sl">
@@ -1402,7 +1468,11 @@ function renderGame(g){
   $('vs').textContent=g.dateLabel+(g.status==='pregame'?' · upcoming':'');
   var jl=$('jloc');if(jl)jl.textContent=g.location||'';
   var wb=$('watchBtn');
-  if(wb){if(g.watchUrl){wb.href=g.watchUrl;wb.style.display='';}else{wb.style.display='none';}}
+  if(wb){
+    if(g.watchUrl){wb.href=g.watchUrl;wb.textContent='▶ Watch on TCL TV';wb.classList.remove('replay');wb.style.display='';}
+    else if(g.state==='final'&&g.replayUrl){wb.href=g.replayUrl;wb.textContent='▶ Watch Full Replay';wb.classList.add('replay');wb.style.display='';}
+    else{wb.style.display='none';}
+  }
   setChip(g.status);
 }
 function setChip(status){var c=$('chip'),t=$('chiptx');c.className='chip';
@@ -1424,7 +1494,7 @@ function renderSched(list){
       +'<div class="ctop"><span class="cdate">'+g.dateLabel+'</span>'+pill+'</div>'
       +row(g.away,g.away.id==='et1bt9sixrz5lnnl',aw)+row(g.home,g.home.id==='et1bt9sixrz5lnnl',hw)
       +'<div class="cfoot"><span class="cloc">'+esc(g.location||'')+'</span>'
-      +(g.watchUrl?('<a class="watchmini" href="'+esc(g.watchUrl)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">▶ Watch</a>'):'')
+      +(g.state==='final'&&g.replayUrl?('<a class="watchmini replay" href="'+esc(g.replayUrl)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">▶ Replay</a>'):'')
       +'</div></div>';
   });
   $('sched').innerHTML=h||'<div class="note">No Gators games found yet.</div>';
