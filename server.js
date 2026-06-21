@@ -624,12 +624,13 @@ const isThrottle = s => s === 459 || s === 429 || s === 503 || s === 403;
 // and only refreshes in the background. Best-effort: a read-only FS just no-ops.
 const CACHE_FILE = (process.env.CACHE_DIR || '.') + '/roster-cache.json';
 function saveCache() {
-  try { fs.writeFileSync(CACHE_FILE, JSON.stringify({ rosterStats, playerCache, rosterUpdated })); } catch (e) {}
+  try { fs.writeFileSync(CACHE_FILE, JSON.stringify({ rosterStats, playerCache, rosterUpdated, playerPhotos, photosLoadedAt })); } catch (e) {}
 }
 function loadCache() {
   try {
     const d = JSON.parse(fs.readFileSync(CACHE_FILE, 'utf8'));
     if (d && d.rosterStats) { rosterStats = d.rosterStats; Object.assign(playerCache, d.playerCache || {}); rosterUpdated = d.rosterUpdated || 0; }
+    if (d && d.playerPhotos && Object.keys(d.playerPhotos).length) { playerPhotos = d.playerPhotos; photosLoadedAt = d.photosLoadedAt || Date.now(); }
   } catch (e) { /* no cache yet */ }
 }
 
@@ -828,11 +829,14 @@ async function getPlayer(slug) {
 function rosterPayload() {
   const players = ROSTER.map(p => {
     const s = rosterStats[p.slug] || { kind: null, hit: null, pit: null, hitRanks: {}, pitRanks: {} };
-    return Object.assign({}, p, s, { photo: playerPhotos[p.slug] || null });
+    // Serve headshots through our own /api/photo proxy: the team site hotlink-
+    // protects images (403 unless the referer is its own domain), so a browser
+    // can't load them directly — the proxy fetches them with the right referer.
+    return Object.assign({}, p, s, { photo: playerPhotos[p.slug] ? ('/api/photo?slug=' + p.slug) : null });
   });
   const complete = ROSTER.every(p => { const s = rosterStats[p.slug]; return s && (s.hit != null || s.pit != null); });
   return { players, updated: rosterUpdated, loading: Object.keys(rosterStats).length === 0,
-           settled: rosterUpdated > 0 && !rosterPolling, complete };
+           settled: rosterUpdated > 0 && !rosterPolling, complete, photos: photosLoadedAt > 0 };
 }
 
 // ===== Game location label + TCL TV watch links + player headshots ==========
@@ -1010,7 +1014,7 @@ async function pollPhotos() {
       const ln = normName(pl.name.split(/\s+/).slice(-1)[0]);
       if (ln.length >= 4) for (const mk in map) { if (mk.endsWith(ln)) { out[pl.slug] = map[mk]; break; } }
     }
-    if (Object.keys(out).length) { playerPhotos = out; photosLoadedAt = Date.now(); }
+    if (Object.keys(out).length) { playerPhotos = out; photosLoadedAt = Date.now(); saveCache(); }
   } catch (e) { /* keep previous photos */ }
 }
 // ----- league standings (both teams' records on the jumbo + Standings tab) ---
@@ -1151,6 +1155,20 @@ app.get('/debug/extras', (_q, r) => {
   });
 });
 app.get('/api/roster', (_q, r) => { if (!rosterPolling && Object.keys(rosterStats).length === 0) pollRoster(); r.json(rosterPayload()); });
+// Headshot proxy — the team site 403s hotlinked images, so we fetch each one
+// with its own domain as the referer and stream it back from our origin.
+app.get('/api/photo', async (q, r) => {
+  const slug = String((q.query && q.query.slug) || '');
+  const url = playerPhotos[slug];
+  if (!/^[a-z0-9_]+$/i.test(slug) || !url) return r.status(404).end();
+  try {
+    const resp = await fetch(url, { headers: { 'user-agent': UA, referer: 'https://gumbeauxgators.com/', accept: 'image/avif,image/webp,image/*,*/*' } });
+    if (!resp.ok) return r.status(502).end();
+    r.set('Content-Type', resp.headers.get('content-type') || 'image/jpeg');
+    r.set('Cache-Control', 'public, max-age=86400');
+    r.send(Buffer.from(await resp.arrayBuffer()));
+  } catch (e) { r.status(502).end(); }
+});
 app.get('/api/player', async (q, r) => {
   const slug = String((q.query && q.query.slug) || '');
   if (!/^[a-z0-9_]+$/i.test(slug)) return r.status(400).json({ error: 'bad slug' });
@@ -1660,8 +1678,10 @@ function mergeStats(list){
     var c=statCache[p.slug]||(statCache[p.slug]={});
     if(p.hit){c.hit=p.hit;c.hitRanks=p.hitRanks;}
     if(p.pit){c.pit=p.pit;c.pitRanks=p.pitRanks;}
+    if(p.photo){c.photo=p.photo;}
     if(c.hit&&!p.hit){p.hit=c.hit;p.hitRanks=c.hitRanks;}
     if(c.pit&&!p.pit){p.pit=c.pit;p.pitRanks=c.pitRanks;}
+    if(c.photo&&!p.photo){p.photo=c.photo;}
   });
 }
 function clientComplete(){return !!rosterData&&rosterData.every(function(p){return p.hit||p.pit;});}
@@ -1711,7 +1731,9 @@ function loadRoster(){
   fetch('/api/roster').then(function(r){return r.json();}).then(function(d){
     rosterReq=false;rosterData=d.players||[];mergeStats(rosterData);renderRoster(d);
     lazyFill();
-    if(!clientComplete()&&rosterPolls<60){rosterPolls++;setTimeout(function(){loadRoster();},4000);}
+    // Keep polling until stats are complete AND headshots have loaded, so a fast
+    // (cached) stats response doesn't leave profiles photoless.
+    if((!clientComplete()||!d.photos)&&rosterPolls<60){rosterPolls++;setTimeout(function(){loadRoster();},4000);}
   }).catch(function(){rosterReq=false;$('rosterBody').innerHTML='<div class="spin">Could not load the roster. Tap Roster again to retry.</div>';});
 }
 // Safety net: individually pull any card still blank (same call a tap makes),
