@@ -878,33 +878,43 @@ async function pollPhotos() {
     if (Object.keys(out).length) { playerPhotos = out; photosLoadedAt = Date.now(); }
   } catch (e) { /* keep previous photos */ }
 }
-// ----- league standings (both teams' records on the jumbo) ------------------
-let standings = {};         // normName(teamName) -> { w, l, t }
+// ----- league standings (both teams' records on the jumbo + Standings tab) ---
+let standings = {};         // normName(teamName) -> { w, l, t }  (jumbo records)
+let standingsTable = [];    // ordered rows for the Standings tab
 let standingsAt = 0;
+// Parse the league standings table into both a name->record map (for the jumbo)
+// and an ordered list of rows decorated with the team's logo/short name when the
+// team can be matched to a known Presto id (via a /teams/<id> link or its name).
 function parseStandings(html) {
   const tbl = (html.match(/<table\b[\s\S]*?<\/table>/i) || [])[0];
-  if (!tbl) return {};
-  const rows = rowsOf(tbl); if (rows.length < 2) return {};
+  if (!tbl) return { map: {}, rows: [] };
+  const rows = rowsOf(tbl); if (rows.length < 2) return { map: {}, rows: [] };
   const head = cellsOf(rows[0]).map(c => bsText(c).toLowerCase());
   const wi = head.indexOf('w'), li = head.indexOf('l'), ti = head.indexOf('t');
-  if (wi === -1 || li === -1) return {};
-  const out = {};
+  if (wi === -1 || li === -1) return { map: {}, rows: [] };
+  const map = {}, out = [];
   for (let i = 1; i < rows.length; i++) {
     const c = cellsOf(rows[i]); if (c.length <= Math.max(wi, li)) continue;
-    const k = normName(bsText(c[0])); if (!k) continue;
+    const name = bsText(c[0]); const k = normName(name); if (!k) continue;
     const w = parseInt(bsText(c[wi]), 10), l = parseInt(bsText(c[li]), 10);
     if (!isFinite(w) || !isFinite(l)) continue;
     const t = ti >= 0 ? parseInt(bsText(c[ti]), 10) : 0;
-    out[k] = { w, l, t: isFinite(t) ? t : 0 };
+    const rec = { w, l, t: isFinite(t) ? t : 0 };
+    map[k] = rec;
+    const idm = rows[i].match(/\/teams\/([a-z0-9]+)/i);
+    const id = (idm && TEAMS[idm[1]]) ? idm[1] : (Object.keys(TEAMS).find(tid => normName(TEAMS[tid].name) === k) || null);
+    const meta = id ? TEAMS[id] : null;
+    out.push({ id, name: meta ? meta.name : name, short: meta ? meta.short : name,
+      logo: id ? logo(id) : '', w: rec.w, l: rec.l, t: rec.t });
   }
-  return out;
+  return { map, rows: out };
 }
 async function pollStandings() {
   try {
     const r = await fetchText(STANDINGS_URL, SCHEDULE_URL);
     if (!r.ok || !r.body) return;
-    const map = parseStandings(r.body);
-    if (Object.keys(map).length) { standings = map; standingsAt = Date.now(); }
+    const parsed = parseStandings(r.body);
+    if (Object.keys(parsed.map).length) { standings = parsed.map; standingsTable = parsed.rows; standingsAt = Date.now(); }
   } catch (e) { /* keep previous standings */ }
 }
 // team {name,short} -> "W-L" (or "W-L-T" when t>0); name match then loose fallback.
@@ -985,6 +995,16 @@ app.get('/api/boxscore', async (q, r) => {
   } catch (err) { r.status(500).json({ error: String(err && err.message || err) }); }
 });
 app.get('/api/schedule', (_q, r) => r.json({ games: games.map(decorateGame) }));
+app.get('/api/standings', (_q, r) => {
+  if (!standingsTable.length) pollStandings();
+  const rows = standingsTable.map(x => {
+    const gp = x.w + x.l + x.t;
+    return Object.assign({}, x, { pct: gp ? (x.w + x.t * 0.5) / gp : 0 });
+  }).sort((a, b) => b.pct - a.pct || b.w - a.w || a.l - b.l);
+  const lead = rows[0];
+  for (const x of rows) x.gb = lead ? ((lead.w - x.w) + (x.l - lead.l)) / 2 : 0;
+  r.json({ updatedAt: standingsAt, gatorsId: GATORS_ID, rows });
+});
 app.get('/debug/extras', (_q, r) => {
   const sample = games.filter(g => g.state === 'live' || g.state === 'scheduled').slice(0, 4)
     .map(g => ({ id: g.id, location: gameLocation(g), watchUrl: watchUrlFor(g) }));
@@ -1146,7 +1166,7 @@ if (require.main === module) {
   app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); pollRoster(); setInterval(pollRoster, 20 * 60 * 1000); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollPhotos(); setInterval(pollPhotos, 24 * 60 * 60 * 1000); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, extractEventAuth,
-  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore };
+  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
@@ -1311,13 +1331,22 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .gltbl td:first-child,.gltbl th:first-child{text-align:left;color:var(--mute);}
 .gltbl td:nth-child(2),.gltbl th:nth-child(2){text-align:left;}
 .gltbl tr:last-child td{border-bottom:none;}
+.sttbl table{font-size:13px;}
+.sttbl th,.sttbl td{padding:9px 8px;}
+.sttbl td:first-child,.sttbl th:first-child{text-align:center;color:var(--mute);width:26px;font-family:'Oswald',sans-serif;}
+.sttbl .stteam{display:flex;align-items:center;gap:9px;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.02em;color:var(--bone);}
+.sttbl .stlogo{width:22px;height:22px;border-radius:5px;object-fit:contain;background:#16102b;border:1px solid var(--line);flex:none;}
+.sttbl td:nth-child(5){color:var(--gold2);}
+.sttbl tr.stg td{background:rgba(157,92,255,.16);}
+.sttbl tr.stg .stteam{color:var(--gator);font-weight:700;}
+.sttbl tr.stg td:first-child{color:var(--gator);}
 </style></head><body>
 <div class="bgfx"></div>
 <div class="toasts" id="toasts"></div>
 <div class="wrap">
 <div class="topbar"><div><div class="lead">Gators GameTracker</div><div class="sub">Texas Collegiate League</div></div>
 <div class="trail"><a class="shopbtn" id="shopBtn" href="https://gumbeauxgators.myshopify.com/collections/all" target="_blank" rel="noopener" title="Shop the Gators store">🛒 Gators Team Shop</a><div class="chip" id="chip"><span class="dot"></span><span id="chiptx">Connecting</span></div></div></div>
-<div class="nav"><button class="navb on" id="navScores">Scores</button><button class="navb" id="navRoster">Roster</button></div>
+<div class="nav"><button class="navb on" id="navScores">Scores</button><button class="navb" id="navStandings">Standings</button><button class="navb" id="navRoster">Roster</button></div>
 <div id="viewScores">
 <div class="jumbo">
 <div class="sl">
@@ -1336,6 +1365,11 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 <div class="sec">2026 Roster</div>
 <div class="rmeta" id="rmeta">Loading roster…</div>
 <div id="rosterBody"></div>
+</div>
+<div id="viewStandings" style="display:none">
+<div class="sec">League Standings</div>
+<div class="rmeta" id="stMeta">Loading standings…</div>
+<div id="standingsBody"></div>
 </div>
 </div>
 <div class="dock" id="dock"><div class="in"><button class="abtn" id="abtn">🔔 Get alerts</button></div></div>
@@ -1474,6 +1508,7 @@ $('tabBox').addEventListener('click',function(){showTab('box');});
 $('tabPbp').addEventListener('click',function(){showTab('pbp');});
 // ---- roster + player profiles ----
 var rosterData=null,rosterReq=false,rosterPolls=0;
+var standingsData=null,standingsReq=false,standingsPolls=0;
 var statCache={};            // slug -> {hit,pit,hitRanks,pitRanks}; survives refreshes
 var fillQueue=[],filling={},fillBusy=false;
 // Re-apply any stats we've already learned (server or lazy-fill) onto a fresh payload,
@@ -1495,13 +1530,39 @@ function setRmeta(d){
   else if(d&&d.updated)meta+=' · stats updated '+agoTxt(d.updated);
   var el=$('rmeta');if(el)el.textContent=meta;
 }
+function loadStandings(){
+  if(standingsReq)return;standingsReq=true;
+  fetch('/api/standings').then(function(r){return r.json();}).then(function(d){
+    standingsReq=false;standingsData=d;renderStandings(d);
+    if((!d.rows||!d.rows.length)&&standingsPolls<20){standingsPolls++;setTimeout(function(){standingsData=null;loadStandings();},4000);}
+  }).catch(function(){standingsReq=false;$('standingsBody').innerHTML='<div class="spin">Could not load standings. Tap Standings again to retry.</div>';});
+}
+function fmtPct(p){if(p==null)return '';var s=p.toFixed(3);return p<1?s.replace(/^0/,''):s;}
+function fmtGb(g){if(g==null||g===0)return '—';return (g%1)?g.toFixed(1):String(g);}
+function renderStandings(d){
+  var rows=(d&&d.rows)||[];
+  if(!rows.length){$('standingsBody').innerHTML='<div class="note">Standings aren’t available yet — check back shortly.</div>';$('stMeta').textContent='';return;}
+  var h='<div class="gltbl sttbl"><table><tr><th>#</th><th>Team</th><th>W</th><th>L</th><th>PCT</th><th>GB</th></tr>';
+  rows.forEach(function(x,i){
+    var isG=x.id&&x.id===d.gatorsId;
+    var lg=x.logo?'<img class="stlogo" src="'+esc(x.logo)+'" alt="">':'';
+    h+='<tr'+(isG?' class="stg"':'')+'><td>'+(i+1)+'</td>'
+      +'<td><div class="stteam">'+lg+'<span>'+esc(x.short)+'</span></div></td>'
+      +'<td>'+x.w+'</td><td>'+x.l+'</td><td>'+fmtPct(x.pct)+'</td><td>'+fmtGb(x.gb)+'</td></tr>';
+  });
+  $('standingsBody').innerHTML=h+'</table></div>';
+  $('stMeta').textContent=d.updatedAt?('Updated '+agoTxt(d.updatedAt)):'';
+}
 function setView(v){
-  $('viewScores').style.display=v==='roster'?'none':'';
+  $('viewScores').style.display=v==='scores'?'':'none';
   $('viewRoster').style.display=v==='roster'?'':'none';
-  $('navScores').classList.toggle('on',v!=='roster');
+  $('viewStandings').style.display=v==='standings'?'':'none';
+  $('navScores').classList.toggle('on',v==='scores');
   $('navRoster').classList.toggle('on',v==='roster');
-  $('dock').style.display=v==='roster'?'none':'';
+  $('navStandings').classList.toggle('on',v==='standings');
+  $('dock').style.display=v==='scores'?'':'none';
   if(v==='roster'&&!rosterData)loadRoster();
+  if(v==='standings'&&!standingsData)loadStandings();
 }
 function loadRoster(){
   if(rosterReq)return;rosterReq=true;
@@ -1615,6 +1676,7 @@ function glTable(rows,cols){
 }
 function oppShort(o){o=(o||'').replace('at ','@ ');var map={'Acadiana Cane Cutters':'Acadiana','Baton Rouge Rougarou':'Baton Rouge','Abilene Flying Bison':'Abilene','Brazos Valley Bombers':'Brazos Valley','San Antonio River Monsters':'San Antonio','Sherman Shadowcats':'Sherman','Victoria Generals':'Victoria','Lake Charles Gumbeaux Gators':'Gators'};for(var k in map)o=o.replace(k,map[k]);return o;}
 $('navScores').addEventListener('click',function(){setView('scores');});
+$('navStandings').addEventListener('click',function(){setView('standings');});
 $('navRoster').addEventListener('click',function(){setView('roster');});
 $('plClose').addEventListener('click',function(){$('plModal').classList.remove('show');});
 $('plModal').addEventListener('click',function(e){if(e.target===this)this.classList.remove('show');});
