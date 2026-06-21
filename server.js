@@ -681,7 +681,11 @@ async function pollRoster() {
       let throttled = false;
       for (const pl of ordered) {
         const pg = await fetchPlayerPage(pl.slug);
-        storePlayer(pl.slug, buildRecord(pl.slug, pg.primary, batMap, pitMap));
+        const rec = buildRecord(pl.slug, pg.primary, batMap, pitMap);
+        storePlayer(pl.slug, rec);
+        // Fill per-game walks now (during the daily scrape) so opening a
+        // pitcher's profile later is instant instead of fetching box scores.
+        if (rec.glPit && rec.glPit.length) { try { await enrichPitchingWalks(pl.name, rec.glPit); } catch (e) {} }
         if (isThrottle(pg.status)) { throttled = true; backoff = Math.min(backoff ? backoff * 2 : 4000, 20000); await sleep(backoff); }
         else { backoff = 0; await sleep(800); }
       }
@@ -692,6 +696,20 @@ async function pollRoster() {
     rosterUpdated = Date.now();
   } catch (e) { /* keep previous */ }
   finally { rosterPolling = false; }
+}
+// Player stats change about once a day, so we scrape them once daily at local
+// (Central) midnight and serve the cache the rest of the day. Recomputing the
+// delay to the next midnight each night keeps it correct across DST changes.
+function msUntilNextCentralMidnight() {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', hour12: false,
+    hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(new Date());
+  const get = t => +(parts.find(p => p.type === t) || {}).value;
+  let h = get('hour'); if (h === 24) h = 0; // some runtimes emit "24" at midnight
+  const into = h * 3600 + get('minute') * 60 + get('second');
+  return Math.max(1000, (24 * 3600 - into) * 1000);
+}
+function scheduleDailyRoster() {
+  setTimeout(() => { pollRoster(); scheduleDailyRoster(); }, msUntilNextCentralMidnight());
 }
 // ----- per-game pitching walks (BB) from box scores --------------------------
 // Presto's per-game pitching LOG omits BB, but each game's full box score lists
@@ -766,8 +784,10 @@ async function enrichPitchingWalks(name, glPit){
 }
 async function getPlayer(slug) {
   const cached = playerCache[slug];
-  const fresh = cached && (Date.now() - cached.ts < 10 * 60 * 1000);
-  // Only serve cache if it actually holds stats — an empty (throttled) entry must refetch.
+  // Stats refresh once a day via the midnight poll, so serve the cached record
+  // all day (no live re-scrape on open). 25h leaves a safety margin around the
+  // daily refresh. An empty (throttled) entry still refetches on demand.
+  const fresh = cached && (Date.now() - cached.ts < 25 * 60 * 60 * 1000);
   if (fresh && recHasData(cached)) return cached;
   storePlayer(slug, await fetchPlayer(slug, null, null));
   return playerCache[slug] || null;
@@ -1246,10 +1266,10 @@ app.get('/api/stream', (q, r) => {
 });
 
 if (require.main === module) {
-  app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); pollRoster(); setInterval(pollRoster, 20 * 60 * 1000); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); pollPhotos(); setInterval(pollPhotos, 24 * 60 * 60 * 1000); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); });
+  app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); pollRoster(); scheduleDailyRoster(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); pollPhotos(); setInterval(pollPhotos, 24 * 60 * 60 * 1000); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, extractEventAuth,
-  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList };
+  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
