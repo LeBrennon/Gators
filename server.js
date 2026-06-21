@@ -472,9 +472,10 @@ app.get('/api/test', (_q, r) => {
   r.json({ ok: true, sentTo: subscribers.size });
 });
 app.get('/api/stream', (q, r) => {
-  r.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
-  r.flushHeaders(); if (featured) r.write('data: ' + JSON.stringify({ type: 'game', game: featured }) + '\n\n');
-  sseClients.add(r); q.on('close', () => sseClients.delete(r));
+  r.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
+  r.flushHeaders(); r.write(':ok\n\n'); if (featured) r.write('data: ' + JSON.stringify({ type: 'game', game: featured }) + '\n\n');
+  const hb = setInterval(() => { try { r.write(':hb\n\n'); } catch (e) {} }, 20000);
+  sseClients.add(r); q.on('close', () => { clearInterval(hb); sseClients.delete(r); });
 });
 
 if (require.main === module) {
@@ -666,10 +667,16 @@ function toast(e,t,s,cls){var el=document.createElement('div');el.className='toa
   if(alertsOn&&'Notification'in window&&Notification.permission==='granted'){try{new Notification(t,{body:s});}catch(x){}}}
 function emo(tag){return tag==='lead'?'📣':tag==='final'?'🏁':tag==='run'?'🔥':tag==='start'?'⚾':'🐊';}
 function loadSched(){fetch('/api/schedule').then(function(r){return r.json();}).then(function(d){renderSched(d.games||[]);}).catch(function(){});}
-function connect(){var es;function open(){try{es=new EventSource('/api/stream');}catch(e){setChip('off');return setTimeout(open,4000);}
-  es.onmessage=function(ev){var m=JSON.parse(ev.data);if(m.type==='game'){renderGame(m.game);loadSched();}else if(m.type==='alert')toast(emo(m.tag),m.title,m.body,m.tag==='lead'||m.tag==='final'?'lead':'');};
-  es.onerror=function(){setChip('off');es.close();setTimeout(open,4000);};}open();
-  fetch('/api/game').then(function(r){return r.ok?r.json():null;}).then(function(g){if(g&&g.home)renderGame(g);}).catch(function(){});}
+function connect(){var lastData=0;
+  function applyGame(g){if(g&&g.home){renderGame(g);lastData=Date.now();}}
+  function pollGame(){fetch('/api/game').then(function(r){return r.ok?r.json():null;}).then(applyGame).catch(function(){});}
+  pollGame();
+  setInterval(function(){pollGame();loadSched();},15000);
+  function openSSE(){var es;try{es=new EventSource('/api/stream');}catch(e){return;}
+    es.onmessage=function(ev){try{var m=JSON.parse(ev.data);if(m.type==='game')applyGame(m.game);else if(m.type==='alert')toast(emo(m.tag),m.title,m.body,(m.tag==='lead'||m.tag==='final')?'lead':'');}catch(x){}};
+    es.onerror=function(){try{es.close();}catch(x){}setTimeout(openSSE,8000);};}
+  openSSE();
+  setInterval(function(){if(Date.now()-lastData>45000)setChip('off');},10000);}
 function urlB64(b){var p='='.repeat((4-b.length%4)%4),s=(b+p).replace(/-/g,'+').replace(/_/g,'/'),raw=atob(s),o=new Uint8Array(raw.length);for(var i=0;i<raw.length;i++)o[i]=raw.charCodeAt(i);return o;}
 $('abtn').addEventListener('click',function(){
   var b=this;alertsOn=!alertsOn;b.classList.toggle('on',alertsOn);b.textContent=alertsOn?'🔔 Alerts on':'🔔 Get alerts';
