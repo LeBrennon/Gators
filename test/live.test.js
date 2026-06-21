@@ -1,0 +1,76 @@
+'use strict';
+// Tests for the live-situation feed parsers: extractEventAuth (pull the feed's
+// event id + access hash out of a boxscore page), summarizeLive (boil the status
+// block down), and teamLineScores (per-team runs/hits/errors).
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const { extractEventAuth, summarizeLive, teamLineScores } = require('../server');
+
+const GATORS = 'et1bt9sixrz5lnnl';
+
+test('extractEventAuth: reads e + h from a liveupdate URL (HTML-escaped &)', () => {
+  const html = `<iframe src="/action/sports/liveupdate?e=abc123def456&amp;h=XyZ_-789hash"></iframe>`;
+  assert.deepEqual(extractEventAuth(html), { e: 'abc123def456', h: 'XyZ_-789hash', how: 'liveupdate-url' });
+});
+
+test('extractEventAuth: reads e + h from separate token fields', () => {
+  const html = `var cfg = { eventId: "abc123def456gh", liveHash: "ABCdef0123456789hashx" };`;
+  const out = extractEventAuth(html);
+  assert.equal(out.e, 'abc123def456gh');
+  assert.equal(out.h, 'ABCdef0123456789hashx');
+  assert.equal(out.how, 'separate-tokens');
+});
+
+test('extractEventAuth: not found returns nulls', () => {
+  assert.deepEqual(extractEventAuth('<html>no tokens</html>'), { e: null, h: null, how: 'not-found' });
+});
+
+// Status fields arrive as 1-element arrays from the feed; val() unwraps them.
+const STATUS = {
+  status: {
+    complete: ['N'], inning: ['4'], vh: ['V'], batting: ['Gators'],
+    outs: ['2'], b: ['1'], s: ['2'], batter: ['J. Doe'], pitcher: ['R. Roe'],
+    first: ['A. Smith'], second: [''], third: [''],
+  },
+};
+
+test('summarizeLive: maps the status block to the live situation', () => {
+  const live = summarizeLive(STATUS);
+  assert.equal(live.complete, false);
+  assert.equal(live.inning, '4');
+  assert.equal(live.half, 'Top');           // vh 'V' => visitor batting => top
+  assert.equal(live.battingTeam, 'Gators');
+  assert.equal(live.outs, 2);
+  assert.equal(live.count, '1-2');
+  assert.equal(live.batter, 'J. Doe');
+  assert.equal(live.pitcher, 'R. Roe');
+  assert.deepEqual(live.bases, { first: true, second: false, third: false });
+  assert.equal(live.runners.first, 'A. Smith');
+  assert.equal(live.runners.second, null);
+});
+
+test('summarizeLive: home batting flips the half to Bottom', () => {
+  const live = summarizeLive({ status: { vh: ['H'], inning: ['7'] } });
+  assert.equal(live.half, 'Bottom');
+});
+
+test('summarizeLive: missing status returns null', () => {
+  assert.equal(summarizeLive({}), null);
+  assert.equal(summarizeLive(null), null);
+});
+
+test('teamLineScores: flattens each team line and flags the Gators', () => {
+  const json = { team: [
+    { vh: 'V', name: 'Gators', teamId: GATORS, linescore: { runs: 2, hits: 5, errs: 0 } },
+    { vh: 'H', name: 'Bison', teamId: 'ij0lwtvjsx2mi1nh', linescore: { runs: 1, hits: 3, errs: 1 } },
+  ] };
+  const lines = teamLineScores(json);
+  assert.equal(lines.length, 2);
+  assert.deepEqual(lines[0], { vh: 'V', name: 'Gators', teamId: GATORS, isGators: true, runs: 2, hits: 5, errs: 0 });
+  assert.equal(lines[1].isGators, false);
+  assert.equal(lines[1].runs, 1);
+});
+
+test('teamLineScores: missing team array yields empty list', () => {
+  assert.deepEqual(teamLineScores({}), []);
+});

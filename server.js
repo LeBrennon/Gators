@@ -1145,7 +1145,8 @@ app.get('/api/stream', (q, r) => {
 if (require.main === module) {
   app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); pollRoster(); setInterval(pollRoster, 20 * 60 * 1000); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollPhotos(); setInterval(pollPhotos, 24 * 60 * 60 * 1000); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); });
 }
-module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, extractEventAuth };
+module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, extractEventAuth,
+  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
