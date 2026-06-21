@@ -533,24 +533,29 @@ function aggPit(gl) {
 }
 
 // League hitting/pitching leaderboard (wide table) -> { slug: {col: val} } for Gators only.
-function parseLeagueStats(html) {
+// NOTE: the pitching leaderboard renders its real columns (era/ip/w/l) via JavaScript;
+// the server HTML only contains placeholder hitting columns. We reject that so we never
+// store bogus pitcher rows. Pitching season stats come from each player's page instead.
+function parseLeagueStats(html, type) {
   const tables = html.match(/<table\b[\s\S]*?<\/table>/gi) || [];
-  let tbl = null;
+  let tbl = null, head = null;
   for (const t of tables) {
-    const h = bsText(t).toLowerCase();
-    if (h.indexOf('team') !== -1 && (h.indexOf('avg') !== -1 || h.indexOf('era') !== -1)) { tbl = t; break; }
+    const rows = rowsOf(t); if (rows.length < 2) continue;
+    const hd = cellsOf(rows[0]).map(x => bsText(x).split(/\s+/)[0].toLowerCase());
+    if (hd.indexOf('team') === -1) continue;
+    tbl = t; head = hd; break;
   }
   if (!tbl) return {};
-  const rows = rowsOf(tbl); if (rows.length < 2) return {};
-  const head = cellsOf(rows[0]).map(x => bsText(x).split(/\s+/)[0].toLowerCase());
-  const out = {};
+  if (type === 'p' && head.indexOf('era') === -1 && head.indexOf('ip') === -1) return {};
+  if (type === 'h' && head.indexOf('avg') === -1) return {};
+  const rows = rowsOf(tbl); const out = {};
   for (let i = 1; i < rows.length; i++) {
     const c = cellsOf(rows[i]); if (c.length < 4) continue;
-    const nameLink = firstLink(c[1]); const slug = slugFromHref(nameLink.href);
-    const teamLink = firstLink(c[2]); const teamId = teamIdFromHref(teamLink.href);
+    const slug = slugFromHref(firstLink(c[1]).href);
+    const teamId = teamIdFromHref(firstLink(c[2]).href);
     if (!slug || teamId !== GATORS_ID) continue;
     const o = {};
-    for (let k = 3; k < c.length && k < head.length; k++) { const key = head[k]; if (key) o[key] = bsText(c[k]); }
+    for (let k = 3; k < c.length && k < head.length; k++) { if (head[k]) o[head[k]] = bsText(c[k]); }
     out[slug] = o;
   }
   return out;
@@ -564,24 +569,24 @@ let rosterPolling = false;
 
 async function fetchPlayer(slug, batMap, pitMap) {
   let primary = null;
-  for (let attempt = 0; attempt < 2 && !primary; attempt++) {
+  for (let attempt = 0; attempt < 3 && !primary; attempt++) {
     try {
       const r = await fetchText(playerUrl(slug), SPORT_BASE + '/schedule');
-      if (r.ok && r.body) primary = parsePlayerPage(r.body);
+      if (r.ok && r.body && r.body.indexOf('Player Stats') !== -1) primary = parsePlayerPage(r.body);
     } catch (e) {}
-    if (!primary) await sleep(700);
+    if (!primary) await sleep(800 + attempt * 700);
   }
   const rec = { kind: null, hit: null, pit: null, hitRanks: {}, pitRanks: {}, glBat: [], glPit: [], ts: Date.now() };
-  if (primary && primary.kind) {
-    rec.kind = primary.kind;
-    if (primary.kind === 'batting') { rec.hit = flatVals(primary.map); rec.hitRanks = flatRanks(primary.map); }
-    else { rec.pit = flatVals(primary.map); rec.pitRanks = flatRanks(primary.map); }
-    rec.glBat = primary.glBat || []; rec.glPit = primary.glPit || [];
-  }
-  if (batMap && !rec.hit && batMap[slug]) rec.hit = batMap[slug];
-  if (pitMap && !rec.pit && pitMap[slug]) rec.pit = pitMap[slug];
-  if (!rec.hit && rec.glBat.length) rec.hit = aggBat(rec.glBat);   // two-way fallback
-  if (!rec.pit && rec.glPit.length) rec.pit = aggPit(rec.glPit);
+  const pMap = (primary && primary.kind && Object.keys(primary.map).length) ? primary.map : null;
+  if (pMap) { rec.kind = primary.kind; rec.glBat = primary.glBat || []; rec.glPit = primary.glPit || []; }
+  // Hitting
+  if (pMap && primary.kind === 'batting') { rec.hit = flatVals(pMap); rec.hitRanks = flatRanks(pMap); }
+  else if (batMap && batMap[slug] && batMap[slug].avg) rec.hit = batMap[slug];
+  else if (rec.glBat.length) rec.hit = aggBat(rec.glBat);
+  // Pitching (player page is the only reliable source; league pitching is JS-rendered junk)
+  if (pMap && primary.kind === 'pitching') { rec.pit = flatVals(pMap); rec.pitRanks = flatRanks(pMap); }
+  else if (pitMap && pitMap[slug] && (pitMap[slug].era || pitMap[slug].ip)) rec.pit = pitMap[slug];
+  else if (rec.glPit.length) rec.pit = aggPit(rec.glPit);
   return rec;
 }
 function storePlayer(slug, rec) {
@@ -599,7 +604,7 @@ async function pollRoster() {
     let batMap = {}, pitMap = {};
     try {
       const [hRes, pRes] = await Promise.all([fetchText(leagueStatsUrl('h')), fetchText(leagueStatsUrl('p'))]);
-      batMap = parseLeagueStats(hRes.body); pitMap = parseLeagueStats(pRes.body);
+      batMap = parseLeagueStats(hRes.body, 'h'); pitMap = parseLeagueStats(pRes.body, 'p');
     } catch (e) {}
     for (const pl of ROSTER) {
       storePlayer(pl.slug, await fetchPlayer(pl.slug, batMap, pitMap));
@@ -697,17 +702,20 @@ app.get('/api/player', async (q, r) => {
 });
 app.get('/debug/roster', async (_q, r) => {
   try {
+    const duhon = ROSTER.find(p => p.slug === 'davisduhons0vw');
+    const pr = await fetchText(playerUrl(duhon.slug), SPORT_BASE + '/schedule');
+    const parsed = parsePlayerPage(pr.body || '');
     const [hRes, pRes] = await Promise.all([fetchText(leagueStatsUrl('h')), fetchText(leagueStatsUrl('p'))]);
-    const batMap = parseLeagueStats(hRes.body), pitMap = parseLeagueStats(pRes.body);
-    const sample = await fetchText(playerUrl(ROSTER[19].slug)); // Kasen Bellard
-    const parsed = parsePlayerPage(sample.body);
+    const batMap = parseLeagueStats(hRes.body, 'h'), pitMap = parseLeagueStats(pRes.body, 'p');
+    const rec = await fetchPlayer(duhon.slug, batMap, pitMap);
     r.json({
-      urls: { hit: leagueStatsUrl('h'), pit: leagueStatsUrl('p'), player: playerUrl(ROSTER[19].slug) },
+      pitcherFetch: { ok: pr.ok, status: pr.status, bytes: (pr.body || '').length, hasPlayerStats: (pr.body || '').indexOf('Player Stats') !== -1, hasERA: (pr.body || '').toLowerCase().indexOf('earned run average') !== -1 },
+      pitcherParsed: { kind: parsed.kind, mapKeys: Object.keys(parsed.map), era: parsed.map.era, ip: parsed.map.ip, k: parsed.map.k },
+      pitcherRecord: { kind: rec.kind, pit: rec.pit, hit: rec.hit },
       leagueHitGators: Object.keys(batMap).length, leaguePitGators: Object.keys(pitMap).length,
-      hitSlugs: Object.keys(batMap), pitSlugs: Object.keys(pitMap),
-      samplePlayer: parsed, statsLoaded: Object.keys(rosterStats).length, rosterUpdated,
+      cacheLoaded: Object.keys(rosterStats).length, rosterUpdated, polling: rosterPolling,
     });
-  } catch (e) { r.status(502).json({ error: e.message }); }
+  } catch (e) { r.status(502).json({ error: e.message, stack: e.stack }); }
 });
 app.post('/api/follow', (q, r) => { pinnedId = (q.body && q.body.id) || null; pollSchedule(); r.json({ ok: true, pinned: pinnedId }); });
 app.get('/api/vapidPublicKey', (_q, r) => r.json({ key: VAPID_PUB, enabled: pushReady }));
