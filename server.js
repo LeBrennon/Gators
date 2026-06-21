@@ -654,7 +654,8 @@ function rosterPayload() {
     const s = rosterStats[p.slug] || { kind: null, hit: null, pit: null, hitRanks: {}, pitRanks: {} };
     return Object.assign({}, p, s);
   });
-  return { players, updated: rosterUpdated, loading: Object.keys(rosterStats).length === 0 };
+  return { players, updated: rosterUpdated, loading: Object.keys(rosterStats).length === 0,
+           settled: rosterUpdated > 0 && !rosterPolling };
 }
 
 // ----- server ---------------------------------------------------------------
@@ -1083,7 +1084,7 @@ function showTab(which){$('tabBox').classList.toggle('on',which==='box');$('tabP
 $('tabBox').addEventListener('click',function(){showTab('box');});
 $('tabPbp').addEventListener('click',function(){showTab('pbp');});
 // ---- roster + player profiles ----
-var rosterData=null,rosterReq=false;
+var rosterData=null,rosterReq=false,rosterPolls=0;
 function setView(v){
   $('viewScores').style.display=v==='roster'?'none':'';
   $('viewRoster').style.display=v==='roster'?'':'none';
@@ -1096,7 +1097,7 @@ function loadRoster(){
   if(rosterReq)return;rosterReq=true;
   fetch('/api/roster').then(function(r){return r.json();}).then(function(d){
     rosterReq=false;rosterData=d.players||[];renderRoster(d);
-    if(d.loading)setTimeout(function(){rosterData=null;loadRoster();},6000);
+    if(!d.settled&&rosterPolls<40){rosterPolls++;setTimeout(function(){rosterData=null;loadRoster();},4000);}
   }).catch(function(){rosterReq=false;$('rosterBody').innerHTML='<div class="spin">Could not load the roster. Tap Roster again to retry.</div>';});
 }
 function agoTxt(ts){if(!ts)return '';var m=Math.round((Date.now()-ts)/60000);if(m<1)return 'just now';if(m<60)return m+'m ago';return Math.round(m/60)+'h ago';}
@@ -1119,7 +1120,7 @@ function renderRoster(d){
   }
   $('rosterBody').innerHTML=h;
   var meta=arr.length+' players';
-  if(d&&d.loading)meta+=' · loading stats…';else if(d&&d.updated)meta+=' · stats updated '+agoTxt(d.updated);
+  if(d&&!d.settled)meta+=' · loading stats…';else if(d&&d.updated)meta+=' · stats updated '+agoTxt(d.updated);
   $('rmeta').textContent=meta;
   var cards=document.querySelectorAll('.pcard');
   for(var j=0;j<cards.length;j++)cards[j].addEventListener('click',function(){openPlayer(this.getAttribute('data-slug'));});
