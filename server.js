@@ -2321,7 +2321,12 @@ $('tabPbp').addEventListener('click',function(){showTab('pbp');});
 var rosterData=null,rosterReq=false,rosterPolls=0;
 var standingsData=null,standingsReq=false,standingsPolls=0;
 var statCache={};            // slug -> {hit,pit,hitRanks,pitRanks}; survives refreshes
-var fillQueue=[],filling={},fillBusy=false;
+var fillQueue=[],filling={},filled={},fillBusy=false;
+// Two-way players (e.g. Pierce, McKinley) have BOTH a hitting and a pitching
+// line; everyone else needs only one. The league seed gives a two-way player
+// their hitting stats, so without this they'd look "done" and never pull pitching.
+function needsBoth(p){return !!(p&&p.pos&&/two.?way/i.test(p.pos));}
+function pHasStats(p){return needsBoth(p)?!!((p.hit&&p.pit)||filled[p.slug]):!!(p.hit||p.pit);}
 // Re-apply any stats we've already learned (server or lazy-fill) onto a fresh payload,
 // and absorb newly-arrived ones, so a refresh never blanks a card we'd filled.
 function mergeStats(list){
@@ -2335,7 +2340,7 @@ function mergeStats(list){
     if(c.photo&&!p.photo){p.photo=c.photo;}
   });
 }
-function clientComplete(){return !!rosterData&&rosterData.every(function(p){return p.hit||p.pit;});}
+function clientComplete(){return !!rosterData&&rosterData.every(pHasStats);}
 function setRmeta(d){
   if(!rosterData)return;
   var meta=rosterData.length+' players';
@@ -2429,7 +2434,7 @@ function loadRoster(){
 function lazyFill(){
   if(!rosterData)return;
   rosterData.forEach(function(p){
-    if(!p.hit&&!p.pit&&!filling[p.slug]){filling[p.slug]=1;fillQueue.push(p.slug);}
+    if(!pHasStats(p)&&!filling[p.slug]){filling[p.slug]=1;fillQueue.push(p.slug);}
   });
   if(!fillBusy)pumpFill();
 }
@@ -2437,6 +2442,7 @@ function pumpFill(){
   if(!fillQueue.length){fillBusy=false;return;}
   fillBusy=true;var slug=fillQueue.shift();
   fetch('/api/player?slug='+encodeURIComponent(slug)).then(function(r){return r.json();}).then(function(d){
+    filled[slug]=1; // we've pulled the full record; don't keep re-queuing it
     if(!d||(!d.hit&&!d.pit))return;
     var c=statCache[slug]||(statCache[slug]={});
     if(d.hit){c.hit=d.hit;c.hitRanks=d.hitRanks||{};}
