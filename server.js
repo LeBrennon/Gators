@@ -2202,7 +2202,7 @@ function renderStandings(d){
       var isG=x.id&&x.id===d.gatorsId;
       var lg=x.logo?'<img class="stlogo" src="'+esc(x.logo)+'" alt="">':'';
       h+='<tr'+(isG?' class="stg"':'')+'><td>'+(i+1)+'</td>'
-        +'<td><div class="stteam">'+lg+'<span>'+esc(x.short)+'</span></div></td>'
+        +'<td><div class="stteam">'+lg+'<span>'+esc(x.name||x.short)+'</span></div></td>'
         +'<td>'+x.w+'</td><td>'+x.l+'</td><td>'+fmtPct(x.pct)+'</td><td>'+fmtGb(x.gb)+'</td></tr>';
     });
     $('standingsBody').innerHTML=h+'</table></div>';
