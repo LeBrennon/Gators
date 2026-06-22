@@ -69,16 +69,18 @@ test('summarizeLive: missing status returns null', () => {
   assert.equal(summarizeLive(null), null);
 });
 
-test('teamLineScores: flattens each team line and flags the Gators', () => {
+test('teamLineScores: flattens each team line, per-inning runs, and flags the Gators', () => {
   const json = { team: [
-    { vh: 'V', name: 'Gators', teamId: GATORS, linescore: { runs: 2, hits: 5, errs: 0 } },
-    { vh: 'H', name: 'Bison', teamId: 'ij0lwtvjsx2mi1nh', linescore: { runs: 1, hits: 3, errs: 1 } },
+    { vh: 'V', name: 'Gators', teamId: GATORS, linescore: { runs: 3, hits: 5, errs: 0,
+      lineinn: [{ inn: '1', score: ['2'] }, { inn: '2', score: ['1'] }] } },
+    { vh: 'H', name: 'Bison', teamId: 'ij0lwtvjsx2mi1nh', linescore: { runs: 1, hits: 3, errs: 1,
+      lineinn: [{ inn: '1', score: ['0'] }, { inn: '2', score: ['1'] }] } },
   ] };
   const lines = teamLineScores(json);
   assert.equal(lines.length, 2);
-  assert.deepEqual(lines[0], { vh: 'V', name: 'Gators', teamId: GATORS, isGators: true, runs: 2, hits: 5, errs: 0 });
+  assert.deepEqual(lines[0], { vh: 'V', name: 'Gators', teamId: GATORS, isGators: true, runs: 3, hits: 5, errs: 0, innings: [2, 1] });
   assert.equal(lines[1].isGators, false);
-  assert.equal(lines[1].runs, 1);
+  assert.deepEqual(lines[1].innings, [0, 1]);
 });
 
 test('teamLineScores: missing team array yields empty list', () => {
