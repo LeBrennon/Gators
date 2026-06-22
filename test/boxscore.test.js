@@ -168,6 +168,21 @@ test('parseBoxscore: pulls 2B/3B/HR/SB/E notes per team in batting order', () =>
   assert.deepEqual(bats[1].notes, { 'HR': 'Jacob Keys' });
 });
 
+test('parseBoxscore: drops WP and AB columns from the pitching table', () => {
+  const html = `
+    <table><caption><h2> Gators <span>Pitchers</span></h2></caption>
+      <tr><th>Pitchers</th><th>IP</th><th>BB</th><th>SO</th><th>HR</th><th>WP</th><th>BF</th><th>AB</th><th>NP</th></tr>
+      <tr><th>Sawyer Simmons</th><td>4.0</td><td>2</td><td>7</td><td>0</td><td>1</td><td>18</td><td>15</td><td>74</td></tr>
+    </table>`;
+  const pit = parseBoxscore(html).box.find(b => /Pitching/.test(b.label)).html;
+  assert.doesNotMatch(pit, />\s*WP\s*</);
+  assert.doesNotMatch(pit, />\s*AB\s*</);
+  // other columns and their values survive
+  assert.match(pit, />\s*SO\s*</);
+  assert.match(pit, /<td>74<\/td>/); // NP value still present
+  assert.doesNotMatch(pit, /<td>15<\/td>/); // AB value dropped
+});
+
 test('parseBoxscore: without a line score, box sections fall back to "Team N"', () => {
   const noLine = `
     <table><tr><th>Visitors Hitters</th></tr><tr><td>Player A</td></tr></table>

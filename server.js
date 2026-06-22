@@ -190,6 +190,22 @@ function parseBoxNotes(html) {
   }
   return teams.map(t => { const o = {}; for (const k of BOX_NOTE_LABELS) if (t[k]) o[k] = t[k]; return o; });
 }
+// Drop columns (by header label, case-insensitive) from a box-score table.
+function bsDropCols(tableHtml, drop) {
+  const rows = tableHtml.match(/<tr\b[\s\S]*?<\/tr>/gi);
+  if (!rows) return tableHtml;
+  const head = rows[0].match(/<t[dh]\b[\s\S]*?<\/t[dh]>/gi) || [];
+  const di = new Set();
+  head.forEach((c, i) => { if (drop.indexOf(bsText(c).trim().toUpperCase()) !== -1) di.add(i); });
+  if (!di.size) return tableHtml;
+  let out = tableHtml;
+  for (const row of rows) {
+    const open = (row.match(/^<tr\b[^>]*>/i) || ['<tr>'])[0];
+    const cells = row.match(/<t[dh]\b[\s\S]*?<\/t[dh]>/gi) || [];
+    out = out.replace(row, open + cells.filter((c, i) => !di.has(i)).join('') + '</tr>');
+  }
+  return out;
+}
 function parseBoxscore(html) {
   const tables = html.match(/<table\b[\s\S]*?<\/table>/gi) || [];
   let line = null; const batting = [], pitching = [], pbp = [], types = [];
@@ -201,7 +217,7 @@ function parseBoxscore(html) {
       const m = tx.match(/(.*?(?:Top|Bottom) of .*?Inning)/i);
       pbp.push({ title: m ? m[1].trim() : 'Inning', html: bsClean(t) });
     } else if (/\bHitters\b/i.test(tx)) { type = 'batting'; batting.push(bsClean(t)); }
-    else if (/\bPitchers\b/i.test(tx)) { type = 'pitching'; pitching.push(bsClean(t)); }
+    else if (/\bPitchers\b/i.test(tx)) { type = 'pitching'; pitching.push(bsDropCols(bsClean(t), ['WP', 'AB'])); }
     else if (/^Final\b/i.test(tx) && /\bR\b/.test(tx) && !line) { type = 'line'; line = bsClean(t); }
     types.push({ type, head: tx.slice(0, 60) });
   }
