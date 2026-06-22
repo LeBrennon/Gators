@@ -185,6 +185,13 @@ function dateFromId(yyyymmdd) {
   const dt = new Date(Date.UTC(y, m-1, d, 12));
   return { iso: y+'-'+yyyymmdd.slice(4,6)+'-'+yyyymmdd.slice(6,8), label: DOW[dt.getUTCDay()]+' '+m+'/'+d, sortKey: +yyyymmdd };
 }
+// League first pitch is 7:05pm Central, except Sundays at 6:05pm. The schedule
+// page's listed times are unreliable, so derive the start time from the date.
+function gameTimeCDT(yyyymmdd) {
+  const y = +yyyymmdd.slice(0,4), m = +yyyymmdd.slice(4,6), d = +yyyymmdd.slice(6,8);
+  const dow = new Date(Date.UTC(y, m-1, d, 12)).getUTCDay();
+  return (dow === 0 ? '6:05' : '7:05') + ' PM CDT';
+}
 // ----- helpers --------------------------------------------------------------
 function ordinal(n){ const s=['th','st','nd','rd'], v=n%100; return n + (s[(v-20)%10] || s[v] || s[0]); }
 function cap(w){ return w ? w.charAt(0).toUpperCase()+w.slice(1).toLowerCase() : w; }
@@ -271,7 +278,7 @@ function parseSchedule(html) {
     if (t.away.id !== GATORS_ID && t.home.id !== GATORS_ID) continue;
     const when = dateFromId(link.date), cls = classify(chunk), gatorsHome = t.home.id === GATORS_ID;
     const opp = gatorsHome ? t.away : t.home;
-    out.push({ id: link.id, date: link.date, dateLabel: when.label, sortKey: when.sortKey, state: cls.state, status: cls.status,
+    out.push({ id: link.id, date: link.date, dateLabel: when.label, sortKey: when.sortKey, state: cls.state, status: cls.state === 'scheduled' ? gameTimeCDT(link.date) : cls.status,
       gatorsHome, opponent: { name: opp.name, short: opp.short, logo: opp.logo }, away: t.away, home: t.home });
   }
   const seen = new Set();
@@ -307,7 +314,7 @@ function parseLeagueScoreboard(html, dateStr) {
     const t = teamsFromChunk(chunk); if (!t) continue;
     seen.add(link.id);
     const cls = classify(chunk);
-    out.push({ id: link.id, date: link.date, state: cls.state, status: cls.status,
+    out.push({ id: link.id, date: link.date, state: cls.state, status: cls.state === 'scheduled' ? gameTimeCDT(link.date) : cls.status,
       isGators: t.away.id === GATORS_ID || t.home.id === GATORS_ID, url: boxscoreUrl(link.id),
       away: { id: t.away.id, short: t.away.short, logo: t.away.logo, score: t.away.score },
       home: { id: t.home.id, short: t.home.short, logo: t.home.logo, score: t.home.score } });
