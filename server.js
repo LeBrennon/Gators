@@ -1269,45 +1269,20 @@ function replayUrlFor(g) {
   return hit ? hit.url : null;
 }
 
-// ---- Player headshots from the official team site ----
-const TEAM_ROSTER_URL = 'https://gumbeauxgators.com/roster/';
-let playerPhotos = {};      // roster slug -> headshot URL
+// ---- Player headshots ----
+// The team site (gumbeauxgators.com) sits behind Cloudflare bot protection that
+// blocks our datacenter IP, so headshots are downloaded once and bundled in
+// photos/ (slug -> filename in photos/manifest.json), served from our origin.
+let playerPhotos = {};      // roster slug -> bundled filename
 let photosLoadedAt = 0;
 const normName = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z]/g, '');
-// Each player block carries an <img alt="First Last"> headshot; filenames are
-// inconsistent, so we key by the alt name and match to OUR roster.
-function parseTeamPhotos(html) {
-  const map = {};
-  const imgs = html.match(/<img\b[^>]*>/gi) || [];
-  for (const tag of imgs) {
-    const srcM = tag.match(/\bsrc=["']([^"']+)["']/i) || tag.match(/\bdata-src=["']([^"']+)["']/i);
-    const altM = tag.match(/\balt=["']([^"']*)["']/i);
-    if (!srcM || !altM) continue;
-    const url = srcM[1].replace(/&amp;/g, '&');
-    if (!/wp-content\/uploads/i.test(url)) continue;
-    if (/logo|head_tounge|sponsor|ticket/i.test(url)) continue;
-    const key = normName(altM[1]);
-    if (key.length < 4) continue;
-    if (!map[key]) map[key] = url;
-  }
-  return map;
-}
-async function pollPhotos() {
+const PHOTO_DIR = __dirname + '/photos';
+const PHOTO_TYPES = { webp: 'image/webp', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', avif: 'image/avif', gif: 'image/gif' };
+function loadLocalPhotos() {
   try {
-    const r = await fetchText(TEAM_ROSTER_URL, 'https://gumbeauxgators.com/');
-    if (!r.ok || !r.body) return;
-    const map = parseTeamPhotos(r.body);
-    if (!Object.keys(map).length) return;
-    const out = {};
-    for (const pl of ROSTER) {
-      const k = normName(pl.name);
-      if (map[k]) { out[pl.slug] = map[k]; continue; }
-      // loose fallback: match on last name (handles nickname/spelling diffs)
-      const ln = normName(pl.name.split(/\s+/).slice(-1)[0]);
-      if (ln.length >= 4) for (const mk in map) { if (mk.endsWith(ln)) { out[pl.slug] = map[mk]; break; } }
-    }
-    if (Object.keys(out).length) { playerPhotos = out; photosLoadedAt = Date.now(); saveCache(); }
-  } catch (e) { /* keep previous photos */ }
+    const man = JSON.parse(fs.readFileSync(PHOTO_DIR + '/manifest.json', 'utf8'));
+    if (man && Object.keys(man).length) { playerPhotos = man; photosLoadedAt = Date.now(); }
+  } catch (e) { /* no bundled photos */ }
 }
 // ----- league standings (both teams' records on the jumbo + Standings tab) ---
 let standings = {};         // normName(teamName) -> { w, l, t }  (jumbo records)
@@ -1484,41 +1459,19 @@ app.get('/debug/extras', (_q, r) => {
     sampleGames: sample,
   });
 });
-app.get('/debug/photos', async (_q, r) => {
-  try {
-    const page = await fetchText(TEAM_ROSTER_URL, 'https://gumbeauxgators.com/');
-    const imgs = page.body.match(/<img\b[^>]*>/gi) || [];
-    const upimgs = imgs.filter(t => /wp-content\/uploads/i.test(t) || /\.webp/i.test(t));
-    const map = parseTeamPhotos(page.body);
-    let imgFetch = null;
-    try {
-      const test = await fetch('https://gumbeauxgators.com/wp-content/uploads/2026/04/Nathan-McDonald.webp',
-        { headers: { 'user-agent': UA, referer: 'https://gumbeauxgators.com/', accept: 'image/avif,image/webp,image/*,*/*' } });
-      imgFetch = { ok: test.ok, status: test.status, type: test.headers.get('content-type') };
-    } catch (e) { imgFetch = { error: String(e && e.message || e) }; }
-    r.json({
-      page: { ok: page.ok, status: page.status, bytes: page.body.length, contentType: page.contentType,
-        looksBlocked: /just a moment|attention required|cf-mitigated|enable javascript|cdn-cgi\/challenge/i.test(page.body) },
-      imgTags: imgs.length, uploadOrWebp: upimgs.length, sampleImgs: upimgs.slice(0, 6),
-      parsedKeys: Object.keys(map).length, sampleParsed: Object.entries(map).slice(0, 6),
-      imgFetch,
-    });
-  } catch (e) { r.json({ error: String(e && e.message || e) }); }
-});
 app.get('/api/roster', (_q, r) => { if (!rosterPolling && Object.keys(rosterStats).length === 0) pollRoster(); r.json(rosterPayload()); });
-// Headshot proxy — the team site 403s hotlinked images, so we fetch each one
-// with its own domain as the referer and stream it back from our origin.
-app.get('/api/photo', async (q, r) => {
+// Headshots are bundled in photos/ and served from our own origin.
+app.get('/api/photo', (q, r) => {
   const slug = String((q.query && q.query.slug) || '');
-  const url = playerPhotos[slug];
-  if (!/^[a-z0-9_]+$/i.test(slug) || !url) return r.status(404).end();
+  const file = /^[a-z0-9_]+$/i.test(slug) ? playerPhotos[slug] : null;
+  if (!file || /[\\/]/.test(file)) return r.status(404).end();
   try {
-    const resp = await fetch(url, { headers: { 'user-agent': UA, referer: 'https://gumbeauxgators.com/', accept: 'image/avif,image/webp,image/*,*/*' } });
-    if (!resp.ok) return r.status(502).end();
-    r.set('Content-Type', resp.headers.get('content-type') || 'image/jpeg');
+    const buf = fs.readFileSync(PHOTO_DIR + '/' + file);
+    const ext = String(file).split('.').pop().toLowerCase();
+    r.set('Content-Type', PHOTO_TYPES[ext] || 'image/jpeg');
     r.set('Cache-Control', 'public, max-age=86400');
-    r.send(Buffer.from(await resp.arrayBuffer()));
-  } catch (e) { r.status(502).end(); }
+    r.send(buf);
+  } catch (e) { r.status(404).end(); }
 });
 app.get('/api/player', async (q, r) => {
   const slug = String((q.query && q.query.slug) || '');
@@ -1668,7 +1621,7 @@ app.get('/api/stream', (q, r) => {
 
 if (require.main === module) {
   loadCache(); // serve last-saved player stats instantly, then refresh below
-  app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleDailyRoster(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); pollPhotos(); setInterval(pollPhotos, 24 * 60 * 60 * 1000); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); });
+  app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleDailyRoster(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, extractEventAuth,
   dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseGameLog, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver };
