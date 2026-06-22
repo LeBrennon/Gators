@@ -1922,11 +1922,14 @@ body.noscroll{overflow:hidden;}
 .gltbl td:first-child,.gltbl th:first-child{text-align:left;color:var(--mute);}
 .gltbl td:nth-child(2),.gltbl th:nth-child(2){text-align:left;}
 .gltbl tr:last-child td{border-bottom:none;}
-.sttbl table{font-size:13px;}
-.sttbl th,.sttbl td{padding:9px 8px;}
-.sttbl td:first-child,.sttbl th:first-child{text-align:center;color:var(--mute);width:26px;font-family:'Oswald',sans-serif;}
-.sttbl .stteam{display:flex;align-items:center;gap:9px;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.02em;color:var(--bone);}
-.sttbl .stlogo{width:28px;height:28px;border-radius:6px;object-fit:contain;background:transparent;flex:none;}
+.sttbl table{font-size:12px;}
+.sttbl th,.sttbl td{padding:8px 4px;}
+.sttbl td:first-child,.sttbl th:first-child{text-align:center;color:var(--mute);width:16px;padding-left:2px;padding-right:2px;font-family:'Oswald',sans-serif;}
+/* Let the team name wrap so every column fits the phone width without scrolling. */
+.sttbl td:nth-child(2),.sttbl th:nth-child(2){white-space:normal;}
+.sttbl .stteam{display:flex;align-items:center;gap:6px;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.01em;color:var(--bone);min-width:0;}
+.sttbl .stteam span{white-space:normal;overflow-wrap:anywhere;line-height:1.15;}
+.sttbl .stlogo{width:22px;height:22px;border-radius:5px;object-fit:contain;background:transparent;flex:none;}
 .sttbl td:nth-child(5){color:var(--gold2);}
 .sttbl tr.stg td{background:rgba(157,92,255,.16);}
 .sttbl tr.stg .stteam{color:var(--gator);font-weight:700;}
