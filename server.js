@@ -873,7 +873,7 @@ const ROSTER = [
   { num: 6,  name: 'Nathan McDonald',  slug: 'nathanmcdonaldftgl',   pos: 'Utility', cls: 'Senior',       ht: '6-0',  wt: '175', b: 'R', t: 'R', bday: '07/17/2004', home: 'McComb, MS',       school: 'Loyola-New Orleans' },
   { num: 9,  name: 'James Reina',      slug: 'jamesreinaluai',       pos: 'IF',      cls: 'Junior',       ht: '5-9',  wt: '180', b: 'R', t: 'R', bday: '10/07/2004', home: 'Lake Charles, LA', school: 'Stephen F. Austin' },
   { num: 11, name: 'Diego Corrales',   slug: 'diegocorrales91v5',    pos: 'P',       cls: 'Junior',       ht: '5-8',  wt: '185', b: 'L', t: 'L', bday: '08/01/2005', home: 'Lake Charles, LA', school: 'McNeese State' },
-  { num: 14, name: 'Brandon Levy',     slug: 'brandonlevyejo5',      pos: 'P',       cls: 'Junior',       ht: '5-10', wt: '180', b: 'R', t: 'R', bday: '05/25/2004', home: 'Bossier City, LA', school: 'New Orleans' },
+  { num: 14, name: 'Brandon Levy',     slug: 'brandonlevyejo5',      pos: 'Two-Way', cls: 'Junior',       ht: '5-10', wt: '180', b: 'R', t: 'R', bday: '05/25/2004', home: 'Bossier City, LA', school: 'New Orleans' },
   { num: 16, name: 'Daniel Midkiff',   slug: 'danielmidkifffqkb',    pos: 'P',       cls: 'Sophomore',    ht: '6-2',  wt: '208', b: 'R', t: 'R', bday: '',           home: 'Buna, TX',         school: 'Lamar' },
   { num: 17, name: 'Ayden Sunday',     slug: 'aydensundayyp1j',      pos: 'OF',      cls: 'Sophomore',    ht: '6-0',  wt: '185', b: 'R', t: 'R', bday: '',           home: 'Nederland, TX',    school: 'Lamar' },
   { num: 18, name: 'Bryson Pierce',    slug: 'brysonpiercex3u3',     pos: 'Two-Way', cls: 'Sophomore',    ht: '6-2',  wt: '185', b: 'L', t: 'L', bday: '11/17/2005', home: 'Benton, LA',       school: 'Benton' },
