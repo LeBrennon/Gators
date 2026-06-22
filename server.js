@@ -88,11 +88,10 @@ function bsRowPos(row) {
   const m = cell.match(/<span\b[^>]*>([^<]*)<\/span>/i);
   return m ? m[1].trim().toLowerCase() : '';
 }
-// With a DH the pitcher never bats, so drop their (0-for-0) hitting rows from
-// the Hitters table. Left alone when there's no DH (pitcher actually batted).
+// Every TCL game uses a DH, so the pitcher never bats — drop their (0-for-0)
+// hitting rows from the Hitters table.
 function bsDropPitchers(tableHtml) {
   const rows = tableHtml.match(/<tr\b[\s\S]*?<\/tr>/gi) || [];
-  if (!rows.some(r => bsRowPos(r) === 'dh')) return tableHtml;
   let out = tableHtml;
   for (const r of rows) if (bsRowPos(r) === 'p') out = out.replace(r, '');
   return out;
@@ -491,8 +490,8 @@ function lineupsFromFeed(json) {
         today: ab == null ? '—' : (hits + ' for ' + ab),
       };
     });
-    // With a DH the pitcher never bats, so drop them from the batting lineup.
-    const battingRows = rows.some(r => r.pos === 'DH') ? rows.filter(r => r.pos !== 'P') : rows;
+    // Every TCL game uses a DH, so the pitcher never bats — leave them out.
+    const battingRows = rows.filter(r => r.pos !== 'P');
     // Box-score note lines (2B/3B/HR/SB/E): scan every player on the team
     // so defensive subs and pinch runners are counted, not just starters.
     const lastName = p => p.revname ? String(p.revname).split(',')[0].trim()

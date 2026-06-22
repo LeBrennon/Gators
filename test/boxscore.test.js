@@ -86,15 +86,16 @@ test('parseBoxscore: drops the pitcher hitting row when there is a DH', () => {
   assert.doesNotMatch(batting, /Jack Garcille/);
 });
 
-test('parseBoxscore: keeps the pitcher hitting row when there is no DH (pitcher batted)', () => {
+test('parseBoxscore: drops the pitcher even without an explicit DH row (TCL always uses a DH)', () => {
   const html = `
     <table>
       <tr><th>Hitters</th><th>AB</th></tr>
       <tr><th><div><span>cf</span> Ayden Sunday</div></th><td>4</td></tr>
-      <tr><th><div><span>p</span> Jack Garcille</div></th><td>3</td></tr>
+      <tr><th><div><span>p</span> Jack Garcille</div></th><td>0</td></tr>
     </table>`;
   const batting = parseBoxscore(html).box.find(b => /Batting/.test(b.label)).html;
-  assert.match(batting, /Jack Garcille/);
+  assert.match(batting, /Ayden Sunday/);
+  assert.doesNotMatch(batting, /Jack Garcille/);
 });
 
 test('parseBoxscore: without a line score, box sections fall back to "Team N"', () => {
