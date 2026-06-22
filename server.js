@@ -300,6 +300,35 @@ async function fetchLiveUpdate(e, h, referer) {
   return { url, ok: res.ok, status: res.status, contentType: res.headers.get('content-type') || '', length: text.length, json, parseError, head: text.slice(0, 200) };
 }
 
+// Join an active batter/pitcher name to its per-player game line from
+// team[].player[] (jersey, position, and this-game stat line) so the live
+// panel can show stats GameTracker-style, not just a name.
+function activePlayerLine(json, name, kind) {
+  if (!name) return null;
+  const nm = String(name).trim();
+  const players = [].concat(...((json.team || []).map(t => t.player || [])));
+  const p = players.find(pl => pl && [pl.name, pl.shortname, pl.revname]
+    .some(n => n && String(n).trim() === nm));
+  const info = { name: nm, uni: p && p.uni ? String(p.uni) : null,
+    pos: p && p.pos ? String(p.pos).toUpperCase() : null, line: null, pitches: null };
+  if (!p) return info;
+  const n = x => Number(x) || 0;
+  if (kind === 'pitcher') {
+    const g = (p.pitching && p.pitching[0]) || {};
+    const parts = [];
+    if (g.ip != null) parts.push(g.ip + ' IP');
+    if (g.er != null) parts.push(n(g.er) + ' ER');
+    if (g.so != null) parts.push(n(g.so) + ' K');
+    if (g.bb != null) parts.push(n(g.bb) + ' BB');
+    info.line = parts.join(', ') || null;
+    info.pitches = g.pitches != null ? n(g.pitches) : null;
+  } else {
+    const h = p.hitting || {};
+    if (h.ab != null) info.line = n(h.h) + ' - ' + n(h.ab) + ', ' + n(h.rbi) + ' RBI, ' + n(h.so) + ' K';
+  }
+  return info;
+}
+
 // Boil the feed's status block down to the live game situation.
 function summarizeLive(json) {
   const s = json && json.status; if (!s) return null;
@@ -315,6 +344,8 @@ function summarizeLive(json) {
     count: (val(s.b) || '0') + '-' + (val(s.s) || '0'),
     batter: has(s.batter) ? val(s.batter) : null,
     pitcher: has(s.pitcher) ? val(s.pitcher) : null,
+    batterInfo: has(s.batter) ? activePlayerLine(json, val(s.batter), 'batter') : null,
+    pitcherInfo: has(s.pitcher) ? activePlayerLine(json, val(s.pitcher), 'pitcher') : null,
     bases: { first: has(s.first), second: has(s.second), third: has(s.third) },
     runners: { first: val(s.first) || null, second: val(s.second) || null, third: val(s.third) || null },
   };
@@ -1511,6 +1542,12 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .bprow{display:flex;align-items:center;gap:10px;font-size:12.5px;}
 .bpk{font-family:'Oswald',sans-serif;font-weight:600;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold2);min-width:84px;}
 .bpn{color:var(--bone);font-weight:600;min-width:0;}
+.mcard{background:var(--bayou2);border:1px solid var(--line);border-radius:10px;padding:9px 12px;}
+.mrole{font-family:'Oswald',sans-serif;font-weight:600;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold2);}
+.mname{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;color:var(--bone);font-weight:700;font-size:14px;margin-top:2px;}
+.mmeta{font-family:'JetBrains Mono',monospace;font-weight:600;font-size:10.5px;color:var(--mute);letter-spacing:.03em;}
+.mstat{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--gold2);margin-top:3px;}
+.mvs{text-align:center;font-family:'Oswald',sans-serif;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin:1px 0;}
 .lsbox{overflow-x:auto;-webkit-overflow-scrolling:touch;}
 .lstbl{width:100%;border-collapse:collapse;font-family:'JetBrains Mono',monospace;font-size:12.5px;}
 .lstbl th{color:var(--mute);font-size:9px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;padding:4px 7px;text-align:center;}
@@ -1733,8 +1770,14 @@ function buildLive(g){
     '<div class="lcell"><div class="lv">'+outsDots(L.outs)+'</div><div class="ll">'+((L.outs||0)===1?'Out':'Outs')+'</div></div>'+
     '</div>';
   var bp='';
-  if(L.pitcher)bp+='<div class="bprow"><span class="bpk">⚾ Pitching</span><span class="bpn">'+esc(L.pitcher)+'</span></div>';
-  if(L.batter)bp+='<div class="bprow"><span class="bpk">🏏 At bat</span><span class="bpn">'+esc(L.batter)+'</span></div>';
+  if(L.pitcherInfo||L.batterInfo){
+    if(L.pitcherInfo)bp+=matchupCard('⚾ Pitching',L.pitcherInfo);
+    if(L.pitcherInfo&&L.batterInfo)bp+='<div class="mvs">— pitching to —</div>';
+    if(L.batterInfo)bp+=matchupCard('🏏 At bat',L.batterInfo);
+  }else{
+    if(L.pitcher)bp+='<div class="bprow"><span class="bpk">⚾ Pitching</span><span class="bpn">'+esc(L.pitcher)+'</span></div>';
+    if(L.batter)bp+='<div class="bprow"><span class="bpk">🏏 At bat</span><span class="bpn">'+esc(L.batter)+'</span></div>';
+  }
   var line=buildLineScore(g);
   var pbp=buildPbp(g);
   return sit+(bp?'<div class="lbp">'+bp+'</div>':'')+line+pbp;
@@ -1755,6 +1798,14 @@ function buildLineScore(g){
     h+='<td class="lsd">'+c(t.runs)+'</td><td>'+c(t.hits)+'</td><td>'+c(t.errs)+'</td></tr>';
   });
   return h+'</table></div>';
+}
+function matchupCard(role,info){
+  var meta=[];if(info.pos)meta.push(esc(info.pos));if(info.uni)meta.push('#'+esc(String(info.uni)));
+  var stat=info.line?esc(info.line):'';
+  if(info.pitches!=null)stat+=(stat?' · ':'')+esc(String(info.pitches))+' P';
+  return '<div class="mcard"><div class="mrole">'+role+'</div>'+
+    '<div class="mname">'+esc(info.name)+(meta.length?'<span class="mmeta">'+meta.join(' ')+'</span>':'')+'</div>'+
+    (stat?'<div class="mstat">'+stat+'</div>':'')+'</div>';
 }
 function pbpRow(p){return '<div class="pbprow'+(p.scored?' sc':'')+'"><span class="pbpt">'+esc(p.text)+'</span></div>';}
 function halfLabel(p){return (p.half==='top'?'▲ Top ':'▼ Bot ')+ord(p.inning);}
