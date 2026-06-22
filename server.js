@@ -1727,18 +1727,18 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 <div class="bgfx"></div>
 <div class="toasts" id="toasts"></div>
 <div class="wrap">
-<div class="topbar"><img class="hdrlogo tcl" src="/tcl-logo.png" alt="Texas Collegiate League"><img class="gglogo" src="/gg-logo.jpg" alt="Lake Charles Gumbeaux Gators"><div class="trail"><a class="ticketbtn" href="https://gumbeauxgators.com/tickets/" target="_blank" rel="noopener" title="Buy game tickets">🎟 Tickets</a><a class="shopbtn" id="shopBtn" href="https://gumbeauxgators.myshopify.com/collections/all" target="_blank" rel="noopener" title="Shop the Gators store">🛒<span class="shoptxt">Gators<br>Team<br>Store</span></a></div></div>
+<div class="topbar"><img class="hdrlogo tcl" src="/tcl-logo.png" alt="Texas Collegiate League"><img class="gglogo" src="/gg-logo.jpg" alt="Lake Charles Gumbeaux Gators"><div class="trail"><a class="ticketbtn" href="https://gumbeauxgators.com/tickets/" target="_blank" rel="noopener" title="Buy game tickets">Tickets</a><a class="shopbtn" id="shopBtn" href="https://gumbeauxgators.myshopify.com/collections/all" target="_blank" rel="noopener" title="Shop the Gators store"><span class="shoptxt">Gators<br>Team<br>Store</span></a></div></div>
 <div class="nav"><button class="navb on" id="navScores">Scores</button><button class="navb" id="navRoster">Roster</button><button class="navb" id="navStandings">Standings</button></div>
 <div id="viewScores">
 <div class="jumbo">
 <div class="sl">
 <div class="tm" id="awayTm"><img id="awayLogo" alt=""><div class="nm" id="awayNm">—</div><div class="rec" id="awayRec"></div><div class="sc" id="awaySc">0</div></div>
-<div class="mid"><a class="watchpill" id="watchBtn" target="_blank" rel="noopener" style="display:none">▶ Watch</a><div class="statpill" id="statpill">—</div><div class="vs" id="vs">vs</div></div>
+<div class="mid"><a class="watchpill" id="watchBtn" target="_blank" rel="noopener" style="display:none">Watch</a><div class="statpill" id="statpill">—</div><div class="vs" id="vs">vs</div></div>
 <div class="tm" id="homeTm"><img id="homeLogo" alt=""><div class="nm" id="homeNm">—</div><div class="rec" id="homeRec"></div><div class="sc" id="homeSc">0</div></div>
 </div>
 <div class="live" id="livePanel" style="display:none"></div>
 <div class="jloc" id="jloc"></div>
-<a class="watchbtn ticket" id="ticketBtn" target="_blank" rel="noopener" style="display:none">🎟 Buy Tickets</a>
+<a class="watchbtn ticket" id="ticketBtn" target="_blank" rel="noopener" style="display:none">Buy Tickets</a>
 <div class="note">Live score and inning, straight from the league feed — updates automatically.</div>
 </div>
 <div class="sec">Gators Schedule</div>
@@ -1788,8 +1788,8 @@ function renderGame(g){
   var jl=$('jloc');if(jl)jl.textContent=g.location||'';
   var wb=$('watchBtn');
   if(wb){
-    if(g.watchUrl){wb.href=g.watchUrl;wb.textContent='▶ Watch on TCL';wb.classList.remove('replay');wb.style.display='';}
-    else if(g.state==='final'&&g.replayUrl){wb.href=g.replayUrl;wb.textContent='▶ Full Replay';wb.classList.add('replay');wb.style.display='';}
+    if(g.watchUrl){wb.href=g.watchUrl;wb.textContent='Watch on TCL';wb.classList.remove('replay');wb.style.display='';}
+    else if(g.state==='final'&&g.replayUrl){wb.href=g.replayUrl;wb.textContent='Full Replay';wb.classList.add('replay');wb.style.display='';}
     else{wb.style.display='none';}
   }
   var tk=$('ticketBtn');
@@ -1923,8 +1923,8 @@ function renderSched(list){
       +'<div class="ctop"><span class="cdate">'+g.dateLabel+'</span>'+pill+'</div>'
       +row(g.away,g.away.id==='et1bt9sixrz5lnnl',aw)+row(g.home,g.home.id==='et1bt9sixrz5lnnl',hw)
       +'<div class="cfoot"><span class="cloc">'+esc(g.location||'')+'</span>'
-      +(g.state==='final'&&g.replayUrl?('<a class="watchmini replay" href="'+esc(g.replayUrl)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">▶ Replay</a>'):'')
-      +(g.state==='scheduled'&&g.ticketUrl?('<a class="watchmini tickets" href="'+esc(g.ticketUrl)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">🎟 Tickets</a>'):'')
+      +(g.state==='final'&&g.replayUrl?('<a class="watchmini replay" href="'+esc(g.replayUrl)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Replay</a>'):'')
+      +(g.state==='scheduled'&&g.ticketUrl?('<a class="watchmini tickets" href="'+esc(g.ticketUrl)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Tickets</a>'):'')
       +'</div></div>';
   });
   $('sched').innerHTML=h||'<div class="note">No Gators games found yet.</div>';
