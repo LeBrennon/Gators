@@ -4,7 +4,7 @@
 // block down), and teamLineScores (per-team runs/hits/errors).
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { extractEventAuth, summarizeLive, teamLineScores } = require('../server');
+const { extractEventAuth, summarizeLive, teamLineScores, summarizePlays } = require('../server');
 
 const GATORS = 'et1bt9sixrz5lnnl';
 
@@ -83,4 +83,38 @@ test('teamLineScores: flattens each team line and flags the Gators', () => {
 
 test('teamLineScores: missing team array yields empty list', () => {
   assert.deepEqual(teamLineScores({}), []);
+});
+
+// ---- summarizePlays: flatten the play-by-play into a narrated feed ----------
+const PLAYS = {
+  plays: { format: 'summary', inning: [
+    { number: '1', batting: [
+      { vh: 'V', id: 'LAKE CHA', play: [
+        { seq: '1', outs: '0', narrative: { text: 'Nathan McDonald singled to third base (2-2 KBKFB).' } },
+        { seq: '2', outs: '0', narrative: { text: 'Reid Snider grounded out to p, RBI; Nathan McDonald scored.' } },
+        { seq: '3', outs: '1' }, // runner-only / no narrative -> skipped
+      ] },
+      { vh: 'H', id: 'SHERMAN', play: [
+        { seq: '1', outs: '0', narrative: { text: 'Cole Carnes flied out to lf (0-2 KS).' } },
+      ] },
+    ] },
+  ] },
+};
+
+test('summarizePlays: flattens narrated plays with inning/half and skips empties', () => {
+  const p = summarizePlays(PLAYS);
+  assert.equal(p.length, 3);
+  assert.deepEqual(p[0], { inning: 1, half: 'top', team: 'LAKE CHA', outs: 0, scored: false, text: 'Nathan McDonald singled to third base (2-2 KBKFB).' });
+  assert.equal(p[2].half, 'bot');
+});
+
+test('summarizePlays: flags run-scoring plays', () => {
+  const p = summarizePlays(PLAYS);
+  assert.equal(p[1].scored, true);   // "...scored."
+  assert.equal(p[0].scored, false);
+});
+
+test('summarizePlays: no plays yields empty list', () => {
+  assert.deepEqual(summarizePlays({}), []);
+  assert.deepEqual(summarizePlays(null), []);
 });
