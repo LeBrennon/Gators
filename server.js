@@ -1667,7 +1667,7 @@ background:transparent;-webkit-font-smoothing:antialiased;}
 .bgfx{position:fixed;inset:0;z-index:-1;background-color:var(--bayou);
 background:radial-gradient(1100px 550px at 50% -10%,rgba(111,79,212,.10),transparent 60%),linear-gradient(rgba(22,16,43,.12),rgba(22,16,43,.20)),url(${BG_PATH}) center center / cover no-repeat;}
 .wrap{max-width:520px;margin:0 auto;padding:0 14px 40px;}
-.topbar{position:sticky;top:0;z-index:40;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:9px;padding:14px 4px 12px;background:linear-gradient(180deg,var(--bayou) 70%,transparent);}
+.topbar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:9px;padding:14px 4px 12px;}
 .topbar .hdrlogo.tcl{justify-self:start;}
 .topbar .shopbtn{justify-self:end;}
 .gglogo{justify-self:center;width:150px;max-width:100%;height:auto;object-fit:contain;border-radius:12px;border:1px solid var(--line);}
