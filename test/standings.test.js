@@ -33,7 +33,7 @@ test('parseStandings: decorates known teams with id, short name, and logo', () =
   const gators = rows[0];
   assert.equal(gators.id, 'et1bt9sixrz5lnnl');
   assert.equal(gators.short, 'Gators');
-  assert.equal(gators.logo, '/gators-logo.jpg');
+  assert.equal(gators.logo, '/gators-logo.png');
   const bombers = rows[1];
   assert.equal(bombers.short, 'Bombers');
   assert.match(bombers.logo, /\/logos\/id\/z7w5th537gur3z15\.png$/);
