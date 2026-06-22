@@ -1676,7 +1676,6 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .mstat{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--gold2);margin-top:3px;}
 .mvs{text-align:center;font-family:'Oswald',sans-serif;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin:1px 0;}
 .finalcard{display:flex;flex-direction:column;align-items:center;gap:13px;padding:6px 0 2px;}
-.finalhd{font-family:'Oswald',sans-serif;font-weight:700;font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold2);}
 .finalbtns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;}
 .fbtn{font-family:'Oswald',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:11px;padding:9px 16px;border-radius:999px;border:1px solid var(--purple);background:linear-gradient(180deg,var(--purple),var(--gator2));color:#fff;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;}
 .fbtn.rep{border-color:rgba(242,183,5,.5);background:linear-gradient(180deg,var(--gold2),var(--gold));color:#1a1330;}
@@ -1952,12 +1951,10 @@ function buildLive(g){
 // score with the winner emphasized, and buttons into the box score / play-by-play.
 function buildFinal(g){
   if(g.status!=='final')return '';
-  var banner=(g.inningLabel&&/final/i.test(g.inningLabel))?g.inningLabel:'Final';
   var btns='<button class="fbtn" data-final="box" data-id="'+esc(g.id)+'">Box Score</button>'
     +'<button class="fbtn" data-final="pbp" data-id="'+esc(g.id)+'">Play-by-Play</button>'
     +(g.replayUrl?('<a class="fbtn rep" href="'+esc(g.replayUrl)+'" target="_blank" rel="noopener">Watch Replay</a>'):'');
-  return '<div class="finalcard"><div class="finalhd">'+esc(banner)+'</div>'
-    +'<div class="finalbtns">'+btns+'</div></div>';
+  return '<div class="finalcard"><div class="finalbtns">'+btns+'</div></div>';
 }
 function buildLineScore(g){
   var rows=g.lineScore;if(!rows||!rows.length)return '';
