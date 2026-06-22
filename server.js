@@ -1425,6 +1425,8 @@ app.get('/api/game', (_q, r) => featured ? r.json(featured) : r.status(503).json
 app.get('/gators-logo.jpg', (_q, r) => { r.set('Content-Type','image/jpeg'); r.set('Cache-Control','public, max-age=86400'); r.send(Buffer.from(GATORS_LOGO_B64,'base64')); });
 app.get('/tcl-logo.png', (_q, r) => { r.set('Content-Type','image/png'); r.set('Cache-Control','public, max-age=86400'); r.send(Buffer.from(TCL_LOGO_B64,'base64')); });
 app.get('/gg-logo.jpg', (_q, r) => { r.set('Content-Type','image/jpeg'); r.set('Cache-Control','public, max-age=86400'); r.send(Buffer.from(GG_LOGO_B64,'base64')); });
+// Social/link-preview image (Gumbeaux Gators logo, 1200x628) for iMessage etc.
+app.get('/og.jpg', (_q, r) => { try { r.set('Content-Type','image/jpeg'); r.set('Cache-Control','public, max-age=86400'); r.send(fs.readFileSync(__dirname + '/og.jpg')); } catch (e) { r.status(404).end(); } });
 app.get(BG_PATH, (_q, r) => { r.set('Content-Type','image/jpeg'); r.set('Cache-Control','public, max-age=31536000, immutable'); r.send(BG_BUF); });
 app.get('/api/boxscore', async (q, r) => {
   try {
@@ -1647,11 +1649,13 @@ const APP = `<!DOCTYPE html>
 <meta property="og:title" content="Gators GameTracker">
 <meta property="og:description" content="Live scores, schedule, and roster for the Lake Charles Gumbeaux Gators.">
 <meta property="og:url" content="${SITE_URL}/">
-<meta property="og:image" content="${SITE_URL}/gators-logo.jpg">
-<meta name="twitter:card" content="summary">
+<meta property="og:image" content="${SITE_URL}/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="628">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Gators GameTracker">
 <meta name="twitter:description" content="Live scores, schedule, and roster for the Lake Charles Gumbeaux Gators.">
-<meta name="twitter:image" content="${SITE_URL}/gators-logo.jpg">
+<meta name="twitter:image" content="${SITE_URL}/og.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@500;600;700&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
 <style>
