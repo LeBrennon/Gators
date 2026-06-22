@@ -1765,7 +1765,7 @@ function buildPbp(g){
   var body;
   if(pbpView==='full'){
     var h='',lastKey='';
-    plays.forEach(function(p){var key=p.inning+p.half;if(key!==lastKey){h+='<div class="pbpih">'+halfLabel(p)+'</div>';lastKey=key;}h+=pbpRow(p);});
+    plays.slice().reverse().forEach(function(p){var key=p.inning+p.half;if(key!==lastKey){h+='<div class="pbpih">'+halfLabel(p)+'</div>';lastKey=key;}h+=pbpRow(p);});
     body='<div class="pbplist full" id="pbplist">'+h+'</div>';
   }else{
     var cur=plays[plays.length-1];
