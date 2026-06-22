@@ -368,6 +368,7 @@ function summarizeLive(json) {
   return {
     complete: val(s.complete) === 'Y',
     inning: val(s.inning),
+    schedInn: parseInt(val(json.venue && json.venue.schedinn) || 9, 10) || 9,
     half: battingHome ? 'Bottom' : 'Top',
     battingTeam: String(val(s.batting) || '').trim(),
     outs: Number(val(s.outs)) || 0,
@@ -529,6 +530,18 @@ function finalAnchorMs(g) {
 function finalIsFresh(g, nowMs) {
   return nowMs - finalAnchorMs(g) < FINAL_WINDOW_MS;
 }
+// Detect a finished game straight from the live feed, before PrestoSports flips
+// its "complete" flag or the schedule text says "Final" (both lag): three outs
+// in the final scheduled inning (or later) with a team ahead means it's over.
+function feedGameOver(L, awayRuns, homeRuns) {
+  if (!L) return false;
+  if (L.complete) return true;
+  const inn = parseInt(L.inning, 10) || 0, reg = L.schedInn || 9;
+  if (inn < reg || (L.outs || 0) < 3) return false;
+  const a = Number(awayRuns) || 0, h = Number(homeRuns) || 0;
+  if (a === h) return false;                  // still tied → extra innings
+  return L.half === 'Bottom' ? a > h : h > a; // 3rd out with a leader = final
+}
 // Choose the featured game: a pinned game, else a live game, else the most
 // recent final still inside its 10-hour post-game window, else the next
 // scheduled game, else the latest final.
@@ -607,6 +620,14 @@ async function enrichLive(norm) {
     }
     if (lf && lf.plays && lf.plays.length) norm.plays = lf.plays;
     if (lf && lf.lineups && lf.lineups.length) norm.lineups = lf.lineups;
+    // The feed knows the last out has been made before the schedule says
+    // "Final"; flip to the final screen now and anchor the post-game window.
+    if (feedGameOver(norm.live, norm.away.runs, norm.home.runs)) {
+      norm.status = 'final';
+      const inn = parseInt(norm.live.inning, 10) || 0;
+      norm.inningLabel = inn > 9 ? ('Final/' + inn) : 'Final';
+      if (finalSeenAt[norm.id] == null) finalSeenAt[norm.id] = Date.now();
+    }
   } catch (e) { /* keep score-only view if the feed is unavailable */ }
 }
 // Live scores for in-progress NON-featured league games, refreshed each scrape
@@ -1605,7 +1626,7 @@ if (require.main === module) {
   app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleDailyRoster(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); pollPhotos(); setInterval(pollPhotos, 24 * 60 * 60 * 1000); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, extractEventAuth,
-  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseGameLog, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs };
+  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseGameLog, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
