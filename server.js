@@ -116,6 +116,19 @@ function bsDropPitchers(tableHtml, pitchers) {
   }
   return out;
 }
+// The boxscore table captions read "<City Mascot> Batters/Pitchers"; trim the
+// city so headings show just the mascot ("Gators Batters", "Rougarou Pitchers").
+const TEAM_SHORT_BY_NAME = {};
+for (const id in TEAMS) TEAM_SHORT_BY_NAME[TEAMS[id].name.replace(/\s+/g, ' ').trim().toLowerCase()] = TEAMS[id].short;
+function bsMascot(name) {
+  const k = String(name || '').replace(/\s+/g, ' ').trim();
+  if (TEAM_SHORT_BY_NAME[k.toLowerCase()]) return TEAM_SHORT_BY_NAME[k.toLowerCase()];
+  for (const id in CITY) { const c = CITY[id]; if (k.toLowerCase().startsWith(c.toLowerCase() + ' ')) return k.slice(c.length).trim(); }
+  return k;
+}
+function bsShortenCaption(html) {
+  return html.replace(/(<caption>\s*<h2>)([\s\S]*?)(<span>)/i, (m, a, name, b) => a + bsMascot(name) + ' ' + b);
+}
 function parseBoxscore(html) {
   const tables = html.match(/<table\b[\s\S]*?<\/table>/gi) || [];
   let line = null; const batting = [], pitching = [], pbp = [], types = [];
@@ -139,8 +152,8 @@ function parseBoxscore(html) {
   const teams = bsLineTeams(line);
   const lab = i => teams[i] || ('Team ' + (i + 1));
   const box = [];
-  battingClean.forEach((h, i) => box.push({ label: lab(i) + ' \u2014 Batting', html: h }));
-  pitching.forEach((h, i) => box.push({ label: lab(i) + ' \u2014 Pitching', html: h }));
+  battingClean.forEach((h, i) => box.push({ label: lab(i) + ' \u2014 Batting', html: bsShortenCaption(h) }));
+  pitching.forEach((h, i) => box.push({ label: lab(i) + ' \u2014 Pitching', html: bsShortenCaption(h) }));
   return { line, teams, box, pbp,
     counts: { tables: tables.length, line: line ? 1 : 0, batting: batting.length, pitching: pitching.length, pbp: pbp.length }, types };
 }

@@ -122,6 +122,27 @@ test('parseBoxscore: drops a reliever from the Hitters table even with a blank p
   assert.doesNotMatch(batting, /Brandon Levy/);
 });
 
+test('parseBoxscore: caption shows the mascot, not the full city name', () => {
+  const html = `
+    <table>
+      <caption><h2> Lake Charles Gumbeaux Gators  <span>Batters</span></h2></caption>
+      <tr><th>Hitters</th><th>AB</th></tr>
+      <tr><th><div><span>cf</span> Ayden Sunday</div></th><td>4</td></tr>
+    </table>
+    <table>
+      <caption><h2> Baton Rouge Rougarou  <span>Pitchers</span></h2></caption>
+      <tr><th>Pitchers</th><th>IP</th></tr>
+      <tr><th><div>Will Robinson</div></th><td>5.0</td></tr>
+    </table>`;
+  const { box } = parseBoxscore(html);
+  const bat = box.find(b => /Batting/.test(b.label)).html;
+  const pit = box.find(b => /Pitching/.test(b.label)).html;
+  assert.match(bat, /<h2>Gators <span>Batters<\/span>/);
+  assert.doesNotMatch(bat, /Lake Charles/);
+  assert.match(pit, /<h2>Rougarou <span>Pitchers<\/span>/);
+  assert.doesNotMatch(pit, /Baton Rouge/);
+});
+
 test('parseBoxscore: without a line score, box sections fall back to "Team N"', () => {
   const noLine = `
     <table><tr><th>Visitors Hitters</th></tr><tr><td>Player A</td></tr></table>
