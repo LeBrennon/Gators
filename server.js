@@ -471,6 +471,8 @@ function lineupsFromFeed(json) {
         today: ab == null ? '—' : (hits + ' for ' + ab),
       };
     });
+    // With a DH the pitcher never bats, so drop them from the batting lineup.
+    const battingRows = rows.some(r => r.pos === 'DH') ? rows.filter(r => r.pos !== 'P') : rows;
     // Box-score note lines (2B/3B/HR/SB/E): scan every player on the team
     // so defensive subs and pinch runners are counted, not just starters.
     const lastName = p => p.revname ? String(p.revname).split(',')[0].trim()
@@ -481,7 +483,7 @@ function lineupsFromFeed(json) {
       const add = (k, v) => { const n = Number(v) || 0; if (n > 0) notes[k].push({ name: lastName(p), n }); };
       add('2B', h.double); add('3B', h.triple); add('HR', h.hr); add('SB', h.sb); add('E', fl.e);
     });
-    return { vh: t.vh, name: t.name, teamId: t.teamId, isGators: t.teamId === GATORS_ID, rows, notes };
+    return { vh: t.vh, name: t.name, teamId: t.teamId, isGators: t.teamId === GATORS_ID, rows: battingRows, notes };
   }).filter(t => t.rows.length);
 }
 
@@ -1689,7 +1691,7 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .jumbo::before{content:"";position:absolute;inset:0;border-radius:22px;padding:1px;background:linear-gradient(135deg,rgba(242,183,5,.5),transparent 40%,rgba(139,92,246,.35));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;}
 .sl{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;}
 .tm{display:flex;flex-direction:column;align-items:center;gap:8px;min-width:0;}
-.tm img{width:54px;height:54px;border-radius:14px;object-fit:contain;background:transparent;border:1px solid var(--line);}
+.tm img{width:54px;height:54px;border-radius:14px;object-fit:contain;background:transparent;}
 .tm .nm{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.03em;font-size:12px;text-align:center;line-height:1.05;}
 .tm .rec{font-family:'Inter',sans-serif;font-weight:600;font-size:11px;color:var(--mute);letter-spacing:.04em;margin-top:-4px;min-height:13px;}
 .tm.gators .nm{color:var(--gator);}
@@ -1866,7 +1868,7 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .sttbl th,.sttbl td{padding:9px 8px;}
 .sttbl td:first-child,.sttbl th:first-child{text-align:center;color:var(--mute);width:26px;font-family:'Oswald',sans-serif;}
 .sttbl .stteam{display:flex;align-items:center;gap:9px;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.02em;color:var(--bone);}
-.sttbl .stlogo{width:28px;height:28px;border-radius:6px;object-fit:contain;background:transparent;border:1px solid var(--line);flex:none;}
+.sttbl .stlogo{width:28px;height:28px;border-radius:6px;object-fit:contain;background:transparent;flex:none;}
 .sttbl td:nth-child(5){color:var(--gold2);}
 .sttbl tr.stg td{background:rgba(157,92,255,.16);}
 .sttbl tr.stg .stteam{color:var(--gator);font-weight:700;}
@@ -1875,7 +1877,7 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .sbg.g{border-color:var(--purple);background:rgba(157,92,255,.10);}
 .sbteams{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;}
 .sbrow{display:flex;align-items:center;gap:9px;}
-.sbl{width:30px;height:30px;border-radius:6px;object-fit:contain;background:transparent;border:1px solid var(--line);flex:none;}
+.sbl{width:30px;height:30px;border-radius:6px;object-fit:contain;background:transparent;flex:none;}
 .sbn{flex:1;min-width:0;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.02em;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .sbs{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:16px;color:var(--mute);min-width:20px;text-align:right;}
 .sbrow.w .sbn{color:var(--bone);}
