@@ -53,6 +53,17 @@ const CITY = {
   w43rx8i07fn44cyl: 'Sherman',
   jm9r4btii24hhtfp: 'Victoria',
 };
+// Each team's official home website (TCL teams page).
+const TEAM_SITE = {
+  et1bt9sixrz5lnnl: 'https://gumbeauxgators.com/',
+  cz8qei0rxijys6nm: 'https://canecuttersbaseball.com/',
+  z10kgms3gvy1eszs: 'https://www.brrougarou.com/',
+  ij0lwtvjsx2mi1nh: 'https://abileneflyingbison.com/',
+  z7w5th537gur3z15: 'https://bvbombers.com/',
+  do9ibktaduhyld7f: 'https://www.rivermonstersbaseball.com/',
+  w43rx8i07fn44cyl: 'https://shermanshadowcats.com/',
+  jm9r4btii24hhtfp: 'https://victoriagenerals.com/',
+};
 const HOME_VENUE = 'Joe Miller Ballpark';
 const GATORS_ID = 'et1bt9sixrz5lnnl';
 // 2026 home-game themed nights (promotions), keyed by game date (yyyymmdd).
@@ -1630,7 +1641,7 @@ app.get('/api/standings', (_q, r) => {
   if (!standingsTable.length) pollStandings();
   const rows = standingsTable.map(x => {
     const gp = x.w + x.l + x.t;
-    return Object.assign({}, x, { pct: gp ? (x.w + x.t * 0.5) / gp : 0 });
+    return Object.assign({}, x, { pct: gp ? (x.w + x.t * 0.5) / gp : 0, site: TEAM_SITE[x.id] || null });
   }).sort((a, b) => b.pct - a.pct || b.w - a.w || a.l - b.l);
   const lead = rows[0];
   for (const x of rows) x.gb = lead ? ((lead.w - x.w) + (x.l - lead.l)) / 2 : 0;
@@ -2066,7 +2077,8 @@ body.noscroll{overflow:hidden;}
 .sttbl td:first-child,.sttbl th:first-child{text-align:center;color:var(--mute);width:16px;padding-left:2px;padding-right:2px;font-family:'Oswald',sans-serif;}
 /* Let the team name wrap so every column fits the phone width without scrolling. */
 .sttbl td:nth-child(2),.sttbl th:nth-child(2){white-space:normal;}
-.sttbl .stteam{display:flex;align-items:center;gap:6px;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.01em;color:var(--bone);min-width:0;}
+.sttbl .stteam{display:flex;align-items:center;gap:6px;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.01em;color:var(--bone);min-width:0;text-decoration:none;}
+.sttbl a.stteam:hover .n,.sttbl a.stteam:hover span{text-decoration:underline;}
 .sttbl .stteam span{white-space:normal;overflow-wrap:anywhere;line-height:1.15;}
 .sttbl .stlogo{width:22px;height:22px;border-radius:5px;object-fit:contain;background:transparent;flex:none;}
 .sttbl td:nth-child(5){color:var(--gold2);}
@@ -2418,8 +2430,10 @@ function renderStandings(d){
       var isG=x.id&&x.id===d.gatorsId;
       var lg=x.logo?'<img class="stlogo" src="'+esc(x.logo)+'" alt="">':'';
       var sk=x.streak?'<span class="strk '+(/^W/i.test(x.streak)?'win':'loss')+'">'+esc(x.streak)+'</span>':'—';
+      var nm=esc(x.name||x.short);
+      var team=x.site?('<a class="stteam" href="'+esc(x.site)+'" target="_blank" rel="noopener">'+lg+'<span>'+nm+'</span></a>'):('<div class="stteam">'+lg+'<span>'+nm+'</span></div>');
       h+='<tr'+(isG?' class="stg"':'')+'><td>'+(i+1)+'</td>'
-        +'<td><div class="stteam">'+lg+'<span>'+esc(x.name||x.short)+'</span></div></td>'
+        +'<td>'+team+'</td>'
         +'<td>'+x.w+'</td><td>'+x.l+'</td><td>'+fmtPct(x.pct)+'</td><td>'+fmtGb(x.gb)+'</td><td>'+sk+'</td></tr>';
     });
     $('standingsBody').innerHTML=h+'</table></div>';
@@ -2434,9 +2448,10 @@ function sbStatus(g){
   if(g.state==='postponed'||g.state==='cancelled'||g.state==='suspended')return g.status;
   return g.status||'Scheduled';
 }
-function sbTeamRow(t,win,isGt){
+function sbTeamRow(t,win,isGt,showScore){
   var lg=t.logo?'<img class="sbl" src="'+esc(t.logo)+'" alt="">':'<span class="sbl"></span>';
-  return '<div class="sbrow'+(win?' w':'')+(isGt?' gt':'')+'">'+lg+'<span class="sbn">'+esc(t.short||'')+'</span><span class="sbs">'+esc(String(sbScore(t.score)))+'</span></div>';
+  var sc=showScore?esc(String(sbScore(t.score))):'';
+  return '<div class="sbrow'+(win?' w':'')+(isGt?' gt':'')+'">'+lg+'<span class="sbn">'+esc(t.short||'')+'</span><span class="sbs">'+sc+'</span></div>';
 }
 function renderScoreboard(sb,gatorsId){
   var games=(sb&&sb.games)||[];
@@ -2449,9 +2464,10 @@ function renderScoreboard(sb,gatorsId){
     var aw=fin&&g.away.score!=null&&g.home.score!=null&&g.away.score>g.home.score;
     var hw=fin&&g.away.score!=null&&g.home.score!=null&&g.home.score>g.away.score;
     var st=g.state==='live'?'live':g.state==='final'?'final':'';
+    var showScore=g.state==='final'||g.state==='live';
     var tag=g.url?'a':'div',attr=g.url?(' href="'+esc(g.url)+'" target="_blank" rel="noopener"'):'';
     h+='<'+tag+' class="sbg'+(g.isGators?' g':'')+'"'+attr+'>'
-      +'<div class="sbteams">'+sbTeamRow(g.away,aw,g.away.id===gatorsId)+sbTeamRow(g.home,hw,g.home.id===gatorsId)+'</div>'
+      +'<div class="sbteams">'+sbTeamRow(g.away,aw,g.away.id===gatorsId,showScore)+sbTeamRow(g.home,hw,g.home.id===gatorsId,showScore)+'</div>'
       +'<div class="sbstat '+st+'">'+esc(sbStatus(g))+'</div></'+tag+'>';
   });
   $('scoreboardBody').innerHTML=h;
