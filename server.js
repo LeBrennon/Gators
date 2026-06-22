@@ -508,11 +508,40 @@ let games = [], featured = null, prevFeatured = null, pinnedId = null;
 let lastHtml = '', lastFetchAt = 0;
 const sseClients = new Set(), subscribers = new Set(), startedAnnounced = new Set();
 
-function pick(list) {
+// Current wall clock in the league's timezone (US Central), as { ymd, hour }.
+function nowCentral() {
+  const p = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago',
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hour12: false }).formatToParts(new Date());
+  const g = t => (p.find(x => x.type === t) || {}).value;
+  let hour = +g('hour'); if (hour === 24) hour = 0;
+  return { ymd: '' + g('year') + g('month') + g('day'), hour };
+}
+// yyyymmdd one calendar day later (DST-safe; date-only math in UTC).
+function nextYmd(ymd) {
+  const dt = new Date(Date.UTC(+ymd.slice(0, 4), +ymd.slice(4, 6) - 1, +ymd.slice(6, 8)));
+  dt.setUTCDate(dt.getUTCDate() + 1);
+  const mm = ('0' + (dt.getUTCMonth() + 1)).slice(-2), dd = ('0' + dt.getUTCDate()).slice(-2);
+  return '' + dt.getUTCFullYear() + mm + dd;
+}
+// A finished game stays featured until 10am Central the day after it was played.
+function finalIsFresh(gameYmd, now) {
+  const cutoff = nextYmd(gameYmd);
+  if (now.ymd < cutoff) return true;
+  if (now.ymd === cutoff) return now.hour < 10;
+  return false;
+}
+// Choose the featured game: a pinned game, else a live game, else the most
+// recent final still inside its post-game window (kept up until 10am the next
+// day), else the next scheduled game, else the latest final.
+function pick(list, now) {
   if (pinnedId) { const p = list.find(x => x.id === pinnedId); if (p) return p; }
   const live = list.find(g => g.state === 'live'); if (live) return live;
+  now = now || nowCentral();
+  const finals = list.filter(g => g.state === 'final');
+  const sticky = finals.filter(g => finalIsFresh(g.date, now)).sort((a, b) => a.sortKey - b.sortKey).pop();
+  if (sticky) return sticky;
   const sched = list.filter(g => g.state === 'scheduled'); if (sched.length) return sched[0];
-  const finals = list.filter(g => g.state === 'final'); if (finals.length) return finals[finals.length - 1];
+  if (finals.length) return finals[finals.length - 1];
   return list[0] || null;
 }
 function broadcast(o) { const line = 'data: ' + JSON.stringify(o) + '\n\n'; sseClients.forEach(r => { try { r.write(line); } catch (e) {} }); }
@@ -1576,7 +1605,7 @@ if (require.main === module) {
   app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleDailyRoster(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); pollPhotos(); setInterval(pollPhotos, 24 * 60 * 60 * 1000); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, extractEventAuth,
-  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseGameLog, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache };
+  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseGameLog, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, nextYmd };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
