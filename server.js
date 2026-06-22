@@ -515,7 +515,7 @@ function normalizeFeatured(g) {
   const status = g.state === 'live' ? 'live' : g.state === 'final' ? 'final' : g.state === 'cancelled' ? 'cancelled' : 'pregame';
   const ip = inningParts(g.status);
   return {
-    id: g.id, status, statusText: g.status, dateLabel: g.dateLabel,
+    id: g.id, date: g.date, status, statusText: g.status, dateLabel: g.dateLabel,
     inning: ip.inning, half: ip.half,
     inningLabel: status === 'live' ? g.status : status === 'final' ? 'Final' : status === 'cancelled' ? 'Cancelled' : g.status,
     gatorsHome: g.gatorsHome, opponent: g.opponent,
@@ -2244,9 +2244,9 @@ function sbTeamRow(t,win,isGt){
 }
 function renderScoreboard(sb,gatorsId){
   var games=(sb&&sb.games)||[];
-  if(!games.length){$('sbSec').style.display='none';$('sbMeta').textContent='';$('scoreboardBody').innerHTML='';return;}
   $('sbSec').style.display='';
-  $('sbMeta').textContent=(sb.dateLabel||'')+(sb.updatedAt?(' · updated '+agoTxt(sb.updatedAt)):'');
+  $('sbMeta').textContent=((sb&&sb.dateLabel)||'')+(sb&&sb.updatedAt?(' · updated '+agoTxt(sb.updatedAt)):'');
+  if(!games.length){$('scoreboardBody').innerHTML='<div class="note">No league games scheduled for this day.</div>';return;}
   var h='';
   games.forEach(function(g){
     var fin=g.state==='final';
