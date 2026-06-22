@@ -1564,7 +1564,8 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .vs{font-size:10px;color:var(--mute);letter-spacing:.1em;text-transform:uppercase;}
 .note{margin-top:14px;font-size:11.5px;line-height:1.6;color:var(--mute);background:var(--bayou2);border:1px solid var(--line);border-radius:14px;padding:13px 15px;}
 .note b{color:var(--bone);font-weight:600;}
-.jloc{margin-top:13px;text-align:center;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:11px;color:var(--mute);}
+.jloc{text-align:center;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:10px;color:var(--mute);}
+.jloc:empty{display:none;}
 .live{margin-top:14px;padding-top:14px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:13px;}
 .lsit{display:flex;align-items:center;justify-content:center;gap:26px;}
 .lcell{text-align:center;min-width:46px;}
@@ -1733,13 +1734,11 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 <div class="jumbo">
 <div class="sl">
 <div class="tm" id="awayTm"><img id="awayLogo" alt=""><div class="nm" id="awayNm">—</div><div class="rec" id="awayRec"></div><div class="sc" id="awaySc">0</div></div>
-<div class="mid"><a class="watchpill" id="watchBtn" target="_blank" rel="noopener" style="display:none">Watch</a><div class="statpill" id="statpill">—</div><div class="vs" id="vs">vs</div></div>
+<div class="mid"><a class="watchpill" id="watchBtn" target="_blank" rel="noopener" style="display:none">Watch</a><div class="statpill" id="statpill">—</div><div class="vs" id="vs">vs</div><div class="jloc" id="jloc"></div></div>
 <div class="tm" id="homeTm"><img id="homeLogo" alt=""><div class="nm" id="homeNm">—</div><div class="rec" id="homeRec"></div><div class="sc" id="homeSc">0</div></div>
 </div>
 <div class="live" id="livePanel" style="display:none"></div>
-<div class="jloc" id="jloc"></div>
 <a class="watchbtn ticket" id="ticketBtn" target="_blank" rel="noopener" style="display:none">Buy Tickets</a>
-<div class="note">Live score and inning, straight from the league feed — updates automatically.</div>
 </div>
 <div class="sec">Gators Schedule</div>
 <div id="sched"></div>
@@ -1821,12 +1820,12 @@ function buildLive(g){
     '</div>';
   var bp='';
   if(L.pitcherInfo||L.batterInfo){
-    if(L.pitcherInfo)bp+=matchupCard('⚾ Pitching',L.pitcherInfo);
+    if(L.pitcherInfo)bp+=matchupCard('Pitching',L.pitcherInfo);
     if(L.pitcherInfo&&L.batterInfo)bp+='<div class="mvs">— pitching to —</div>';
-    if(L.batterInfo)bp+=matchupCard('🏏 At bat',L.batterInfo);
+    if(L.batterInfo)bp+=matchupCard('At bat',L.batterInfo);
   }else{
-    if(L.pitcher)bp+='<div class="bprow"><span class="bpk">⚾ Pitching</span><span class="bpn">'+esc(L.pitcher)+'</span></div>';
-    if(L.batter)bp+='<div class="bprow"><span class="bpk">🏏 At bat</span><span class="bpn">'+esc(L.batter)+'</span></div>';
+    if(L.pitcher)bp+='<div class="bprow"><span class="bpk">Pitching</span><span class="bpn">'+esc(L.pitcher)+'</span></div>';
+    if(L.batter)bp+='<div class="bprow"><span class="bpk">At bat</span><span class="bpn">'+esc(L.batter)+'</span></div>';
   }
   var line=buildLineScore(g);
   var lineup=buildLineup(g);
