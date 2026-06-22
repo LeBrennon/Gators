@@ -1118,7 +1118,16 @@ function storePlayer(slug, rec) {
     rosterStats[slug] = { kind: rec.kind, hit: rec.hit, pit: rec.pit, hitRanks: rec.hitRanks, pitRanks: rec.pitRanks };
   }
 }
-const playerNeedsData = slug => { const s = rosterStats[slug]; return !s || (s.hit == null && s.pit == null); };
+const ROSTER_BY_SLUG = {}; for (const pl of ROSTER) ROSTER_BY_SLUG[pl.slug] = pl;
+const isTwoWay = slug => { const pl = ROSTER_BY_SLUG[slug]; return !!(pl && /two.?way/i.test(pl.pos || '')); };
+// A two-way player needs both a hitting and a pitching line; keep fetching until
+// we have a full player-page record (which carries whatever disciplines he has),
+// so the roster cache isn't stuck on the hitting-only league seed.
+const playerNeedsData = slug => {
+  const s = rosterStats[slug]; if (!s) return true;
+  if (isTwoWay(slug)) return recIsFull(playerCache[slug]) ? false : (s.hit == null || s.pit == null);
+  return s.hit == null && s.pit == null;
+};
 // Gentle, persistent fill: only chase players still missing stats, back off hard
 // when Presto throttles, and keep going across a few passes until everyone's in.
 async function pollRoster() {
