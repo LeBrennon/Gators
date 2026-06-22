@@ -438,7 +438,17 @@ function lineupsFromFeed(json) {
         today: ab == null ? '—' : (hits + ' for ' + ab),
       };
     });
-    return { vh: t.vh, name: t.name, teamId: t.teamId, isGators: t.teamId === GATORS_ID, rows };
+    // Box-score note lines (2B/3B/HR/SB/E): scan every player on the team
+    // so defensive subs and pinch runners are counted, not just starters.
+    const lastName = p => p.revname ? String(p.revname).split(',')[0].trim()
+      : String(p.name || '').trim().split(/\s+/).slice(-1)[0] || '';
+    const notes = { '2B': [], '3B': [], 'HR': [], 'SB': [], 'E': [] };
+    players.forEach(p => {
+      const h = p.hitting || {}, fl = p.fielding || {};
+      const add = (k, v) => { const n = Number(v) || 0; if (n > 0) notes[k].push({ name: lastName(p), n }); };
+      add('2B', h.double); add('3B', h.triple); add('HR', h.hr); add('SB', h.sb); add('E', fl.e);
+    });
+    return { vh: t.vh, name: t.name, teamId: t.teamId, isGators: t.teamId === GATORS_ID, rows, notes };
   }).filter(t => t.rows.length);
 }
 
@@ -1610,6 +1620,9 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .lutbl td.lut{font-family:'JetBrains Mono',monospace;color:var(--gold2);}
 .lutbl tr.cur td{background:linear-gradient(90deg,rgba(242,183,5,.12),transparent);}
 .lutbl tr.cur td.lunm{color:var(--gold2);}
+.lunotes{margin-top:10px;display:flex;flex-direction:column;gap:5px;}
+.lunote{font-size:11.5px;line-height:1.45;color:var(--bone);}
+.lunk{font-family:'Oswald',sans-serif;font-weight:700;font-size:10px;letter-spacing:.04em;color:var(--gold2);margin-right:5px;}
 .pbp{margin-top:2px;}
 .pbptabs{display:flex;gap:6px;margin-bottom:10px;}
 .pbptab{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.05em;font-size:10px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);color:var(--mute);background:var(--bayou2);cursor:pointer;}
@@ -1883,7 +1896,17 @@ function buildLineup(g){
   tabs+='</div>';
   var head='<tr><th class="lus">Spot</th><th>Pos</th><th>#</th><th class="lunm">Player</th><th>B</th><th>Today</th></tr>';
   return '<div class="lineup"><div class="luh">Lineup</div>'+tabs+
-    '<div class="lubox"><table class="lutbl">'+head+rows+'</table></div></div>';
+    '<div class="lubox"><table class="lutbl">'+head+rows+'</table></div>'+lineupNotes(team)+'</div>';
+}
+function lineupNotes(team){
+  var n=team&&team.notes;if(!n)return '';
+  var keys=['2B','3B','HR','SB','E'];var lines='';
+  keys.forEach(function(k){
+    var arr=n[k];if(!arr||!arr.length)return;
+    var txt=arr.map(function(x){return esc(x.name)+(x.n>1?' '+x.n:'');}).join('; ');
+    lines+='<div class="lunote"><span class="lunk">'+k+'</span> '+txt+'</div>';
+  });
+  return lines?'<div class="lunotes">'+lines+'</div>':'';
 }
 function pbpRow(p){return '<div class="pbprow'+(p.scored?' sc':'')+'"><span class="pbpt">'+esc(p.text)+'</span></div>';}
 function halfLabel(p){return (p.half==='top'?'▲ Top ':'▼ Bot ')+ord(p.inning);}
