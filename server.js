@@ -406,8 +406,40 @@ async function fetchLiveForGame(boxscoreId) {
   }
   const feed = await fetchLiveUpdate(auth.e, auth.h, boxUrl);
   out.feed = { url: feed.url, ok: feed.ok, status: feed.status, contentType: feed.contentType, length: feed.length, parseError: feed.parseError, head: feed.json ? undefined : feed.head };
-  if (feed.json) { out.live = summarizeLive(feed.json); out.teams = teamLineScores(feed.json); out.plays = summarizePlays(feed.json); out.feedSource = feed.json.source; }
+  if (feed.json) { out.live = summarizeLive(feed.json); out.teams = teamLineScores(feed.json); out.plays = summarizePlays(feed.json); out.lineups = lineupsFromFeed(feed.json); out.feedSource = feed.json.source; }
   return out;
+}
+
+// Build each team's current batting-order lineup card: spot, position,
+// jersey, name, bats hand, and today's hits/at-bats. The order comes from
+// batords (live, reflects substitutions); per-game hitting is joined from
+// the player[] records by jersey, then name.
+function lineupsFromFeed(json) {
+  const teams = (json && json.team) || [];
+  return teams.map(t => {
+    const players = t.player || [];
+    const byUni = {}, byName = {};
+    players.forEach(p => {
+      if (p.uni != null) byUni[String(p.uni)] = p;
+      if (p.name) byName[String(p.name).trim()] = p;
+    });
+    const order = (t.batords && t.batords.batord) || (t.starters && t.starters.starter) || [];
+    const rows = order.map(o => {
+      const p = byUni[String(o.uni)] || byName[String(o.name || '').trim()] || {};
+      const h = p.hitting || {};
+      const ab = h.ab != null ? Number(h.ab) || 0 : null;
+      const hits = h.h != null ? Number(h.h) || 0 : null;
+      return {
+        spot: o.spot != null ? Number(o.spot) : null,
+        pos: String(o.pos || p.pos || '').toUpperCase(),
+        uni: o.uni != null ? String(o.uni) : (p.uni != null ? String(p.uni) : ''),
+        name: String(o.name || p.name || '').trim(),
+        bats: String(p.bats || '').toUpperCase(),
+        today: ab == null ? '—' : (hits + ' for ' + ab),
+      };
+    });
+    return { vh: t.vh, name: t.name, teamId: t.teamId, isGators: t.teamId === GATORS_ID, rows };
+  }).filter(t => t.rows.length);
 }
 
 function inningParts(status) {
@@ -500,6 +532,7 @@ async function enrichLive(norm) {
       if (h && h.runs != null && h.runs !== '') norm.home.runs = Number(h.runs) || 0;
     }
     if (lf && lf.plays && lf.plays.length) norm.plays = lf.plays;
+    if (lf && lf.lineups && lf.lineups.length) norm.lineups = lf.lineups;
   } catch (e) { /* keep score-only view if the feed is unavailable */ }
 }
 // Recompute the featured game from the cached schedule, enrich it if live, and
@@ -1452,7 +1485,7 @@ if (require.main === module) {
   loadCache(); // serve last-saved player stats instantly, then refresh below
   app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleDailyRoster(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); pollPhotos(); setInterval(pollPhotos, 24 * 60 * 60 * 1000); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); });
 }
-module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, extractEventAuth,
+module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, extractEventAuth,
   dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseGameLog, ticketCandidates };
 
 // ----- embedded service worker ---------------------------------------------
@@ -1559,6 +1592,21 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .lstbl td.lsn{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.02em;}
 .lstbl tr.g td{color:var(--gator);}
 .lstbl tr.g td.lsn{color:var(--gator);font-weight:700;}
+.lineup{margin-top:4px;}
+.luh{font-family:'Oswald',sans-serif;font-weight:600;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold2);margin-bottom:8px;}
+.lutabs{display:flex;gap:6px;margin-bottom:10px;}
+.lutab{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.05em;font-size:10px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);color:var(--mute);background:var(--bayou2);cursor:pointer;}
+.lutab.on{color:#fff;background:linear-gradient(180deg,var(--purple),var(--gator2));border-color:var(--purple);}
+.lubox{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.lutbl{width:100%;border-collapse:collapse;font-size:12.5px;}
+.lutbl th{color:var(--mute);font-size:9px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;padding:5px 7px;text-align:left;white-space:nowrap;border-bottom:1px solid var(--line);}
+.lutbl td{padding:7px 7px;border-top:1px solid var(--line);color:var(--bone);white-space:nowrap;}
+.lutbl td.lus,.lutbl th.lus{color:var(--mute);text-align:center;}
+.lutbl td.luu{font-family:'JetBrains Mono',monospace;color:var(--mute);}
+.lutbl td.lunm{font-weight:600;width:100%;white-space:normal;}
+.lutbl td.lut{font-family:'JetBrains Mono',monospace;color:var(--gold2);}
+.lutbl tr.cur td{background:linear-gradient(90deg,rgba(242,183,5,.12),transparent);}
+.lutbl tr.cur td.lunm{color:var(--gold2);}
 .pbp{margin-top:2px;}
 .pbptabs{display:flex;gap:6px;margin-bottom:10px;}
 .pbptab{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.05em;font-size:10px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);color:var(--mute);background:var(--bayou2);cursor:pointer;}
@@ -1717,8 +1765,9 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 </div></div>
 <script>
 var $=function(i){return document.getElementById(i);};
-var curId=null,pbpView='half',lastGame=null;
+var curId=null,pbpView='half',lineupTeam='gators',lastGame=null;
 function setPbpView(v){pbpView=v;if(lastGame)renderGame(lastGame);}
+function setLineupTeam(v){lineupTeam=v;if(lastGame)renderGame(lastGame);}
 function ord(n){n=+n;var s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}
 function esc(s){return (s||'').replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
 function flash(el){el.classList.remove('flash');void el.offsetWidth;el.classList.add('flash');}
@@ -1779,8 +1828,9 @@ function buildLive(g){
     if(L.batter)bp+='<div class="bprow"><span class="bpk">🏏 At bat</span><span class="bpn">'+esc(L.batter)+'</span></div>';
   }
   var line=buildLineScore(g);
+  var lineup=buildLineup(g);
   var pbp=buildPbp(g);
-  return sit+(bp?'<div class="lbp">'+bp+'</div>':'')+line+pbp;
+  return sit+(bp?'<div class="lbp">'+bp+'</div>':'')+line+lineup+pbp;
 }
 function buildLineScore(g){
   var rows=g.lineScore;if(!rows||!rows.length)return '';
@@ -1806,6 +1856,34 @@ function matchupCard(role,info){
   return '<div class="mcard"><div class="mrole">'+role+'</div>'+
     '<div class="mname">'+esc(info.name)+(meta.length?'<span class="mmeta">'+meta.join(' ')+'</span>':'')+'</div>'+
     (stat?'<div class="mstat">'+stat+'</div>':'')+'</div>';
+}
+function buildLineup(g){
+  var L=g.lineups;if(!L||!L.length)return '';
+  var gators=null,opp=null;
+  L.forEach(function(t){if(t.isGators&&!gators)gators=t;else if(!t.isGators&&!opp)opp=t;});
+  if(!gators&&!opp)return '';
+  var showGators=lineupTeam!=='opp'&&gators;
+  var team=showGators?gators:(opp||gators);
+  if(!team||!team.rows||!team.rows.length)return '';
+  function nm(t){return t?(t.vh==='H'?g.home.short:g.away.short):'';}
+  var curBat=g.live&&g.live.batter?String(g.live.batter).trim():'';
+  var battingV=g.live&&g.live.half==='Top';
+  var teamBatting=(team.vh==='V')===battingV;
+  var rows='';
+  team.rows.forEach(function(r){
+    var cur=teamBatting&&curBat&&r.name===curBat;
+    rows+='<tr'+(cur?' class="cur"':'')+'><td class="lus">'+esc(String(r.spot||''))+'</td>'+
+      '<td>'+esc(r.pos||'')+'</td><td class="luu">'+esc(String(r.uni||''))+'</td>'+
+      '<td class="lunm">'+esc(r.name||'')+'</td><td>'+esc(r.bats||'')+'</td>'+
+      '<td class="lut">'+esc(r.today||'')+'</td></tr>';
+  });
+  var tabs='<div class="lutabs">';
+  if(gators)tabs+='<button class="lutab'+(showGators?' on':'')+'" data-lineup="gators">'+esc(nm(gators)||'Gators')+'</button>';
+  if(opp)tabs+='<button class="lutab'+(!showGators?' on':'')+'" data-lineup="opp">'+esc(nm(opp)||'Opponent')+'</button>';
+  tabs+='</div>';
+  var head='<tr><th class="lus">Spot</th><th>Pos</th><th>#</th><th class="lunm">Player</th><th>B</th><th>Today</th></tr>';
+  return '<div class="lineup"><div class="luh">Lineup</div>'+tabs+
+    '<div class="lubox"><table class="lutbl">'+head+rows+'</table></div></div>';
 }
 function pbpRow(p){return '<div class="pbprow'+(p.scored?' sc':'')+'"><span class="pbpt">'+esc(p.text)+'</span></div>';}
 function halfLabel(p){return (p.half==='top'?'▲ Top ':'▼ Bot ')+ord(p.inning);}
@@ -2072,6 +2150,7 @@ function oppShort(o){o=(o||'').replace('at ','@ ');var map={'Acadiana Cane Cutte
 $('navScores').addEventListener('click',function(){setView('scores');});
 $('navStandings').addEventListener('click',function(){setView('standings');});
 document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-pbp]');if(b)setPbpView(b.getAttribute('data-pbp'));});
+document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-lineup]');if(b)setLineupTeam(b.getAttribute('data-lineup'));});
 $('navRoster').addEventListener('click',function(){setView('roster');});
 $('plClose').addEventListener('click',function(){$('plModal').classList.remove('show');});
 $('plModal').addEventListener('click',function(e){if(e.target===this)this.classList.remove('show');});
