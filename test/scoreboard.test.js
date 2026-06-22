@@ -99,3 +99,22 @@ test('applyLiveScores: live game with no cached score is left untouched', () => 
   assert.equal(out[0].away.score, 0);
   assert.equal(out[0].home.score, 0);
 });
+
+test('applyLiveScores: featured game flipped to final marks the board game final too', () => {
+  for (const k of Object.keys(liveScoreCache)) delete liveScoreCache[k];
+  const feat = { id: 'GAME', status: 'final', inningLabel: 'Final/11', away: { runs: 12 }, home: { runs: 11 } };
+  const out = applyLiveScores([game('GAME', 'live', 0, 0)], feat);
+  assert.equal(out[0].state, 'final');
+  assert.equal(out[0].status, 'Final/11');
+  assert.equal(out[0].away.score, 12);
+  assert.equal(out[0].home.score, 11);
+});
+
+test('applyLiveScores: a non-featured game the feed reports over is marked final', () => {
+  for (const k of Object.keys(liveScoreCache)) delete liveScoreCache[k];
+  liveScoreCache['OVER'] = { away: 6, home: 4, at: 1, over: true, label: 'Final' };
+  const out = applyLiveScores([game('OVER', 'live', 0, 0)], null);
+  assert.equal(out[0].state, 'final');
+  assert.equal(out[0].status, 'Final');
+  assert.equal(out[0].away.score, 6);
+});

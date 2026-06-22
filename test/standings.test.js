@@ -63,3 +63,22 @@ test('parseStandings: returns empty when there is no W/L header', () => {
   assert.deepEqual(map, {});
   assert.deepEqual(rows, []);
 });
+
+test('parseStandings: parses the streak column into compact W#/L# form', () => {
+  const html = `
+    <table>
+      <tr><th>Team</th><th>W</th><th>L</th><th>T</th><th>PCT</th><th>Streak</th></tr>
+      <tr><td><a href="/sports/bsb/2026/teams/et1bt9sixrz5lnnl">Lake Charles Gumbeaux Gators</a></td><td>20</td><td>10</td><td>0</td><td>.667</td><td>Won 5</td></tr>
+      <tr><td><a href="/sports/bsb/2026/teams/z7w5th537gur3z15">Brazos Valley Bombers</a></td><td>18</td><td>11</td><td>1</td><td>.617</td><td>Lost 4</td></tr>
+      <tr><td>Some New Expansion Team</td><td>5</td><td>25</td><td>0</td><td>.167</td><td>—</td></tr>
+    </table>`;
+  const { rows } = parseStandings(html);
+  assert.equal(rows[0].streak, 'W5');
+  assert.equal(rows[1].streak, 'L4');
+  assert.equal(rows[2].streak, '');
+});
+
+test('parseStandings: streak is blank when there is no streak column', () => {
+  const { rows } = parseStandings(HTML);
+  assert.equal(rows[0].streak, '');
+});

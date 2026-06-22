@@ -218,6 +218,13 @@ function todayCentralYmd() {
   return '' + g('year') + g('month') + g('day');
 }
 
+// Scoreboard ordering: live games first, then finals, then scheduled; the
+// Gators game leads its group.
+function sortBoard(games) {
+  const rank = s => s === 'live' ? 0 : s === 'final' ? 1 : 2;
+  return games.sort((a, b) => rank(a.state) - rank(b.state)
+    || (b.isGators ? 1 : 0) - (a.isGators ? 1 : 0) || a.id.localeCompare(b.id));
+}
 // Every league game on a given day (yyyymmdd) — same chunking as parseSchedule
 // but without the Gators-only filter — for the around-the-league scoreboard.
 function parseLeagueScoreboard(html, dateStr) {
@@ -237,9 +244,7 @@ function parseLeagueScoreboard(html, dateStr) {
       away: { id: t.away.id, short: t.away.short, logo: t.away.logo, score: t.away.score },
       home: { id: t.home.id, short: t.home.short, logo: t.home.logo, score: t.home.score } });
   }
-  const rank = s => s === 'live' ? 0 : s === 'final' ? 1 : 2;
-  return out.sort((a, b) => rank(a.state) - rank(b.state)
-    || (b.isGators ? 1 : 0) - (a.isGators ? 1 : 0) || a.id.localeCompare(b.id));
+  return sortBoard(out);
 }
 
 // ----- live situation feed --------------------------------------------------
@@ -647,7 +652,11 @@ async function refreshLeagueLiveScores(board, featuredId) {
       if (lf && lf.teams && lf.teams.length) {
         const v = lf.teams.find(t => t.vh === 'V'), h = lf.teams.find(t => t.vh === 'H');
         const num = x => (x && x.runs != null && x.runs !== '') ? (Number(x.runs) || 0) : null;
-        liveScoreCache[g.id] = { away: num(v), home: num(h), at: Date.now() };
+        const away = num(v), home = num(h);
+        // The feed may show the game over before the schedule says "Final".
+        const over = feedGameOver(lf.live, away, home);
+        const inn = lf.live ? (parseInt(lf.live.inning, 10) || 0) : 0;
+        liveScoreCache[g.id] = { away, home, at: Date.now(), over, label: over ? (inn > 9 ? 'Final/' + inn : 'Final') : null };
       }
     } catch (e) { /* keep the last cached score for this game */ }
   }
@@ -662,9 +671,16 @@ function applyLiveScores(games, feat) {
     if (feat && g.id === feat.id) {
       if (feat.away && feat.away.runs != null) g.away.score = feat.away.runs;
       if (feat.home && feat.home.runs != null) g.home.score = feat.home.runs;
+      // Match the main screen: if we flipped the featured game to final
+      // (feed game-over before the schedule says so), mark it here too.
+      if (feat.status === 'final') { g.state = 'final'; g.status = feat.inningLabel || 'Final'; }
     } else {
       const c = liveScoreCache[g.id];
-      if (c) { if (c.away != null) g.away.score = c.away; if (c.home != null) g.home.score = c.home; }
+      if (c) {
+        if (c.away != null) g.away.score = c.away;
+        if (c.home != null) g.home.score = c.home;
+        if (c.over) { g.state = 'final'; g.status = c.label || 'Final'; }
+      }
     }
   }
   return games;
@@ -673,7 +689,7 @@ function applyLiveScores(games, feat) {
 // Pure read of cached data — no network.
 function buildLeagueBoard() {
   const date = (featured && featured.date) || todayCentralYmd();
-  const games = lastHtml ? applyLiveScores(parseLeagueScoreboard(lastHtml, date), featured) : [];
+  const games = lastHtml ? sortBoard(applyLiveScores(parseLeagueScoreboard(lastHtml, date), featured)) : [];
   return { date, dateLabel: dateFromId(date).label, updatedAt: lastFetchAt, games };
 }
 // Recompute the featured game from the cached schedule, enrich it if live, and
@@ -1300,12 +1316,17 @@ let standingsAt = 0;
 // Parse the league standings table into both a name->record map (for the jumbo)
 // and an ordered list of rows decorated with the team's logo/short name when the
 // team can be matched to a known Presto id (via a /teams/<id> link or its name).
+// "Won 5"/"Lost 4" (or "W5"/"L4") -> compact "W5"/"L4"; blank when none.
+function fmtStreak(s) {
+  const m = String(s || '').trim().match(/^(Won|Lost|W|L)\s*(\d+)/i);
+  return m ? (/^w/i.test(m[1]) ? 'W' : 'L') + m[2] : '';
+}
 function parseStandings(html) {
   const tbl = (html.match(/<table\b[\s\S]*?<\/table>/i) || [])[0];
   if (!tbl) return { map: {}, rows: [] };
   const rows = rowsOf(tbl); if (rows.length < 2) return { map: {}, rows: [] };
   const head = cellsOf(rows[0]).map(c => bsText(c).toLowerCase());
-  const wi = head.indexOf('w'), li = head.indexOf('l'), ti = head.indexOf('t');
+  const wi = head.indexOf('w'), li = head.indexOf('l'), ti = head.indexOf('t'), si = head.indexOf('streak');
   if (wi === -1 || li === -1) return { map: {}, rows: [] };
   const map = {}, out = [];
   for (let i = 1; i < rows.length; i++) {
@@ -1314,13 +1335,14 @@ function parseStandings(html) {
     const w = parseInt(bsText(c[wi]), 10), l = parseInt(bsText(c[li]), 10);
     if (!isFinite(w) || !isFinite(l)) continue;
     const t = ti >= 0 ? parseInt(bsText(c[ti]), 10) : 0;
+    const streak = si >= 0 && c.length > si ? fmtStreak(bsText(c[si])) : '';
     const rec = { w, l, t: isFinite(t) ? t : 0 };
     map[k] = rec;
     const idm = rows[i].match(/\/teams\/([a-z0-9]+)/i);
     const id = (idm && TEAMS[idm[1]]) ? idm[1] : (Object.keys(TEAMS).find(tid => normName(TEAMS[tid].name) === k) || null);
     const meta = id ? TEAMS[id] : null;
     out.push({ id, name: meta ? meta.name : name, short: meta ? meta.short : name,
-      logo: id ? logo(id) : '', w: rec.w, l: rec.l, t: rec.t });
+      logo: id ? logo(id) : '', w: rec.w, l: rec.l, t: rec.t, streak });
   }
   return { map, rows: out };
 }
@@ -1874,6 +1896,9 @@ body.noscroll{overflow:hidden;}
 .sttbl tr.stg td{background:rgba(157,92,255,.16);}
 .sttbl tr.stg .stteam{color:var(--gator);font-weight:700;}
 .sttbl tr.stg td:first-child{color:var(--gator);}
+.strk{font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:.02em;}
+.strk.win{color:#54d18c;}
+.strk.loss{color:var(--away);}
 .sbg{display:flex;align-items:center;gap:10px;background:var(--bayou2);border:1px solid var(--line);border-radius:12px;padding:10px 13px;margin-bottom:8px;color:inherit;text-decoration:none;cursor:pointer;transition:border-color .15s,background .15s;}
 a.sbg:hover{border-color:var(--purple);background:rgba(157,92,255,.14);}
 .sbg.g{border-color:var(--purple);background:rgba(157,92,255,.10);}
@@ -2199,13 +2224,14 @@ function renderStandings(d){
   var rows=(d&&d.rows)||[];
   if(!rows.length){$('standingsBody').innerHTML='<div class="note">Standings aren’t available yet — check back shortly.</div>';$('stMeta').textContent='';}
   else{
-    var h='<div class="gltbl sttbl"><table><tr><th>#</th><th>Team</th><th>W</th><th>L</th><th>PCT</th><th>GB</th></tr>';
+    var h='<div class="gltbl sttbl"><table><tr><th>#</th><th>Team</th><th>W</th><th>L</th><th>PCT</th><th>GB</th><th>STRK</th></tr>';
     rows.forEach(function(x,i){
       var isG=x.id&&x.id===d.gatorsId;
       var lg=x.logo?'<img class="stlogo" src="'+esc(x.logo)+'" alt="">':'';
+      var sk=x.streak?'<span class="strk '+(/^W/i.test(x.streak)?'win':'loss')+'">'+esc(x.streak)+'</span>':'—';
       h+='<tr'+(isG?' class="stg"':'')+'><td>'+(i+1)+'</td>'
         +'<td><div class="stteam">'+lg+'<span>'+esc(x.name||x.short)+'</span></div></td>'
-        +'<td>'+x.w+'</td><td>'+x.l+'</td><td>'+fmtPct(x.pct)+'</td><td>'+fmtGb(x.gb)+'</td></tr>';
+        +'<td>'+x.w+'</td><td>'+x.l+'</td><td>'+fmtPct(x.pct)+'</td><td>'+fmtGb(x.gb)+'</td><td>'+sk+'</td></tr>';
     });
     $('standingsBody').innerHTML=h+'</table></div>';
     $('stMeta').textContent=d.updatedAt?('Updated '+agoTxt(d.updatedAt)):'';
