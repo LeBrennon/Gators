@@ -143,6 +143,31 @@ test('parseBoxscore: caption shows the mascot, not the full city name', () => {
   assert.doesNotMatch(pit, /Baton Rouge/);
 });
 
+test('parseBoxscore: pulls 2B/3B/HR/SB/E notes per team in batting order', () => {
+  const html = `
+    <table><caption><h2> Lake Charles Gumbeaux Gators <span>Batters</span></h2></caption>
+      <tr><th>Hitters</th><th>AB</th></tr>
+      <tr><th><div><span>cf</span> Ayden Sunday</div></th><td>4</td></tr>
+    </table>
+    <div class="stats-summary"><div class="caption">Batting</div>
+      <div><strong>2B:</strong><span> James Reina , Connor Walker </span></div>
+      <div><strong>3B:</strong><span> James Reina </span></div>
+      <div><strong>RBI:</strong><span> Ayden Sunday </span></div></div>
+    <div class="stats-summary"><div class="caption">Baserunning</div>
+      <div><strong>SB:</strong><span> Bankston Lembcke </span></div></div>
+    <div class="stats-summary"><div class="caption">Fielding</div>
+      <div><strong>E:</strong><span> Connor Walker </span></div></div>
+    <table><caption><h2> Baton Rouge Rougarou <span>Batters</span></h2></caption>
+      <tr><th>Hitters</th><th>AB</th></tr>
+      <tr><th><div><span>2b</span> Brock Louque</div></th><td>4</td></tr>
+    </table>
+    <div class="stats-summary"><div class="caption">Batting</div>
+      <div><strong>HR:</strong><span> Jacob Keys </span></div></div>`;
+  const bats = parseBoxscore(html).box.filter(b => /Batting/.test(b.label));
+  assert.deepEqual(bats[0].notes, { '2B': 'James Reina, Connor Walker', '3B': 'James Reina', 'SB': 'Bankston Lembcke', 'E': 'Connor Walker' });
+  assert.deepEqual(bats[1].notes, { 'HR': 'Jacob Keys' });
+});
+
 test('parseBoxscore: without a line score, box sections fall back to "Team N"', () => {
   const noLine = `
     <table><tr><th>Visitors Hitters</th></tr><tr><td>Player A</td></tr></table>

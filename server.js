@@ -149,6 +149,32 @@ function bsMascot(name) {
 function bsShortenCaption(html) {
   return html.replace(/(<caption>\s*<h2>)([\s\S]*?)(<span>)/i, (m, a, name, b) => a + bsMascot(name) + ' ' + b);
 }
+// Comma-separated player list from a stats-summary <span>, tidied (keeps any
+// trailing count like "Jacob Keys (2)").
+function bsNotesClean(spanHtml) {
+  return bsText(spanHtml).split(',').map(s => s.trim()).filter(Boolean).join(', ');
+}
+// The box score lists 2B/3B/HR (Batting), SB (Baserunning) and E (Fielding) as
+// per-team note blocks rather than table columns. Parse them, one entry per
+// team in the same order as the batting tables.
+const BOX_NOTE_LABELS = ['2B', '3B', 'HR', 'SB', 'E'];
+function parseBoxNotes(html) {
+  const teams = []; let cur = null;
+  const capRe = /<div class="caption">\s*([^<]*?)\s*<\/div>([\s\S]*?)(?=<div class="caption">|<table|<caption|$)/gi;
+  let m;
+  while ((m = capRe.exec(html))) {
+    const cap = m[1].trim().toLowerCase(), chunk = m[2];
+    if (cap === 'batting') { cur = {}; teams.push(cur); }
+    if (!cur || (cap !== 'batting' && cap !== 'baserunning' && cap !== 'fielding')) continue;
+    const sRe = /<strong>\s*([^:<]*?):\s*<\/strong>\s*<span>([\s\S]*?)<\/span>/gi;
+    let s;
+    while ((s = sRe.exec(chunk))) {
+      const lab = s[1].trim().toUpperCase();
+      if (BOX_NOTE_LABELS.indexOf(lab) !== -1) cur[lab] = bsNotesClean(s[2]);
+    }
+  }
+  return teams.map(t => { const o = {}; for (const k of BOX_NOTE_LABELS) if (t[k]) o[k] = t[k]; return o; });
+}
 function parseBoxscore(html) {
   const tables = html.match(/<table\b[\s\S]*?<\/table>/gi) || [];
   let line = null; const batting = [], pitching = [], pbp = [], types = [];
@@ -169,10 +195,11 @@ function parseBoxscore(html) {
   const pitchers = new Set();
   for (const p of pitching) for (const n of bsPitcherNames(p)) pitchers.add(n);
   const battingClean = batting.map(b => bsDropPitchers(b, pitchers));
+  const notes = parseBoxNotes(html);
   const teams = bsLineTeams(line);
   const lab = i => teams[i] || ('Team ' + (i + 1));
   const box = [];
-  battingClean.forEach((h, i) => box.push({ label: lab(i) + ' \u2014 Batting', html: bsShortenCaption(h) }));
+  battingClean.forEach((h, i) => box.push({ label: lab(i) + ' \u2014 Batting', html: bsShortenCaption(h), notes: notes[i] || null }));
   pitching.forEach((h, i) => box.push({ label: lab(i) + ' \u2014 Pitching', html: bsShortenCaption(h) }));
   return { line, teams, box, pbp,
     counts: { tables: tables.length, line: line ? 1 : 0, batting: batting.length, pitching: pitching.length, pbp: pbp.length }, types };
@@ -1933,6 +1960,8 @@ body.noscroll{overflow:hidden;}
 .bx{margin-bottom:16px;}
 .bx h4{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;font-size:11px;letter-spacing:.1em;color:var(--gator);margin:0 0 6px;}
 .bxwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.bxnotes{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;font-size:11.5px;color:var(--bone);line-height:1.4;}
+.bxnotes .bxn b{color:var(--gold2);font-family:'Oswald',sans-serif;font-weight:700;font-size:10px;letter-spacing:.04em;margin-right:4px;}
 .sbody table{width:100%;border-collapse:collapse;font-size:11px;}
 .bx td,.bx th{padding:4px 6px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap;}
 .bx th{color:var(--mute);font-weight:700;text-transform:uppercase;font-size:10px;}
@@ -2274,11 +2303,12 @@ function openBox(id,tab){var m=$('bxModal');m.classList.add('show');syncBg();
     if(d.line){var sc=bsScoreFromLine(d.line);if(sc)$('bxScore').textContent=sc;}
     showTab(tab);
   }).catch(function(){$('bxBody').innerHTML='<div class="spin">Could not load box score.</div>';});}
+function boxNotes(n){if(!n)return '';var order=['2B','3B','HR','SB','E'],p=[];for(var i=0;i<order.length;i++){var k=order[i];if(n[k])p.push('<span class="bxn"><b>'+k+'</b> '+esc(n[k])+'</span>');}return p.length?'<div class="bxnotes">'+p.join('')+'</div>':'';}
 function showTab(which){$('tabBox').classList.toggle('on',which==='box');$('tabPbp').classList.toggle('on',which==='pbp');
   var d=_box;if(!d)return;var h='';
   if(which==='box'){
     if(d.line)h+='<div class="bx"><div class="bxwrap">'+d.line+'</div></div>';
-    (d.box||[]).forEach(function(b){h+='<div class="bx"><div class="bxwrap">'+b.html+'</div></div>';});
+    (d.box||[]).forEach(function(b){h+='<div class="bx"><div class="bxwrap">'+b.html+'</div>'+boxNotes(b.notes)+'</div>';});
     if(!h)h='<div class="spin">No box score available for this game.</div>';
   }else{
     if((d.pbp||[]).length){h='<div class="pbp">';d.pbp.forEach(function(p){h+=p.html;});h+='</div>';}
