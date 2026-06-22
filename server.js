@@ -1961,6 +1961,7 @@ a.sbg:hover{border-color:var(--purple);background:rgba(157,92,255,.14);}
 <div class="tm" id="homeTm"><img id="homeLogo" alt=""><div class="nm" id="homeNm">—</div><div class="rec" id="homeRec"></div><div class="sc" id="homeSc">0</div></div>
 </div>
 <div class="live" id="livePanel" style="display:none"></div>
+<a class="watchbtn ticket" id="ticketBtn" target="_blank" rel="noopener" style="display:none">Buy Tickets</a>
 </div>
 <div class="sec">Gators Schedule</div>
 <div id="sched"></div>
@@ -2012,11 +2013,13 @@ function renderGame(g){
   var jl=$('jloc');if(jl)jl.textContent=g.location||'';
   var wb=$('watchBtn');
   if(wb){
-    // Upcoming game: link to single-game tickets, not the (useless) live stream.
-    if(g.status==='pregame'&&g.ticketUrl){wb.href=g.ticketUrl;wb.textContent='Tickets';wb.classList.remove('replay');wb.style.display='';}
-    else if(g.status!=='pregame'&&g.watchUrl){wb.href=g.watchUrl;wb.textContent='Watch on TCL';wb.classList.remove('replay');wb.style.display='';}
+    // Live game: show the TCL stream pill. Upcoming games use the Buy Tickets
+    // button below instead (you can't watch a game that hasn't started).
+    if(g.status!=='pregame'&&g.watchUrl){wb.href=g.watchUrl;wb.textContent='Watch on TCL';wb.classList.remove('replay');wb.style.display='';}
     else{wb.style.display='none';}
   }
+  var tk=$('ticketBtn');
+  if(tk){if(g.status==='pregame'&&g.ticketUrl){tk.href=g.ticketUrl;tk.style.display='';}else{tk.style.display='none';}}
   var lp=$('livePanel');
   if(lp){
     var pl=document.getElementById('pbplist');var sc=pl?pl.scrollTop:0;
