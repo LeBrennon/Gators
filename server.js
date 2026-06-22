@@ -210,6 +210,38 @@ function parseSchedule(html) {
   return out.filter(g => (seen.has(g.id) ? false : seen.add(g.id))).sort((a,b) => a.sortKey - b.sortKey);
 }
 
+// Today's date (yyyymmdd) in the league's timezone (US Central).
+function todayCentralYmd() {
+  const p = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago',
+    year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+  const g = t => (p.find(x => x.type === t) || {}).value;
+  return '' + g('year') + g('month') + g('day');
+}
+
+// Every league game on a given day (yyyymmdd) — same chunking as parseSchedule
+// but without the Gators-only filter — for the around-the-league scoreboard.
+function parseLeagueScoreboard(html, dateStr) {
+  const re = /\/sports\/bsb\/\d{4}\/boxscores\/(\d{8})_([a-z0-9]+)\.xml/gi;
+  const links = []; let m;
+  while ((m = re.exec(html)) !== null) links.push({ id: m[1]+'_'+m[2], date: m[1], idx: m.index });
+  const out = []; let prevEnd = 0; const seen = new Set();
+  for (const link of links) {
+    const chunk = html.slice(prevEnd, link.idx); prevEnd = link.idx + 1;
+    if (dateStr && link.date !== dateStr) continue;
+    if (seen.has(link.id)) continue;
+    const t = teamsFromChunk(chunk); if (!t) continue;
+    seen.add(link.id);
+    const cls = classify(chunk);
+    out.push({ id: link.id, date: link.date, state: cls.state, status: cls.status,
+      isGators: t.away.id === GATORS_ID || t.home.id === GATORS_ID,
+      away: { id: t.away.id, short: t.away.short, logo: t.away.logo, score: t.away.score },
+      home: { id: t.home.id, short: t.home.short, logo: t.home.logo, score: t.home.score } });
+  }
+  const rank = s => s === 'live' ? 0 : s === 'final' ? 1 : 2;
+  return out.sort((a, b) => rank(a.state) - rank(b.state)
+    || (b.isGators ? 1 : 0) - (a.isGators ? 1 : 0) || a.id.localeCompare(b.id));
+}
+
 // ----- live situation feed --------------------------------------------------
 const val = x => Array.isArray(x) ? x[0] : x;            // status fields arrive as 1-element arrays
 const has = x => { const v = val(x); return v != null && String(v).trim() !== ''; };
@@ -1318,7 +1350,10 @@ app.get('/api/standings', (_q, r) => {
   }).sort((a, b) => b.pct - a.pct || b.w - a.w || a.l - b.l);
   const lead = rows[0];
   for (const x of rows) x.gb = lead ? ((lead.w - x.w) + (x.l - lead.l)) / 2 : 0;
-  r.json({ updatedAt: standingsAt, gatorsId: GATORS_ID, rows });
+  const sbDate = (featured && featured.date) || todayCentralYmd();
+  const sbGames = lastHtml ? parseLeagueScoreboard(lastHtml, sbDate) : [];
+  const scoreboard = { date: sbDate, dateLabel: dateFromId(sbDate).label, updatedAt: lastFetchAt, games: sbGames };
+  r.json({ updatedAt: standingsAt, gatorsId: GATORS_ID, rows, scoreboard });
 });
 app.get('/debug/extras', (_q, r) => {
   const sample = games.filter(g => g.state === 'live' || g.state === 'scheduled').slice(0, 4)
@@ -1496,7 +1531,7 @@ if (require.main === module) {
   app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleDailyRoster(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); pollPhotos(); setInterval(pollPhotos, 24 * 60 * 60 * 1000); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, extractEventAuth,
-  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseGameLog, ticketCandidates };
+  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseGameLog, ticketCandidates, parseLeagueScoreboard, todayCentralYmd };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
@@ -1737,6 +1772,18 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .sttbl tr.stg td{background:rgba(157,92,255,.16);}
 .sttbl tr.stg .stteam{color:var(--gator);font-weight:700;}
 .sttbl tr.stg td:first-child{color:var(--gator);}
+.sbg{display:flex;align-items:center;gap:10px;background:var(--bayou2);border:1px solid var(--line);border-radius:12px;padding:10px 13px;margin-bottom:8px;}
+.sbg.g{border-color:var(--purple);background:rgba(157,92,255,.10);}
+.sbteams{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;}
+.sbrow{display:flex;align-items:center;gap:9px;}
+.sbl{width:22px;height:22px;border-radius:5px;object-fit:contain;background:#16102b;border:1px solid var(--line);flex:none;}
+.sbn{flex:1;min-width:0;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.02em;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sbs{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:16px;color:var(--mute);min-width:20px;text-align:right;}
+.sbrow.w .sbn{color:var(--bone);}
+.sbrow.w .sbs{color:var(--gold2);}
+.sbstat{flex:none;text-align:right;min-width:62px;font-family:'Oswald',sans-serif;font-weight:600;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--mute);}
+.sbstat.final{color:var(--bone);}
+.sbstat.live{color:var(--gator);}
 </style></head><body>
 <div class="bgfx"></div>
 <div class="toasts" id="toasts"></div>
@@ -1765,6 +1812,9 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 <div class="sec">League Standings</div>
 <div class="rmeta" id="stMeta">Loading standings…</div>
 <div id="standingsBody"></div>
+<div class="sec" id="sbSec" style="display:none">Around the League</div>
+<div class="rmeta" id="sbMeta"></div>
+<div id="scoreboardBody"></div>
 </div>
 </div>
 <div class="modal" id="bxModal"><div class="sheet">
@@ -1963,7 +2013,7 @@ function toast(e,t,s,cls){var el=document.createElement('div');el.className='toa
 function emo(tag){return tag==='lead'?'📣':tag==='final'?'🏁':tag==='run'?'🔥':tag==='start'?'⚾':'🐊';}
 function loadSched(){fetch('/api/schedule').then(function(r){return r.json();}).then(function(d){renderSched(d.games||[]);}).catch(function(){});}
 function connect(){var lastData=0;
-  function applyGame(g){if(g&&g.home){renderGame(g);lastData=Date.now();}}
+  function applyGame(g){if(g&&g.home){renderGame(g);lastData=Date.now();if($('viewStandings').style.display!=='none')silentStandings();}}
   function pollGame(){fetch('/api/game').then(function(r){return r.ok?r.json():null;}).then(applyGame).catch(function(){});}
   pollGame();
   setInterval(function(){pollGame();loadSched();},15000);
@@ -2035,17 +2085,53 @@ function fmtPct(p){if(p==null)return '';var s=p.toFixed(3);return p<1?s.replace(
 function fmtGb(g){if(g==null||g===0)return '—';return (g%1)?g.toFixed(1):String(g);}
 function renderStandings(d){
   var rows=(d&&d.rows)||[];
-  if(!rows.length){$('standingsBody').innerHTML='<div class="note">Standings aren’t available yet — check back shortly.</div>';$('stMeta').textContent='';return;}
-  var h='<div class="gltbl sttbl"><table><tr><th>#</th><th>Team</th><th>W</th><th>L</th><th>PCT</th><th>GB</th></tr>';
-  rows.forEach(function(x,i){
-    var isG=x.id&&x.id===d.gatorsId;
-    var lg=x.logo?'<img class="stlogo" src="'+esc(x.logo)+'" alt="">':'';
-    h+='<tr'+(isG?' class="stg"':'')+'><td>'+(i+1)+'</td>'
-      +'<td><div class="stteam">'+lg+'<span>'+esc(x.short)+'</span></div></td>'
-      +'<td>'+x.w+'</td><td>'+x.l+'</td><td>'+fmtPct(x.pct)+'</td><td>'+fmtGb(x.gb)+'</td></tr>';
+  if(!rows.length){$('standingsBody').innerHTML='<div class="note">Standings aren’t available yet — check back shortly.</div>';$('stMeta').textContent='';}
+  else{
+    var h='<div class="gltbl sttbl"><table><tr><th>#</th><th>Team</th><th>W</th><th>L</th><th>PCT</th><th>GB</th></tr>';
+    rows.forEach(function(x,i){
+      var isG=x.id&&x.id===d.gatorsId;
+      var lg=x.logo?'<img class="stlogo" src="'+esc(x.logo)+'" alt="">':'';
+      h+='<tr'+(isG?' class="stg"':'')+'><td>'+(i+1)+'</td>'
+        +'<td><div class="stteam">'+lg+'<span>'+esc(x.short)+'</span></div></td>'
+        +'<td>'+x.w+'</td><td>'+x.l+'</td><td>'+fmtPct(x.pct)+'</td><td>'+fmtGb(x.gb)+'</td></tr>';
+    });
+    $('standingsBody').innerHTML=h+'</table></div>';
+    $('stMeta').textContent=d.updatedAt?('Updated '+agoTxt(d.updatedAt)):'';
+  }
+  renderScoreboard(d&&d.scoreboard,d&&d.gatorsId);
+}
+function sbScore(v){return (v==null||v==='')?'':v;}
+function sbStatus(g){
+  if(g.state==='final')return g.status||'Final';
+  if(g.state==='live')return g.status||'Live';
+  if(g.state==='postponed'||g.state==='cancelled'||g.state==='suspended')return g.status;
+  return g.status||'Scheduled';
+}
+function sbTeamRow(t,win){
+  var lg=t.logo?'<img class="sbl" src="'+esc(t.logo)+'" alt="">':'<span class="sbl"></span>';
+  return '<div class="sbrow'+(win?' w':'')+'">'+lg+'<span class="sbn">'+esc(t.short||'')+'</span><span class="sbs">'+esc(String(sbScore(t.score)))+'</span></div>';
+}
+function renderScoreboard(sb,gatorsId){
+  var games=(sb&&sb.games)||[];
+  if(!games.length){$('sbSec').style.display='none';$('sbMeta').textContent='';$('scoreboardBody').innerHTML='';return;}
+  $('sbSec').style.display='';
+  $('sbMeta').textContent=(sb.dateLabel||'')+(sb.updatedAt?(' · updated '+agoTxt(sb.updatedAt)):'');
+  var h='';
+  games.forEach(function(g){
+    var fin=g.state==='final';
+    var aw=fin&&g.away.score!=null&&g.home.score!=null&&g.away.score>g.home.score;
+    var hw=fin&&g.away.score!=null&&g.home.score!=null&&g.home.score>g.away.score;
+    var st=g.state==='live'?'live':g.state==='final'?'final':'';
+    h+='<div class="sbg'+(g.isGators?' g':'')+'">'
+      +'<div class="sbteams">'+sbTeamRow(g.away,aw)+sbTeamRow(g.home,hw)+'</div>'
+      +'<div class="sbstat '+st+'">'+esc(sbStatus(g))+'</div></div>';
   });
-  $('standingsBody').innerHTML=h+'</table></div>';
-  $('stMeta').textContent=d.updatedAt?('Updated '+agoTxt(d.updatedAt)):'';
+  $('scoreboardBody').innerHTML=h;
+}
+function silentStandings(){
+  fetch('/api/standings').then(function(r){return r.json();}).then(function(d){
+    if(d&&d.rows){standingsData=d;renderStandings(d);}
+  }).catch(function(){});
 }
 function setView(v){
   $('viewScores').style.display=v==='scores'?'':'none';
