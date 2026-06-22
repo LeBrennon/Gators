@@ -526,7 +526,7 @@ function normalizeFeatured(g) {
 }
 
 // ----- state ----------------------------------------------------------------
-let games = [], featured = null, prevFeatured = null, pinnedId = null;
+let games = [], featured = null, prevFeatured = null;
 let lastHtml = '', lastFetchAt = 0;
 const sseClients = new Set(), subscribers = new Set(), startedAnnounced = new Set();
 
@@ -563,11 +563,10 @@ function feedGameOver(L, awayRuns, homeRuns) {
   if (a === h) return false;                  // still tied → extra innings
   return L.half === 'Bottom' ? a > h : h > a; // 3rd out with a leader = final
 }
-// Choose the featured game: a pinned game, else a live game, else the most
-// recent final still inside its 10-hour post-game window, else the next
-// scheduled game, else the latest final.
+// Choose the featured game: a live game, else the most recent final still
+// inside its 10-hour post-game window, else the next scheduled game, else the
+// latest final.
 function pick(list, nowMs) {
-  if (pinnedId) { const p = list.find(x => x.id === pinnedId); if (p) return p; }
   const live = list.find(g => g.state === 'live'); if (live) return live;
   nowMs = nowMs != null ? nowMs : Date.now();
   const finals = list.filter(g => g.state === 'final');
@@ -1620,7 +1619,6 @@ app.get('/debug/player', async (q, r) => {
     });
   } catch (e) { r.status(502).json({ error: e.message, stack: e.stack }); }
 });
-app.post('/api/follow', (q, r) => { pinnedId = (q.body && q.body.id) || null; pollSchedule(); r.json({ ok: true, pinned: pinnedId }); });
 app.get('/api/vapidPublicKey', (_q, r) => r.json({ key: VAPID_PUB, enabled: pushReady }));
 app.post('/api/subscribe', (q, r) => { if (!pushReady) return r.status(501).json({ error: 'push off' }); subscribers.add(q.body); r.json({ ok: true }); });
 app.get('/api/test', (_q, r) => {
@@ -1793,7 +1791,8 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .watchmini.tickets{color:#1a1330;border-color:var(--gold);background:linear-gradient(180deg,var(--gold2),var(--gold));font-weight:700;}
 .watchbtn.ticket{color:#1a1330;border-color:var(--gold);background:linear-gradient(180deg,var(--gold2),var(--gold));}
 .sec{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.08em;font-size:13px;color:var(--mute);margin:22px 4px 10px;}
-.card{background:var(--bayou2);border:1px solid var(--line);border-radius:14px;padding:11px 13px;margin-bottom:8px;cursor:pointer;}
+.card{background:var(--bayou2);border:1px solid var(--line);border-radius:14px;padding:11px 13px;margin-bottom:8px;cursor:default;}
+.card[data-state="final"]{cursor:pointer;}
 .card.glive{border-color:rgba(157,92,255,.45);}
 .card.gcancel{opacity:.5;}
 .card.pinned{outline:1px solid rgba(242,183,5,.4);}
@@ -2129,11 +2128,7 @@ function renderSched(list){
       +'</div></div>';
   });
   $('sched').innerHTML=h||'<div class="note">No Gators games found yet.</div>';
-  $('sched').querySelectorAll('.card').forEach(function(c){c.addEventListener('click',function(){
-    if(c.dataset.state==='final'){openBox(c.dataset.id);return;}
-    fetch('/api/follow',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:c.dataset.id})}).catch(function(){});
-    window.scrollTo({top:0,behavior:'smooth'});
-  });});
+  $('sched').querySelectorAll('.card[data-state="final"]').forEach(function(c){c.addEventListener('click',function(){openBox(c.dataset.id);});});
 }
 function toast(e,t,s,cls){var el=document.createElement('div');el.className='toast '+(cls||'');
   el.innerHTML='<div class="e">'+e+'</div><div><b>'+t+'</b><span>'+s+'</span></div>';$('toasts').appendChild(el);
