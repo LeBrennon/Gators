@@ -98,6 +98,30 @@ test('parseBoxscore: drops the pitcher even without an explicit DH row (TCL alwa
   assert.doesNotMatch(batting, /Jack Garcille/);
 });
 
+test('parseBoxscore: drops a reliever from the Hitters table even with a blank position', () => {
+  // Relievers who never bat list in the Hitters table with no position span and
+  // a 0-for-0 line; the position filter misses them, so we match the Pitchers
+  // table by name instead.
+  const html = `
+    <table>
+      <tr><th>Hitters</th><th>AB</th><th>H</th></tr>
+      <tr><th><div><span>cf</span> Ayden Sunday</div></th><td>4</td><td>2</td></tr>
+      <tr><th><div>John Munnerlyn</div></th><td>0</td><td>0</td></tr>
+      <tr><th><div>Brandon Levy</div></th><td>0</td><td>0</td></tr>
+      <tr><th>Totals</th><td>4</td><td>2</td></tr>
+    </table>
+    <table>
+      <tr><th>Pitchers</th><th>IP</th></tr>
+      <tr><th><div>John Munnerlyn</div></th><td>2.0</td></tr>
+      <tr><th><div>Brandon Levy (W, 1-0)</div></th><td>1.0</td></tr>
+      <tr><th>Totals</th><td>3.0</td></tr>
+    </table>`;
+  const batting = parseBoxscore(html).box.find(b => /Batting/.test(b.label)).html;
+  assert.match(batting, /Ayden Sunday/);
+  assert.doesNotMatch(batting, /Munnerlyn/);
+  assert.doesNotMatch(batting, /Brandon Levy/);
+});
+
 test('parseBoxscore: without a line score, box sections fall back to "Team N"', () => {
   const noLine = `
     <table><tr><th>Visitors Hitters</th></tr><tr><td>Player A</td></tr></table>
