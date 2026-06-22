@@ -2040,7 +2040,7 @@ body.noscroll{overflow:hidden;}
 .navb{flex:1;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.05em;font-size:12.5px;padding:11px;border-radius:12px;border:1px solid var(--line);color:var(--mute);background:var(--bayou2);cursor:pointer;}
 .navb.on{color:#fff;background:linear-gradient(180deg,var(--purple),var(--gator2));border-color:var(--purple);}
 .rmeta{font-size:10.5px;letter-spacing:.04em;color:var(--mute);margin:0 4px 12px;}
-#sbMeta{text-align:center;}
+.sbsec{display:flex;align-items:baseline;justify-content:space-between;gap:12px;}
 .sbdate{font-family:'Oswald',sans-serif;font-weight:700;font-size:17px;letter-spacing:.03em;text-transform:uppercase;color:var(--gold2);}
 .pcard{background:var(--bayou2);border:1px solid var(--line);border-radius:14px;padding:11px 13px;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;gap:12px;}
 .pnum{flex:none;width:40px;height:40px;border-radius:11px;background:linear-gradient(180deg,var(--panel),var(--bayou2));border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-weight:700;font-size:17px;color:var(--gator);}
@@ -2137,8 +2137,7 @@ a.sbg:hover{border-color:var(--purple);background:rgba(157,92,255,.14);}
 <div class="sec">League Standings</div>
 <div class="rmeta" id="stMeta">Loading standings…</div>
 <div id="standingsBody"></div>
-<div class="sec" id="sbSec" style="display:none">Around the League</div>
-<div class="rmeta" id="sbMeta"></div>
+<div class="sec sbsec" id="sbSec" style="display:none"><span>Around the League</span><span class="sbdate" id="sbMeta"></span></div>
 <div id="scoreboardBody"></div>
 </div>
 </div>
@@ -2464,7 +2463,7 @@ function sbTeamRow(t,win,isGt,showScore){
 function renderScoreboard(sb,gatorsId){
   var games=(sb&&sb.games)||[];
   $('sbSec').style.display='';
-  $('sbMeta').innerHTML='<span class="sbdate">'+esc((sb&&sb.dateLabel)||'')+'</span>';
+  $('sbMeta').textContent=(sb&&sb.dateLabel)||'';
   if(!games.length){$('scoreboardBody').innerHTML='<div class="note">No league games scheduled for this day.</div>';return;}
   var h='';
   games.forEach(function(g){
