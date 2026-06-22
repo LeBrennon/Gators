@@ -183,6 +183,23 @@ test('parseBoxscore: drops WP and AB columns from the pitching table', () => {
   assert.doesNotMatch(pit, /<td>15<\/td>/); // AB value dropped
 });
 
+test('parseBoxscore: lists the Gators batting/pitching first even when they are the home team', () => {
+  const tbl = (team, kind, who) => `<table><caption><h2> ${team} <span>${kind}</span></h2></caption>` +
+    (kind === 'Batters'
+      ? `<tr><th>Hitters</th><th>AB</th></tr><tr><th><div><span>cf</span> ${who}</div></th><td>1</td></tr></table>`
+      : `<tr><th>Pitchers</th><th>IP</th></tr><tr><th>${who}</th><td>9</td></tr></table>`);
+  // Document order: opponent (away) first, Gators (home) second.
+  const html = tbl('Baton Rouge Rougarou', 'Batters', 'Opp') + tbl('Lake Charles Gumbeaux Gators', 'Batters', 'Gat') +
+               tbl('Baton Rouge Rougarou', 'Pitchers', 'OppP') + tbl('Lake Charles Gumbeaux Gators', 'Pitchers', 'GatP');
+  const { box } = parseBoxscore(html);
+  const isGators = h => /gator/i.test(h);
+  const bats = box.filter(b => /Batting/.test(b.label));
+  const pits = box.filter(b => /Pitching/.test(b.label));
+  assert.equal(isGators(bats[0].html), true);  // Gators batting on top
+  assert.equal(isGators(bats[1].html), false);
+  assert.equal(isGators(pits[0].html), true);  // Gators pitching before opponent
+});
+
 test('parseBoxscore: without a line score, box sections fall back to "Team N"', () => {
   const noLine = `
     <table><tr><th>Visitors Hitters</th></tr><tr><td>Player A</td></tr></table>

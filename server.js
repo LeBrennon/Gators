@@ -229,9 +229,15 @@ function parseBoxscore(html) {
   const notes = parseBoxNotes(html);
   const teams = bsLineTeams(line);
   const lab = i => teams[i] || ('Team ' + (i + 1));
+  // Most visitors are Gators fans, so list the Gators' tables first. Identify
+  // the Gators side from the table caption (the line score's team names don't
+  // always parse), then put that index ahead of the opponent.
+  const capName = h => { const m = h.match(/<caption>[\s\S]*?<h2>([\s\S]*?)<span>/i); return m ? bsText(m[1]) : ''; };
+  const gi = battingClean.findIndex(h => /gator/i.test(capName(h)));
+  const order = n => { const a = [...Array(n).keys()]; return (gi >= 0 && gi < n) ? [gi, ...a.filter(x => x !== gi)] : a; };
   const box = [];
-  battingClean.forEach((h, i) => box.push({ label: lab(i) + ' \u2014 Batting', html: bsShortenCaption(h), notes: notes[i] || null }));
-  pitching.forEach((h, i) => box.push({ label: lab(i) + ' \u2014 Pitching', html: bsShortenCaption(h) }));
+  order(battingClean.length).forEach(i => box.push({ label: lab(i) + ' \u2014 Batting', html: bsShortenCaption(battingClean[i]), notes: notes[i] || null }));
+  order(pitching.length).forEach(i => box.push({ label: lab(i) + ' \u2014 Pitching', html: bsShortenCaption(pitching[i]) }));
   return { line, teams, box, pbp,
     counts: { tables: tables.length, line: line ? 1 : 0, batting: batting.length, pitching: pitching.length, pbp: pbp.length }, types };
 }
