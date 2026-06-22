@@ -1044,6 +1044,9 @@ async function fetchPlayer(slug, batMap, pitMap, tries) {
   return buildRecord(slug, primary, batMap, pitMap);
 }
 const recHasData = rec => !!(rec && (rec.hit || rec.pit || rec.glBat.length || rec.glPit.length));
+// A "full" record carries player-page detail (game logs + stats like SB), as
+// opposed to a league-leaderboard seed that only has headline card stats.
+const recIsFull = rec => !!(rec && ((rec.glBat && rec.glBat.length) || (rec.glPit && rec.glPit.length)));
 function storePlayer(slug, rec) {
   const had = playerCache[slug];
   if (recHasData(rec) || !had) {
@@ -1196,7 +1199,9 @@ async function getPlayer(slug) {
   // all day (no live re-scrape on open). 25h leaves a safety margin around the
   // daily refresh. An empty (throttled) entry still refetches on demand.
   const fresh = cached && (Date.now() - cached.ts < 25 * 60 * 60 * 1000);
-  if (fresh && recHasData(cached)) return cached;
+  // Serve the cache only if it's a full player-page record; a league-only seed
+  // (no game logs, no SB) gets re-fetched so the profile shows complete stats.
+  if (fresh && recIsFull(cached)) return cached;
   storePlayer(slug, await fetchPlayer(slug, null, null));
   return playerCache[slug] || null;
 }
@@ -2419,7 +2424,11 @@ function updateCardStats(p){
 function agoTxt(ts){if(!ts)return '';var m=Math.round((Date.now()-ts)/60000);if(m<1)return 'just now';if(m<60)return m+'m ago';return Math.round(m/60)+'h ago';}
 function sline(o,keys){var out=[];for(var i=0;i<keys.length;i++){var k=keys[i][0],lab=keys[i][1];if(o&&o[k]!=null&&o[k]!==''&&o[k]!=='-')out.push('<span class="k">'+lab+'</span>'+o[k]);}return out.join('  ');}
 function cardStats(p){
-  var bat=p.hit?('<div class="pstline">'+sline(p.hit,[['avg','AVG'],['hr','HR'],['rbi','RBI']])+'</div>'):'';
+  // Third stat is HR when the hitter has one, otherwise Hits — so every hitter
+  // shows three stats instead of dropping to two when HR is 0.
+  var third=['h','H'];
+  if(p.hit){var hr=p.hit.hr;if(hr!=null&&hr!==''&&hr!=='-'&&Number(hr)>0)third=['hr','HR'];}
+  var bat=p.hit?('<div class="pstline">'+sline(p.hit,[['avg','AVG'],third,['rbi','RBI']])+'</div>'):'';
   var pit=p.pit?('<div class="pstline pit">'+sline(p.pit,[['era','ERA'],['ip','IP'],['k','K']])+'</div>'):'';
   if(!bat&&!pit)return '<div class="pstat"><span class="plimited">—</span></div>';
   return '<div class="pstat">'+bat+pit+'</div>';
