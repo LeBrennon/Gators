@@ -63,7 +63,7 @@ const THEMES = {
   '20260627': 'Princess / Superhero',
   '20260702': 'Visit Lake Charles',
   '20260703': 'Fireworks',
-  '20260704': 'Red, White, Blue & Fireworks',
+  '20260704': 'Red, White, & Blue Fireworks',
   '20260716': 'Salute To Service',
   '20260718': 'Cheer & Dance',
   '20260719': 'Faith & Family',
