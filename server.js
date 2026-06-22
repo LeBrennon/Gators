@@ -2185,7 +2185,7 @@ function renderSched(list){
   ord.forEach(function(g){
     var pill=g.state==='live'?'<span class="cpill live"><span class="dot"></span>'+g.status+'</span>':g.state==='final'?'<span class="cpill final">'+g.status+' \u203A</span>':'<span class="cpill">'+esc(g.status)+'</span>';
     var aw=g.state==='final'&&g.away.score>g.home.score,hw=g.state==='final'&&g.home.score>g.away.score;
-    function row(t,isG,won){return '<div class="crow'+(isG?' g':'')+(won?' w':'')+'"><img src="'+t.logo+'"><span class="n">'+esc(t.short)+'</span><span class="s">'+(t.score==null?'':t.score)+'</span></div>';}
+    function row(t,isG,won){var sc=(g.state==='live'||g.state==='final')&&t.score!=null?t.score:'';return '<div class="crow'+(isG?' g':'')+(won?' w':'')+'"><img src="'+t.logo+'"><span class="n">'+esc(t.short)+'</span><span class="s">'+sc+'</span></div>';}
     h+='<div class="card '+(g.state==='live'?'glive':g.state==='cancelled'?'gcancel':'')+(g.id===curId?' pinned':'')+'" data-state="'+g.state+'" data-id="'+g.id+'">'
       +'<div class="ctop"><span class="cdate">'+g.dateLabel+'</span>'+pill+'</div>'
       +row(g.away,g.away.id==='et1bt9sixrz5lnnl',aw)+row(g.home,g.home.id==='et1bt9sixrz5lnnl',hw)
