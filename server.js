@@ -1668,9 +1668,10 @@ background:transparent;-webkit-font-smoothing:antialiased;}
 background:radial-gradient(1100px 550px at 50% -10%,rgba(111,79,212,.10),transparent 60%),linear-gradient(rgba(22,16,43,.12),rgba(22,16,43,.20)),url(${BG_PATH}) center center / cover no-repeat;}
 .wrap{max-width:520px;margin:0 auto;padding:0 14px 40px;}
 .topbar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:9px;padding:14px 4px 12px;}
-.topbar .hdrlogo.tcl{justify-self:start;}
+.topbar .tcllink{justify-self:start;display:inline-flex;}
+.topbar .gglink{justify-self:center;display:inline-flex;max-width:100%;}
 .topbar .shopbtn{justify-self:end;}
-.gglogo{justify-self:center;width:150px;max-width:100%;height:auto;object-fit:contain;border-radius:12px;border:1px solid var(--line);}
+.gglogo{width:150px;max-width:100%;height:auto;object-fit:contain;border-radius:12px;border:1px solid var(--line);}
 .hdrlogo{height:48px;width:48px;object-fit:contain;border-radius:11px;flex:none;}
 .hdrlogo.tcl{background:#fff;padding:5px;box-shadow:0 3px 10px -3px rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.7);}
 .lead{font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:.06em;font-size:20px;text-transform:uppercase;background:linear-gradient(90deg,var(--gold2),var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent;}
@@ -1894,7 +1895,7 @@ a.sbg:hover{border-color:var(--purple);background:rgba(157,92,255,.14);}
 <div class="bgfx"></div>
 <div class="toasts" id="toasts"></div>
 <div class="wrap">
-<div class="topbar"><img class="hdrlogo tcl" src="/tcl-logo.png" alt="Texas Collegiate League"><img class="gglogo" src="/gg-logo.jpg" alt="Lake Charles Gumbeaux Gators"><div class="trail"><a class="ticketbtn" href="https://gumbeauxgators.com/tickets/" target="_blank" rel="noopener" title="Buy game tickets">Tickets</a><a class="shopbtn" id="shopBtn" href="https://gumbeauxgators.myshopify.com/collections/all" target="_blank" rel="noopener" title="Shop the Gators store"><span class="shoptxt">Gators<br>Team<br>Store</span></a></div></div>
+<div class="topbar"><a class="tcllink" href="https://texascollegiateleague.com" target="_blank" rel="noopener" title="Texas Collegiate League"><img class="hdrlogo tcl" src="/tcl-logo.png" alt="Texas Collegiate League"></a><a class="gglink" href="https://gumbeauxgators.com" target="_blank" rel="noopener" title="Gumbeaux Gators official site"><img class="gglogo" src="/gg-logo.jpg" alt="Lake Charles Gumbeaux Gators"></a><div class="trail"><a class="ticketbtn" href="https://gumbeauxgators.com/tickets/" target="_blank" rel="noopener" title="Buy game tickets">Tickets</a><a class="shopbtn" id="shopBtn" href="https://gumbeauxgators.myshopify.com/collections/all" target="_blank" rel="noopener" title="Shop the Gators store"><span class="shoptxt">Gators<br>Team<br>Store</span></a></div></div>
 <div class="nav"><button class="navb on" id="navScores">Scores</button><button class="navb" id="navRoster">Roster</button><button class="navb" id="navStandings">Standings</button></div>
 <div id="viewScores">
 <div class="jumbo">
