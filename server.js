@@ -1640,6 +1640,7 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .sl{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;}
 .tm{display:flex;flex-direction:column;align-items:center;gap:8px;min-width:0;}
 .tm img{width:54px;height:54px;border-radius:14px;object-fit:contain;background:#16102b;border:1px solid var(--line);}
+.tm:not(.gators) img{background:#fff;border-color:rgba(255,255,255,.55);padding:6px;}
 .tm .nm{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.03em;font-size:12px;text-align:center;line-height:1.05;}
 .tm .rec{font-family:'Inter',sans-serif;font-weight:600;font-size:11px;color:var(--mute);letter-spacing:.04em;margin-top:-4px;min-height:13px;}
 .tm.gators .nm{color:var(--gator);}
@@ -1733,7 +1734,8 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .cpill.live .dot{width:5px;height:5px;animation:pulse 1.8s infinite;}
 .cpill.final{color:var(--gold);}
 .crow{display:flex;align-items:center;gap:9px;padding:3px 0;}
-.crow img{width:22px;height:22px;border-radius:5px;object-fit:contain;background:#16102b;}
+.crow img{width:30px;height:30px;border-radius:6px;object-fit:contain;background:#16102b;}
+.crow:not(.g) img{background:#fff;padding:3px;border:1px solid rgba(255,255,255,.5);}
 .crow .n{flex:1;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .crow.g .n{color:var(--gator);}
 .crow .s{font-family:'Oswald',sans-serif;font-weight:700;font-size:18px;min-width:22px;text-align:right;}
@@ -1812,7 +1814,8 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .sttbl th,.sttbl td{padding:9px 8px;}
 .sttbl td:first-child,.sttbl th:first-child{text-align:center;color:var(--mute);width:26px;font-family:'Oswald',sans-serif;}
 .sttbl .stteam{display:flex;align-items:center;gap:9px;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.02em;color:var(--bone);}
-.sttbl .stlogo{width:22px;height:22px;border-radius:5px;object-fit:contain;background:#16102b;border:1px solid var(--line);flex:none;}
+.sttbl .stlogo{width:28px;height:28px;border-radius:6px;object-fit:contain;background:#16102b;border:1px solid var(--line);flex:none;}
+.sttbl tr:not(.stg) .stlogo{background:#fff;padding:3px;border-color:rgba(255,255,255,.5);}
 .sttbl td:nth-child(5){color:var(--gold2);}
 .sttbl tr.stg td{background:rgba(157,92,255,.16);}
 .sttbl tr.stg .stteam{color:var(--gator);font-weight:700;}
@@ -1821,7 +1824,8 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .sbg.g{border-color:var(--purple);background:rgba(157,92,255,.10);}
 .sbteams{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;}
 .sbrow{display:flex;align-items:center;gap:9px;}
-.sbl{width:22px;height:22px;border-radius:5px;object-fit:contain;background:#16102b;border:1px solid var(--line);flex:none;}
+.sbl{width:30px;height:30px;border-radius:6px;object-fit:contain;background:#16102b;border:1px solid var(--line);flex:none;}
+.sbrow:not(.gt) img.sbl{background:#fff;padding:3px;border-color:rgba(255,255,255,.5);}
 .sbn{flex:1;min-width:0;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.02em;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .sbs{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:16px;color:var(--mute);min-width:20px;text-align:right;}
 .sbrow.w .sbn{color:var(--bone);}
@@ -2152,9 +2156,9 @@ function sbStatus(g){
   if(g.state==='postponed'||g.state==='cancelled'||g.state==='suspended')return g.status;
   return g.status||'Scheduled';
 }
-function sbTeamRow(t,win){
+function sbTeamRow(t,win,isGt){
   var lg=t.logo?'<img class="sbl" src="'+esc(t.logo)+'" alt="">':'<span class="sbl"></span>';
-  return '<div class="sbrow'+(win?' w':'')+'">'+lg+'<span class="sbn">'+esc(t.short||'')+'</span><span class="sbs">'+esc(String(sbScore(t.score)))+'</span></div>';
+  return '<div class="sbrow'+(win?' w':'')+(isGt?' gt':'')+'">'+lg+'<span class="sbn">'+esc(t.short||'')+'</span><span class="sbs">'+esc(String(sbScore(t.score)))+'</span></div>';
 }
 function renderScoreboard(sb,gatorsId){
   var games=(sb&&sb.games)||[];
@@ -2168,7 +2172,7 @@ function renderScoreboard(sb,gatorsId){
     var hw=fin&&g.away.score!=null&&g.home.score!=null&&g.home.score>g.away.score;
     var st=g.state==='live'?'live':g.state==='final'?'final':'';
     h+='<div class="sbg'+(g.isGators?' g':'')+'">'
-      +'<div class="sbteams">'+sbTeamRow(g.away,aw)+sbTeamRow(g.home,hw)+'</div>'
+      +'<div class="sbteams">'+sbTeamRow(g.away,aw,g.away.id===gatorsId)+sbTeamRow(g.home,hw,g.home.id===gatorsId)+'</div>'
       +'<div class="sbstat '+st+'">'+esc(sbStatus(g))+'</div></div>';
   });
   $('scoreboardBody').innerHTML=h;
