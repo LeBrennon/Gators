@@ -1500,17 +1500,41 @@ app.get('/gg-logo.jpg', (_q, r) => { r.set('Content-Type','image/jpeg'); r.set('
 // Social/link-preview image (Gumbeaux Gators logo, 1200x628) for iMessage etc.
 app.get('/og.jpg', (_q, r) => { try { r.set('Content-Type','image/jpeg'); r.set('Cache-Control','public, max-age=86400'); r.send(fs.readFileSync(__dirname + '/og.jpg')); } catch (e) { r.status(404).end(); } });
 app.get(BG_PATH, (_q, r) => { r.set('Content-Type','image/jpeg'); r.set('Cache-Control','public, max-age=31536000, immutable'); r.send(BG_BUF); });
+// Parsed box scores cached in memory. A finished game's box never changes, so
+// once fetched we keep serving it — this avoids re-hitting PrestoSports on every
+// click and lets us fall back to a good copy when the source rate-limits (429).
+const boxCache = new Map();        // id -> { data, at }
+const BOX_TTL_MS = 60 * 60 * 1000; // re-fetch at most hourly for a still-changing game
 app.get('/api/boxscore', async (q, r) => {
+  const id = q.query && q.query.id;
   try {
-    const id = q.query && q.query.id;
     if (!id) return r.status(400).json({ error: 'pass ?id=YYYYMMDD_xxxx' });
+    const cached = boxCache.get(id);
+    if (cached && Date.now() - cached.at < BOX_TTL_MS && !q.query.debug) {
+      r.set('Cache-Control', 'public, max-age=300');
+      return r.json(cached.data);
+    }
     const url = boxscoreUrl(id) + '?view=plays';
-    const page = await fetchText(url, SCHEDULE_URL);
-    if (!page.ok) return r.status(502).json({ error: 'box page ' + page.status });
+    let page = await fetchText(url, SCHEDULE_URL);
+    for (let tries = 0; !page.ok && (page.status === 429 || page.status === 503) && tries < 2; tries++) {
+      await sleep(600 * (tries + 1));
+      page = await fetchText(url, SCHEDULE_URL);
+    }
+    if (!page.ok) {
+      // Source is rate-limiting: serve the last good copy rather than failing.
+      if (cached) { r.set('Cache-Control', 'public, max-age=120'); return r.json(cached.data); }
+      return r.status(502).json({ error: 'box page ' + page.status });
+    }
     const p = parseBoxscore(page.body);
+    const data = { id, teams: p.teams, line: p.line, box: p.box, pbp: p.pbp, counts: p.counts };
+    boxCache.set(id, { data, at: Date.now() });
     r.set('Cache-Control', 'public, max-age=300');
-    r.json({ id, teams: p.teams, line: p.line, box: p.box, pbp: p.pbp, counts: p.counts, types: q.query.debug ? p.types : undefined });
-  } catch (err) { r.status(500).json({ error: String(err && err.message || err) }); }
+    r.json(q.query.debug ? Object.assign({}, data, { types: p.types }) : data);
+  } catch (err) {
+    const cached = boxCache.get(id);
+    if (cached) { r.set('Cache-Control', 'public, max-age=120'); return r.json(cached.data); }
+    r.status(500).json({ error: String(err && err.message || err) });
+  }
 });
 app.get('/api/schedule', (_q, r) => r.json({ games: games.map(decorateGame) }));
 app.get('/api/standings', (_q, r) => {
