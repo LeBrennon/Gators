@@ -1484,6 +1484,27 @@ app.get('/debug/extras', (_q, r) => {
     sampleGames: sample,
   });
 });
+app.get('/debug/photos', async (_q, r) => {
+  try {
+    const page = await fetchText(TEAM_ROSTER_URL, 'https://gumbeauxgators.com/');
+    const imgs = page.body.match(/<img\b[^>]*>/gi) || [];
+    const upimgs = imgs.filter(t => /wp-content\/uploads/i.test(t) || /\.webp/i.test(t));
+    const map = parseTeamPhotos(page.body);
+    let imgFetch = null;
+    try {
+      const test = await fetch('https://gumbeauxgators.com/wp-content/uploads/2026/04/Nathan-McDonald.webp',
+        { headers: { 'user-agent': UA, referer: 'https://gumbeauxgators.com/', accept: 'image/avif,image/webp,image/*,*/*' } });
+      imgFetch = { ok: test.ok, status: test.status, type: test.headers.get('content-type') };
+    } catch (e) { imgFetch = { error: String(e && e.message || e) }; }
+    r.json({
+      page: { ok: page.ok, status: page.status, bytes: page.body.length, contentType: page.contentType,
+        looksBlocked: /just a moment|attention required|cf-mitigated|enable javascript|cdn-cgi\/challenge/i.test(page.body) },
+      imgTags: imgs.length, uploadOrWebp: upimgs.length, sampleImgs: upimgs.slice(0, 6),
+      parsedKeys: Object.keys(map).length, sampleParsed: Object.entries(map).slice(0, 6),
+      imgFetch,
+    });
+  } catch (e) { r.json({ error: String(e && e.message || e) }); }
+});
 app.get('/api/roster', (_q, r) => { if (!rosterPolling && Object.keys(rosterStats).length === 0) pollRoster(); r.json(rosterPayload()); });
 // Headshot proxy — the team site 403s hotlinked images, so we fetch each one
 // with its own domain as the referer and stream it back from our origin.
