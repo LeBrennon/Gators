@@ -545,7 +545,12 @@ function assumedEndMs(ymd) {
   return Date.UTC(+ymd.slice(0, 4), +ymd.slice(4, 6) - 1, +ymd.slice(6, 8), 22 + 5, 0, 0);
 }
 function finalAnchorMs(g) {
-  return finalSeenAt[g.id] != null ? finalSeenAt[g.id] : assumedEndMs(g.date);
+  // Anchor to the earlier of the observed-final time and the assumed ~10pm end.
+  // On a cold restart noteFinals() stamps every already-final game with "now";
+  // the min discards that bogus late stamp so an old final doesn't get a fresh
+  // 10-hour window just because the server happened to restart.
+  const assumed = assumedEndMs(g.date);
+  return finalSeenAt[g.id] != null ? Math.min(finalSeenAt[g.id], assumed) : assumed;
 }
 // A finished game stays featured for 10 hours after it ended.
 function finalIsFresh(g, nowMs) {

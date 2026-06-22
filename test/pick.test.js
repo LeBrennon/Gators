@@ -1,8 +1,8 @@
 'use strict';
 // Tests for pick(): which game is featured. A finished game stays featured for
-// 10 hours after it ended — anchored to when we first observe it final, or, as
-// a cold-start fallback, an assumed ~10pm Central end on the game date. A live
-// game always wins; a pinned game (not exercised here) wins above all.
+// 10 hours after it ended — anchored to the earlier of when we first observe it
+// final and an assumed ~10pm Central end on the game date. A live game always
+// wins.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs } = require('../server');
@@ -72,6 +72,18 @@ test('pick: the most recent fresh final wins among several', () => {
   const t = Date.UTC(2026, 5, 22, 1, 0, 0);
   noteFinals(list, t);
   assert.equal(pick(list, t + 1 * HOUR).id, 'new');
+});
+
+test('pick: a restart that stamps an old final with "now" does not refresh its 10h window', () => {
+  reset();
+  const list = [final('f1', '20260621'), sched('s1', '20260623')];
+  // Simulate a restart at ~1pm CDT on 6/22: noteFinals stamps the already-final
+  // 6/21 game with the restart time, hours after it actually ended the night
+  // before. The anchor must fall back to the assumed ~10pm end, so the game is
+  // already stale and the next scheduled game takes over.
+  const restart = Date.UTC(2026, 5, 22, 18, 0, 0);
+  noteFinals(list, restart);
+  assert.equal(pick(list, restart).id, 's1');
 });
 
 test('pick: cold-start fallback keeps a recent final up without a stamp', () => {
