@@ -1559,6 +1559,8 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .mid{display:flex;flex-direction:column;align-items:center;gap:8px;padding:0 2px;}
 .statpill{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12px;letter-spacing:.06em;color:var(--gold2);background:rgba(242,183,5,.08);border:1px solid rgba(242,183,5,.25);border-radius:999px;padding:6px 11px;text-align:center;text-transform:uppercase;white-space:nowrap;}
 .statpill.live{color:var(--gator);background:rgba(157,92,255,.08);border-color:rgba(157,92,255,.3);}
+.watchpill{display:inline-flex;align-items:center;gap:5px;font-family:'Oswald',sans-serif;font-weight:700;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:#1a1330;background:linear-gradient(180deg,var(--gold2),var(--gold));border:1px solid var(--gold);border-radius:999px;padding:6px 12px;text-decoration:none;white-space:nowrap;}
+.watchpill.replay{color:#fff;background:linear-gradient(180deg,var(--purple),var(--gator2));border-color:var(--purple);}
 .vs{font-size:10px;color:var(--mute);letter-spacing:.1em;text-transform:uppercase;}
 .note{margin-top:14px;font-size:11.5px;line-height:1.6;color:var(--mute);background:var(--bayou2);border:1px solid var(--line);border-radius:14px;padding:13px 15px;}
 .note b{color:var(--bone);font-weight:600;}
@@ -1731,12 +1733,11 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 <div class="jumbo">
 <div class="sl">
 <div class="tm" id="awayTm"><img id="awayLogo" alt=""><div class="nm" id="awayNm">—</div><div class="rec" id="awayRec"></div><div class="sc" id="awaySc">0</div></div>
-<div class="mid"><div class="statpill" id="statpill">—</div><div class="vs" id="vs">vs</div></div>
+<div class="mid"><a class="watchpill" id="watchBtn" target="_blank" rel="noopener" style="display:none">▶ Watch</a><div class="statpill" id="statpill">—</div><div class="vs" id="vs">vs</div></div>
 <div class="tm" id="homeTm"><img id="homeLogo" alt=""><div class="nm" id="homeNm">—</div><div class="rec" id="homeRec"></div><div class="sc" id="homeSc">0</div></div>
 </div>
 <div class="live" id="livePanel" style="display:none"></div>
 <div class="jloc" id="jloc"></div>
-<a class="watchbtn" id="watchBtn" target="_blank" rel="noopener" style="display:none">▶ Watch on TCL TV</a>
 <a class="watchbtn ticket" id="ticketBtn" target="_blank" rel="noopener" style="display:none">🎟 Buy Tickets</a>
 <div class="note">Live score and inning, straight from the league feed — updates automatically.</div>
 </div>
@@ -1787,8 +1788,8 @@ function renderGame(g){
   var jl=$('jloc');if(jl)jl.textContent=g.location||'';
   var wb=$('watchBtn');
   if(wb){
-    if(g.watchUrl){wb.href=g.watchUrl;wb.textContent='▶ Watch on TCL TV';wb.classList.remove('replay');wb.style.display='';}
-    else if(g.state==='final'&&g.replayUrl){wb.href=g.replayUrl;wb.textContent='▶ Watch Full Replay';wb.classList.add('replay');wb.style.display='';}
+    if(g.watchUrl){wb.href=g.watchUrl;wb.textContent='▶ Watch on TCL';wb.classList.remove('replay');wb.style.display='';}
+    else if(g.state==='final'&&g.replayUrl){wb.href=g.replayUrl;wb.textContent='▶ Full Replay';wb.classList.add('replay');wb.style.display='';}
     else{wb.style.display='none';}
   }
   var tk=$('ticketBtn');
@@ -1830,7 +1831,7 @@ function buildLive(g){
   var line=buildLineScore(g);
   var lineup=buildLineup(g);
   var pbp=buildPbp(g);
-  return sit+(bp?'<div class="lbp">'+bp+'</div>':'')+line+lineup+pbp;
+  return sit+(bp?'<div class="lbp">'+bp+'</div>':'')+line+pbp+lineup;
 }
 function buildLineScore(g){
   var rows=g.lineScore;if(!rows||!rows.length)return '';
