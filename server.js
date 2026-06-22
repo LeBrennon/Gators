@@ -1803,6 +1803,7 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
 .modal{position:fixed;inset:0;z-index:80;background:rgba(8,5,16,.74);display:none;align-items:flex-end;justify-content:center;}
 .modal.show{display:flex;}
+body.noscroll{overflow:hidden;}
 .sheet{background:var(--bayou2);border:1px solid var(--line);border-radius:20px 20px 0 0;width:100%;max-width:560px;max-height:88vh;display:flex;flex-direction:column;}
 .shead{display:flex;align-items:center;gap:10px;padding:14px 16px 8px;}
 .sttl{font-family:'Oswald',sans-serif;font-weight:700;text-transform:uppercase;font-size:13px;letter-spacing:.03em;line-height:1.2;}
@@ -2133,7 +2134,7 @@ function connect(){var lastData=0;
   setInterval(function(){if(Date.now()-lastData>45000)setChip('off');},10000);}
 var _box=null;
 function bsScoreFromLine(line){try{var rows=line.match(new RegExp('<tr[^]*?</tr>','gi'))||[];var rs=[];rows.forEach(function(r){var c=r.match(new RegExp('<t[dh][^]*?</t[dh]>','gi'))||[];if(c.length>3){var nm=c[0].replace(/<[^>]+>/g,'').trim();if(nm&&!/^final$/i.test(nm))rs.push(c[c.length-3].replace(/<[^>]+>/g,'').trim());}});return rs.length>=2?rs[0]+'\u2013'+rs[1]:'';}catch(e){return'';}}
-function openBox(id,tab){var m=$('bxModal');m.classList.add('show');
+function openBox(id,tab){var m=$('bxModal');m.classList.add('show');syncBg();
   tab=tab==='pbp'?'pbp':'box';
   $('tabBox').classList.toggle('on',tab==='box');$('tabPbp').classList.toggle('on',tab==='pbp');
   $('bxTtl').textContent='Box Score';$('bxScore').textContent='';
@@ -2337,7 +2338,7 @@ function openPlayer(slug){
     bi('Hometown',p.home||'—')+bi('School',p.school||'—')+
     (p.bday?bi('Birthday',p.bday):'')+'</div>';
   $('plBody').innerHTML=bio+'<div id="plStats">'+statBlocks(p)+'</div><div id="plGl"><div class="spin" style="padding:16px">Loading game log…</div></div>';
-  $('plModal').classList.add('show');
+  $('plModal').classList.add('show');syncBg();
   fetch('/api/player?slug='+encodeURIComponent(slug)).then(function(r){return r.json();}).then(function(d){
     if(plCur!==slug)return;
     var m=Object.assign({},p);
@@ -2372,8 +2373,9 @@ document.addEventListener('click',function(e){var b=e.target.closest&&e.target.c
 document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-lineup]');if(b)setLineupTeam(b.getAttribute('data-lineup'));});
 document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-final]');if(b)openBox(b.getAttribute('data-id'),b.getAttribute('data-final'));});
 $('navRoster').addEventListener('click',function(){setView('roster');});
-$('plClose').addEventListener('click',function(){$('plModal').classList.remove('show');});
-$('plModal').addEventListener('click',function(e){if(e.target===this)this.classList.remove('show');});
-$('bxClose').addEventListener('click',function(){$('bxModal').classList.remove('show');});
-$('bxModal').addEventListener('click',function(e){if(e.target===this)this.classList.remove('show');});
+function syncBg(){document.body.classList.toggle('noscroll',!!document.querySelector('.modal.show'));}
+$('plClose').addEventListener('click',function(){$('plModal').classList.remove('show');syncBg();});
+$('plModal').addEventListener('click',function(e){if(e.target===this){this.classList.remove('show');syncBg();}});
+$('bxClose').addEventListener('click',function(){$('bxModal').classList.remove('show');syncBg();});
+$('bxModal').addEventListener('click',function(e){if(e.target===this){this.classList.remove('show');syncBg();}});
 connect();loadSched();loadRoster();</script></body></html>`;
