@@ -2040,8 +2040,8 @@ body.noscroll{overflow:hidden;}
 .navb{flex:1;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.05em;font-size:12.5px;padding:11px;border-radius:12px;border:1px solid var(--line);color:var(--mute);background:var(--bayou2);cursor:pointer;}
 .navb.on{color:#fff;background:linear-gradient(180deg,var(--purple),var(--gator2));border-color:var(--purple);}
 .rmeta{font-size:10.5px;letter-spacing:.04em;color:var(--mute);margin:0 4px 12px;}
+#sbMeta{text-align:center;}
 .sbdate{font-family:'Oswald',sans-serif;font-weight:700;font-size:17px;letter-spacing:.03em;text-transform:uppercase;color:var(--gold2);}
-.sbupd{color:var(--mute);}
 .pcard{background:var(--bayou2);border:1px solid var(--line);border-radius:14px;padding:11px 13px;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;gap:12px;}
 .pnum{flex:none;width:40px;height:40px;border-radius:11px;background:linear-gradient(180deg,var(--panel),var(--bayou2));border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-weight:700;font-size:17px;color:var(--gator);}
 .pmain{flex:1;min-width:0;}
@@ -2445,7 +2445,7 @@ function renderStandings(d){
         +'<td>'+x.w+'</td><td>'+x.l+'</td><td>'+fmtPct(x.pct)+'</td><td>'+fmtGb(x.gb)+'</td><td>'+sk+'</td></tr>';
     });
     $('standingsBody').innerHTML=h+'</table></div>';
-    $('stMeta').textContent=d.updatedAt?('Updated '+agoTxt(d.updatedAt)):'';
+    $('stMeta').textContent='';
   }
   renderScoreboard(d&&d.scoreboard,d&&d.gatorsId);
 }
@@ -2464,7 +2464,7 @@ function sbTeamRow(t,win,isGt,showScore){
 function renderScoreboard(sb,gatorsId){
   var games=(sb&&sb.games)||[];
   $('sbSec').style.display='';
-  $('sbMeta').innerHTML='<span class="sbdate">'+esc((sb&&sb.dateLabel)||'')+'</span>'+(sb&&sb.updatedAt?('<span class="sbupd"> · updated '+esc(agoTxt(sb.updatedAt))+'</span>'):'');
+  $('sbMeta').innerHTML='<span class="sbdate">'+esc((sb&&sb.dateLabel)||'')+'</span>';
   if(!games.length){$('scoreboardBody').innerHTML='<div class="note">No league games scheduled for this day.</div>';return;}
   var h='';
   games.forEach(function(g){
