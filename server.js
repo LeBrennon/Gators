@@ -233,7 +233,7 @@ function parseLeagueScoreboard(html, dateStr) {
     seen.add(link.id);
     const cls = classify(chunk);
     out.push({ id: link.id, date: link.date, state: cls.state, status: cls.status,
-      isGators: t.away.id === GATORS_ID || t.home.id === GATORS_ID,
+      isGators: t.away.id === GATORS_ID || t.home.id === GATORS_ID, url: boxscoreUrl(link.id),
       away: { id: t.away.id, short: t.away.short, logo: t.away.logo, score: t.away.score },
       home: { id: t.home.id, short: t.home.short, logo: t.home.logo, score: t.home.score } });
   }
@@ -1874,7 +1874,8 @@ body.noscroll{overflow:hidden;}
 .sttbl tr.stg td{background:rgba(157,92,255,.16);}
 .sttbl tr.stg .stteam{color:var(--gator);font-weight:700;}
 .sttbl tr.stg td:first-child{color:var(--gator);}
-.sbg{display:flex;align-items:center;gap:10px;background:var(--bayou2);border:1px solid var(--line);border-radius:12px;padding:10px 13px;margin-bottom:8px;}
+.sbg{display:flex;align-items:center;gap:10px;background:var(--bayou2);border:1px solid var(--line);border-radius:12px;padding:10px 13px;margin-bottom:8px;color:inherit;text-decoration:none;cursor:pointer;transition:border-color .15s,background .15s;}
+a.sbg:hover{border-color:var(--purple);background:rgba(157,92,255,.14);}
 .sbg.g{border-color:var(--purple);background:rgba(157,92,255,.10);}
 .sbteams{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;}
 .sbrow{display:flex;align-items:center;gap:9px;}
@@ -2233,9 +2234,10 @@ function renderScoreboard(sb,gatorsId){
     var aw=fin&&g.away.score!=null&&g.home.score!=null&&g.away.score>g.home.score;
     var hw=fin&&g.away.score!=null&&g.home.score!=null&&g.home.score>g.away.score;
     var st=g.state==='live'?'live':g.state==='final'?'final':'';
-    h+='<div class="sbg'+(g.isGators?' g':'')+'">'
+    var tag=g.url?'a':'div',attr=g.url?(' href="'+esc(g.url)+'" target="_blank" rel="noopener"'):'';
+    h+='<'+tag+' class="sbg'+(g.isGators?' g':'')+'"'+attr+'>'
       +'<div class="sbteams">'+sbTeamRow(g.away,aw,g.away.id===gatorsId)+sbTeamRow(g.home,hw,g.home.id===gatorsId)+'</div>'
-      +'<div class="sbstat '+st+'">'+esc(sbStatus(g))+'</div></div>';
+      +'<div class="sbstat '+st+'">'+esc(sbStatus(g))+'</div></'+tag+'>';
   });
   $('scoreboardBody').innerHTML=h;
 }
