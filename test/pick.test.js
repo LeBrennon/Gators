@@ -1,71 +1,83 @@
 'use strict';
-// Tests for pick(): which game is featured. A finished game stays featured
-// until 10am Central the day after it was played, then the next scheduled
-// game takes over. A live game always wins; a pinned game (not exercised here)
-// wins above all.
+// Tests for pick(): which game is featured. A finished game stays featured for
+// 10 hours after it ended — anchored to when we first observe it final, or, as
+// a cold-start fallback, an assumed ~10pm Central end on the game date. A live
+// game always wins; a pinned game (not exercised here) wins above all.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { pick, finalIsFresh, nextYmd } = require('../server');
+const { pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs } = require('../server');
 
+const HOUR = 3600 * 1000;
 const final = (id, date) => ({ id, date, sortKey: +date, state: 'final', away: {}, home: {} });
 const sched = (id, date) => ({ id, date, sortKey: +date, state: 'scheduled', away: {}, home: {} });
 const live  = (id, date) => ({ id, date, sortKey: +date, state: 'live', away: {}, home: {} });
+function reset() { for (const k of Object.keys(finalSeenAt)) delete finalSeenAt[k]; }
 
-test('nextYmd: rolls day, month, and year', () => {
-  assert.equal(nextYmd('20260621'), '20260622');
-  assert.equal(nextYmd('20260630'), '20260701');
-  assert.equal(nextYmd('20261231'), '20270101');
+test('assumedEndMs: ~10pm CDT is 03:00 UTC next day', () => {
+  assert.equal(assumedEndMs('20260621'), Date.UTC(2026, 5, 22, 3, 0, 0));
 });
 
-test('finalIsFresh: same day the game was played', () => {
-  assert.equal(finalIsFresh('20260621', { ymd: '20260621', hour: 23 }), true);
+test('finalIsFresh: within 10h of the observed end is fresh', () => {
+  reset();
+  const end = Date.UTC(2026, 5, 22, 2, 0, 0); // 9pm CDT
+  finalSeenAt['g'] = end;
+  assert.equal(finalIsFresh(final('g', '20260621'), end + 9 * HOUR), true);
+  assert.equal(finalIsFresh(final('g', '20260621'), end + 10 * HOUR), false);
+  assert.equal(finalIsFresh(final('g', '20260621'), end + 10 * HOUR - 1), true);
 });
 
-test('finalIsFresh: next day before 10am is still fresh', () => {
-  assert.equal(finalIsFresh('20260621', { ymd: '20260622', hour: 9 }), true);
+test('finalIsFresh: with no stamp, falls back to assumed ~10pm end', () => {
+  reset();
+  const g = final('g', '20260621');
+  const end = assumedEndMs('20260621');
+  assert.equal(finalIsFresh(g, end + 5 * HOUR), true);
+  assert.equal(finalIsFresh(g, end + 11 * HOUR), false);
 });
 
-test('finalIsFresh: next day at/after 10am is stale', () => {
-  assert.equal(finalIsFresh('20260621', { ymd: '20260622', hour: 10 }), false);
-  assert.equal(finalIsFresh('20260621', { ymd: '20260622', hour: 14 }), false);
+test('noteFinals: stamps the first time a game is seen final, then leaves it', () => {
+  reset();
+  const list = [final('g', '20260621')];
+  noteFinals(list, 1000);
+  noteFinals(list, 5000); // later observation must not overwrite
+  assert.equal(finalSeenAt['g'], 1000);
 });
 
-test('finalIsFresh: two days later is stale', () => {
-  assert.equal(finalIsFresh('20260621', { ymd: '20260623', hour: 1 }), false);
-});
-
-test('pick: keeps the final featured the night it ends, over an upcoming game', () => {
+test('pick: keeps the final featured right after it ends, over an upcoming game', () => {
+  reset();
   const list = [final('f1', '20260621'), sched('s1', '20260623')];
-  const chosen = pick(list, { ymd: '20260621', hour: 22 });
-  assert.equal(chosen.id, 'f1');
+  const end = Date.UTC(2026, 5, 22, 2, 0, 0);
+  noteFinals(list, end);
+  assert.equal(pick(list, end + 2 * HOUR).id, 'f1');
 });
 
-test('pick: still shows the final next morning before 10am', () => {
+test('pick: switches to the upcoming game 10 hours after the final', () => {
+  reset();
   const list = [final('f1', '20260621'), sched('s1', '20260623')];
-  const chosen = pick(list, { ymd: '20260622', hour: 8 });
-  assert.equal(chosen.id, 'f1');
-});
-
-test('pick: switches to the upcoming game at 10am the next day', () => {
-  const list = [final('f1', '20260621'), sched('s1', '20260623')];
-  const chosen = pick(list, { ymd: '20260622', hour: 10 });
-  assert.equal(chosen.id, 's1');
+  const end = Date.UTC(2026, 5, 22, 2, 0, 0);
+  noteFinals(list, end);
+  assert.equal(pick(list, end + 10 * HOUR).id, 's1');
 });
 
 test('pick: a live game beats a sticky final', () => {
+  reset();
   const list = [final('f1', '20260621'), live('lv', '20260622')];
-  const chosen = pick(list, { ymd: '20260622', hour: 9 });
-  assert.equal(chosen.id, 'lv');
+  const end = Date.UTC(2026, 5, 22, 2, 0, 0);
+  noteFinals(list, end);
+  assert.equal(pick(list, end + 1 * HOUR).id, 'lv');
 });
 
 test('pick: the most recent fresh final wins among several', () => {
+  reset();
   const list = [final('old', '20260620'), final('new', '20260621')];
-  const chosen = pick(list, { ymd: '20260621', hour: 20 });
-  assert.equal(chosen.id, 'new');
+  const t = Date.UTC(2026, 5, 22, 1, 0, 0);
+  noteFinals(list, t);
+  assert.equal(pick(list, t + 1 * HOUR).id, 'new');
 });
 
-test('pick: falls back to the latest final when nothing is scheduled and all are stale', () => {
-  const list = [final('f1', '20260601'), final('f2', '20260602')];
-  const chosen = pick(list, { ymd: '20260620', hour: 12 });
-  assert.equal(chosen.id, 'f2');
+test('pick: cold-start fallback keeps a recent final up without a stamp', () => {
+  reset(); // no noteFinals — simulates a restart
+  const list = [final('f1', '20260621'), sched('s1', '20260623')];
+  const end = assumedEndMs('20260621');
+  assert.equal(pick(list, end + 3 * HOUR).id, 'f1'); // still within 10h
+  assert.equal(pick(list, end + 11 * HOUR).id, 's1'); // past the window
 });
