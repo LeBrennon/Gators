@@ -82,6 +82,21 @@ function bsLineTeams(lineHtml) {
   }
   return names;
 }
+// Position of a Hitters-table row, read from the <span> in the player cell.
+function bsRowPos(row) {
+  const cell = (row.match(/<t[dh]\b[\s\S]*?<\/t[dh]>/i) || [''])[0];
+  const m = cell.match(/<span\b[^>]*>([^<]*)<\/span>/i);
+  return m ? m[1].trim().toLowerCase() : '';
+}
+// With a DH the pitcher never bats, so drop their (0-for-0) hitting rows from
+// the Hitters table. Left alone when there's no DH (pitcher actually batted).
+function bsDropPitchers(tableHtml) {
+  const rows = tableHtml.match(/<tr\b[\s\S]*?<\/tr>/gi) || [];
+  if (!rows.some(r => bsRowPos(r) === 'dh')) return tableHtml;
+  let out = tableHtml;
+  for (const r of rows) if (bsRowPos(r) === 'p') out = out.replace(r, '');
+  return out;
+}
 function parseBoxscore(html) {
   const tables = html.match(/<table\b[\s\S]*?<\/table>/gi) || [];
   let line = null; const batting = [], pitching = [], pbp = [], types = [];
@@ -92,7 +107,7 @@ function parseBoxscore(html) {
       type = 'pbp';
       const m = tx.match(/(.*?(?:Top|Bottom) of .*?Inning)/i);
       pbp.push({ title: m ? m[1].trim() : 'Inning', html: bsClean(t) });
-    } else if (/\bHitters\b/i.test(tx)) { type = 'batting'; batting.push(bsClean(t)); }
+    } else if (/\bHitters\b/i.test(tx)) { type = 'batting'; batting.push(bsDropPitchers(bsClean(t))); }
     else if (/\bPitchers\b/i.test(tx)) { type = 'pitching'; pitching.push(bsClean(t)); }
     else if (/^Final\b/i.test(tx) && /\bR\b/.test(tx) && !line) { type = 'line'; line = bsClean(t); }
     types.push({ type, head: tx.slice(0, 60) });

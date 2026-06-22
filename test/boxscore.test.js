@@ -72,6 +72,31 @@ test('parseBoxscore: empty input yields empty buckets, no crash', () => {
   assert.deepEqual(r.counts, { tables: 0, line: 0, batting: 0, pitching: 0, pbp: 0 });
 });
 
+test('parseBoxscore: drops the pitcher hitting row when there is a DH', () => {
+  const html = `
+    <table>
+      <tr><th>Hitters</th><th>AB</th><th>H</th></tr>
+      <tr><th><div><span>cf</span> Ayden Sunday</div></th><td>4</td><td>2</td></tr>
+      <tr><th><div><span>dh</span> Easton Culp</div></th><td>4</td><td>1</td></tr>
+      <tr><th><div><span>p</span> Jack Garcille</div></th><td>0</td><td>0</td></tr>
+    </table>`;
+  const batting = parseBoxscore(html).box.find(b => /Batting/.test(b.label)).html;
+  assert.match(batting, /Ayden Sunday/);
+  assert.match(batting, /Easton Culp/);
+  assert.doesNotMatch(batting, /Jack Garcille/);
+});
+
+test('parseBoxscore: keeps the pitcher hitting row when there is no DH (pitcher batted)', () => {
+  const html = `
+    <table>
+      <tr><th>Hitters</th><th>AB</th></tr>
+      <tr><th><div><span>cf</span> Ayden Sunday</div></th><td>4</td></tr>
+      <tr><th><div><span>p</span> Jack Garcille</div></th><td>3</td></tr>
+    </table>`;
+  const batting = parseBoxscore(html).box.find(b => /Batting/.test(b.label)).html;
+  assert.match(batting, /Jack Garcille/);
+});
+
 test('parseBoxscore: without a line score, box sections fall back to "Team N"', () => {
   const noLine = `
     <table><tr><th>Visitors Hitters</th></tr><tr><td>Player A</td></tr></table>
