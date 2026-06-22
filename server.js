@@ -1826,7 +1826,7 @@ background:radial-gradient(1100px 550px at 50% -10%,rgba(111,79,212,.10),transpa
 .topbar .shopbtn{justify-self:end;}
 .gglogo{width:170px;max-width:100%;height:auto;object-fit:contain;}
 .hdrlogo{height:48px;width:48px;object-fit:contain;border-radius:11px;flex:none;}
-.hdrlogo.tcl{background:#fff;padding:5px;box-shadow:0 3px 10px -3px rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.7);}
+.hdrlogo.tcl{width:60px;height:60px;background:#fff;padding:5px;box-shadow:0 3px 10px -3px rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.7);}
 .lead{font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:.06em;font-size:20px;text-transform:uppercase;background:linear-gradient(90deg,var(--gold2),var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent;}
 .sub{font-size:9.5px;letter-spacing:.28em;color:var(--mute);text-transform:uppercase;font-weight:600;margin-top:3px;}
 .chip{margin-left:auto;display:flex;align-items:center;gap:7px;font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);background:rgba(242,183,5,.1);border:1px solid rgba(242,183,5,.3);padding:6px 10px;border-radius:999px;}
