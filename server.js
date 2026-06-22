@@ -557,6 +557,10 @@ async function pollSchedule() {
     else if (!games.length) games = parsed;
     else process.stdout.write('\r[poll] kept ' + games.length + ' cached games (empty parse)        ');
     await refreshFeatured();
+    try {
+      const date = (featured && featured.date) || todayCentralYmd();
+      await refreshLeagueLiveScores(parseLeagueScoreboard(lastHtml, date), featured && featured.id);
+    } catch (e) { /* board still works from schedule scores */ }
   } catch (err) { process.stdout.write('\r[poll error] ' + err.message + '        '); }
 }
 // For a live game, pull the league's live feed for the at-bat situation
@@ -576,6 +580,50 @@ async function enrichLive(norm) {
     if (lf && lf.plays && lf.plays.length) norm.plays = lf.plays;
     if (lf && lf.lineups && lf.lineups.length) norm.lineups = lf.lineups;
   } catch (e) { /* keep score-only view if the feed is unavailable */ }
+}
+// Live scores for in-progress NON-featured league games, refreshed each scrape
+// so the around-the-league board shows real scores (the schedule reads 0-0
+// mid-game). Auth is cached per game, so each refresh is one light feed request.
+const liveScoreCache = {}; // id -> { away, home, at }
+const LEAGUE_LIVE_CAP = 10; // safety cap on live-game feeds fetched per cycle
+async function refreshLeagueLiveScores(board, featuredId) {
+  const live = board.filter(g => g.state === 'live' && g.id !== featuredId);
+  if (live.length > LEAGUE_LIVE_CAP)
+    process.stdout.write('\r[league-live] ' + live.length + ' live games; refreshing first ' + LEAGUE_LIVE_CAP + '        ');
+  for (const g of live.slice(0, LEAGUE_LIVE_CAP)) {
+    try {
+      const lf = await fetchLiveForGame(g.id);
+      if (lf && lf.teams && lf.teams.length) {
+        const v = lf.teams.find(t => t.vh === 'V'), h = lf.teams.find(t => t.vh === 'H');
+        const num = x => (x && x.runs != null && x.runs !== '') ? (Number(x.runs) || 0) : null;
+        liveScoreCache[g.id] = { away: num(v), home: num(h), at: Date.now() };
+      }
+    } catch (e) { /* keep the last cached score for this game */ }
+  }
+}
+// Overlay live scores onto in-progress games (the featured game's own live data,
+// or the league-live cache); finals keep their authoritative schedule score and
+// shed any stale cache entry.
+function applyLiveScores(games, feat) {
+  for (const g of games) {
+    if (g.state === 'final') { delete liveScoreCache[g.id]; continue; }
+    if (g.state !== 'live') continue;
+    if (feat && g.id === feat.id) {
+      if (feat.away && feat.away.runs != null) g.away.score = feat.away.runs;
+      if (feat.home && feat.home.runs != null) g.home.score = feat.home.runs;
+    } else {
+      const c = liveScoreCache[g.id];
+      if (c) { if (c.away != null) g.away.score = c.away; if (c.home != null) g.home.score = c.home; }
+    }
+  }
+  return games;
+}
+// Around-the-league board for the featured game's day, live scores overlaid.
+// Pure read of cached data — no network.
+function buildLeagueBoard() {
+  const date = (featured && featured.date) || todayCentralYmd();
+  const games = lastHtml ? applyLiveScores(parseLeagueScoreboard(lastHtml, date), featured) : [];
+  return { date, dateLabel: dateFromId(date).label, updatedAt: lastFetchAt, games };
 }
 // Recompute the featured game from the cached schedule, enrich it if live, and
 // broadcast. Used by both the schedule poll and the tighter live poll.
@@ -1350,10 +1398,7 @@ app.get('/api/standings', (_q, r) => {
   }).sort((a, b) => b.pct - a.pct || b.w - a.w || a.l - b.l);
   const lead = rows[0];
   for (const x of rows) x.gb = lead ? ((lead.w - x.w) + (x.l - lead.l)) / 2 : 0;
-  const sbDate = (featured && featured.date) || todayCentralYmd();
-  const sbGames = lastHtml ? parseLeagueScoreboard(lastHtml, sbDate) : [];
-  const scoreboard = { date: sbDate, dateLabel: dateFromId(sbDate).label, updatedAt: lastFetchAt, games: sbGames };
-  r.json({ updatedAt: standingsAt, gatorsId: GATORS_ID, rows, scoreboard });
+  r.json({ updatedAt: standingsAt, gatorsId: GATORS_ID, rows, scoreboard: buildLeagueBoard() });
 });
 app.get('/debug/extras', (_q, r) => {
   const sample = games.filter(g => g.state === 'live' || g.state === 'scheduled').slice(0, 4)
@@ -1531,7 +1576,7 @@ if (require.main === module) {
   app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleDailyRoster(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); pollPhotos(); setInterval(pollPhotos, 24 * 60 * 60 * 1000); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, extractEventAuth,
-  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseGameLog, ticketCandidates, parseLeagueScoreboard, todayCentralYmd };
+  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseGameLog, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [

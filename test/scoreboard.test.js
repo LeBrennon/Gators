@@ -4,7 +4,7 @@
 // status, and live-before-final-before-scheduled ordering (Gators first).
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { parseLeagueScoreboard } = require('../server');
+const { parseLeagueScoreboard, applyLiveScores, liveScoreCache } = require('../server');
 
 const GATORS = 'et1bt9sixrz5lnnl';
 const CANE   = 'cz8qei0rxijys6nm';
@@ -61,4 +61,41 @@ test('parseLeagueScoreboard: Gators game sorts first within the day', () => {
 
 test('parseLeagueScoreboard: no games on an empty day', () => {
   assert.deepEqual(parseLeagueScoreboard(HTML, '20260101'), []);
+});
+
+// applyLiveScores: overlay live scores onto in-progress games, keep finals.
+function game(id, state, aScore, hScore) {
+  return { id, state, away: { id: 'a', short: 'A', score: aScore }, home: { id: 'h', short: 'H', score: hScore } };
+}
+
+test('applyLiveScores: live non-featured game takes its cached live score', () => {
+  for (const k of Object.keys(liveScoreCache)) delete liveScoreCache[k];
+  liveScoreCache['L1'] = { away: 6, home: 4, at: 1 };
+  const out = applyLiveScores([game('L1', 'live', 0, 0)], null);
+  assert.equal(out[0].away.score, 6);
+  assert.equal(out[0].home.score, 4);
+});
+
+test('applyLiveScores: final game keeps its schedule score and clears the cache', () => {
+  for (const k of Object.keys(liveScoreCache)) delete liveScoreCache[k];
+  liveScoreCache['F1'] = { away: 2, home: 2, at: 1 }; // stale from when it was live
+  const out = applyLiveScores([game('F1', 'final', 7, 5)], null);
+  assert.equal(out[0].away.score, 7);
+  assert.equal(out[0].home.score, 5);
+  assert.equal(liveScoreCache['F1'], undefined); // stale entry shed
+});
+
+test('applyLiveScores: featured live game uses the featured runs, not the cache', () => {
+  for (const k of Object.keys(liveScoreCache)) delete liveScoreCache[k];
+  const feat = { id: 'GAME', away: { runs: 10 }, home: { runs: 9 } };
+  const out = applyLiveScores([game('GAME', 'live', 0, 0)], feat);
+  assert.equal(out[0].away.score, 10);
+  assert.equal(out[0].home.score, 9);
+});
+
+test('applyLiveScores: live game with no cached score is left untouched', () => {
+  for (const k of Object.keys(liveScoreCache)) delete liveScoreCache[k];
+  const out = applyLiveScores([game('L2', 'live', 0, 0)], null);
+  assert.equal(out[0].away.score, 0);
+  assert.equal(out[0].home.score, 0);
 });
