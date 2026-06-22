@@ -997,18 +997,22 @@ function parseGameLog(tables) {
       const get = k => { const j = idx(k); return (j >= 0 && c[j] != null) ? bsText(c[j]) : ''; };
       const num = v => v && v !== '-' && v !== '';
       const date = bsText(c[0]), opp = bsText(c[1]), score = bsText(c[2]);
+      // Game-log rows link to the box score (in the Score cell); surface that URL
+      // so the date can deep-link to the game on PrestoSports.
+      const bm = rows[i].match(/\/boxscores\/(\d{8}_[a-z0-9]+)\.xml/i);
+      const boxUrl = bm ? boxscoreUrl(bm[1]) : '';
       if (isPit) {
         const ip = get('ip'), h = get('h'), r = get('r'), er = get('er'), bb = get('bb'), k = get('k');
         // Only games the pitcher actually appeared in: recorded outs, or faced
         // batters (a hit/run/walk/strikeout). Skips listed-but-didn't-pitch rows.
         const appeared = ipToOuts(ip) > 0 || [h, r, er, bb, k].some(v => NUM(v) > 0);
         if (!appeared) continue;
-        pit.push({ date, opp, score, ip, h, r, er, bb, k, era: get('era') });
+        pit.push({ date, opp, score, ip, h, r, er, bb, k, era: get('era'), boxUrl });
       } else {
         const pa = get('pa'), ab = get('ab');
         if (!num(pa) && !num(ab)) continue;
         if ((pa === '0' || pa === '') && (ab === '0' || ab === '')) continue;
-        bat.push({ date, opp, score, ab, h: get('h'), hr: get('hr'), rbi: get('rbi'), bb: get('bb'), k: get('k'), avg: get('avg') });
+        bat.push({ date, opp, score, ab, h: get('h'), hr: get('hr'), rbi: get('rbi'), bb: get('bb'), k: get('k'), avg: get('avg'), boxUrl });
       }
     }
   }
@@ -2068,6 +2072,8 @@ body.noscroll{overflow:hidden;}
 .scell .l{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin-top:4px;}
 .scell .rk{font-size:8.5px;color:var(--gold);margin-top:2px;}
 .gltbl{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.gltbl a.gld{color:var(--gold2);text-decoration:none;font-weight:600;}
+.gltbl a.gld:hover{text-decoration:underline;}
 .gltbl table{width:100%;border-collapse:collapse;font-size:11px;white-space:nowrap;}
 .gltbl th{color:var(--mute);font-weight:700;text-transform:uppercase;font-size:9px;padding:6px 8px;border-bottom:1px solid var(--line);}
 .gltbl td{padding:6px 8px;text-align:center;border-bottom:1px solid var(--line);font-family:'JetBrains Mono',monospace;color:var(--bone);}
@@ -2600,7 +2606,8 @@ function glTable(rows,cols){
   for(var i=0;i<cols.length;i++)h+='<th>'+cols[i][1]+'</th>';
   h+='</tr>';
   for(var j=0;j<rows.length;j++){var g=rows[j];
-    h+='<tr><td>'+esc(g.date)+'</td><td>'+esc(oppShort(g.opp))+'</td>';
+    var dt=g.boxUrl?('<a class="gld" href="'+esc(g.boxUrl)+'" target="_blank" rel="noopener">'+esc(g.date)+'</a>'):esc(g.date);
+    h+='<tr><td>'+dt+'</td><td>'+esc(oppShort(g.opp))+'</td>';
     for(var i2=0;i2<cols.length;i2++){var v=g[cols[i2][0]];h+='<td>'+((v==null||v===''||v==='-')?'·':esc(v))+'</td>';}
     h+='</tr>';
   }
