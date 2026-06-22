@@ -1677,15 +1677,6 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .mvs{text-align:center;font-family:'Oswald',sans-serif;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin:1px 0;}
 .finalcard{display:flex;flex-direction:column;align-items:center;gap:13px;padding:6px 0 2px;}
 .finalhd{font-family:'Oswald',sans-serif;font-weight:700;font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold2);}
-.fsc{width:100%;max-width:330px;display:flex;flex-direction:column;gap:8px;}
-.fsrow{display:flex;align-items:center;gap:10px;padding:9px 13px;border-radius:11px;background:var(--bayou2);border:1px solid var(--line);}
-.fsrow.w{border-color:var(--purple);background:rgba(157,92,255,.10);}
-.fl{width:30px;height:30px;border-radius:6px;object-fit:contain;background:#16102b;border:1px solid var(--line);flex:none;}
-.fl:not(.g){background:#fff;padding:3px;border-color:rgba(255,255,255,.5);}
-.fnm{flex:1;min-width:0;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.02em;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.fpts{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:21px;color:var(--mute);min-width:28px;text-align:right;}
-.fsrow.w .fnm{color:var(--bone);}
-.fsrow.w .fpts{color:var(--gold2);}
 .finalbtns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;}
 .fbtn{font-family:'Oswald',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:11px;padding:9px 16px;border-radius:999px;border:1px solid var(--purple);background:linear-gradient(180deg,var(--purple),var(--gator2));color:#fff;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;}
 .fbtn.rep{border-color:rgba(242,183,5,.5);background:linear-gradient(180deg,var(--gold2),var(--gold));color:#1a1330;}
@@ -1914,7 +1905,6 @@ function renderGame(g){
   var wb=$('watchBtn');
   if(wb){
     if(g.watchUrl){wb.href=g.watchUrl;wb.textContent='Watch on TCL';wb.classList.remove('replay');wb.style.display='';}
-    else if(g.state==='final'&&g.replayUrl){wb.href=g.replayUrl;wb.textContent='Full Replay';wb.classList.add('replay');wb.style.display='';}
     else{wb.style.display='none';}
   }
   var tk=$('ticketBtn');
@@ -1962,20 +1952,11 @@ function buildLive(g){
 // score with the winner emphasized, and buttons into the box score / play-by-play.
 function buildFinal(g){
   if(g.status!=='final')return '';
-  var a=g.away,h=g.home;
-  var ar=a.runs==null?null:+a.runs, hr=h.runs==null?null:+h.runs;
-  var aw=ar!=null&&hr!=null&&ar>hr, hw=ar!=null&&hr!=null&&hr>ar;
   var banner=(g.inningLabel&&/final/i.test(g.inningLabel))?g.inningLabel:'Final';
-  function frow(t,won,isG){
-    var lg=t.logo?'<img class="fl'+(isG?' g':'')+'" src="'+esc(t.logo)+'" alt="">':'<span class="fl'+(isG?' g':'')+'"></span>';
-    return '<div class="fsrow'+(won?' w':'')+'">'+lg+'<span class="fnm">'+esc(t.short||'')+'</span>'
-      +'<span class="fpts">'+esc(String(t.runs==null?'':t.runs))+'</span></div>';
-  }
   var btns='<button class="fbtn" data-final="box" data-id="'+esc(g.id)+'">Box Score</button>'
     +'<button class="fbtn" data-final="pbp" data-id="'+esc(g.id)+'">Play-by-Play</button>'
     +(g.replayUrl?('<a class="fbtn rep" href="'+esc(g.replayUrl)+'" target="_blank" rel="noopener">Watch Replay</a>'):'');
   return '<div class="finalcard"><div class="finalhd">'+esc(banner)+'</div>'
-    +'<div class="fsc">'+frow(a,aw,!g.gatorsHome)+frow(h,hw,g.gatorsHome)+'</div>'
     +'<div class="finalbtns">'+btns+'</div></div>';
 }
 function buildLineScore(g){
