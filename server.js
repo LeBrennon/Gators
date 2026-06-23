@@ -2099,6 +2099,10 @@ module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, s
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
+"self.addEventListener('install',function(){self.skipWaiting();});",
+"self.addEventListener('activate',function(e){e.waitUntil(self.clients.claim());});",
+// Pass-through fetch handler: present so Chrome considers the app installable.
+"self.addEventListener('fetch',function(e){});",
 "self.addEventListener('push',function(e){var d={title:'Gators',body:''};try{d=e.data.json();}catch(x){}",
 "e.waitUntil(self.registration.showNotification(d.title||'Gators',{body:d.body||'',tag:d.tag||'g',renotify:true,icon:'icon.png',badge:'icon.png',vibrate:[80,40,80]}));});",
 "self.addEventListener('notificationclick',function(e){e.notification.close();e.waitUntil(clients.matchAll({type:'window',includeUncontrolled:true}).then(function(l){for(var i=0;i<l.length;i++){if('focus'in l[i])return l[i].focus();}if(clients.openWindow)return clients.openWindow('./');}));});"
@@ -2992,12 +2996,12 @@ $('bxClose').addEventListener('click',function(){$('bxModal').classList.remove('
 $('bxModal').addEventListener('click',function(e){if(e.target===this){this.classList.remove('show');syncBg();}});
 // ---- Add to Home Screen prompt (Android install prompt; iOS shows how-to) ----
 (function(){
+  if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});
   var dp=null,b=$('a2hs');
   function standalone(){return window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;}
   function isIOS(){return /iphone|ipad|ipod/i.test(navigator.userAgent)&&!window.MSStream;}
   function dismissed(){try{return localStorage.getItem('a2hsX')==='1';}catch(e){return false;}}
-  function touch(){return window.matchMedia('(pointer: coarse)').matches;}
-  function show(){if(b&&!standalone()&&!dismissed()&&touch())b.classList.add('show');}
+  function show(){if(b&&!standalone()&&!dismissed())b.classList.add('show');}
   function hide(){if(b)b.classList.remove('show');}
   window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();dp=e;$('a2hsadd').style.display='';show();});
   window.addEventListener('appinstalled',function(){hide();dp=null;try{localStorage.setItem('a2hsX','1');}catch(e){}});
