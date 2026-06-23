@@ -1895,7 +1895,7 @@ const APP = `<!DOCTYPE html>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@500;600;700&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
 <style>
-:root{--bayou:#16102b;--bayou2:#1e1640;--panel:#2b1e5c;--line:#41327a;--gator:#b9a6ee;--gator2:#4e3191;--purple:#714ad2;--gold:#ecc913;--gold2:#fcef9d;--bone:#f0ede4;--mute:#9a8cc4;--away:#e0524a;}
+:root{--bayou:#16102b;--bayou2:#1e1640;--panel:#2b1e5c;--line:#41327a;--gator:#b9a6ee;--gator2:#4e3191;--purple:#714ad2;--gold:#ecc913;--gold2:#ffd633;--bone:#f0ede4;--mute:#9a8cc4;--away:#e0524a;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html{margin:0;background:var(--bayou);}
 body{margin:0;font-family:'Inter',system-ui,sans-serif;color:var(--bone);min-height:100vh;
