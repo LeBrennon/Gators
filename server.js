@@ -2151,6 +2151,8 @@ body.noscroll{overflow:hidden;}
 .scell .v{font-family:'Oswald',sans-serif;font-weight:700;font-size:18px;color:var(--bone);line-height:1;}
 .scell .l{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin-top:4px;}
 .scell .rk{font-size:8.5px;color:var(--gold);margin-top:2px;}
+.ranklegend{margin-top:10px;font-size:10px;line-height:1.4;color:var(--mute);text-align:center;}
+.ranklegend b{color:var(--gold);font-weight:700;}
 .gltbl{overflow-x:auto;-webkit-overflow-scrolling:touch;}
 .gltbl a.gld{color:var(--gold2);text-decoration:none;font-weight:600;}
 .gltbl a.gld:hover{text-decoration:underline;}
@@ -2683,7 +2685,10 @@ function statBlocks(p){
   var batBlock=p.hit?('<div class="statblock"><h4 class="bat">Hitting</h4>'+sgrid(p.hit,p.hitRanks,hitDefs)+'</div>'):'';
   var pitBlock=p.pit?('<div class="statblock"><h4>Pitching</h4>'+sgrid(p.pit,p.pitRanks,[['era','ERA'],['whip','WHIP'],['ip','IP'],['w','W'],['l','L'],['sv','SV'],['app','APP'],['gs','GS'],['k','K'],['bb','BB'],['h','H'],['er','ER']])+'</div>'):'';
   if(!batBlock&&!pitBlock)return '<div class="statblock"><div class="plimited" style="padding:2px">Season stats will appear here once this player records game action.</div></div>';
-  return batBlock+pitBlock;
+  // Legend for the small gold rank under each stat — only when ranks are present.
+  var hasRanks=(p.hitRanks&&Object.keys(p.hitRanks).length)||(p.pitRanks&&Object.keys(p.pitRanks).length);
+  var legend=hasRanks?'<div class="ranklegend">The <b>gold number</b> under each stat is its rank in the Texas Collegiate League.</div>':'';
+  return batBlock+pitBlock+legend;
 }
 var plCur=null;
 var coachData=[];
