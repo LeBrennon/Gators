@@ -2369,6 +2369,7 @@ a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 .sbrow{display:flex;align-items:center;gap:9px;}
 .sbl{width:30px;height:30px;border-radius:6px;object-fit:contain;background:transparent;flex:none;}
 .sbn{flex:1;min-width:0;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.02em;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sbrec{margin-left:5px;font-weight:400;font-size:.82em;color:var(--mute);opacity:.85;}
 .sbs{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:16px;color:var(--mute);min-width:20px;text-align:right;}
 .sbrow.w .sbn{color:var(--bone);}
 .sbrow.w .sbs{color:var(--gold2);}
@@ -2705,6 +2706,7 @@ function fmtPct(p){if(p==null)return '';var s=p.toFixed(3);return p<1?s.replace(
 function fmtGb(g){if(g==null||g===0)return '—';return (g%1)?g.toFixed(1):String(g);}
 function renderStandings(d){
   var rows=(d&&d.rows)||[];
+  var recById={};rows.forEach(function(x){if(x.id)recById[x.id]=x.w+'-'+x.l;});
   if(!rows.length){$('standingsBody').innerHTML='<div class="note">Standings aren’t available yet — check back shortly.</div>';$('stMeta').textContent='';}
   else{
     var h='<div class="gltbl sttbl"><table><tr><th>#</th><th>Team</th><th>W</th><th>L</th><th>PCT</th><th>GB</th><th>STRK</th></tr>';
@@ -2721,7 +2723,7 @@ function renderStandings(d){
     $('standingsBody').innerHTML=h+'</table></div>';
     $('stMeta').textContent='';
   }
-  renderScoreboard(d&&d.scoreboard,d&&d.gatorsId);
+  renderScoreboard(d&&d.scoreboard,d&&d.gatorsId,recById);
 }
 function sbScore(v){return (v==null||v==='')?'':v;}
 function sbStatus(g){
@@ -2730,12 +2732,13 @@ function sbStatus(g){
   if(g.state==='postponed'||g.state==='cancelled'||g.state==='suspended')return g.status;
   return g.status||'Scheduled';
 }
-function sbTeamRow(t,win,isGt,showScore){
+function sbTeamRow(t,win,isGt,showScore,recById){
   var lg=t.logo?'<img class="sbl" src="'+esc(t.logo)+'" alt="">':'<span class="sbl"></span>';
   var sc=showScore?esc(String(sbScore(t.score))):'';
-  return '<div class="sbrow'+(win?' w':'')+(isGt?' gt':'')+'">'+lg+'<span class="sbn">'+esc(t.short||'')+'</span><span class="sbs">'+sc+'</span></div>';
+  var rec=(recById&&t.id&&recById[t.id])?('<span class="sbrec">('+esc(recById[t.id])+')</span>'):'';
+  return '<div class="sbrow'+(win?' w':'')+(isGt?' gt':'')+'">'+lg+'<span class="sbn">'+esc(t.short||'')+rec+'</span><span class="sbs">'+sc+'</span></div>';
 }
-function renderScoreboard(sb,gatorsId){
+function renderScoreboard(sb,gatorsId,recById){
   var games=(sb&&sb.games)||[];
   $('sbSec').style.display='';
   $('sbMeta').textContent=(sb&&sb.dateLabel)||'';
@@ -2749,7 +2752,7 @@ function renderScoreboard(sb,gatorsId){
     var showScore=g.state==='final'||g.state==='live';
     var tag=g.url?'a':'div',attr=g.url?(' href="'+esc(g.url)+'" target="_blank" rel="noopener"'):'';
     h+='<'+tag+' class="sbg'+(g.isGators?' g':'')+'"'+attr+'>'
-      +'<div class="sbteams">'+sbTeamRow(g.away,aw,g.away.id===gatorsId,showScore)+sbTeamRow(g.home,hw,g.home.id===gatorsId,showScore)+'</div>'
+      +'<div class="sbteams">'+sbTeamRow(g.away,aw,g.away.id===gatorsId,showScore,recById)+sbTeamRow(g.home,hw,g.home.id===gatorsId,showScore,recById)+'</div>'
       +'<div class="sbstat '+st+'">'+esc(sbStatus(g))+'</div></'+tag+'>';
   });
   $('scoreboardBody').innerHTML=h;
