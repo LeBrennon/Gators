@@ -1984,7 +1984,8 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .note b{color:var(--bone);font-weight:600;}
 .jloc{text-align:center;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:10px;color:var(--mute);}
 .jtheme{margin-top:6px;text-align:center;font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-size:10.5px;color:#1a1330;background:linear-gradient(180deg,var(--gold2),var(--gold));border-radius:999px;padding:4px 11px;line-height:1.2;}
-.jpromo{margin-top:6px;text-align:center;font-size:10.5px;color:var(--mute);line-height:1.35;max-width:280px;}
+.jpromos{display:flex;flex-direction:column;align-items:center;}
+.jpromo{margin-top:10px;text-align:center;font-size:10.5px;color:var(--mute);line-height:1.35;max-width:320px;}
 .jpromo b{color:var(--gold2);font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.03em;font-weight:700;}
 .jloc:empty{display:none;}
 .live{margin-top:14px;padding-top:14px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:13px;}
@@ -2198,9 +2199,10 @@ a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 <div class="jumbo">
 <div class="sl">
 <div class="tm" id="awayTm"><img id="awayLogo" alt=""><div class="nm" id="awayNm">—</div><div class="rec" id="awayRec"></div><div class="sc" id="awaySc">0</div></div>
-<div class="mid"><a class="watchpill" id="watchBtn" target="_blank" rel="noopener" style="display:none">Watch</a><div class="statpill" id="statpill">—</div><div class="vs" id="vs">vs</div><div class="jloc" id="jloc"></div><div class="jtheme" id="themeTag" style="display:none"></div><div class="jtheme" id="specialName" style="display:none"></div><div class="jpromo" id="specialDetail" style="display:none"></div><div class="jpromo" id="promoTag" style="display:none"></div></div>
+<div class="mid"><a class="watchpill" id="watchBtn" target="_blank" rel="noopener" style="display:none">Watch</a><div class="statpill" id="statpill">—</div><div class="vs" id="vs">vs</div><div class="jloc" id="jloc"></div><div class="jtheme" id="themeTag" style="display:none"></div><div class="jtheme" id="specialName" style="display:none"></div></div>
 <div class="tm" id="homeTm"><img id="homeLogo" alt=""><div class="nm" id="homeNm">—</div><div class="rec" id="homeRec"></div><div class="sc" id="homeSc">0</div></div>
 </div>
+<div class="jpromos"><div class="jpromo" id="specialDetail" style="display:none"></div><div class="jpromo" id="promoTag" style="display:none"></div></div>
 <div class="live" id="livePanel" style="display:none"></div>
 <a class="watchbtn ticket" id="ticketBtn" target="_blank" rel="noopener" style="display:none">Buy Tickets</a>
 </div>
