@@ -915,6 +915,17 @@ const ROSTER = [
   { num: 50, name: 'Ty Dagley',        slug: 'tydagleywril',         pos: 'P',       cls: 'Junior',       ht: '5-11', wt: '175', b: 'L', t: 'L', bday: '',           home: 'Katy, TX',         school: 'Lamar' },
 ];
 
+// Coaching staff (gumbeauxgators.com/coaches). Shown beneath the player roster;
+// bios/stats don't apply, so each is just a name + title (+ hometown when known).
+const COACHES = [
+  { num: 44, name: 'James Landreneau', title: 'Head Coach', home: 'Mamou, LA',
+    bio: `James Landreneau is the winningest coach in McNeese softball history, in his 14th season with the program and 10th as head coach, compiling a 339-181 overall record and a 163-41 mark in Southland Conference play. He reached his 300th career win on February 7, 2025, and became the program's all-time wins leader one week later. A four-time Southland Conference Coach of the Year, he has guided the Cowgirls to four consecutive regular-season titles (2022-2025) and three straight conference tournament championships (2021-2023), with multiple NCAA Regional runs and a program-record 47-win season in 2023. His son, Jaxon Landreneau, plays for the Gators.` },
+  { num: 32, name: 'Carl Labit', title: 'Pitching Coach', home: '',
+    bio: `Carl Labit, a Rummel graduate, spent several seasons as the pitching coach at De La Salle and last summer as the pitching coach for the Baton Rouge Rougarou. He hopes his expertise will help the Gators' young pitchers develop through the summer.` },
+  { num: 23, name: 'Connor Schneider', title: 'Hitting Coach', home: 'Papillion, NE',
+    bio: `Connor Schneider, a senior infielder at McNeese, joins the Gators coaching staff for the summer. From Papillion, Nebraska, he has been at McNeese for three years. As a junior in 2024 he started 12 of 13 games, recording 9 hits, 2 runs, a double and a stolen base, and earned a spot on the SLC Commissioner's Honor Roll.` },
+];
+
 // ---- small HTML-table helpers (reuse bsText from box-score parser) ----------
 function rowsOf(table) { return table.match(/<tr\b[\s\S]*?<\/tr>/gi) || []; }
 function cellsOf(row) { return row.match(/<t[dh]\b[\s\S]*?<\/t[dh]>/gi) || []; }
@@ -1308,7 +1319,7 @@ function rosterPayload() {
     return Object.assign({}, p, s, { photo: playerPhotos[p.slug] ? ('/api/photo?slug=' + p.slug) : null });
   });
   const complete = ROSTER.every(p => { const s = rosterStats[p.slug]; return s && (s.hit != null || s.pit != null); });
-  return { players, updated: rosterUpdated, loading: Object.keys(rosterStats).length === 0,
+  return { players, coaches: COACHES, updated: rosterUpdated, loading: Object.keys(rosterStats).length === 0,
            settled: rosterUpdated > 0 && !rosterPolling, complete, photos: photosLoadedAt > 0 };
 }
 
@@ -2090,6 +2101,9 @@ body.noscroll{overflow:hidden;}
 .pstline.pit{color:var(--gator);}
 .pstline .k{color:var(--mute);margin-right:3px;}
 .pchev{flex:none;color:var(--mute);font-size:18px;}
+.csec{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.09em;font-size:12px;color:var(--gator);margin:20px 4px 11px;padding-top:15px;border-top:1px solid var(--line);}
+.pnum.coachico{font-size:14px;color:var(--gold2);letter-spacing:.02em;}
+.cbio{font-size:13px;line-height:1.55;color:var(--bone);margin:2px 0 0;}
 .plimited{font-size:10.5px;color:var(--mute);font-style:italic;}
 .phead{display:flex;align-items:center;gap:13px;padding:16px 16px 8px;}
 .phnum{flex:none;width:48px;height:48px;border-radius:13px;background:linear-gradient(180deg,var(--panel),var(--bayou2));border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-weight:700;font-size:20px;color:var(--gator);}
@@ -2607,10 +2621,23 @@ function renderRoster(d){
        '<div class="pmeta"><b>'+esc(posLabel(p))+'</b> · '+esc(p.cls)+' · '+esc(p.school)+'</div></div>'+
        cardStats(p)+'<div class="pchev">›</div></div>';
   }
+  if(d&&d.coaches&&d.coaches.length){
+    coachData=d.coaches;
+    h+='<div class="csec">Coaching Staff</div>';
+    for(var k=0;k<d.coaches.length;k++){var c=d.coaches[k];
+      h+='<div class="pcard coach" data-coachnum="'+c.num+'">'+
+         '<div class="pnum coachico">'+c.num+'</div>'+
+         '<div class="pmain"><div class="pname">'+esc(c.name)+'</div>'+
+         '<div class="pmeta"><b>'+esc(c.title)+'</b>'+(c.home?(' · '+esc(c.home)):'')+'</div></div>'+
+         '<div class="pchev">›</div></div>';
+    }
+  }
   $('rosterBody').innerHTML=h;
   setRmeta(d);
-  var cards=document.querySelectorAll('.pcard');
+  var cards=document.querySelectorAll('.pcard:not(.coach)');
   for(var j=0;j<cards.length;j++)cards[j].addEventListener('click',function(){openPlayer(this.getAttribute('data-slug'));});
+  var ccards=document.querySelectorAll('.pcard.coach');
+  for(var cc=0;cc<ccards.length;cc++)ccards[cc].addEventListener('click',function(){openCoach(this.getAttribute('data-coachnum'));});
 }
 function bi(label,val){return '<div class="bi"><span>'+label+'</span>'+esc(val)+'</div>';}
 function scell(o,rk,k,lab){if(!o||o[k]==null||o[k]===''||o[k]==='-')return '';var r=(rk&&rk[k])?'<div class="rk">'+esc(rk[k])+'</div>':'';return '<div class="scell"><div class="v">'+esc(o[k])+'</div><div class="l">'+lab+'</div>'+r+'</div>';}
@@ -2625,6 +2652,21 @@ function statBlocks(p){
   return batBlock+pitBlock;
 }
 var plCur=null;
+var coachData=[];
+// Coaches reuse the player modal: number badge, name, title/hometown, and the
+// bio from the team site. No stats or game log, so plCur is cleared to cancel any
+// in-flight player fetch that might otherwise repaint the modal body.
+function openCoach(num){
+  var c=null;for(var i=0;i<coachData.length;i++)if(String(coachData[i].num)===String(num))c=coachData[i];
+  if(!c)return;plCur=null;
+  var ph=$('plNum');ph.classList.remove('hasimg');ph.textContent=c.num;
+  $('plName').textContent=c.name;
+  $('plSub').textContent=c.title+(c.home?(' · '+c.home):'');
+  var info='<div class="bio">'+bi('Role',c.title)+(c.home?bi('Hometown',c.home):'')+'</div>';
+  var bioBlock=c.bio?('<div class="statblock"><h4>Bio</h4><p class="cbio">'+esc(c.bio)+'</p></div>'):'';
+  $('plBody').innerHTML=info+bioBlock;
+  $('plModal').classList.add('show');syncBg();
+}
 function openPlayer(slug){
   var p=null;for(var i=0;i<rosterData.length;i++)if(rosterData[i].slug===slug)p=rosterData[i];
   if(!p)return;plCur=slug;
