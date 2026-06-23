@@ -1922,8 +1922,8 @@ app.get('/debug/leaders', async (_q, r) => {
     }
     r.json({
       header: head, totalLeagueHitters: all.length,
-      sample: all.slice(0, 3),
-      gators: all.filter(x => x.teamId === GATORS_ID),
+      gatorsId: GATORS_ID,
+      all,
     });
   } catch (e) { r.status(502).json({ error: e.message }); }
 });
