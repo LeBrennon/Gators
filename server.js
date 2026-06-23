@@ -488,7 +488,8 @@ function parseBoxscore(html) {
     if (pitching[i] != null) box.push({ label: lab(i) + ' \u2014 Pitching', html: bsDropCols(bsPitchDecision(bsPitchERA(bsLinkGators(bsRenameK(bsShortenCaption(pitching[i]))))), ['HR', 'BF']) });
   });
   bsAttachSubLegend(box, pbp);
-  bsAttachStrikePct(box, pbp);
+  bsAttachStrikePct(box, pbp);   // reads the "NP" header; rename it only afterward
+  for (const b of box) if (/Pitching/i.test(b.label)) b.html = b.html.replace(/(<th\b[^>]*>)\s*NP\s*(<\/th>)/i, '$1#P$2');
   return { line, teams, box, pbp,
     counts: { tables: tables.length, line: line ? 1 : 0, batting: batting.length, pitching: pitching.length, pbp: pbp.length }, types };
 }
