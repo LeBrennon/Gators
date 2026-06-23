@@ -236,15 +236,22 @@ function bsPitchERA(html) {
   const head = html.match(/<tr\b[\s\S]*?<\/tr>/i);
   if (!head) return html;
   const heads = (head[0].match(/<t[dh]\b[\s\S]*?<\/t[dh]>/gi) || []).map(c => bsText(c).toLowerCase());
-  const ipI = heads.indexOf('ip'), erI = heads.indexOf('er');
-  if (ipI < 0 || erI < 0) return html;       // not a pitching table
+  const ipI = heads.indexOf('ip'), erI = heads.indexOf('er'), hrI = heads.indexOf('hr');
+  if (ipI < 0 || erI < 0 || heads.indexOf('era') >= 0) return html; // not pitching, or already has ERA
+  const after = hrI >= 0 ? hrI : heads.length - 1; // MLB puts ERA right after HR
   let first = true;
   return html.replace(/<tr\b[\s\S]*?<\/tr>/gi, row => {
-    if (first) { first = false; return row.replace(/<\/tr>\s*$/i, '<th>ERA</th></tr>'); }
+    const open = (row.match(/^<tr\b[^>]*>/i) || ['<tr>'])[0];
     const cells = row.match(/<t[dh]\b[\s\S]*?<\/t[dh]>/gi) || [];
-    const outs = ipToOuts(bsText(cells[ipI] || '')), er = parseInt(bsText(cells[erI] || ''), 10);
-    const era = (outs > 0 && !isNaN(er)) ? (er * 27 / outs).toFixed(2) : '-';
-    return row.replace(/<\/tr>\s*$/i, '<td>' + era + '</td></tr>');
+    if (!cells.length) return row;
+    let cell;
+    if (first) { first = false; cell = '<th>ERA</th>'; }
+    else {
+      const outs = ipToOuts(bsText(cells[ipI] || '')), er = parseInt(bsText(cells[erI] || ''), 10);
+      cell = '<td>' + ((outs > 0 && !isNaN(er)) ? (er * 27 / outs).toFixed(2) : '-') + '</td>';
+    }
+    cells.splice(after + 1, 0, cell);
+    return open + cells.join('') + '</tr>';
   });
 }
 // Wrap a pitcher's decision (W/L/S/H...) in a span so it can be tinted gold.
@@ -2289,7 +2296,7 @@ body.noscroll{overflow:hidden;}
 .bx th{color:var(--mute);font-weight:700;text-transform:uppercase;font-size:10px;}
 .bx td:first-child,.bx th:first-child{text-align:left;position:sticky;left:0;background:var(--bayou2);}
 .bx th.sub{padding-left:24px;}
-.bx th a.bxp{color:var(--bone);text-decoration:underline;text-decoration-color:rgba(236,201,19,.55);text-underline-offset:2px;cursor:pointer;}
+.bx th a.bxp{color:var(--bone);text-decoration:none;cursor:pointer;}
 .bx th a.bxp:active{opacity:.6;}
 .bx .dec{color:var(--gold2);font-weight:700;}
 .pbp table{margin-bottom:12px;border:1px solid var(--line);border-radius:10px;overflow:hidden;}
