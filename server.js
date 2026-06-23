@@ -918,11 +918,11 @@ const ROSTER = [
 // Coaching staff (gumbeauxgators.com/coaches). Shown beneath the player roster;
 // bios/stats don't apply, so each is just a name + title (+ hometown when known).
 const COACHES = [
-  { num: 44, name: 'James Landreneau', title: 'Head Coach', home: 'Mamou, LA',
+  { num: 44, name: 'James Landreneau', slug: 'jameslandreneau', title: 'Head Coach', home: 'Mamou, LA',
     bio: `James Landreneau is the winningest coach in McNeese softball history, in his 14th season with the program and 10th as head coach, compiling a 339-181 overall record and a 163-41 mark in Southland Conference play. He reached his 300th career win on February 7, 2025, and became the program's all-time wins leader one week later. A four-time Southland Conference Coach of the Year, he has guided the Cowgirls to four consecutive regular-season titles (2022-2025) and three straight conference tournament championships (2021-2023), with multiple NCAA Regional runs and a program-record 47-win season in 2023. His son, Jaxon Landreneau, plays for the Gators.` },
-  { num: 32, name: 'Carl Labit', title: 'Pitching Coach', home: 'Metairie, LA',
+  { num: 32, name: 'Carl Labit', slug: 'carllabit', title: 'Pitching Coach', home: 'Metairie, LA',
     bio: `Carl Labit, a Rummel graduate, spent several seasons as the pitching coach at De La Salle and last summer as the pitching coach for the Baton Rouge Rougarou. He hopes his expertise will help the Gators' young pitchers develop through the summer.` },
-  { num: 23, name: 'Connor Schneider', title: 'Hitting Coach', home: 'Papillion, NE',
+  { num: 23, name: 'Connor Schneider', slug: 'connorschneider', title: 'Hitting Coach', home: 'Papillion, NE',
     bio: `Connor Schneider, a senior infielder at McNeese, joins the Gators coaching staff for the summer. From Papillion, Nebraska, he has been at McNeese for three years. As a junior in 2024 he started 12 of 13 games, recording 9 hits, 2 runs, a double and a stolen base, and earned a spot on the SLC Commissioner's Honor Roll.` },
 ];
 
@@ -1346,7 +1346,8 @@ function rosterPayload() {
     return Object.assign({}, p, s, { photo: playerPhotos[p.slug] ? ('/api/photo?slug=' + p.slug) : null });
   });
   const complete = ROSTER.every(p => { const s = rosterStats[p.slug]; return s && (s.hit != null || s.pit != null); });
-  return { players, coaches: COACHES, updated: rosterUpdated, loading: Object.keys(rosterStats).length === 0,
+  const coaches = COACHES.map(c => Object.assign({}, c, { photo: playerPhotos[c.slug] ? ('/api/photo?slug=' + c.slug) : null }));
+  return { players, coaches, updated: rosterUpdated, loading: Object.keys(rosterStats).length === 0,
            settled: rosterUpdated > 0 && !rosterPolling, complete, photos: photosLoadedAt > 0 };
 }
 
@@ -2687,6 +2688,9 @@ function openCoach(num){
   var c=null;for(var i=0;i<coachData.length;i++)if(String(coachData[i].num)===String(num))c=coachData[i];
   if(!c)return;plCur=null;
   var ph=$('plNum');ph.classList.remove('hasimg');ph.textContent=c.num;
+  if(c.photo){var im=new Image();im.alt=c.name;
+    im.onload=function(){ph.classList.add('hasimg');ph.innerHTML='';ph.appendChild(im);};
+    im.src=c.photo;}
   $('plName').textContent=c.name;
   $('plSub').textContent=c.title+(c.home?(' · '+c.home):'');
   var info='<div class="bio">'+bi('Role',c.title)+(c.home?bi('Hometown',c.home):'')+'</div>';
