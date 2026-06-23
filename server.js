@@ -920,7 +920,7 @@ const ROSTER = [
 const COACHES = [
   { num: 44, name: 'James Landreneau', title: 'Head Coach', home: 'Mamou, LA',
     bio: `James Landreneau is the winningest coach in McNeese softball history, in his 14th season with the program and 10th as head coach, compiling a 339-181 overall record and a 163-41 mark in Southland Conference play. He reached his 300th career win on February 7, 2025, and became the program's all-time wins leader one week later. A four-time Southland Conference Coach of the Year, he has guided the Cowgirls to four consecutive regular-season titles (2022-2025) and three straight conference tournament championships (2021-2023), with multiple NCAA Regional runs and a program-record 47-win season in 2023. His son, Jaxon Landreneau, plays for the Gators.` },
-  { num: 32, name: 'Carl Labit', title: 'Pitching Coach', home: '',
+  { num: 32, name: 'Carl Labit', title: 'Pitching Coach', home: 'Metairie, LA',
     bio: `Carl Labit, a Rummel graduate, spent several seasons as the pitching coach at De La Salle and last summer as the pitching coach for the Baton Rouge Rougarou. He hopes his expertise will help the Gators' young pitchers develop through the summer.` },
   { num: 23, name: 'Connor Schneider', title: 'Hitting Coach', home: 'Papillion, NE',
     bio: `Connor Schneider, a senior infielder at McNeese, joins the Gators coaching staff for the summer. From Papillion, Nebraska, he has been at McNeese for three years. As a junior in 2024 he started 12 of 13 games, recording 9 hits, 2 runs, a double and a stolen base, and earned a spot on the SLC Commissioner's Honor Roll.` },
