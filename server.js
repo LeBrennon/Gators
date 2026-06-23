@@ -190,9 +190,10 @@ function bsSubName(thInner) {
 // score can indent them under the starter they replaced, like MLB Gameday. Among
 // the nine starters every fielding position is distinct, so a batter is a sub if
 // its position is ph/pr or repeats a position already listed in the lineup.
-// Also build the MLB-style reference legend: a sub takes the batting slot of the
-// player listed directly above it, so that player is whom they hit/ran/subbed for.
-// Returns { html, legend:[{letter, verb, forName}] }.
+// Also seed the MLB-style reference legend: each sub takes the batting slot of
+// the player listed directly above it (fallback "for"); bsAttachSubLegend later
+// enriches each entry with the play result + inning from the play-by-play.
+// Returns { html, legend:[{letter, name, pos, forName, text}] }.
 function bsMarkSubs(tableHtml) {
   const seen = new Set();
   const legend = [];
@@ -211,7 +212,7 @@ function bsMarkSubs(tableHtml) {
     if (!sub) { if (nm) prevName = nm; return row; }
     const letter = n < 26 ? String.fromCharCode(97 + n) : '+'; n++;
     const verb = first === 'ph' ? 'pinch-hit for' : first === 'pr' ? 'pinch-ran for' : 'in for';
-    legend.push({ letter, verb, forName: prevName });
+    legend.push({ letter, name: nm, pos: first, forName: prevName, text: prevName ? verb + ' ' + prevName : verb });
     prevName = nm;                             // a later sub in this slot replaced this one
     let out = row.replace(/<th\b([^>]*)>/i, (m, a) => /class=/i.test(a)
       ? m.replace(/class="([^"]*)"/i, 'class="$1 bxsub"')
@@ -220,6 +221,62 @@ function bsMarkSubs(tableHtml) {
     return out.replace(/(<\/span>\s*)/i, '$1<span class="sublet">' + letter + '-</span>');
   });
   return { html, legend };
+}
+// Inning ordinal (1->1st, 2->2nd, 7->7th, 11->11th).
+function bsOrd(n) { const v = n % 100, s = ['th', 'st', 'nd', 'rd']; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+// A play row's leading text is the batter; these verbs mark a plate appearance.
+const BS_PA_RE = /^(singled|doubled|tripled|homered|home run|walked|intentionally walked|struck out|grounded|flied|popped|lined|reached|hit by pitch|hit into|fouled|sacrific|infield fly|bunt|out at|grounded into)\b/i;
+// Tidy a play description toward MLB legend wording: drop the pitch-count
+// parenthetical and trailing clauses, spell out fielder abbreviations.
+function bsNormRes(s) {
+  s = s.replace(/\s*\([^)]*\)/g, '').split(/[;,]/)[0].replace(/\.\s*$/, '').trim();
+  s = s.replace(/\bto 1b\b/gi, 'to first').replace(/\bto 2b\b/gi, 'to second').replace(/\bto 3b\b/gi, 'to third')
+       .replace(/\bto ss\b/gi, 'to short').replace(/\bto lf\b/gi, 'to left').replace(/\bto cf\b/gi, 'to center')
+       .replace(/\bto rf\b/gi, 'to right').replace(/\bto p\b/gi, 'to pitcher').replace(/\bto c\b/gi, 'to catcher');
+  s = s.replace(/\b(right|left|center) field\b/gi, '$1');
+  s = s.replace(/^(out at (?:first|second|third|home))\b.*/i, '$1');
+  return s.trim();
+}
+// Enrich each batting table's sub legend with "<result> for <player> in the
+// <inning>th", read from play-by-play substitution announcements ("X pinch hit
+// for Y", "X to cf for Y") plus the sub's first plate appearance. Falls back to
+// the seeded "for <player>" text when a sub has no announcement in the feed.
+function bsAttachSubLegend(box, pbp) {
+  const plays = [];
+  (pbp || []).forEach(p => {
+    const m = (p.title || '').match(/(?:Top|Bottom) of (\d+)/i); const inn = m ? +m[1] : 0;
+    (p.html.match(/<tr\b[\s\S]*?<\/tr>/gi) || []).forEach(r => {
+      const tx = bsText(r);
+      if (tx && !/Inning Summary/i.test(tx) && !/(?:Top|Bottom) of \d+ Inning/i.test(tx)) plays.push({ inn, tx });
+    });
+  });
+  const POS = /^(?:1b|2b|3b|ss|lf|cf|rf|c|dh|of|ph|pr)$/i;
+  const ann = {};
+  for (const p of plays) {
+    let m = p.tx.match(/^(.+?) pinch hit for (.+?)\.?$/i); if (m) { ann[m[1].trim()] = { repl: m[2].trim(), type: 'ph', inn: p.inn }; continue; }
+    m = p.tx.match(/^(.+?) pinch ran for (.+?)\.?$/i); if (m) { ann[m[1].trim()] = { repl: m[2].trim(), type: 'pr', inn: p.inn }; continue; }
+    m = p.tx.match(/^(.+?) to ([a-z0-9]+) for (.+?)\.?$/i);
+    if (m && POS.test(m[2]) && /^[A-Z]/.test(m[3].trim())) ann[m[1].trim()] = { repl: m[3].trim(), type: 'def', inn: p.inn };
+  }
+  const findPA = (nm, minInn) => {
+    for (const p of plays) {
+      if (p.inn < minInn || p.tx.indexOf(nm + ' ') !== 0) continue;
+      const rest = p.tx.slice(nm.length).trim();
+      if (BS_PA_RE.test(rest)) return { inn: p.inn, res: bsNormRes(rest) };
+    }
+    return null;
+  };
+  for (const b of box) {
+    if (!b.legend) continue;
+    for (const it of b.legend) {
+      const a = ann[it.name]; if (!a) continue;   // no feed announcement -> keep seeded "for <player>"
+      if (a.type === 'pr') { it.text = 'ran for ' + a.repl + ' in the ' + bsOrd(a.inn); continue; }
+      const pa = findPA(it.name, a.inn);
+      it.text = pa ? pa.res + ' for ' + a.repl + ' in the ' + bsOrd(pa.inn)
+                   : (a.type === 'ph' ? 'pinch-hit for ' : 'in for ') + a.repl + ' in the ' + bsOrd(a.inn);
+    }
+  }
+  return box;
 }
 // Turn Gators players' names in the box score into links that open their roster
 // profile. Matches the box-score name against the roster (built lazily since
@@ -354,6 +411,7 @@ function parseBoxscore(html) {
   const box = [];
   order(battingClean.length).forEach(i => { const sub = bsMarkSubs(bsLinkGators(bsRenameK(bsShortenCaption(battingClean[i])))); box.push({ label: lab(i) + ' \u2014 Batting', html: sub.html, legend: sub.legend, notes: notes[i] || null }); });
   order(pitching.length).forEach(i => box.push({ label: lab(i) + ' \u2014 Pitching', html: bsPitchDecision(bsPitchERA(bsLinkGators(bsRenameK(bsShortenCaption(pitching[i]))))) }));
+  bsAttachSubLegend(box, pbp);
   return { line, teams, box, pbp,
     counts: { tables: tables.length, line: line ? 1 : 0, batting: batting.length, pitching: pitching.length, pbp: pbp.length }, types };
 }
@@ -2708,7 +2766,7 @@ function openBox(id,tab){var m=$('bxModal');m.classList.add('show');syncBg();
     showTab(tab);
   }).catch(function(){$('bxBody').innerHTML='<div class="spin">Could not load box score.</div>';});}
 function boxNotes(n){if(!n)return '';var order=['2B','3B','HR','SB','E'],p=[];for(var i=0;i<order.length;i++){var k=order[i];if(n[k])p.push('<span class="bxn"><b>'+k+'</b> '+esc(n[k])+'</span>');}return p.length?'<div class="bxnotes">'+p.join('')+'</div>':'';}
-function subLegend(L){if(!L||!L.length)return '';var p=L.map(function(s){return '<span class="bxl"><b>'+esc(s.letter)+'-</b>'+esc(s.verb)+(s.forName?' '+esc(s.forName):'')+'</span>';});return '<div class="bxleg">'+p.join('')+'</div>';}
+function subLegend(L){if(!L||!L.length)return '';var p=L.map(function(s){return '<span class="bxl"><b>'+esc(s.letter)+'-</b>'+esc(s.text||'')+'</span>';});return '<div class="bxleg">'+p.join('')+'</div>';}
 function showTab(which){$('tabBox').classList.toggle('on',which==='box');$('tabPbp').classList.toggle('on',which==='pbp');
   var d=_box;if(!d)return;var h='';
   if(which==='box'){
