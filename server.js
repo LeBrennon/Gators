@@ -1249,17 +1249,17 @@ function parsePitchingBB(tableHtml){
 }
 async function boxWalks(gid){
   const c=boxWalkCache[gid];
-  if(c && c.map && Date.now()-c.ts < 6*60*60*1000) return c.map;
+  if(c && c.map) return c.map;   // game-log games are final — BB never changes
   let map=null;
   try{
-    const page=await fetchText(boxscoreUrl(gid)+'?view=plays', SCHEDULE_URL);
-    if(page.ok && page.body){
-      const p=parseBoxscore(page.body); const m={};
-      for(const b of p.box){ if(/Pitching/i.test(b.label)) Object.assign(m, parsePitchingBB(b.html)); }
+    const res=await fetchBoxPage(gid);   // shares one fetch with the box-score view + de-dupes
+    if(res.ok && res.data){
+      const m={};
+      for(const b of res.data.box){ if(/Pitching/i.test(b.label)) Object.assign(m, parsePitchingBB(b.html)); }
       if(Object.keys(m).length) map=m;
     }
   }catch(e){}
-  if(map) boxWalkCache[gid]={ ts:Date.now(), map };   // cache successes only; failures retry next open
+  if(map){ boxWalkCache[gid]={ ts:Date.now(), map }; saveBoxCache(); }   // cache successes only
   return map;
 }
 // Find the Gators game id for a game-log row (month/day match, opponent tiebreak).
@@ -1609,36 +1609,67 @@ app.get(['/gg-logo.png','/gg-logo.jpg'], (_q, r) => { r.set('Content-Type','imag
 // Social/link-preview image (Gumbeaux Gators logo, 1200x628) for iMessage etc.
 app.get('/og.jpg', (_q, r) => { try { r.set('Content-Type','image/jpeg'); r.set('Cache-Control','public, max-age=86400'); r.send(fs.readFileSync(__dirname + '/og.jpg')); } catch (e) { r.status(404).end(); } });
 app.get(BG_PATH, (_q, r) => { r.set('Content-Type','image/jpeg'); r.set('Cache-Control','public, max-age=31536000, immutable'); r.send(BG_BUF); });
-// Parsed box scores cached in memory. A finished game's box never changes, so
-// once fetched we keep serving it — this avoids re-hitting PrestoSports on every
-// click and lets us fall back to a good copy when the source rate-limits (429).
+// Parsed box scores cached in memory and on disk. A finished game's box never
+// changes, so once fetched we keep serving it forever — this avoids re-hitting
+// PrestoSports (and its 429s) on every click, even across restarts.
 const boxCache = new Map();        // id -> { data, at }
-const BOX_TTL_MS = 60 * 60 * 1000; // re-fetch at most hourly for a still-changing game
-app.get('/api/boxscore', async (q, r) => {
-  const id = q.query && q.query.id;
+const boxInflight = new Map();     // id -> Promise (de-dupe concurrent fetches)
+const BOX_TTL_MS = 60 * 60 * 1000; // re-fetch window only for a still-in-progress game
+// A box score is "final" (never changes) once its game date is before today.
+const boxIsFinal = id => /^\d{8}/.test(String(id)) && String(id).slice(0, 8) < todayCentralYmd();
+const BOX_CACHE_FILE = (process.env.CACHE_DIR || '.') + '/box-cache.json';
+let boxSaveTimer = null;
+function saveBoxCache() {
+  if (boxSaveTimer) return;
+  boxSaveTimer = setTimeout(() => { boxSaveTimer = null;
+    try { fs.writeFileSync(BOX_CACHE_FILE, JSON.stringify({ boxes: Object.fromEntries(boxCache), walks: boxWalkCache })); } catch (e) {}
+  }, 4000);
+}
+function loadBoxCache() {
   try {
-    if (!id) return r.status(400).json({ error: 'pass ?id=YYYYMMDD_xxxx' });
-    const cached = boxCache.get(id);
-    if (cached && Date.now() - cached.at < BOX_TTL_MS && !q.query.debug) {
-      r.set('Cache-Control', 'public, max-age=300');
-      return r.json(cached.data);
-    }
+    const d = JSON.parse(fs.readFileSync(BOX_CACHE_FILE, 'utf8'));
+    if (d && d.boxes) for (const k in d.boxes) boxCache.set(k, d.boxes[k]);
+    if (d && d.walks) Object.assign(boxWalkCache, d.walks);
+  } catch (e) { /* no cache yet */ }
+}
+// Fetch + parse one box score, sharing one network request across concurrent
+// callers (box-score view and walk enrichment), with 429/503 backoff. Caches
+// the result; persists finals. Returns { ok, data, types } or { ok:false }.
+async function fetchBoxPage(id) {
+  const cached = boxCache.get(id);
+  if (cached && (boxIsFinal(id) || Date.now() - cached.at < BOX_TTL_MS)) return { ok: true, data: cached.data, cached: true };
+  if (boxInflight.has(id)) return boxInflight.get(id);
+  const job = (async () => {
     const url = boxscoreUrl(id) + '?view=plays';
     let page = await fetchText(url, SCHEDULE_URL);
     for (let tries = 0; !page.ok && (page.status === 429 || page.status === 503) && tries < 2; tries++) {
       await sleep(600 * (tries + 1));
       page = await fetchText(url, SCHEDULE_URL);
     }
-    if (!page.ok) {
-      // Source is rate-limiting: serve the last good copy rather than failing.
-      if (cached) { r.set('Cache-Control', 'public, max-age=120'); return r.json(cached.data); }
-      return r.status(502).json({ error: 'box page ' + page.status });
-    }
+    if (!page.ok) return { ok: false, status: page.status };
     const p = parseBoxscore(page.body);
     const data = { id, teams: p.teams, line: p.line, box: p.box, pbp: p.pbp, counts: p.counts };
     boxCache.set(id, { data, at: Date.now() });
+    if (boxIsFinal(id)) saveBoxCache();
+    return { ok: true, data, types: p.types };
+  })();
+  boxInflight.set(id, job);
+  job.finally(() => boxInflight.delete(id));
+  return job;
+}
+app.get('/api/boxscore', async (q, r) => {
+  const id = q.query && q.query.id;
+  try {
+    if (!id) return r.status(400).json({ error: 'pass ?id=YYYYMMDD_xxxx' });
+    const res = await fetchBoxPage(id);
+    if (!res.ok) {
+      // Source is rate-limiting: serve the last good copy rather than failing.
+      const cached = boxCache.get(id);
+      if (cached) { r.set('Cache-Control', 'public, max-age=120'); return r.json(cached.data); }
+      return r.status(502).json({ error: 'box page ' + res.status });
+    }
     r.set('Cache-Control', 'public, max-age=300');
-    r.json(q.query.debug ? Object.assign({}, data, { types: p.types }) : data);
+    r.json(q.query.debug && res.types ? Object.assign({}, res.data, { types: res.types }) : res.data);
   } catch (err) {
     const cached = boxCache.get(id);
     if (cached) { r.set('Cache-Control', 'public, max-age=120'); return r.json(cached.data); }
@@ -1827,6 +1858,7 @@ app.get('/api/stream', (q, r) => {
 
 if (require.main === module) {
   loadCache(); // serve last-saved player stats instantly, then refresh below
+  loadBoxCache(); // restore cached final box scores so we don't re-fetch them
   app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleDailyRoster(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, extractEventAuth,

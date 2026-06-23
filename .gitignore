@@ -5,3 +5,4 @@ npm-debug.log*
 
 .claude/
 roster-cache.json
+box-cache.json
