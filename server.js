@@ -198,8 +198,8 @@ function bsMarkSubs(tableHtml) {
     else seen.add(first);
     if (!sub) return row;
     return row.replace(/<th\b([^>]*)>/i, (m, a) => /class=/i.test(a)
-      ? m.replace(/class="([^"]*)"/i, 'class="$1 sub"')
-      : '<th' + a + ' class="sub">');
+      ? m.replace(/class="([^"]*)"/i, 'class="$1 bxsub"')
+      : '<th' + a + ' class="bxsub">');
   });
 }
 // Turn Gators players' names in the box score into links that open their roster
@@ -2295,7 +2295,8 @@ body.noscroll{overflow:hidden;}
 .bx td,.bx th{padding:4px 6px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap;}
 .bx th{color:var(--mute);font-weight:700;text-transform:uppercase;font-size:10px;}
 .bx td:first-child,.bx th:first-child{text-align:left;position:sticky;left:0;background:var(--bayou2);}
-.bx th.sub{padding-left:24px;}
+.bx th:first-child{color:var(--bone);}
+.bx th.bxsub{padding-left:24px;}
 .bx th a.bxp{color:var(--bone);text-decoration:none;cursor:pointer;}
 .bx th a.bxp:active{opacity:.6;}
 .bx .dec{color:var(--gold2);font-weight:700;}
