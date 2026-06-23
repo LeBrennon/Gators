@@ -1084,6 +1084,56 @@ function parseLeagueStats(html, type) {
   return out;
 }
 
+// Two-way players' own pages carry only a pitching "Overall" table, so they get
+// no hitting ranks from the player page the way pure hitters do. The league
+// hitting leaderboard lists every league hitter with all their stat values, so
+// we compute each Gators hitter's per-stat league rank from it (validated to
+// reproduce the player-page ranks for pure hitters) and use it to fill in the
+// hitters that are missing ranks. Runs (r) and stolen bases (sb) aren't on this
+// leaderboard, so those two ranks stay unavailable for two-way players.
+let leagueHitRanks = {};   // slug -> { statKey: 'Nth' }  (Gators hitters only)
+const RANKABLE_HIT = ['avg', 'obp', 'slg', 'gp', 'ab', 'h', 'hr', 'rbi', 'bb', 'k'];
+function computeLeagueHitRanks(html) {
+  const tables = (html || '').match(/<table\b[\s\S]*?<\/table>/gi) || [];
+  let tbl = null, head = null;
+  for (const t of tables) {
+    const rows = rowsOf(t); if (rows.length < 2) continue;
+    const hd = cellsOf(rows[0]).map(x => bsText(x).split(/\s+/)[0].toLowerCase());
+    if (hd.indexOf('team') === -1) continue; tbl = t; head = hd; break;
+  }
+  if (!tbl || head.indexOf('avg') === -1) return {};
+  const rows = rowsOf(tbl); const players = [];
+  for (let i = 1; i < rows.length; i++) {
+    const c = cellsOf(rows[i]); if (c.length < 4) continue;
+    const slug = slugFromHref(firstLink(c[1]).href); if (!slug) continue;
+    const teamId = teamIdFromHref(firstLink(c[2]).href);
+    const vals = {};
+    for (let k = 3; k < c.length && k < head.length; k++) { if (head[k]) vals[head[k]] = bsText(c[k]); }
+    players.push({ slug, teamId, vals });
+  }
+  if (players.length < 10) return {};   // didn't parse cleanly — don't touch existing ranks
+  const ranks = {};
+  for (const key of RANKABLE_HIT) {
+    const list = players.map(p => ({ slug: p.slug, v: parseFloat(p.vals[key]) })).filter(p => !isNaN(p.v));
+    list.sort((a, b) => b.v - a.v);   // higher value = better rank (matches the leaderboard)
+    let prevV = null, prevRank = 0;
+    for (let i = 0; i < list.length; i++) {
+      const rank = (prevV !== null && list[i].v === prevV) ? prevRank : (i + 1);  // ties share a rank
+      prevV = list[i].v; prevRank = rank;
+      (ranks[list[i].slug] || (ranks[list[i].slug] = {}))[key] = ordinal(rank);
+    }
+  }
+  const out = {};
+  for (const p of players) if (p.teamId === GATORS_ID && ranks[p.slug]) out[p.slug] = ranks[p.slug];
+  return out;
+}
+// hitRanks the client should see for a slug: the record's own (pure hitters) or,
+// when those are empty (two-way players), the computed league ranks.
+function effectiveHitRanks(slug, hit, ownRanks) {
+  if (hit && (!ownRanks || !Object.keys(ownRanks).length) && leagueHitRanks[slug]) return leagueHitRanks[slug];
+  return ownRanks || {};
+}
+
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let rosterStats = {};       // slug -> light { kind, hit, pit, hitRanks, pitRanks } for cards
 const playerCache = {};     // slug -> full { ...light, glBat, glPit, ts } for profiles
@@ -1180,6 +1230,7 @@ async function pollRoster() {
     try {
       const [hRes, pRes] = await Promise.all([fetchText(leagueStatsUrl('h')), fetchText(leagueStatsUrl('p'))]);
       batMap = parseLeagueStats(hRes.body, 'h'); pitMap = parseLeagueStats(pRes.body, 'p');
+      const lr = computeLeagueHitRanks(hRes.body); if (Object.keys(lr).length) leagueHitRanks = lr;
     } catch (e) {}
     // Fast seed: the league hitting + pitching pages cover most of the roster in
     // just two fetches, so cards show stats almost immediately. The per-player
@@ -1343,7 +1394,10 @@ function rosterPayload() {
     // Serve headshots through our own /api/photo proxy: the team site hotlink-
     // protects images (403 unless the referer is its own domain), so a browser
     // can't load them directly — the proxy fetches them with the right referer.
-    return Object.assign({}, p, s, { photo: playerPhotos[p.slug] ? ('/api/photo?slug=' + p.slug) : null });
+    return Object.assign({}, p, s, {
+      hitRanks: effectiveHitRanks(p.slug, s.hit, s.hitRanks),
+      photo: playerPhotos[p.slug] ? ('/api/photo?slug=' + p.slug) : null,
+    });
   });
   const complete = ROSTER.every(p => { const s = rosterStats[p.slug]; return s && (s.hit != null || s.pit != null); });
   const coaches = COACHES.map(c => Object.assign({}, c, { photo: playerPhotos[c.slug] ? ('/api/photo?slug=' + c.slug) : null }));
@@ -1759,6 +1813,7 @@ app.get('/api/player', async (q, r) => {
       const pl = ROSTER.find(x => x.slug === slug);
       await enrichPitchingWalks(pl ? pl.name : '', p.glPit);
     }
+    if (p && p.hit) p.hitRanks = effectiveHitRanks(slug, p.hit, p.hitRanks);
     r.json(p || {});
   } catch (e) { r.status(502).json({ error: e.message }); }
 });
@@ -1923,7 +1978,9 @@ app.get('/debug/leaders', async (_q, r) => {
     r.json({
       header: head, totalLeagueHitters: all.length,
       gatorsId: GATORS_ID,
-      all,
+      sample: all.slice(0, 3),
+      gators: all.filter(x => x.teamId === GATORS_ID),
+      computedRanks: computeLeagueHitRanks(html),
     });
   } catch (e) { r.status(502).json({ error: e.message }); }
 });
