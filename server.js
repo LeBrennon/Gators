@@ -278,6 +278,77 @@ function bsAttachSubLegend(box, pbp) {
   }
   return box;
 }
+// Append a Strike% column to each pitching table. The source has NP (pitches)
+// but no strikes; play-by-play pitch sequences "(1-2 KKB)" record every BALL
+// (a ball can't be put in play) — only the contact pitch (always a strike) is
+// omitted — so strikes = NP - balls. Walk the feed tallying balls per pitcher
+// (B/H letters), tracking the current pitcher per side through "X to p for Y"
+// changes. Home pitches the top halves, away the bottom; since which table is
+// which isn't labeled, try both pairings and keep the one whose per-pitcher
+// tallies stay consistent (balls <= NP and >= 4*BB, since each walk is 4 balls).
+function bsPitcherName(cell) { return bsText(cell || '').replace(/\s*\(.*$/, '').trim(); }
+function bsAttachStrikePct(box, pbp) {
+  const pit = box.filter(b => /Pitching/i.test(b.label));
+  if (pit.length !== 2 || !(pbp && pbp.length)) return box;
+  const parse = entry => {
+    const rows = entry.html.match(/<tr\b[\s\S]*?<\/tr>/gi) || [];
+    const head = (rows[0].match(/<t[dh]\b[\s\S]*?<\/t[dh]>/gi) || []).map(c => bsText(c).toUpperCase());
+    const npIdx = head.indexOf('NP'), bbIdx = head.indexOf('BB');
+    const pitchers = [];
+    rows.slice(1).forEach(r => {
+      const cells = r.match(/<t[dh]\b[\s\S]*?<\/t[dh]>/gi) || [];
+      const name = bsPitcherName(cells[0]);
+      if (!name || /^totals$/i.test(name)) return;
+      pitchers.push({ name, np: parseInt(bsText(cells[npIdx] || ''), 10) || 0, bb: parseInt(bsText(cells[bbIdx] || ''), 10) || 0 });
+    });
+    return { npIdx, pitchers };
+  };
+  const a = parse(pit[0]), b = parse(pit[1]);
+  if (a.npIdx < 0 || b.npIdx < 0 || a.npIdx !== b.npIdx) return box;
+  const allP = a.pitchers.concat(b.pitchers);
+  const walk = (topStarter, botStarter) => {
+    const cur = { top: topStarter, bot: botStarter }, balls = {};
+    pbp.forEach(p => {
+      const mm = (p.title || '').match(/(Top|Bottom) of/i); const side = mm && /top/i.test(mm[1]) ? 'top' : 'bot';
+      (p.html.match(/<tr\b[\s\S]*?<\/tr>/gi) || []).forEach(r => {
+        const tx = bsText(r);
+        const sub = tx.match(/^(.+?) to p for .+?\.?$/i); if (sub) { cur[side] = sub[1].trim(); return; }
+        const seq = tx.match(/\(\d+-\d+\s+([A-Z]+)\)/);
+        if (seq) { let n = 0; for (const ch of seq[1]) if (ch === 'B' || ch === 'H') n++; if (cur[side]) balls[cur[side]] = (balls[cur[side]] || 0) + n; }
+      });
+    });
+    return balls;
+  };
+  const score = balls => allP.reduce((s, p) => { const v = balls[p.name] || 0; return s + (v <= p.np && v >= 4 * p.bb ? 1 : 0); }, 0);
+  const A = walk(a.pitchers[0] && a.pitchers[0].name, b.pitchers[0] && b.pitchers[0].name);
+  const B = walk(b.pitchers[0] && b.pitchers[0].name, a.pitchers[0] && a.pitchers[0].name);
+  const balls = score(A) >= score(B) ? A : B;
+  const inject = (entry, info) => {
+    const np = {}, bb = {}; info.pitchers.forEach(p => { np[p.name] = p.np; bb[p.name] = p.bb; });
+    let first = true;
+    entry.html = entry.html.replace(/<tr\b[\s\S]*?<\/tr>/gi, row => {
+      const open = (row.match(/^<tr\b[^>]*>/i) || ['<tr>'])[0];
+      const cells = row.match(/<t[dh]\b[\s\S]*?<\/t[dh]>/gi) || [];
+      if (!cells.length) return row;
+      let cell;
+      if (first) { first = false; cell = '<th>S%</th>'; }
+      else {
+        const name = bsPitcherName(cells[0]);
+        let n, bl, w;
+        if (/^totals$/i.test(name)) {
+          n = info.pitchers.reduce((s, p) => s + p.np, 0); w = info.pitchers.reduce((s, p) => s + p.bb, 0);
+          bl = info.pitchers.reduce((s, p) => s + (balls[p.name] || 0), 0);
+        } else { n = np[name] || 0; w = bb[name] || 0; bl = balls[name]; }
+        const ok = bl != null && n > 0 && bl <= n && bl >= 4 * w;
+        cell = '<td>' + (ok ? Math.round((n - bl) / n * 100) + '%' : '-') + '</td>';
+      }
+      cells.push(cell);
+      return open + cells.join('') + '</tr>';
+    });
+  };
+  inject(pit[0], a); inject(pit[1], b);
+  return box;
+}
 // Turn Gators players' names in the box score into links that open their roster
 // profile. Matches the box-score name against the roster (built lazily since
 // ROSTER is defined later) and wraps it in an <a data-slug> the client handles.
@@ -412,6 +483,7 @@ function parseBoxscore(html) {
   order(battingClean.length).forEach(i => { const sub = bsMarkSubs(bsLinkGators(bsRenameK(bsShortenCaption(battingClean[i])))); box.push({ label: lab(i) + ' \u2014 Batting', html: sub.html, legend: sub.legend, notes: notes[i] || null }); });
   order(pitching.length).forEach(i => box.push({ label: lab(i) + ' \u2014 Pitching', html: bsPitchDecision(bsPitchERA(bsLinkGators(bsRenameK(bsShortenCaption(pitching[i]))))) }));
   bsAttachSubLegend(box, pbp);
+  bsAttachStrikePct(box, pbp);
   return { line, teams, box, pbp,
     counts: { tables: tables.length, line: line ? 1 : 0, batting: batting.length, pitching: pitching.length, pbp: pbp.length }, types };
 }
