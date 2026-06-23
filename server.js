@@ -2534,12 +2534,19 @@ function updateCardStats(p){
 }
 function agoTxt(ts){if(!ts)return '';var m=Math.round((Date.now()-ts)/60000);if(m<1)return 'just now';if(m<60)return m+'m ago';return Math.round(m/60)+'h ago';}
 function sline(o,keys){var out=[];for(var i=0;i<keys.length;i++){var k=keys[i][0],lab=keys[i][1];if(o&&o[k]!=null&&o[k]!==''&&o[k]!=='-')out.push('<span class="k">'+lab+'</span>'+o[k]);}return out.join('  ');}
+// A pure pitcher (pos "P") shows only pitching on the list view until he has 10+
+// at-bats — his hitting still appears on the full profile. Two-way players are
+// pos "Two-Way" and always show both.
+function cardPitcherOnly(p){
+  if(!p.pos||!/^p$/i.test(String(p.pos).trim()))return false;
+  var ab=p.hit&&p.hit.ab;return (ab==null?0:Number(ab)||0)<10;
+}
 function cardStats(p){
   // Third stat is HR when the hitter has one, otherwise Hits — so every hitter
   // shows three stats instead of dropping to two when HR is 0.
   var third=['h','H'];
   if(p.hit){var hr=p.hit.hr;if(hr!=null&&hr!==''&&hr!=='-'&&Number(hr)>0)third=['hr','HR'];}
-  var bat=p.hit?('<div class="pstline">'+sline(p.hit,[['avg','AVG'],third,['rbi','RBI']])+'</div>'):'';
+  var bat=(p.hit&&!cardPitcherOnly(p))?('<div class="pstline">'+sline(p.hit,[['avg','AVG'],third,['rbi','RBI']])+'</div>'):'';
   var pit=p.pit?('<div class="pstline pit">'+sline(p.pit,[['era','ERA'],['ip','IP'],['k','K']])+'</div>'):'';
   if(!bat&&!pit)return '<div class="pstat"><span class="plimited">—</span></div>';
   return '<div class="pstat">'+bat+pit+'</div>';
