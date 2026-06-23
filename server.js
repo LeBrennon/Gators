@@ -1207,6 +1207,22 @@ async function pollRoster() {
       pass++;
       if (throttled) await sleep(5000); // breathe before re-attempting stragglers
     }
+    // Final straggler sweep: a few players — usually pitchers, who aren't in the
+    // league seed and get fetched last — can lose every single-attempt pass to
+    // throttling and be left blank when the loop ends. Give whoever is still
+    // missing the same retry-backed fetch a profile tap uses (fetchPlayer retries
+    // internally), one at a time and gently, so the tail of the roster fills
+    // instead of being abandoned.
+    for (let sweep = 0; sweep < 3; sweep++) {
+      const left = ROSTER.filter(pl => playerNeedsData(pl.slug));
+      if (!left.length) break;
+      for (const pl of left) {
+        storePlayer(pl.slug, await fetchPlayer(pl.slug, batMap, pitMap, 3));
+        await sleep(800);
+      }
+      saveCache();
+      if (ROSTER.some(pl => playerNeedsData(pl.slug))) await sleep(4000);
+    }
     rosterUpdated = Date.now();
     saveCache();
   } catch (e) { /* keep previous */ }
