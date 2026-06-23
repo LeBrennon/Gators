@@ -1,0 +1,43 @@
+name: Refresh roster seed
+
+# Rebuilds the committed warm-boot snapshot (roster-seed.json) from the live
+# deploy so a fresh deploy's first paint shows recent stats. Runs weekly and can
+# be triggered manually. The running site always shows live stats regardless —
+# this only affects the brief first-paint window right after a deploy.
+
+on:
+  schedule:
+    - cron: '0 7 * * 1'   # Mondays 07:00 UTC (~1-2am Central, after the daily stats poll)
+  workflow_dispatch: {}    # allow manual runs from the Actions tab
+
+permissions:
+  contents: write          # let the default token commit the refreshed seed
+
+concurrency:
+  group: refresh-seed
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Rebuild seed from the live deploy
+        run: node scripts/build-seed.js
+
+      - name: Commit if the seed changed
+        run: |
+          if git diff --quiet -- roster-seed.json; then
+            echo "roster-seed.json unchanged — nothing to commit"
+          else
+            git config user.name  "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add roster-seed.json
+            git commit -m "Auto-refresh roster-seed.json"
+            git push
+          fi

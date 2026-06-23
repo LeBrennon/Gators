@@ -41,6 +41,14 @@ async function getJSON(url, tries = 4) {
     await sleep(400);
   }
 
+  // Safety guard: don't let a throttled/half-scraped run overwrite a good seed
+  // with a degraded one. Most of the roster has stats mid-season; a healthy build
+  // clears this easily, a flaky one bails and leaves the existing seed in place.
+  const MIN_OK = 20;
+  if (ok < MIN_OK) {
+    console.error(`only ${ok}/${roster.players.length} players had stats (need >= ${MIN_OK}); leaving seed unchanged`);
+    process.exit(1);
+  }
   fs.writeFileSync(OUT, JSON.stringify({ rosterStats, playerCache, rosterUpdated: roster.updated || 0 }));
   console.log(`wrote roster-seed.json: ${ok}/${roster.players.length} players with stats` +
     (missing.length ? `; no data for: ${missing.join(', ')}` : ''));
