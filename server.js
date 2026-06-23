@@ -228,6 +228,32 @@ function bsLinkGators(tableHtml) {
     return '<th' + attrs + '>' + namePart.match(/^\s*/)[0] + link(name, slug) + namePart.match(/\s*$/)[0] + (paren >= 0 ? inner.slice(paren) : '') + '</th>';
   });
 }
+// Rename the strikeout column header from "SO" to "K" (batting and pitching).
+function bsRenameK(html) { return html.replace(/(<th\b[^>]*>)\s*SO\s*(<\/th>)/gi, '$1K$2'); }
+// Append a game-ERA column to a pitching box table, computed from each line's
+// ER and IP (the source box has no ERA column).
+function bsPitchERA(html) {
+  const head = html.match(/<tr\b[\s\S]*?<\/tr>/i);
+  if (!head) return html;
+  const heads = (head[0].match(/<t[dh]\b[\s\S]*?<\/t[dh]>/gi) || []).map(c => bsText(c).toLowerCase());
+  const ipI = heads.indexOf('ip'), erI = heads.indexOf('er');
+  if (ipI < 0 || erI < 0) return html;       // not a pitching table
+  let first = true;
+  return html.replace(/<tr\b[\s\S]*?<\/tr>/gi, row => {
+    if (first) { first = false; return row.replace(/<\/tr>\s*$/i, '<th>ERA</th></tr>'); }
+    const cells = row.match(/<t[dh]\b[\s\S]*?<\/t[dh]>/gi) || [];
+    const outs = ipToOuts(bsText(cells[ipI] || '')), er = parseInt(bsText(cells[erI] || ''), 10);
+    const era = (outs > 0 && !isNaN(er)) ? (er * 27 / outs).toFixed(2) : '-';
+    return row.replace(/<\/tr>\s*$/i, '<td>' + era + '</td></tr>');
+  });
+}
+// Wrap a pitcher's decision (W/L/S/H...) in a span so it can be tinted gold.
+function bsPitchDecision(html) {
+  return html.replace(/<th\b([^>]*)>([\s\S]*?)<\/th>/gi, (full, attrs, inner) => {
+    const m = inner.match(/\(\s*(?:W|L|SV|S|H|HLD|BS)\b[^)]*\)/i);
+    return m ? '<th' + attrs + '>' + inner.replace(m[0], '<span class="dec">' + m[0] + '</span>') + '</th>' : full;
+  });
+}
 // Comma-separated player list from a stats-summary <span>, tidied (keeps any
 // trailing count like "Jacob Keys (2)").
 function bsNotesClean(spanHtml) {
@@ -300,8 +326,8 @@ function parseBoxscore(html) {
   const gi = battingClean.findIndex(h => /gator/i.test(capName(h)));
   const order = n => { const a = [...Array(n).keys()]; return (gi >= 0 && gi < n) ? [gi, ...a.filter(x => x !== gi)] : a; };
   const box = [];
-  order(battingClean.length).forEach(i => box.push({ label: lab(i) + ' \u2014 Batting', html: bsMarkSubs(bsLinkGators(bsShortenCaption(battingClean[i]))), notes: notes[i] || null }));
-  order(pitching.length).forEach(i => box.push({ label: lab(i) + ' \u2014 Pitching', html: bsLinkGators(bsShortenCaption(pitching[i])) }));
+  order(battingClean.length).forEach(i => box.push({ label: lab(i) + ' \u2014 Batting', html: bsMarkSubs(bsLinkGators(bsRenameK(bsShortenCaption(battingClean[i])))), notes: notes[i] || null }));
+  order(pitching.length).forEach(i => box.push({ label: lab(i) + ' \u2014 Pitching', html: bsPitchDecision(bsPitchERA(bsLinkGators(bsRenameK(bsShortenCaption(pitching[i]))))) }));
   return { line, teams, box, pbp,
     counts: { tables: tables.length, line: line ? 1 : 0, batting: batting.length, pitching: pitching.length, pbp: pbp.length }, types };
 }
@@ -2265,6 +2291,7 @@ body.noscroll{overflow:hidden;}
 .bx th.sub{padding-left:24px;}
 .bx th a.bxp{color:var(--bone);text-decoration:underline;text-decoration-color:rgba(236,201,19,.55);text-underline-offset:2px;cursor:pointer;}
 .bx th a.bxp:active{opacity:.6;}
+.bx .dec{color:var(--gold2);font-weight:700;}
 .pbp table{margin-bottom:12px;border:1px solid var(--line);border-radius:10px;overflow:hidden;}
 .pbp tr:first-child th,.pbp tr:first-child td{background:var(--panel);color:var(--gold2);text-align:left;font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:11px;letter-spacing:.05em;font-weight:700;padding:8px 10px;white-space:normal;}
 .pbp td{text-align:left;white-space:normal;font-size:12px;color:var(--bone);padding:6px 10px;border-top:1px solid var(--line);line-height:1.45;}
