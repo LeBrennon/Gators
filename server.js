@@ -1093,15 +1093,26 @@ const isThrottle = s => s === 459 || s === 429 || s === 503 || s === 403;
 // Persist the scraped stats so a restart serves them instantly (no cold scrape)
 // and only refreshes in the background. Best-effort: a read-only FS just no-ops.
 const CACHE_FILE = (process.env.CACHE_DIR || '.') + '/roster-cache.json';
+// Committed warm-boot seed: a periodic full-roster snapshot (rebuilt with
+// scripts/build-seed). Loaded only when no live runtime cache exists — e.g. the
+// first boot after a fresh deploy — so the roster shows complete instantly
+// instead of cold-scraping. Resolved from __dirname so it's found regardless of
+// the process working directory.
+const SEED_FILE = __dirname + '/roster-seed.json';
 function saveCache() {
   try { fs.writeFileSync(CACHE_FILE, JSON.stringify({ rosterStats, playerCache, rosterUpdated, playerPhotos, photosLoadedAt })); } catch (e) {}
 }
+function applyCache(d) {
+  if (!d || !d.rosterStats || !Object.keys(d.rosterStats).length) return false;
+  rosterStats = d.rosterStats; Object.assign(playerCache, d.playerCache || {}); rosterUpdated = d.rosterUpdated || 0;
+  if (d.playerPhotos && Object.keys(d.playerPhotos).length) { playerPhotos = d.playerPhotos; photosLoadedAt = d.photosLoadedAt || Date.now(); }
+  return true;
+}
 function loadCache() {
-  try {
-    const d = JSON.parse(fs.readFileSync(CACHE_FILE, 'utf8'));
-    if (d && d.rosterStats) { rosterStats = d.rosterStats; Object.assign(playerCache, d.playerCache || {}); rosterUpdated = d.rosterUpdated || 0; }
-    if (d && d.playerPhotos && Object.keys(d.playerPhotos).length) { playerPhotos = d.playerPhotos; photosLoadedAt = d.photosLoadedAt || Date.now(); }
-  } catch (e) { /* no cache yet */ }
+  // Prefer the live runtime cache (fresher); fall back to the committed seed.
+  for (const file of [CACHE_FILE, SEED_FILE]) {
+    try { if (applyCache(JSON.parse(fs.readFileSync(file, 'utf8')))) return; } catch (e) { /* try next */ }
+  }
 }
 
 // One fetch of a player page -> { primary, status }. No internal retries; the
