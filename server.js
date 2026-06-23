@@ -186,6 +186,7 @@ function bsShortenCaption(html) {
 // its position is ph/pr or repeats a position already listed in the lineup.
 function bsMarkSubs(tableHtml) {
   const seen = new Set();
+  let n = 0;   // substitute order within this team -> a, b, c... (MLB-style reference letter)
   return tableHtml.replace(/<tr\b[\s\S]*?<\/tr>/gi, row => {
     const th = row.match(/<th\b([^>]*)>([\s\S]*?)<\/th>/i);
     if (!th) return row;
@@ -197,9 +198,12 @@ function bsMarkSubs(tableHtml) {
     else if (seen.has(first)) sub = true;
     else seen.add(first);
     if (!sub) return row;
-    return row.replace(/<th\b([^>]*)>/i, (m, a) => /class=/i.test(a)
+    const letter = n < 26 ? String.fromCharCode(97 + n) : '+'; n++;
+    let out = row.replace(/<th\b([^>]*)>/i, (m, a) => /class=/i.test(a)
       ? m.replace(/class="([^"]*)"/i, 'class="$1 bxsub"')
       : '<th' + a + ' class="bxsub">');
+    // Prefix the name with the reference letter (after the position span).
+    return out.replace(/(<\/span>\s*)/i, '$1<span class="sublet">' + letter + '-</span>');
   });
 }
 // Turn Gators players' names in the box score into links that open their roster
@@ -2297,6 +2301,7 @@ body.noscroll{overflow:hidden;}
 .bx td:first-child,.bx th:first-child{text-align:left;position:sticky;left:0;background:var(--bayou2);}
 .bx th:first-child{color:var(--bone);}
 .bx th.bxsub{padding-left:24px;}
+.bx .sublet{text-transform:none;color:var(--mute);font-weight:400;margin-right:1px;}
 .bx th a.bxp{color:var(--bone);text-decoration:none;cursor:pointer;}
 .bx th a.bxp:active{opacity:.6;}
 .bx .dec{color:var(--gold2);font-weight:700;}
