@@ -1789,6 +1789,9 @@ app.get('/tcl-logo.png', (_q, r) => { r.set('Content-Type','image/png'); r.set('
 app.get(['/gg-logo.png','/gg-logo.jpg'], (_q, r) => { r.set('Content-Type','image/png'); r.set('Cache-Control','public, max-age=86400'); r.send(Buffer.from(GG_LOGO_B64,'base64')); });
 // Social/link-preview image (Gumbeaux Gators logo, 1200x628) for iMessage etc.
 app.get('/og.jpg', (_q, r) => { try { r.set('Content-Type','image/jpeg'); r.set('Cache-Control','public, max-age=86400'); r.send(fs.readFileSync(__dirname + '/og.jpg')); } catch (e) { r.status(404).end(); } });
+// PWA / home-screen icons (also the notification icon the service worker uses).
+app.get('/icon-512.png', (_q, r) => { try { r.set('Content-Type','image/png'); r.set('Cache-Control','public, max-age=604800'); r.send(fs.readFileSync(__dirname + '/icon-512.png')); } catch (e) { r.status(404).end(); } });
+app.get(['/icon-192.png', '/icon.png'], (_q, r) => { try { r.set('Content-Type','image/png'); r.set('Cache-Control','public, max-age=604800'); r.send(fs.readFileSync(__dirname + '/icon-192.png')); } catch (e) { r.status(404).end(); } });
 app.get(BG_PATH, (_q, r) => { r.set('Content-Type','image/jpeg'); r.set('Cache-Control','public, max-age=31536000, immutable'); r.send(BG_BUF); });
 // Parsed box scores cached in memory and on disk. A finished game's box never
 // changes, so once fetched we keep serving it forever — this avoids re-hitting
@@ -2101,13 +2104,19 @@ const SW = [
 "self.addEventListener('notificationclick',function(e){e.notification.close();e.waitUntil(clients.matchAll({type:'window',includeUncontrolled:true}).then(function(l){for(var i=0;i<l.length;i++){if('focus'in l[i])return l[i].focus();}if(clients.openWindow)return clients.openWindow('./');}));});"
 ].join('\n');
 
-const MANIFEST = JSON.stringify({ name: 'Gators GameTracker', short_name: 'Gators', start_url: './', display: 'standalone', background_color: '#16102b', theme_color: '#16102b' });
+const MANIFEST = JSON.stringify({ name: 'Gators GameTracker', short_name: 'Gators', start_url: './', display: 'standalone', background_color: '#16102b', theme_color: '#16102b',
+  icons: [
+    { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+    { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+  ] });
 
 // ----- embedded app (no backticks inside) -----------------------------------
 const APP = `<!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#16102b"><link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Gators">
 <title>Gators GameTracker</title>
 <meta name="description" content="Live scores, schedule, and roster for the Lake Charles Gumbeaux Gators.">
 <meta property="og:type" content="website">
@@ -2272,6 +2281,14 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .crow .s{font-family:'Oswald',sans-serif;font-weight:700;font-size:18px;min-width:22px;text-align:right;}
 .crow.w .s{color:var(--gold2);}
 .toasts{position:fixed;top:14px;left:0;right:0;z-index:60;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;padding:0 14px;}
+.a2hs{position:fixed;left:12px;right:12px;bottom:14px;max-width:520px;margin:0 auto;z-index:70;display:none;align-items:center;gap:11px;background:var(--bayou2);border:1px solid var(--line);border-radius:16px;padding:10px 12px;box-shadow:0 18px 44px -16px rgba(0,0,0,.85);}
+.a2hs.show{display:flex;}
+.a2hsico{width:42px;height:42px;border-radius:11px;flex:none;}
+.a2hstxt{flex:1;min-width:0;display:flex;flex-direction:column;}
+.a2hstxt b{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.03em;font-size:13px;color:var(--bone);}
+.a2hstxt span{font-size:11px;color:var(--mute);margin-top:1px;}
+.a2hsadd{flex:none;font-family:'Oswald',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-size:12px;color:#1a1330;background:linear-gradient(180deg,var(--gold2),var(--gold));border:1px solid var(--gold);border-radius:999px;padding:8px 16px;cursor:pointer;}
+.a2hsx{flex:none;background:none;border:none;color:var(--mute);font-size:15px;cursor:pointer;padding:4px 2px;line-height:1;}
 .toast{max-width:500px;width:100%;display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,var(--panel),var(--bayou2));border:1px solid rgba(236,201,19,.5);border-radius:14px;padding:12px 14px;box-shadow:0 16px 40px -12px rgba(0,0,0,.85);transform:translateY(-130%);opacity:0;transition:.45s cubic-bezier(.2,.9,.25,1);}
 .toast.show{transform:translateY(0);opacity:1;}
 .toast .e{font-size:24px;}.toast b{display:block;font-family:'Oswald',sans-serif;font-weight:700;text-transform:uppercase;font-size:14px;color:var(--gold2);}
@@ -2421,6 +2438,12 @@ a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 <div class="sec sbsec" id="sbSec" style="display:none"><span>Around the League</span><span class="sbdate" id="sbMeta"></span></div>
 <div id="scoreboardBody"></div>
 </div>
+</div>
+<div class="a2hs" id="a2hs">
+<img class="a2hsico" src="/icon-192.png" alt="">
+<div class="a2hstxt"><b>Add to Home Screen</b><span id="a2hsmsg">One tap to live Gators scores.</span></div>
+<button class="a2hsadd" id="a2hsadd">Add</button>
+<button class="a2hsx" id="a2hsx" aria-label="Dismiss">✕</button>
 </div>
 <div class="modal" id="bxModal"><div class="sheet">
 <div class="shead"><span class="sttl" id="bxTtl">Box Score</span><span class="sscore" id="bxScore"></span><button class="sclose" id="bxClose" aria-label="Close">✕</button></div>
@@ -2967,4 +2990,24 @@ $('plClose').addEventListener('click',function(){$('plModal').classList.remove('
 $('plModal').addEventListener('click',function(e){if(e.target===this){this.classList.remove('show');syncBg();}});
 $('bxClose').addEventListener('click',function(){$('bxModal').classList.remove('show');syncBg();});
 $('bxModal').addEventListener('click',function(e){if(e.target===this){this.classList.remove('show');syncBg();}});
+// ---- Add to Home Screen prompt (Android install prompt; iOS shows how-to) ----
+(function(){
+  var dp=null,b=$('a2hs');
+  function standalone(){return window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;}
+  function isIOS(){return /iphone|ipad|ipod/i.test(navigator.userAgent)&&!window.MSStream;}
+  function dismissed(){try{return localStorage.getItem('a2hsX')==='1';}catch(e){return false;}}
+  function touch(){return window.matchMedia('(pointer: coarse)').matches;}
+  function show(){if(b&&!standalone()&&!dismissed()&&touch())b.classList.add('show');}
+  function hide(){if(b)b.classList.remove('show');}
+  window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();dp=e;$('a2hsadd').style.display='';show();});
+  window.addEventListener('appinstalled',function(){hide();dp=null;try{localStorage.setItem('a2hsX','1');}catch(e){}});
+  $('a2hsadd').addEventListener('click',function(){if(!dp)return;dp.prompt();dp.userChoice.then(function(){hide();dp=null;});});
+  $('a2hsx').addEventListener('click',function(){try{localStorage.setItem('a2hsX','1');}catch(e){}hide();});
+  // iOS Safari can't trigger the prompt programmatically — show the how-to instead.
+  if(isIOS()&&!/crios|fxios|edgios/i.test(navigator.userAgent)){
+    $('a2hsadd').style.display='none';
+    $('a2hsmsg').innerHTML='Tap <b style="color:var(--gold2)">Share</b>, then "Add to Home Screen".';
+    setTimeout(show,1800);
+  }
+})();
 connect();loadSched();loadRoster();</script></body></html>`;
