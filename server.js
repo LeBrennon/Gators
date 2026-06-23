@@ -180,31 +180,46 @@ function bsMascot(name) {
 function bsShortenCaption(html) {
   return html.replace(/(<caption>\s*<h2>)([\s\S]*?)(<span>)/i, (m, a, name, b) => a + bsMascot(name) + ' ' + b);
 }
+// Extract a batting row's player name (text between the position <span> and the
+// row's closing </div>), stripping any link wrapper bsLinkGators added.
+function bsSubName(thInner) {
+  const m = thInner.match(/<\/span>([\s\S]*?)(?:<\/div>|<\/th>|$)/i);
+  return (m ? bsText(m[1]) : bsText(thInner)).trim();
+}
 // Mark substitute batters (pinch hitters/runners and defensive subs) so the box
 // score can indent them under the starter they replaced, like MLB Gameday. Among
 // the nine starters every fielding position is distinct, so a batter is a sub if
 // its position is ph/pr or repeats a position already listed in the lineup.
+// Also build the MLB-style reference legend: a sub takes the batting slot of the
+// player listed directly above it, so that player is whom they hit/ran/subbed for.
+// Returns { html, legend:[{letter, verb, forName}] }.
 function bsMarkSubs(tableHtml) {
   const seen = new Set();
-  let n = 0;   // substitute order within this team -> a, b, c... (MLB-style reference letter)
-  return tableHtml.replace(/<tr\b[\s\S]*?<\/tr>/gi, row => {
+  const legend = [];
+  let n = 0, prevName = '';   // substitute order within this team -> a, b, c...
+  const html = tableHtml.replace(/<tr\b[\s\S]*?<\/tr>/gi, row => {
     const th = row.match(/<th\b([^>]*)>([\s\S]*?)<\/th>/i);
     if (!th) return row;
     const sp = th[2].match(/<span>([\s\S]*?)<\/span>/i);
     if (!sp) return row;                       // "Hitters" header / "Totals" carry no position
     const first = bsText(sp[1]).toLowerCase().split(/[-/ ]/)[0];
+    const nm = bsSubName(th[2]);
     let sub = false;
     if (first === 'ph' || first === 'pr') sub = true;
     else if (seen.has(first)) sub = true;
     else seen.add(first);
-    if (!sub) return row;
+    if (!sub) { if (nm) prevName = nm; return row; }
     const letter = n < 26 ? String.fromCharCode(97 + n) : '+'; n++;
+    const verb = first === 'ph' ? 'pinch-hit for' : first === 'pr' ? 'pinch-ran for' : 'in for';
+    legend.push({ letter, verb, forName: prevName });
+    prevName = nm;                             // a later sub in this slot replaced this one
     let out = row.replace(/<th\b([^>]*)>/i, (m, a) => /class=/i.test(a)
       ? m.replace(/class="([^"]*)"/i, 'class="$1 bxsub"')
       : '<th' + a + ' class="bxsub">');
     // Prefix the name with the reference letter (after the position span).
     return out.replace(/(<\/span>\s*)/i, '$1<span class="sublet">' + letter + '-</span>');
   });
+  return { html, legend };
 }
 // Turn Gators players' names in the box score into links that open their roster
 // profile. Matches the box-score name against the roster (built lazily since
@@ -337,7 +352,7 @@ function parseBoxscore(html) {
   const gi = battingClean.findIndex(h => /gator/i.test(capName(h)));
   const order = n => { const a = [...Array(n).keys()]; return (gi >= 0 && gi < n) ? [gi, ...a.filter(x => x !== gi)] : a; };
   const box = [];
-  order(battingClean.length).forEach(i => box.push({ label: lab(i) + ' \u2014 Batting', html: bsMarkSubs(bsLinkGators(bsRenameK(bsShortenCaption(battingClean[i])))), notes: notes[i] || null }));
+  order(battingClean.length).forEach(i => { const sub = bsMarkSubs(bsLinkGators(bsRenameK(bsShortenCaption(battingClean[i])))); box.push({ label: lab(i) + ' \u2014 Batting', html: sub.html, legend: sub.legend, notes: notes[i] || null }); });
   order(pitching.length).forEach(i => box.push({ label: lab(i) + ' \u2014 Pitching', html: bsPitchDecision(bsPitchERA(bsLinkGators(bsRenameK(bsShortenCaption(pitching[i]))))) }));
   return { line, teams, box, pbp,
     counts: { tables: tables.length, line: line ? 1 : 0, batting: batting.length, pitching: pitching.length, pbp: pbp.length }, types };
@@ -2316,6 +2331,8 @@ body.noscroll{overflow:hidden;}
 .bxwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
 .bxnotes{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;font-size:11.5px;color:var(--bone);line-height:1.4;}
 .bxnotes .bxn b{color:var(--gold2);font-family:'Oswald',sans-serif;font-weight:700;font-size:10px;letter-spacing:.04em;margin-right:4px;}
+.bxleg{display:flex;flex-wrap:wrap;gap:3px 14px;margin-top:8px;font-size:11.5px;color:var(--mute);line-height:1.45;}
+.bxleg .bxl b{color:var(--gold2);font-weight:700;margin-right:3px;}
 .sbody table{width:100%;border-collapse:collapse;font-size:11px;}
 .bx td,.bx th{padding:4px 6px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap;}
 .bx th{color:var(--mute);font-weight:700;text-transform:uppercase;font-size:10px;}
@@ -2691,11 +2708,12 @@ function openBox(id,tab){var m=$('bxModal');m.classList.add('show');syncBg();
     showTab(tab);
   }).catch(function(){$('bxBody').innerHTML='<div class="spin">Could not load box score.</div>';});}
 function boxNotes(n){if(!n)return '';var order=['2B','3B','HR','SB','E'],p=[];for(var i=0;i<order.length;i++){var k=order[i];if(n[k])p.push('<span class="bxn"><b>'+k+'</b> '+esc(n[k])+'</span>');}return p.length?'<div class="bxnotes">'+p.join('')+'</div>':'';}
+function subLegend(L){if(!L||!L.length)return '';var p=L.map(function(s){return '<span class="bxl"><b>'+esc(s.letter)+'-</b>'+esc(s.verb)+(s.forName?' '+esc(s.forName):'')+'</span>';});return '<div class="bxleg">'+p.join('')+'</div>';}
 function showTab(which){$('tabBox').classList.toggle('on',which==='box');$('tabPbp').classList.toggle('on',which==='pbp');
   var d=_box;if(!d)return;var h='';
   if(which==='box'){
     if(d.line)h+='<div class="bx"><div class="bxwrap">'+d.line+'</div></div>';
-    (d.box||[]).forEach(function(b){h+='<div class="bx"><div class="bxwrap">'+b.html+'</div>'+boxNotes(b.notes)+'</div>';});
+    (d.box||[]).forEach(function(b){h+='<div class="bx"><div class="bxwrap">'+b.html+'</div>'+subLegend(b.legend)+boxNotes(b.notes)+'</div>';});
     if(!h)h='<div class="spin">No box score available for this game.</div>';
   }else{
     if((d.pbp||[]).length){h='<div class="pbp">';d.pbp.forEach(function(p){h+=p.html;});h+='</div>';}
