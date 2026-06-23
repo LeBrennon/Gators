@@ -180,6 +180,28 @@ function bsMascot(name) {
 function bsShortenCaption(html) {
   return html.replace(/(<caption>\s*<h2>)([\s\S]*?)(<span>)/i, (m, a, name, b) => a + bsMascot(name) + ' ' + b);
 }
+// Mark substitute batters (pinch hitters/runners and defensive subs) so the box
+// score can indent them under the starter they replaced, like MLB Gameday. Among
+// the nine starters every fielding position is distinct, so a batter is a sub if
+// its position is ph/pr or repeats a position already listed in the lineup.
+function bsMarkSubs(tableHtml) {
+  const seen = new Set();
+  return tableHtml.replace(/<tr\b[\s\S]*?<\/tr>/gi, row => {
+    const th = row.match(/<th\b([^>]*)>([\s\S]*?)<\/th>/i);
+    if (!th) return row;
+    const sp = th[2].match(/<span>([\s\S]*?)<\/span>/i);
+    if (!sp) return row;                       // "Hitters" header / "Totals" carry no position
+    const first = bsText(sp[1]).toLowerCase().split(/[-/ ]/)[0];
+    let sub = false;
+    if (first === 'ph' || first === 'pr') sub = true;
+    else if (seen.has(first)) sub = true;
+    else seen.add(first);
+    if (!sub) return row;
+    return row.replace(/<th\b([^>]*)>/i, (m, a) => /class=/i.test(a)
+      ? m.replace(/class="([^"]*)"/i, 'class="$1 sub"')
+      : '<th' + a + ' class="sub">');
+  });
+}
 // Comma-separated player list from a stats-summary <span>, tidied (keeps any
 // trailing count like "Jacob Keys (2)").
 function bsNotesClean(spanHtml) {
@@ -252,7 +274,7 @@ function parseBoxscore(html) {
   const gi = battingClean.findIndex(h => /gator/i.test(capName(h)));
   const order = n => { const a = [...Array(n).keys()]; return (gi >= 0 && gi < n) ? [gi, ...a.filter(x => x !== gi)] : a; };
   const box = [];
-  order(battingClean.length).forEach(i => box.push({ label: lab(i) + ' \u2014 Batting', html: bsShortenCaption(battingClean[i]), notes: notes[i] || null }));
+  order(battingClean.length).forEach(i => box.push({ label: lab(i) + ' \u2014 Batting', html: bsMarkSubs(bsShortenCaption(battingClean[i])), notes: notes[i] || null }));
   order(pitching.length).forEach(i => box.push({ label: lab(i) + ' \u2014 Pitching', html: bsShortenCaption(pitching[i]) }));
   return { line, teams, box, pbp,
     counts: { tables: tables.length, line: line ? 1 : 0, batting: batting.length, pitching: pitching.length, pbp: pbp.length }, types };
@@ -2214,6 +2236,7 @@ body.noscroll{overflow:hidden;}
 .bx td,.bx th{padding:4px 6px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap;}
 .bx th{color:var(--mute);font-weight:700;text-transform:uppercase;font-size:10px;}
 .bx td:first-child,.bx th:first-child{text-align:left;position:sticky;left:0;background:var(--bayou2);}
+.bx th.sub{padding-left:24px;}
 .pbp table{margin-bottom:12px;border:1px solid var(--line);border-radius:10px;overflow:hidden;}
 .pbp tr:first-child th,.pbp tr:first-child td{background:var(--panel);color:var(--gold2);text-align:left;font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:11px;letter-spacing:.05em;font-weight:700;padding:8px 10px;white-space:normal;}
 .pbp td{text-align:left;white-space:normal;font-size:12px;color:var(--bone);padding:6px 10px;border-top:1px solid var(--line);line-height:1.45;}
