@@ -1899,6 +1899,34 @@ app.get('/debug/player', async (q, r) => {
     });
   } catch (e) { r.status(502).json({ error: e.message, stack: e.stack }); }
 });
+// Inspect the league hitting leaderboard so we can compute hitting ranks for
+// players whose own page has no batting "Overall" table (two-way players).
+app.get('/debug/leaders', async (_q, r) => {
+  try {
+    const res = await fetchText(leagueStatsUrl('h'));
+    const html = res.body || '';
+    const tables = html.match(/<table\b[\s\S]*?<\/table>/gi) || [];
+    let tbl = null, head = null;
+    for (const t of tables) {
+      const rows = rowsOf(t); if (rows.length < 2) continue;
+      const hd = cellsOf(rows[0]).map(x => bsText(x).split(/\s+/)[0].toLowerCase());
+      if (hd.indexOf('team') === -1) continue; tbl = t; head = hd; break;
+    }
+    if (!tbl) return r.json({ error: 'no leaderboard table', tables: tables.length });
+    const rows = rowsOf(tbl); const all = [];
+    for (let i = 1; i < rows.length; i++) {
+      const c = cellsOf(rows[i]); if (c.length < 4) continue;
+      const o = { col0: bsText(c[0]), slug: slugFromHref(firstLink(c[1]).href), teamId: teamIdFromHref(firstLink(c[2]).href) };
+      for (let k = 3; k < c.length && k < head.length; k++) { if (head[k]) o[head[k]] = bsText(c[k]); }
+      all.push(o);
+    }
+    r.json({
+      header: head, totalLeagueHitters: all.length,
+      sample: all.slice(0, 3),
+      gators: all.filter(x => x.teamId === GATORS_ID),
+    });
+  } catch (e) { r.status(502).json({ error: e.message }); }
+});
 app.get('/api/vapidPublicKey', (_q, r) => r.json({ key: VAPID_PUB, enabled: pushReady }));
 app.post('/api/subscribe', (q, r) => { if (!pushReady) return r.status(501).json({ error: 'push off' }); subscribers.add(q.body); r.json({ ok: true }); });
 app.get('/api/test', (_q, r) => {
