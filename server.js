@@ -2584,7 +2584,10 @@ function bi(label,val){return '<div class="bi"><span>'+label+'</span>'+esc(val)+
 function scell(o,rk,k,lab){if(!o||o[k]==null||o[k]===''||o[k]==='-')return '';var r=(rk&&rk[k])?'<div class="rk">'+esc(rk[k])+'</div>':'';return '<div class="scell"><div class="v">'+esc(o[k])+'</div><div class="l">'+lab+'</div>'+r+'</div>';}
 function sgrid(o,rk,defs){var c='';for(var i=0;i<defs.length;i++)c+=scell(o,rk,defs[i][0],defs[i][1]);return c?'<div class="sgrid">'+c+'</div>':'<div class="plimited" style="padding:2px">No qualifying stats yet.</div>';}
 function statBlocks(p){
-  var batBlock=p.hit?('<div class="statblock"><h4 class="bat">Hitting</h4>'+sgrid(p.hit,p.hitRanks,[['avg','AVG'],['obp','OBP'],['slg','SLG'],['gp','G'],['ab','AB'],['h','H'],['hr','HR'],['rbi','RBI'],['r','R'],['bb','BB'],['k','K'],['sb','SB']])+'</div>'):'';
+  var hitDefs=[['avg','AVG'],['obp','OBP'],['slg','SLG'],['gp','G'],['ab','AB'],['h','H'],['hr','HR'],['rbi','RBI'],['r','R'],['bb','BB'],['k','K']];
+  // Only show Stolen Bases once a player actually has one — no 0/empty box.
+  if(p.hit&&Number(p.hit.sb)>0)hitDefs.push(['sb','SB']);
+  var batBlock=p.hit?('<div class="statblock"><h4 class="bat">Hitting</h4>'+sgrid(p.hit,p.hitRanks,hitDefs)+'</div>'):'';
   var pitBlock=p.pit?('<div class="statblock"><h4>Pitching</h4>'+sgrid(p.pit,p.pitRanks,[['era','ERA'],['whip','WHIP'],['ip','IP'],['w','W'],['l','L'],['sv','SV'],['app','APP'],['gs','GS'],['k','K'],['bb','BB'],['h','H'],['er','ER']])+'</div>'):'';
   if(!batBlock&&!pitBlock)return '<div class="statblock"><div class="plimited" style="padding:2px">Season stats will appear here once this player records game action.</div></div>';
   return batBlock+pitBlock;
