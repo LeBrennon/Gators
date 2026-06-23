@@ -2255,8 +2255,8 @@ const SW = [
 
 const MANIFEST = JSON.stringify({ name: 'Gators GameTracker', short_name: 'Gators', start_url: './', display: 'standalone', background_color: '#16102b', theme_color: '#16102b',
   icons: [
-    { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-    { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+    { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+    { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
   ] });
 
 // ----- embedded app (no backticks inside) -----------------------------------
