@@ -1871,11 +1871,25 @@ app.get('/debug/player', async (q, r) => {
       glDump.push({ kind: head.indexOf('ip') !== -1 ? 'pitching' : (head.indexOf('ab') !== -1 ? 'batting' : 'other'),
         headTokens: head, headRaw: cellsOf(rows[0]).map(x => bsText(x)), firstRow: cellsOf(rows[1]).map(x => bsText(x)) });
     }
+    // Dump the "Player Stats" (Overall) tables' rows with every cell, so we can
+    // see exactly which column holds the rank for hitting vs pitching.
+    const statDump = [];
+    for (const t of tables) {
+      const low = bsText(t).toLowerCase();
+      if (low.indexOf('overall') === -1) continue;
+      const rows = rowsOf(t);
+      statDump.push({
+        kind: (low.indexOf('earned run average') !== -1 || low.indexOf('innings pitched') !== -1) ? 'pitching' : 'batting',
+        header: cellsOf(rows[0] || '').map(x => bsText(x)),
+        sampleRows: rows.slice(1, 7).map(row => cellsOf(row).map(x => bsText(x))),
+      });
+    }
     r.json({
       who: pl.name, slug,
       fetch: { ok: pr.ok, status: pr.status, bytes: body.length, hasPlayerStats: body.indexOf('Player Stats') !== -1, hasERA: body.toLowerCase().indexOf('earned run average') !== -1 },
       strip: { kind: strip.kind, map: flatVals(strip.map) },
       parsed: { kind: parsed.kind, keys: Object.keys(parsed.map), era: parsed.map.era && parsed.map.era.v, ip: parsed.map.ip && parsed.map.ip.v, k: parsed.map.k && parsed.map.k.v },
+      statTables: statDump,
       gameLogTables: glDump,
       cached: rosterStats[slug] || null,
     });
