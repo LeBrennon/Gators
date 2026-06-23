@@ -2245,6 +2245,10 @@ function renderGame(g){
   $('awayNm').textContent=g.away.short;$('homeNm').textContent=g.home.short;
   var ar=$('awayRec'),hr=$('homeRec');
   if(ar)ar.textContent=g.away.record||'';if(hr)hr.textContent=g.home.record||'';
+  // Upcoming games haven't been played, so show logo-vs-logo with no 0-0 score.
+  var preGame=(g.status==='pregame');
+  $('awaySc').style.display=preGame?'none':'';
+  $('homeSc').style.display=preGame?'none':'';
   if(g.id===curId){if(g.away.runs>prev.a)flash($('awaySc'));if(g.home.runs>prev.h)flash($('homeSc'));}
   $('awaySc').textContent=g.away.runs;$('homeSc').textContent=g.home.runs;
   prev={a:g.away.runs,h:g.home.runs};curId=g.id;
