@@ -2110,8 +2110,8 @@ const SW = [
 
 const MANIFEST = JSON.stringify({ name: 'Gators GameTracker', short_name: 'Gators', start_url: './', display: 'standalone', background_color: '#16102b', theme_color: '#16102b',
   icons: [
-    { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
-    { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+    { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+    { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
   ] });
 
 // ----- embedded app (no backticks inside) -----------------------------------
@@ -3001,7 +3001,8 @@ $('bxModal').addEventListener('click',function(e){if(e.target===this){this.class
   function standalone(){return window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;}
   function isIOS(){return /iphone|ipad|ipod/i.test(navigator.userAgent)&&!window.MSStream;}
   function dismissed(){try{return localStorage.getItem('a2hsX')==='1';}catch(e){return false;}}
-  function show(){if(b&&!standalone()&&!dismissed())b.classList.add('show');}
+  function isTouch(){return ('ontouchstart' in window)||navigator.maxTouchPoints>0||window.matchMedia('(pointer: coarse)').matches;}
+  function show(){if(b&&isTouch()&&!standalone()&&!dismissed())b.classList.add('show');}
   function hide(){if(b)b.classList.remove('show');}
   window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();dp=e;$('a2hsadd').style.display='';show();});
   window.addEventListener('appinstalled',function(){hide();dp=null;try{localStorage.setItem('a2hsX','1');}catch(e){}});
