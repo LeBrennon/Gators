@@ -340,7 +340,7 @@ function bsAttachStrikePct(box, pbp) {
           bl = info.pitchers.reduce((s, p) => s + (balls[p.name] || 0), 0);
         } else { n = np[name] || 0; w = bb[name] || 0; bl = balls[name]; }
         const ok = bl != null && n > 0 && bl <= n && bl >= 4 * w;
-        cell = '<td>' + (ok ? Math.round((n - bl) / n * 100) + '%' : '-') + '</td>';
+        cell = '<td>' + (ok ? Math.round((n - bl) / n * 100) : '-') + '</td>';
       }
       cells.push(cell);
       return open + cells.join('') + '</tr>';
