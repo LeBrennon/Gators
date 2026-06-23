@@ -2537,6 +2537,12 @@ function sline(o,keys){var out=[];for(var i=0;i<keys.length;i++){var k=keys[i][0
 // A pure pitcher (pos "P") shows only pitching on the list view until he has 10+
 // at-bats — his hitting still appears on the full profile. Two-way players are
 // pos "Two-Way" and always show both.
+// Show pitchers as LHP/RHP based on the hand they throw with; everyone else
+// (two-way, position players) keeps their listed position.
+function posLabel(p){
+  if(p.pos&&/^p$/i.test(String(p.pos).trim()))return String(p.t||'').toUpperCase()==='L'?'LHP':'RHP';
+  return p.pos;
+}
 function cardPitcherOnly(p){
   if(!p.pos||!/^p$/i.test(String(p.pos).trim()))return false;
   var ab=p.hit&&p.hit.ab;return (ab==null?0:Number(ab)||0)<10;
@@ -2558,7 +2564,7 @@ function renderRoster(d){
     h+='<div class="pcard" data-slug="'+p.slug+'">'+
        '<div class="pnum">'+p.num+'</div>'+
        '<div class="pmain"><div class="pname">'+esc(p.name)+'</div>'+
-       '<div class="pmeta"><b>'+esc(p.pos)+'</b> · '+esc(p.cls)+' · '+esc(p.school)+'</div></div>'+
+       '<div class="pmeta"><b>'+esc(posLabel(p))+'</b> · '+esc(p.cls)+' · '+esc(p.school)+'</div></div>'+
        cardStats(p)+'<div class="pchev">›</div></div>';
   }
   $('rosterBody').innerHTML=h;
@@ -2584,7 +2590,7 @@ function openPlayer(slug){
     im.onload=function(){ph.classList.add('hasimg');ph.innerHTML='';ph.appendChild(im);};
     im.src=p.photo;}
   $('plName').textContent=p.name;
-  $('plSub').textContent=p.pos+' · '+p.cls+' · '+p.school;
+  $('plSub').textContent=posLabel(p)+' · '+p.cls+' · '+p.school;
   var bio='<div class="bio">'+bi('Bats / Throws',p.b+' / '+p.t)+
     bi('Ht / Wt',(p.ht||'—')+(p.wt?(' · '+p.wt):''))+
     bi('Hometown',p.home||'—')+bi('School',p.school||'—')+
