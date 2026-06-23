@@ -49,7 +49,12 @@ async function getJSON(url, tries = 4) {
     console.error(`only ${ok}/${roster.players.length} players had stats (need >= ${MIN_OK}); leaving seed unchanged`);
     process.exit(1);
   }
-  fs.writeFileSync(OUT, JSON.stringify({ rosterStats, playerCache, rosterUpdated: roster.updated || 0 }));
-  console.log(`wrote roster-seed.json: ${ok}/${roster.players.length} players with stats` +
+  // Computed league hitting ranks (two-way players) so they show on warm boot
+  // instead of waiting for the first roster poll. Best-effort.
+  const leaders = await getJSON(BASE + '/debug/leaders');
+  const leagueHitRanks = (leaders && leaders.computedRanks) || {};
+  fs.writeFileSync(OUT, JSON.stringify({ rosterStats, playerCache, rosterUpdated: roster.updated || 0, leagueHitRanks }));
+  console.log(`wrote roster-seed.json: ${ok}/${roster.players.length} players with stats, ` +
+    `${Object.keys(leagueHitRanks).length} computed-rank entries` +
     (missing.length ? `; no data for: ${missing.join(', ')}` : ''));
 })();

@@ -1150,12 +1150,15 @@ const CACHE_FILE = (process.env.CACHE_DIR || '.') + '/roster-cache.json';
 // the process working directory.
 const SEED_FILE = __dirname + '/roster-seed.json';
 function saveCache() {
-  try { fs.writeFileSync(CACHE_FILE, JSON.stringify({ rosterStats, playerCache, rosterUpdated, playerPhotos, photosLoadedAt })); } catch (e) {}
+  try { fs.writeFileSync(CACHE_FILE, JSON.stringify({ rosterStats, playerCache, rosterUpdated, playerPhotos, photosLoadedAt, leagueHitRanks })); } catch (e) {}
 }
 function applyCache(d) {
   if (!d || !d.rosterStats || !Object.keys(d.rosterStats).length) return false;
   rosterStats = d.rosterStats; Object.assign(playerCache, d.playerCache || {}); rosterUpdated = d.rosterUpdated || 0;
   if (d.playerPhotos && Object.keys(d.playerPhotos).length) { playerPhotos = d.playerPhotos; photosLoadedAt = d.photosLoadedAt || Date.now(); }
+  // Computed two-way hitting ranks, so they show on warm boot instead of waiting
+  // for the first roster poll to re-fetch the league leaderboard.
+  if (d.leagueHitRanks && Object.keys(d.leagueHitRanks).length) leagueHitRanks = d.leagueHitRanks;
   return true;
 }
 function loadCache() {
