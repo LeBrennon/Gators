@@ -1876,12 +1876,16 @@ app.get('/debug/player', async (q, r) => {
     const statDump = [];
     for (const t of tables) {
       const low = bsText(t).toLowerCase();
-      if (low.indexOf('overall') === -1) continue;
       const rows = rowsOf(t);
+      const firstLabels = rows.slice(1, 6).map(row => bsText(cellsOf(row)[0] || ''));
       statDump.push({
-        kind: (low.indexOf('earned run average') !== -1 || low.indexOf('innings pitched') !== -1) ? 'pitching' : 'batting',
+        hasOverall: low.indexOf('overall') !== -1,
+        looksBatting: low.indexOf('batting average') !== -1 || low.indexOf('slugging') !== -1,
+        looksPitching: low.indexOf('earned run average') !== -1 || low.indexOf('innings pitched') !== -1,
+        ncols: cellsOf(rows[0] || '').length,
         header: cellsOf(rows[0] || '').map(x => bsText(x)),
-        sampleRows: rows.slice(1, 7).map(row => cellsOf(row).map(x => bsText(x))),
+        firstLabels,
+        sampleRows: rows.slice(1, 4).map(row => cellsOf(row).map(x => bsText(x))),
       });
     }
     r.json({
