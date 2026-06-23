@@ -1,13 +1,15 @@
 name: Refresh roster seed
 
 # Rebuilds the committed warm-boot snapshot (roster-seed.json) from the live
-# deploy so a fresh deploy's first paint shows recent stats. Runs weekly and can
+# deploy so a fresh deploy's first paint shows recent stats. Runs daily and can
 # be triggered manually. The running site always shows live stats regardless —
-# this only affects the brief first-paint window right after a deploy.
+# this only affects the brief first-paint window right after a deploy. Stats
+# change on game days (every day but Monday); the "commit only if changed" step
+# below means the off-day run is a no-op, so it only acts when stats moved.
 
 on:
   schedule:
-    - cron: '0 7 * * 1'   # Mondays 07:00 UTC (~1-2am Central, after the daily stats poll)
+    - cron: '0 7 * * *'   # daily 07:00 UTC (~2am Central, after the nightly stats poll)
   workflow_dispatch: {}    # allow manual runs from the Actions tab
 
 permissions:
