@@ -202,6 +202,32 @@ function bsMarkSubs(tableHtml) {
       : '<th' + a + ' class="sub">');
   });
 }
+// Turn Gators players' names in the box score into links that open their roster
+// profile. Matches the box-score name against the roster (built lazily since
+// ROSTER is defined later) and wraps it in an <a data-slug> the client handles.
+let _gatorNameSlug = null;
+function gatorNameSlug() {
+  if (!_gatorNameSlug) { _gatorNameSlug = {}; for (const p of ROSTER) _gatorNameSlug[p.name.toLowerCase().replace(/\s+/g, ' ').trim()] = p.slug; }
+  return _gatorNameSlug;
+}
+function bsLinkGators(tableHtml) {
+  const map = gatorNameSlug();
+  const link = (name, slug) => '<a class="bxp" data-slug="' + slug + '">' + name + '</a>';
+  return tableHtml.replace(/<th\b([^>]*)>([\s\S]*?)<\/th>/gi, (full, attrs, inner) => {
+    if (/<span>/i.test(inner)) {                 // batting: name sits between </span> and </div>
+      return full.replace(/(<\/span>)([\s\S]*?)(<\/div>)/i, (m, a, mid, b) => {
+        const name = bsText(mid); const slug = map[name.toLowerCase()];
+        if (!slug) return m;
+        return a + mid.match(/^\s*/)[0] + link(name, slug) + mid.match(/\s*$/)[0] + b;
+      });
+    }
+    const paren = inner.indexOf('(');            // pitching: " Name (W, 1-0) " — link the leading name
+    const namePart = paren >= 0 ? inner.slice(0, paren) : inner;
+    const name = bsText(namePart); const slug = map[name.toLowerCase()];
+    if (!slug) return full;
+    return '<th' + attrs + '>' + namePart.match(/^\s*/)[0] + link(name, slug) + namePart.match(/\s*$/)[0] + (paren >= 0 ? inner.slice(paren) : '') + '</th>';
+  });
+}
 // Comma-separated player list from a stats-summary <span>, tidied (keeps any
 // trailing count like "Jacob Keys (2)").
 function bsNotesClean(spanHtml) {
@@ -274,8 +300,8 @@ function parseBoxscore(html) {
   const gi = battingClean.findIndex(h => /gator/i.test(capName(h)));
   const order = n => { const a = [...Array(n).keys()]; return (gi >= 0 && gi < n) ? [gi, ...a.filter(x => x !== gi)] : a; };
   const box = [];
-  order(battingClean.length).forEach(i => box.push({ label: lab(i) + ' \u2014 Batting', html: bsMarkSubs(bsShortenCaption(battingClean[i])), notes: notes[i] || null }));
-  order(pitching.length).forEach(i => box.push({ label: lab(i) + ' \u2014 Pitching', html: bsShortenCaption(pitching[i]) }));
+  order(battingClean.length).forEach(i => box.push({ label: lab(i) + ' \u2014 Batting', html: bsMarkSubs(bsLinkGators(bsShortenCaption(battingClean[i]))), notes: notes[i] || null }));
+  order(pitching.length).forEach(i => box.push({ label: lab(i) + ' \u2014 Pitching', html: bsLinkGators(bsShortenCaption(pitching[i])) }));
   return { line, teams, box, pbp,
     counts: { tables: tables.length, line: line ? 1 : 0, batting: batting.length, pitching: pitching.length, pbp: pbp.length }, types };
 }
@@ -2237,6 +2263,8 @@ body.noscroll{overflow:hidden;}
 .bx th{color:var(--mute);font-weight:700;text-transform:uppercase;font-size:10px;}
 .bx td:first-child,.bx th:first-child{text-align:left;position:sticky;left:0;background:var(--bayou2);}
 .bx th.sub{padding-left:24px;}
+.bx th a.bxp{color:var(--bone);text-decoration:underline;text-decoration-color:rgba(236,201,19,.55);text-underline-offset:2px;cursor:pointer;}
+.bx th a.bxp:active{opacity:.6;}
 .pbp table{margin-bottom:12px;border:1px solid var(--line);border-radius:10px;overflow:hidden;}
 .pbp tr:first-child th,.pbp tr:first-child td{background:var(--panel);color:var(--gold2);text-align:left;font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:11px;letter-spacing:.05em;font-weight:700;padding:8px 10px;white-space:normal;}
 .pbp td{text-align:left;white-space:normal;font-size:12px;color:var(--bone);padding:6px 10px;border-top:1px solid var(--line);line-height:1.45;}
@@ -2582,6 +2610,7 @@ function connect(){var lastData=0;
 var _box=null;
 function bsScoreFromLine(line){try{var rows=line.match(new RegExp('<tr[^]*?</tr>','gi'))||[];var rs=[];rows.forEach(function(r){var c=r.match(new RegExp('<t[dh][^]*?</t[dh]>','gi'))||[];if(c.length>3){var nm=c[0].replace(/<[^>]+>/g,'').trim();if(nm&&!/^final$/i.test(nm))rs.push(c[c.length-3].replace(/<[^>]+>/g,'').trim());}});return rs.length>=2?rs[0]+'\u2013'+rs[1]:'';}catch(e){return'';}}
 function openBox(id,tab){var m=$('bxModal');m.classList.add('show');syncBg();
+  if(!rosterData)loadRoster(); // so tapping a Gators name in the box can open their profile
   tab=tab==='pbp'?'pbp':'box';
   $('tabBox').classList.toggle('on',tab==='box');$('tabPbp').classList.toggle('on',tab==='pbp');
   $('bxTtl').textContent='Box Score';$('bxScore').textContent='';
@@ -2888,6 +2917,7 @@ $('navStandings').addEventListener('click',function(){setView('standings');});
 document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-pbp]');if(b)setPbpView(b.getAttribute('data-pbp'));});
 document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-lineup]');if(b)setLineupTeam(b.getAttribute('data-lineup'));});
 document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-final]');if(b)openBox(b.getAttribute('data-id'),b.getAttribute('data-final'));});
+document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a.bxp[data-slug]');if(a){e.preventDefault();openPlayer(a.getAttribute('data-slug'));}});
 $('navRoster').addEventListener('click',function(){setView('roster');});
 function syncBg(){document.body.classList.toggle('noscroll',!!document.querySelector('.modal.show'));}
 $('plClose').addEventListener('click',function(){$('plModal').classList.remove('show');syncBg();});
