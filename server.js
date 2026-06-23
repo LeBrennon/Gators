@@ -480,8 +480,13 @@ function parseBoxscore(html) {
   const gi = battingClean.findIndex(h => /gator/i.test(capName(h)));
   const order = n => { const a = [...Array(n).keys()]; return (gi >= 0 && gi < n) ? [gi, ...a.filter(x => x !== gi)] : a; };
   const box = [];
-  order(battingClean.length).forEach(i => { const sub = bsMarkSubs(bsLinkGators(bsRenameK(bsShortenCaption(battingClean[i])))); box.push({ label: lab(i) + ' \u2014 Batting', html: sub.html, legend: sub.legend, notes: notes[i] || null }); });
-  order(pitching.length).forEach(i => box.push({ label: lab(i) + ' \u2014 Pitching', html: bsPitchDecision(bsPitchERA(bsLinkGators(bsRenameK(bsShortenCaption(pitching[i]))))) }));
+  // Group each team's tables together (batting then pitching), Gators first.
+  // HR/BF are dropped from pitching after bsPitchERA, which needs HR to place ERA.
+  order(battingClean.length).forEach(i => {
+    const sub = bsMarkSubs(bsLinkGators(bsRenameK(bsShortenCaption(battingClean[i]))));
+    box.push({ label: lab(i) + ' \u2014 Batting', html: sub.html, legend: sub.legend, notes: notes[i] || null });
+    if (pitching[i] != null) box.push({ label: lab(i) + ' \u2014 Pitching', html: bsDropCols(bsPitchDecision(bsPitchERA(bsLinkGators(bsRenameK(bsShortenCaption(pitching[i]))))), ['HR', 'BF']) });
+  });
   bsAttachSubLegend(box, pbp);
   bsAttachStrikePct(box, pbp);
   return { line, teams, box, pbp,
