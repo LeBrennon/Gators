@@ -761,9 +761,12 @@ function activePlayerLine(json, name, kind) {
   return info;
 }
 
-// Boil the feed's status block down to the live game situation.
+// Boil the feed's status block down to the live game situation. Every element
+// in this feed can arrive as a 1-element array (the same convention val() peels
+// off the scalar fields), so unwrap an array-wrapped <status> too.
 function summarizeLive(json) {
-  const s = json && json.status; if (!s) return null;
+  const s = json && (Array.isArray(json.status) ? json.status[0] : json.status);
+  if (!s) return null;
   const battingHome = val(s.vh) === 'H';
   return {
     complete: val(s.complete) === 'Y',
@@ -821,7 +824,7 @@ function teamLineScores(json) {
 // the tight live poll then only needs the lightweight liveupdate JSON.
 const liveAuthCache = {};
 // Full chain: boxscore page -> event id + hash -> live feed -> summary.
-async function fetchLiveForGame(boxscoreId) {
+async function fetchLiveForGame(boxscoreId, wantRaw) {
   const boxUrl = boxscoreUrl(boxscoreId);
   const out = { boxscoreId, boxUrl };
   let auth = liveAuthCache[boxscoreId];
@@ -839,7 +842,15 @@ async function fetchLiveForGame(boxscoreId) {
   }
   const feed = await fetchLiveUpdate(auth.e, auth.h, boxUrl);
   out.feed = { url: feed.url, ok: feed.ok, status: feed.status, contentType: feed.contentType, length: feed.length, parseError: feed.parseError, head: feed.json ? undefined : feed.head };
-  if (feed.json) { out.live = summarizeLive(feed.json); out.teams = teamLineScores(feed.json); out.plays = summarizePlays(feed.json); out.lineups = lineupsFromFeed(feed.json); out.feedSource = feed.json.source; }
+  if (feed.json) {
+    out.live = summarizeLive(feed.json); out.teams = teamLineScores(feed.json); out.plays = summarizePlays(feed.json); out.lineups = lineupsFromFeed(feed.json); out.feedSource = feed.json.source;
+    // Diagnostics only: when the situation block can't be parsed (live === null)
+    // we can't tell from afar where the feed moved it. Surface the feed's
+    // top-level keys, and the full payload on request, so /debug/live shows the
+    // real shape without hauling it through the normal live-poll path.
+    out.feedKeys = Object.keys(feed.json);
+    if (wantRaw) out.raw = feed.json;
+  }
   return out;
 }
 
@@ -1916,7 +1927,7 @@ app.get('/debug/live', async (q, r) => {
   try {
     const id = (q.query && q.query.id) || (featured && featured.id);
     if (!id) return r.status(503).json({ error: 'no game id yet — pass ?id=YYYYMMDD_xxxx or wait for the schedule poll' });
-    const result = await fetchLiveForGame(id);
+    const result = await fetchLiveForGame(id, true);
     r.json(result);
   } catch (err) {
     r.status(500).json({ error: String(err && err.message || err) });
@@ -2672,21 +2683,27 @@ function baseDiamond(b){
 }
 function outsDots(n){n=n||0;var h='';for(var i=0;i<3;i++)h+='<span class="odot'+(i<n?' on':'')+'"></span>';return h;}
 function buildLive(g){
-  var L=g.live;if(!(g.status==='live'&&L))return '';
-  var count=L.count||((L.balls||0)+'-'+(L.strikes||0));
-  var sit='<div class="lsit">'+
-    '<div class="lcell"><div class="lv">'+esc(count)+'</div><div class="ll">Count</div></div>'+
-    baseDiamond(L.bases)+
-    '<div class="lcell"><div class="lv">'+outsDots(L.outs)+'</div><div class="ll">'+((L.outs||0)===1?'Out':'Outs')+'</div></div>'+
-    '</div>';
-  var bp='';
-  if(L.pitcherInfo||L.batterInfo){
-    if(L.pitcherInfo)bp+=matchupCard('Pitching',L.pitcherInfo);
-    if(L.pitcherInfo&&L.batterInfo)bp+='<div class="mvs">— pitching to —</div>';
-    if(L.batterInfo)bp+=matchupCard('At bat',L.batterInfo);
-  }else{
-    if(L.pitcher)bp+='<div class="bprow"><span class="bpk">Pitching</span><span class="bpn">'+esc(L.pitcher)+'</span></div>';
-    if(L.batter)bp+='<div class="bprow"><span class="bpk">At bat</span><span class="bpn">'+esc(L.batter)+'</span></div>';
+  if(g.status!=='live')return '';
+  // The count/bases/outs strip and the pitcher-vs-batter cards need the feed's
+  // at-bat situation; the line score, play-by-play, and lineup come from other
+  // parts of the same feed. Render whatever parsed instead of hiding the whole
+  // panel when only the situation block is missing.
+  var L=g.live,sit='',bp='';
+  if(L){
+    var count=L.count||((L.balls||0)+'-'+(L.strikes||0));
+    sit='<div class="lsit">'+
+      '<div class="lcell"><div class="lv">'+esc(count)+'</div><div class="ll">Count</div></div>'+
+      baseDiamond(L.bases)+
+      '<div class="lcell"><div class="lv">'+outsDots(L.outs)+'</div><div class="ll">'+((L.outs||0)===1?'Out':'Outs')+'</div></div>'+
+      '</div>';
+    if(L.pitcherInfo||L.batterInfo){
+      if(L.pitcherInfo)bp+=matchupCard('Pitching',L.pitcherInfo);
+      if(L.pitcherInfo&&L.batterInfo)bp+='<div class="mvs">— pitching to —</div>';
+      if(L.batterInfo)bp+=matchupCard('At bat',L.batterInfo);
+    }else{
+      if(L.pitcher)bp+='<div class="bprow"><span class="bpk">Pitching</span><span class="bpn">'+esc(L.pitcher)+'</span></div>';
+      if(L.batter)bp+='<div class="bprow"><span class="bpk">At bat</span><span class="bpn">'+esc(L.batter)+'</span></div>';
+    }
   }
   var line=buildLineScore(g);
   var lineup=buildLineup(g);
