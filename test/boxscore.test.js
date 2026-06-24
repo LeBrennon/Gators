@@ -21,13 +21,15 @@ test('parseBoxscore: pulls both team names from the line score', () => {
   assert.deepEqual(teams, ['Acadiana Cane Cutters', 'Lake Charles Gumbeaux Gators']);
 });
 
-test('parseBoxscore: builds labeled box sections (batting then pitching)', () => {
+test('parseBoxscore: builds labeled box sections (each team grouped, batting then pitching)', () => {
   const { box } = parseBoxscore(HTML);
   assert.equal(box.length, 3);
+  // Tables are grouped per team: a team's batting is immediately followed by
+  // that team's pitching. (The fixture only carries the away team's pitching.)
   assert.deepEqual(box.map(b => b.label), [
     'Acadiana Cane Cutters ' + DASH + ' Batting',
-    'Lake Charles Gumbeaux Gators ' + DASH + ' Batting',
     'Acadiana Cane Cutters ' + DASH + ' Pitching',
+    'Lake Charles Gumbeaux Gators ' + DASH + ' Batting',
   ]);
 });
 
@@ -53,12 +55,12 @@ test('parseBoxscore: line score is cleaned but keeps the data', () => {
 
 test('parseBoxscore: box html is cleaned, player names survive, <strong> -> <b>', () => {
   const { box } = parseBoxscore(HTML);
-  const awayBatting = box[0].html;
+  const awayBatting = box.find(b => /Batting/.test(b.label)).html;
   assert.match(awayBatting, /Smith, John/);
   assert.doesNotMatch(awayBatting, /<a\b/i);
   assert.doesNotMatch(awayBatting, /<img/i);
   // <strong>(L)</strong> in the pitching table becomes <b>(L)</b>.
-  const awayPitching = box[2].html;
+  const awayPitching = box.find(b => /Pitching/.test(b.label)).html;
   assert.match(awayPitching, /<b>\(L\)<\/b>/);
   assert.doesNotMatch(awayPitching, /<strong>/i);
 });
@@ -169,7 +171,13 @@ test('parseBoxscore: pulls 2B/3B/HR/SB/E notes per team in batting order', () =>
 });
 
 test('parseBoxscore: drops WP and AB columns from the pitching table', () => {
+  // Pitching sections are emitted paired to their team's batting table, so the
+  // fixture needs a Hitters table for the same team alongside the Pitchers table.
   const html = `
+    <table><caption><h2> Gators <span>Batters</span></h2></caption>
+      <tr><th>Hitters</th><th>AB</th></tr>
+      <tr><th><div><span>cf</span> Ayden Sunday</div></th><td>4</td></tr>
+    </table>
     <table><caption><h2> Gators <span>Pitchers</span></h2></caption>
       <tr><th>Pitchers</th><th>IP</th><th>BB</th><th>SO</th><th>HR</th><th>WP</th><th>BF</th><th>AB</th><th>NP</th></tr>
       <tr><th>Sawyer Simmons</th><td>4.0</td><td>2</td><td>7</td><td>0</td><td>1</td><td>18</td><td>15</td><td>74</td></tr>
@@ -177,8 +185,8 @@ test('parseBoxscore: drops WP and AB columns from the pitching table', () => {
   const pit = parseBoxscore(html).box.find(b => /Pitching/.test(b.label)).html;
   assert.doesNotMatch(pit, />\s*WP\s*</);
   assert.doesNotMatch(pit, />\s*AB\s*</);
-  // other columns and their values survive
-  assert.match(pit, />\s*SO\s*</);
+  // other columns and their values survive (SO is displayed as K, NP as #P)
+  assert.match(pit, />\s*K\s*</);
   assert.match(pit, /<td>74<\/td>/); // NP value still present
   assert.doesNotMatch(pit, /<td>15<\/td>/); // AB value dropped
 });
