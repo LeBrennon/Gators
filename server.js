@@ -34,6 +34,10 @@ const MAIL_USER    = process.env.GMAIL_USER || '';
 const MAIL_PASS    = process.env.GMAIL_APP_PASSWORD || '';
 const REPORT_TO    = (process.env.REPORT_TO || 'brennonmbaseball@gmail.com').split(',').map(s => s.trim()).filter(Boolean);
 const mailReady    = !!(nodemailer && MAIL_USER && MAIL_PASS);
+// Daily unique-visitor analytics: digest recipient + a salt for hashing IPs
+// (we never store raw IPs). Same-day dedupe stays stable across restarts.
+const STATS_TO     = (process.env.STATS_TO || 'brennonmoore11@gmail.com').split(',').map(s => s.trim()).filter(Boolean);
+const STATS_SALT   = process.env.STATS_SALT || 'gators-visits-v1';
 const VAPID_PUB    = process.env.VAPID_PUBLIC_KEY || '';
 const VAPID_PRIV   = process.env.VAPID_PRIVATE_KEY || '';
 const VAPID_MAIL   = process.env.VAPID_CONTACT || 'mailto:you@example.com';
@@ -1970,11 +1974,89 @@ async function pollTickets() {
 function decorateGame(g) { return Object.assign({}, g, { location: gameLocation(g), watchUrl: watchUrlFor(g), replayUrl: replayUrlFor(g), ticketUrl: ticketIndex[g.id] || null, theme: THEMES[g.date] || null, freeAdmission: FREE_ADMISSION[g.date] || null, promo: promoFor(g), special: SPECIALS[g.date] || null }); }
 
 // ----- server ---------------------------------------------------------------
+// ---- daily unique-visitor analytics ----------------------------------------
+// Count distinct visitors per day by a salted, day-scoped hash of their IP — no
+// cookies, no raw IPs stored. visitCounts keeps the per-day totals (history);
+// visitDays keeps the current day's hash set for same-day dedupe.
+const VISITS_FILE = (process.env.CACHE_DIR || '.') + '/visitors.json';
+const visitCounts = {};           // 'YYYYMMDD' -> unique count
+const visitDays = {};             // 'YYYYMMDD' -> Set(hashed ip)  (recent days only)
+(function loadVisits() {
+  try {
+    const d = JSON.parse(fs.readFileSync(VISITS_FILE, 'utf8'));
+    Object.assign(visitCounts, d.counts || {});
+    for (const day of Object.keys(d.days || {})) visitDays[day] = new Set(d.days[day]);
+  } catch (e) {}
+})();
+let _visitsDirty = false;
+function saveVisits() {
+  try {
+    const days = {}; for (const day of Object.keys(visitDays)) days[day] = [...visitDays[day]];
+    fs.writeFileSync(VISITS_FILE, JSON.stringify({ counts: visitCounts, days }));
+  } catch (e) {}
+}
+function pruneVisits() {
+  const today = todayCentralYmd();
+  // Keep only today's hash set (same-day dedupe); yesterday's count is frozen.
+  for (const day of Object.keys(visitDays)) if (day !== today) delete visitDays[day];
+  // Keep ~180 days of counts.
+  const keep = Object.keys(visitCounts).sort().slice(-180);
+  for (const day of Object.keys(visitCounts)) if (!keep.includes(day)) delete visitCounts[day];
+}
+function clientIp(req) {
+  const xff = req && req.headers && req.headers['x-forwarded-for'];
+  return (xff ? String(xff).split(',')[0].trim() : '') || (req && req.ip) || (req && req.socket && req.socket.remoteAddress) || '';
+}
+function recordVisit(req) {
+  try {
+    const ip = clientIp(req); if (!ip) return;
+    const day = todayCentralYmd();
+    const h = crypto.createHash('sha256').update(STATS_SALT + '|' + day + '|' + ip).digest('hex').slice(0, 16);
+    if (!visitDays[day]) { visitDays[day] = new Set(); pruneVisits(); }
+    if (visitDays[day].has(h)) return;
+    visitDays[day].add(h);
+    visitCounts[day] = (visitCounts[day] || 0) + 1;
+    _visitsDirty = true;
+  } catch (e) {}
+}
+setInterval(() => { if (_visitsDirty) { _visitsDirty = false; saveVisits(); } }, 30000).unref?.();
+function ymdLabel(ymd) { return /^\d{8}$/.test(ymd) ? dateFromId(ymd).label : ymd; }
+function statsRows(n) {
+  return Object.keys(visitCounts).sort().reverse().slice(0, n).map(d => ({ day: d, label: ymdLabel(d), n: visitCounts[d] }));
+}
+// Daily email digest: yesterday's uniques + the last 7 days.
+function emailVisitorDigest() {
+  const t = getMailer(); if (!t || !STATS_TO.length) return Promise.resolve(false);
+  const rows = statsRows(8);                          // yesterday + prior week (today excluded below)
+  const today = todayCentralYmd();
+  const past = rows.filter(r => r.day !== today);
+  const yest = past[0];
+  const week = past.slice(0, 7);
+  const weekTotal = week.reduce((s, r) => s + r.n, 0);
+  const subject = 'Gators site — ' + (yest ? (yest.n + ' unique visitor' + (yest.n === 1 ? '' : 's') + ' on ' + yest.label) : 'daily traffic');
+  const line = r => r.label + ': ' + r.n;
+  const text = 'whatisthegatorscore.com — daily visitors\n\n'
+    + (yest ? ('Yesterday (' + yest.label + '): ' + yest.n + ' unique visitors\n') : '')
+    + 'Last 7 days: ' + weekTotal + ' total\n\n' + week.map(line).join('\n') + '\n';
+  const html = '<div style="font-family:Arial,Helvetica,sans-serif;max-width:480px">'
+    + '<h2 style="margin:0 0 2px;color:#16102b">whatisthegatorscore.com — Daily Visitors</h2>'
+    + (yest ? ('<p style="margin:0 0 10px;font-size:18px"><b>' + yest.n + '</b> unique visitor' + (yest.n === 1 ? '' : 's') + ' <span style="color:#777">on ' + repEsc(yest.label) + '</span></p>') : '')
+    + '<p style="margin:0 0 6px;color:#555">Last 7 days: <b>' + weekTotal + '</b> total</p>'
+    + '<table style="border-collapse:collapse;font-size:14px">' + week.map(r => '<tr><td style="padding:3px 14px 3px 0;color:#555">' + repEsc(r.label) + '</td><td style="padding:3px 0;text-align:right"><b>' + r.n + '</b></td></tr>').join('') + '</table></div>';
+  return t.sendMail({ from: 'Gators Stats <' + MAIL_USER + '>', to: STATS_TO.join(', '), subject, text, html })
+    .then(() => { process.stdout.write('\n[stats] emailed daily digest to ' + STATS_TO.join(', ') + '\n'); return true; })
+    .catch(() => false);
+}
+function scheduleDailyStats() {
+  setTimeout(() => { if (mailReady) emailVisitorDigest(); scheduleDailyStats(); }, msUntilNextCentralMidnight());
+}
+
 const app = express();
+app.set('trust proxy', true);   // Render is behind a proxy — read the real client IP
 app.use(cors());
 app.use(express.json());
 
-app.get('/', (_q, r) => r.type('html').send(APP.replace('__BUILD_LABEL__', BUILD_LABEL)));
+app.get('/', (q, r) => { recordVisit(q); r.type('html').send(APP.replace('__BUILD_LABEL__', BUILD_LABEL)); });
 app.get('/sw.js', (_q, r) => r.type('application/javascript').send(SW));
 app.get('/manifest.json', (_q, r) => r.type('application/json').send(MANIFEST));
 app.get('/health', (_q, r) => r.json({ ok: true, build: BUILD, games: games.length, featured: featured && featured.id, push: pushReady }));
@@ -2352,6 +2434,27 @@ app.get('/reports', (q, r) => {
   r.set('Cache-Control', 'private, no-store');
   r.type('html').send(reportPage('Gators Game Reports', body));
 });
+// Private daily unique-visitor report (same key gate as the game reports).
+app.get('/stats', (q, r) => {
+  if (reportLocked(q, r)) return;
+  const today = todayCentralYmd();
+  const rows = statsRows(60);
+  const past = rows.filter(x => x.day !== today);
+  const todayN = visitCounts[today] || 0;
+  const wk = past.slice(0, 7), weekTotal = wk.reduce((s, x) => s + x.n, 0);
+  const avg = wk.length ? Math.round(weekTotal / wk.length) : 0;
+  let body = '<div class="rh"><div class="rt">Site Visitors</div></div><div class="rd">Unique viewers per day</div>';
+  body += '<div class="rscore">' + todayN + '</div><div style="text-align:center;color:var(--mute);font-size:12px;margin-bottom:6px">today so far</div>';
+  body += '<div class="subh">Last 7 days</div><div style="text-align:center;color:var(--bone);margin-bottom:4px">' + weekTotal + ' total · ~' + avg + '/day</div>';
+  body += '<div class="sec">By day</div>';
+  if (!rows.length) body += '<div class="empty">No visits recorded yet.</div>';
+  else body += '<div class="rtw"><table><tr><th>Date</th><th>Unique viewers</th></tr>'
+    + rows.map(x => '<tr><td>' + repEsc(x.label) + (x.day === today ? ' (today)' : '') + '</td><td>' + x.n + '</td></tr>').join('')
+    + '</table></div>';
+  body += '<div class="foot">Counts distinct visitors by hashed IP (no cookies, no raw IPs stored). Approximate.</div>';
+  r.set('Cache-Control', 'no-store');
+  r.type('html').send(reportPage('Site Visitors', body));
+});
 app.get('/api/schedule', (_q, r) => r.json({ games: games.map(decorateGame) }));
 app.get('/api/standings', (_q, r) => {
   if (!standingsTable.length) pollStandings();
@@ -2584,7 +2687,7 @@ app.get('/api/stream', (q, r) => {
 if (require.main === module) {
   loadCache(); // serve last-saved player stats instantly, then refresh below
   loadBoxCache(); // restore cached final box scores so we don't re-fetch them
-  app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleDailyRoster(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); });
+  app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleDailyRoster(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); scheduleDailyStats(); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, pitchersFromFeed, extractEventAuth,
   dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseGameLog, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, buildReportHtml, repPlays, repLineRows };
