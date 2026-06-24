@@ -2097,8 +2097,9 @@ function gameResultBits(g) {
   return { oppName: (g.opponent && (g.opponent.short || g.opponent.name)) || (opp && opp.short) || 'opponent',
     res: has ? (gr > or ? 'W' : gr < or ? 'L' : 'T') : '', score: has ? (gr + '-' + or) : '' };
 }
-async function emailReport(g) {
+async function emailReport(g, toList) {
   const t = getMailer(); if (!t) return false;
+  const to = (toList && toList.length ? toList : REPORT_TO).join(', ');
   const b = gameResultBits(g);
   const url = SITE_URL + '/report?id=' + encodeURIComponent(g.id) + '&key=' + encodeURIComponent(REPORT_KEY);
   const head = (g.dateLabel || '') + (b.score ? (' · ' + b.res + ' ' + b.score + ' vs ' + b.oppName) : '');
@@ -2109,8 +2110,8 @@ async function emailReport(g) {
     + '<p style="margin:0 0 14px;color:#555">' + repEsc(head) + '</p>'
     + '<p style="margin:0 0 14px"><a href="' + repEsc(url) + '" style="background:#714ad2;color:#fff;padding:11px 18px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">View full report</a></p>'
     + '<p style="color:#999;font-size:12px;word-break:break-all">' + repEsc(url) + '</p></div>';
-  await t.sendMail({ from: 'Gumbeaux Gators <' + MAIL_USER + '>', to: REPORT_TO.join(', '), subject, text, html });
-  process.stdout.write('\n[report] emailed ' + g.id + ' to ' + REPORT_TO.join(', ') + '\n');
+  await t.sendMail({ from: 'Gumbeaux Gators <' + MAIL_USER + '>', to, subject, text, html });
+  process.stdout.write('\n[report] emailed ' + g.id + ' to ' + to + '\n');
   return true;
 }
 async function dispatchReports() {
@@ -2295,6 +2296,35 @@ app.get('/report', async (q, r) => {
     if (!res.ok || !res.data) return r.status(502).type('html').send(reportError('Box score not available yet — check back after the game.'));
     r.set('Cache-Control', 'private, no-store');
     r.type('html').send(buildReportHtml(res.data));
+  } catch (err) {
+    r.status(500).type('html').send(reportError(String(err && err.message || err)));
+  }
+});
+// On-demand send: email a game report now (defaults to tonight's / the latest
+// finished Gators game). ?id= a specific game, ?to= override the recipient.
+// Same key gate. Use it to send a report without waiting for the auto-trigger.
+app.get('/report/send', async (q, r) => {
+  if (reportLocked(q, r)) return;
+  if (!mailReady) return r.status(503).type('html').send(reportError('Email isn’t configured yet — set GMAIL_USER and GMAIL_APP_PASSWORD.'));
+  try {
+    let id = q.query.id;
+    if (!id) {
+      const today = todayCentralYmd();
+      const finals = (games || []).filter(g => g.state === 'final').slice().sort((a, b) => (b.sortKey || 0) - (a.sortKey || 0));
+      const g = finals.find(g => g.date === today) || finals[0];
+      if (!g) return r.status(404).type('html').send(reportError('No finished Gators game found to send yet.'));
+      id = g.id;
+    }
+    if (!/^\d{8}_[a-z0-9]+$/i.test(id)) return r.status(400).type('html').send(reportError('Bad game id.'));
+    const res = await fetchBoxPage(id);
+    if (!res.ok || !res.data) return r.status(502).type('html').send(reportError('Box score not available yet for that game — try again after it finals.'));
+    const g = (games || []).find(x => x.id === id) || { id, gatorsHome: false, away: {}, home: {}, opponent: {}, dateLabel: '' };
+    const to = q.query.to ? String(q.query.to).split(',').map(s => s.trim()).filter(Boolean) : null;
+    const ok = await emailReport(g, to);
+    if (!ok) return r.status(502).type('html').send(reportError('Could not send the email.'));
+    reportSent.add(id); saveReportsSent();
+    r.set('Cache-Control', 'no-store');
+    return r.type('html').send(reportPage('Report sent', '<div class="rh"><div class="rt">Report sent ✅</div></div><div class="rd">'+repEsc(id)+'</div><p class="empty" style="text-align:center">Emailed to '+repEsc((to || REPORT_TO).join(', '))+'</p>'));
   } catch (err) {
     r.status(500).type('html').send(reportError(String(err && err.message || err)));
   }
