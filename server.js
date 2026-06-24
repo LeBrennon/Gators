@@ -2360,6 +2360,7 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .tm .sc{font-family:'Oswald',sans-serif;font-weight:700;font-size:60px;line-height:.9;}
 .tm.gators .sc{color:var(--gator);text-shadow:0 0 24px rgba(113,74,210,.35);}
 .sc.flash{animation:fl .9s ease;}@keyframes fl{0%{transform:scale(1)}30%{transform:scale(1.18);filter:brightness(1.5)}100%{transform:scale(1)}}
+#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9999;display:none;}
 .mid{display:flex;flex-direction:column;align-items:center;gap:8px;padding:0 2px;}
 .statpill{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12px;letter-spacing:.06em;color:var(--gold2);background:rgba(236,201,19,.08);border:1px solid rgba(236,201,19,.25);border-radius:999px;padding:6px 11px;text-align:center;text-transform:uppercase;white-space:nowrap;}
 .statpill.live{color:var(--gator);background:rgba(113,74,210,.08);border-color:rgba(113,74,210,.3);}
@@ -2597,6 +2598,7 @@ a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 .sbstat.live{color:var(--gator);}
 </style></head><body>
 <div class="bgfx"></div>
+<canvas id="fx"></canvas>
 <div class="toasts" id="toasts"></div>
 <div class="wrap">
 <div class="topbar"><a class="tcllink" href="https://texascollegiateleague.com" target="_blank" rel="noopener" title="Texas Collegiate League"><img class="hdrlogo tcl" src="/tcl-logo.png" alt="Texas Collegiate League"></a><a class="gglink" href="https://gumbeauxgators.com" target="_blank" rel="noopener" title="Gumbeaux Gators official site"><img class="gglogo" src="/gg-logo.png" alt="Lake Charles Gumbeaux Gators"></a><div class="trail"><a class="ticketbtn" href="https://gumbeauxgators.com/tickets/" target="_blank" rel="noopener" title="Buy game tickets">Tickets</a><a class="shopbtn" id="shopBtn" href="https://gumbeauxgators.myshopify.com/collections/all" target="_blank" rel="noopener" title="Shop the Gators store"><span class="shoptxt">Gators<br>Team<br>Store</span></a></div></div>
@@ -2652,6 +2654,44 @@ function setLineupTeam(v){lineupTeam=v;if(lastGame)renderGame(lastGame);}
 function ord(n){n=+n;var s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}
 function esc(s){return (s||'').replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
 function flash(el){el.classList.remove('flash');void el.offsetWidth;el.classList.add('flash');}
+// Gators-scored fireworks: a short canvas burst in the brand gold/purple,
+// fired when the Gators' run total ticks up during a live game. Pointer-events
+// are off and it hides itself when the last spark fades, so it never blocks taps.
+var FX=(function(){
+  var cv,ctx,parts=[],raf=0,endAt=0,W=0,H=0,dpr=1;
+  var COLORS=['#ecc913','#ffd633','#714ad2','#b9a6ee','#f0ede4'];
+  function size(){dpr=Math.min(window.devicePixelRatio||1,2);W=cv.clientWidth;H=cv.clientHeight;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);}
+  function burst(x,y){
+    var n=34+(Math.random()*22|0),base=COLORS[Math.random()*COLORS.length|0];
+    for(var i=0;i<n;i++){
+      var a=(6.283*i)/n+Math.random()*0.3,sp=2+Math.random()*4.2;
+      parts.push({x:x,y:y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:1,
+        col:Math.random()<0.28?COLORS[Math.random()*COLORS.length|0]:base,r:1.4+Math.random()*1.8});
+    }
+  }
+  function tick(){
+    raf=requestAnimationFrame(tick);ctx.clearRect(0,0,W,H);
+    for(var i=parts.length-1;i>=0;i--){var p=parts[i];
+      p.vy+=0.05;p.vx*=0.99;p.vy*=0.99;p.x+=p.vx;p.y+=p.vy;p.life-=0.013;
+      if(p.life<=0){parts.splice(i,1);continue;}
+      ctx.globalAlpha=p.life<0?0:p.life;ctx.fillStyle=p.col;
+      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,6.283);ctx.fill();
+    }
+    ctx.globalAlpha=1;
+    if(!parts.length&&Date.now()>endAt){cancelAnimationFrame(raf);raf=0;cv.style.display='none';}
+  }
+  function show(intensity){
+    if(!cv){cv=$('fx');if(!cv||!cv.getContext)return;ctx=cv.getContext('2d');
+      window.addEventListener('resize',function(){if(cv.style.display!=='none')size();});}
+    if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+    cv.style.display='';if(!raf)size();
+    var shots=Math.max(3,Math.min(2+(intensity||1),7));
+    for(var s=0;s<shots;s++)(function(d){setTimeout(function(){
+      burst(W*(0.18+Math.random()*0.64),H*(0.16+Math.random()*0.34));},d);})(s*210);
+    endAt=Date.now()+shots*210+1800;if(!raf)tick();
+  }
+  return {show:show};
+})();
 var prev={a:null,h:null};
 function renderGame(g){
   var ah=!g.gatorsHome, hh=g.gatorsHome;
@@ -2665,6 +2705,9 @@ function renderGame(g){
   $('awaySc').style.display=preGame?'none':'';
   $('homeSc').style.display=preGame?'none':'';
   if(g.id===curId){if(g.away.runs>prev.a)flash($('awaySc'));if(g.home.runs>prev.h)flash($('homeSc'));}
+  // Fireworks when the Gators score (their run total rises) during a live game.
+  var gPrev=g.gatorsHome?prev.h:prev.a,gNow=g.gatorsHome?g.home.runs:g.away.runs;
+  if(g.id===curId&&g.status==='live'&&gPrev!=null&&gNow>gPrev)FX.show(gNow-gPrev);
   $('awaySc').textContent=g.away.runs;$('homeSc').textContent=g.home.runs;
   prev={a:g.away.runs,h:g.home.runs};curId=g.id;
   var sp=$('statpill');sp.textContent=g.inningLabel;sp.classList.toggle('live',g.status==='live');
