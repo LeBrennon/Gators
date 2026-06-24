@@ -2475,6 +2475,7 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .pbplist.full{max-height:46vh;overflow-y:auto;overflow-x:hidden;padding:0 6px;-webkit-overflow-scrolling:touch;}
 .pbpih{font-family:'Oswald',sans-serif;font-weight:600;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold2);padding:9px 0 3px;}
 .pbprow{padding:8px 0;border-top:1px solid var(--line);font-size:12.5px;line-height:1.45;}
+.pbpempty{padding:10px 0;font-size:12px;color:var(--mute);font-style:italic;}
 .pbpt{color:var(--bone);overflow-wrap:anywhere;}
 .pbprow.sc{background:linear-gradient(90deg,rgba(236,201,19,.10),transparent);margin:0 -6px;padding-left:6px;padding-right:6px;border-radius:6px;}
 .pbprow.sc .pbpt{color:var(--gold2);font-weight:600;}
@@ -2941,9 +2942,15 @@ function buildPbp(g){
     plays.slice().reverse().forEach(function(p){var key=p.inning+p.half;if(key!==lastKey){h+='<div class="pbpih">'+halfLabel(p)+'</div>';lastKey=key;}h+=pbpRow(p);});
     body='<div class="pbplist full" id="pbplist">'+h+'</div>';
   }else{
-    var cur=plays[plays.length-1];
-    var half=plays.filter(function(p){return p.inning===cur.inning&&p.half===cur.half;}).reverse();
-    body='<div class="pbplist" id="pbplist"><div class="pbpih">'+halfLabel(cur)+'</div>'+half.map(pbpRow).join('')+'</div>';
+    // Anchor "This Half" to the live current half (status block), so it clears
+    // and switches the moment the next team comes up — even before that half has
+    // a narrated play. Fall back to the last play's half for finals / no live.
+    var curInn=null,curHalf=null;
+    if(g.live&&+g.live.inning){curInn=+g.live.inning;curHalf=(g.live.half==='Top')?'top':'bot';}
+    if(curInn==null){var lp=plays[plays.length-1];curInn=lp.inning;curHalf=lp.half;}
+    var half=plays.filter(function(p){return p.inning===curInn&&p.half===curHalf;}).reverse();
+    var rows=half.length?half.map(pbpRow).join(''):'<div class="pbpempty">No plays yet this half.</div>';
+    body='<div class="pbplist" id="pbplist"><div class="pbpih">'+halfLabel({inning:curInn,half:curHalf})+'</div>'+rows+'</div>';
   }
   return '<div class="pbp">'+tabs+body+'</div>';
 }
