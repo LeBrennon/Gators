@@ -936,6 +936,12 @@ function pitchersFromFeed(json) {
       // pitch, or faced a batter) — not every rostered arm in the player list.
       const appeared = (ip != null && parseFloat(ip) > 0) || num(pitches) > 0 || num(pickv(pg, ['bf', 'batters'])) > 0;
       if (!appeared) continue;
+      const np = pitches != null ? num(pitches) : null;
+      // Strike%: prefer a strikes count from the feed; else derive it from balls
+      // (strikes = pitches - balls). Null when neither is available.
+      let strikes = pickv(pg, ['strikes', 'st', 'stk', 'strike']);
+      if (strikes == null) { const balls = pickv(pg, ['balls', 'ball', 'bl']); if (balls != null && np != null) strikes = np - num(balls); }
+      const sp = (np && strikes != null) ? Math.round(num(strikes) / np * 100) : null;
       rows.push({
         name: String(p.name || p.shortname || '').trim(),
         uni: p.uni != null ? String(p.uni) : '',
@@ -945,7 +951,8 @@ function pitchersFromFeed(json) {
         er: num(pickv(pg, ['er', 'earned'])),
         bb: num(pickv(pg, ['bb', 'walks'])),
         k: num(pickv(pg, ['so', 'k', 'strikeouts'])),
-        np: pitches != null ? num(pitches) : null,
+        np: np,
+        sp: sp,
         dec: String(pickv(pg, ['dec', 'decision', 'wls']) || '').trim(),
       });
     }
@@ -2826,7 +2833,7 @@ function buildPitching(g){
   var P=g.pitchers;if(!P||!P.length)return '';
   function nm(t){return t.vh==='H'?g.home.short:g.away.short;}
   var head='<tr><th class="luu">#</th><th class="lunm">Pitcher</th><th class="lpn">IP</th><th class="lpn">H</th><th class="lpn">R</th>'+
-    '<th class="lpn">ER</th><th class="lpn">BB</th><th class="lpn">K</th><th class="lpn">P</th></tr>';
+    '<th class="lpn">ER</th><th class="lpn">BB</th><th class="lpn">K</th><th class="lpn">P</th><th class="lpn">S%</th></tr>';
   var blocks='';
   P.forEach(function(t){
     if(!t.rows||!t.rows.length)return;
@@ -2837,7 +2844,8 @@ function buildPitching(g){
       if(r.dec)nme+=' <span class="pdec">'+esc(r.dec)+'</span>';
       rows+='<tr><td class="luu">'+esc(String(r.uni||''))+'</td><td class="lunm">'+nme+'</td><td class="lpn">'+esc(String(r.ip))+'</td>'+
         '<td class="lpn">'+r.h+'</td><td class="lpn">'+r.r+'</td><td class="lpn">'+r.er+'</td>'+
-        '<td class="lpn">'+r.bb+'</td><td class="lpn">'+r.k+'</td><td class="lpn">'+(r.np==null?'·':r.np)+'</td></tr>';
+        '<td class="lpn">'+r.bb+'</td><td class="lpn">'+r.k+'</td><td class="lpn">'+(r.np==null?'·':r.np)+'</td>'+
+        '<td class="lpn">'+(r.sp==null?'·':r.sp)+'</td></tr>';
     });
     blocks+='<div class="pthead">'+esc(nm(t))+'</div><div class="lubox"><table class="lutbl ptbl">'+head+rows+'</table></div>';
   });
