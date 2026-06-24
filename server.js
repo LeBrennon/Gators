@@ -666,9 +666,12 @@ function extractEventAuth(html) {
   // (the [:=] guard keeps `eventId` from matching inside `eventIdHashCode`).
   const e = (clean.match(/eventId\s*[:=]\s*["']([A-Za-z0-9]{8,})["']/i) || [])[1]
          || (clean.match(/liveupdate\?e=([A-Za-z0-9]+)/i) || [])[1];
-  const h = (clean.match(/eventIdHashCode\s*[:=]\s*["']([A-Za-z0-9_\-]{16,})["']/i) || [])[1]
-         || (clean.match(/(?:liveHash|hash)\s*[:=]\s*["']([A-Za-z0-9_\-]{20,})["']/i) || [])[1];
-  if (e && h) return { e, h, how: 'gameday-conf' };
+  const h = (clean.match(/(?:eventIdHashCode|gamedayHashCode|liveHash|hashCode|hash)\s*[:=]\s*["']([A-Za-z0-9_\-]{16,})["']/i) || [])[1]
+         || (clean.match(/liveupdate\?e=[A-Za-z0-9]+&(?:amp;)?h=([A-Za-z0-9_\-]{16,})/i) || [])[1]
+         || null;
+  // The current gameday entry-point URL carries only ?e=… (no &h=), and the feed
+  // accepts the event id alone — so return e even when no hash is present.
+  if (e) return { e, h: h || null, how: h ? 'gameday-conf' : 'gameday-conf-nohash' };
   return { e: null, h: null, how: 'not-found' };
 }
 
@@ -730,7 +733,7 @@ async function fetchText(url, referer) {
 }
 
 async function fetchLiveUpdate(e, h, referer) {
-  const url = ORIGIN + '/action/sports/liveupdate?e=' + e + '&h=' + h;
+  const url = ORIGIN + '/action/sports/liveupdate?e=' + e + (h ? '&h=' + h : '');
   const headers = { 'user-agent': UA, 'accept': 'application/json, text/javascript, */*; q=0.01',
     'x-requested-with': 'XMLHttpRequest', 'cache-control': 'no-cache' };
   if (referer) headers.referer = referer;
@@ -843,8 +846,8 @@ async function fetchLiveForGame(boxscoreId, wantRaw) {
     out.boxPage = { ok: page.ok, status: page.status, length: page.body.length };
     auth = extractEventAuth(page.body);
     out.auth = { e: auth.e, h: auth.h, how: auth.how };
-    if (auth.e && auth.h) liveAuthCache[boxscoreId] = { e: auth.e, h: auth.h };
-    if (!auth.e || !auth.h) {
+    if (auth.e) liveAuthCache[boxscoreId] = { e: auth.e, h: auth.h || null };
+    if (!auth.e) {
       out.snippet = snippetAround(page.body, 'liveupdate') || snippetAround(page.body, 'eventId') || snippetAround(page.body, 'gamecenter');
       return out;
     }
