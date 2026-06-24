@@ -2730,6 +2730,8 @@ function renderGame(g){
     else if(g.status==='pregame'&&g.ticketUrl){tk.setAttribute('href',g.ticketUrl);tk.setAttribute('target','_blank');tk.classList.remove('freead');tk.textContent='Buy Tickets';tk.style.display='';}
     else{tk.style.display='none';}
   }
+  // Load the roster during a live game so lineup names can link to profiles.
+  if(g.status==='live'&&!rosterData)loadRoster();
   var lp=$('livePanel');
   if(lp){
     var pl=document.getElementById('pbplist');var sc=pl?pl.scrollTop:0;
@@ -2809,6 +2811,16 @@ function matchupCard(role,info){
     '<div class="mname">'+esc(info.name)+(meta.length?'<span class="mmeta">'+meta.join(' ')+'</span>':'')+'</div>'+
     (stat?'<div class="mstat">'+stat+'</div>':'')+'</div>';
 }
+// Map a lineup player name to a roster slug (Gators only), so lineup names can
+// open the player profile the same way box-score names do. Built lazily from
+// rosterData and reset when the roster (re)loads.
+var _gnSlug=null;
+function gatorSlug(name){
+  if(!rosterData)return null;
+  if(!_gnSlug){_gnSlug={};for(var i=0;i<rosterData.length;i++){var p=rosterData[i];
+    if(p&&p.name)_gnSlug[String(p.name).toLowerCase().replace(/\s+/g,' ').trim()]=p.slug;}}
+  return _gnSlug[String(name||'').toLowerCase().replace(/\s+/g,' ').trim()]||null;
+}
 function buildLineup(g){
   var L=g.lineups;if(!L||!L.length)return '';
   var gators=null,opp=null;
@@ -2824,9 +2836,13 @@ function buildLineup(g){
   var rows='';
   team.rows.forEach(function(r){
     var cur=teamBatting&&curBat&&r.name===curBat;
+    // Gators names link to their profile (matched to the roster); others stay plain.
+    var slug=team.isGators?gatorSlug(r.name):null;
+    var nmeCell=esc(r.name||'');
+    if(slug)nmeCell='<a class="bxp" data-slug="'+esc(slug)+'">'+nmeCell+'</a>';
     rows+='<tr'+(cur?' class="cur"':'')+'><td class="lus">'+esc(String(r.spot||''))+'</td>'+
       '<td>'+esc(r.pos||'')+'</td><td class="luu">'+esc(String(r.uni||''))+'</td>'+
-      '<td class="lunm">'+esc(r.name||'')+'</td><td>'+esc(r.bats||'')+'</td>'+
+      '<td class="lunm">'+nmeCell+'</td><td>'+esc(r.bats||'')+'</td>'+
       '<td class="lut">'+esc(r.today||'')+'</td></tr>';
   });
   var tabs='<div class="lutabs">';
@@ -3051,7 +3067,9 @@ function setView(v){
 function loadRoster(){
   if(rosterReq)return;rosterReq=true;
   fetch('/api/roster').then(function(r){return r.json();}).then(function(d){
-    rosterReq=false;rosterData=d.players||[];mergeStats(rosterData);renderRoster(d);
+    rosterReq=false;rosterData=d.players||[];_gnSlug=null;mergeStats(rosterData);renderRoster(d);
+    // Re-render a live game so its lineup names pick up profile links now the roster is in.
+    if(lastGame&&lastGame.status==='live')renderGame(lastGame);
     lazyFill();
     // Keep polling until stats are complete AND headshots have loaded, so a fast
     // (cached) stats response doesn't leave profiles photoless.
