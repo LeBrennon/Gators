@@ -216,3 +216,26 @@ test('parseBoxscore: without a line score, box sections fall back to "Team N"', 
   assert.deepEqual(teams, []);
   assert.deepEqual(box.map(b => b.label), ['Team 1 ' + DASH + ' Batting', 'Team 2 ' + DASH + ' Batting']);
 });
+
+test('parseBoxscore: detects the line score when PrestoSports prefixes it with a "Line Score" caption', () => {
+  // The 2026 boxscore pages wrap the R/H/E table in <caption class="offscreen">
+  // Line Score</caption>, so its text reads "Line Score Final …" instead of
+  // "Final …". Team names must still come through (the report finds the Gators
+  // side by label), and the box sections must be labeled with the real teams.
+  const html = `
+    <table>
+      <caption class="offscreen">Line Score</caption>
+      <tr><th>Final</th><th>1</th><th>2</th><th>R</th><th>H</th><th>E</th></tr>
+      <tr><th>Lake Charles Gumbeaux Gators</th><td>2</td><td>10</td><td>12</td><td>12</td><td>1</td></tr>
+      <tr><th>Sherman Shadowcats</th><td>0</td><td>11</td><td>11</td><td>10</td><td>3</td></tr>
+    </table>
+    <table><tr><th>Hitters</th><th>AB</th></tr><tr><th><div><span>cf</span> Nathan McDonald</div></th><td>5</td></tr></table>
+    <table><tr><th>Hitters</th><th>AB</th></tr><tr><th><div><span>ss</span> Zach Fjelstad</div></th><td>4</td></tr></table>`;
+  const { teams, box } = parseBoxscore(html);
+  assert.deepEqual(teams, ['Lake Charles Gumbeaux Gators', 'Sherman Shadowcats']);
+  assert.deepEqual(box.map(b => b.label), [
+    'Lake Charles Gumbeaux Gators ' + DASH + ' Batting',
+    'Sherman Shadowcats ' + DASH + ' Batting',
+  ]);
+  assert.ok(box.some(b => /gator/i.test(b.label)), 'Gators side identifiable by label');
+});

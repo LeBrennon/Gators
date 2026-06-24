@@ -484,7 +484,10 @@ function parseBoxscore(html) {
       pbp.push({ title: m ? m[1].trim() : 'Inning', html: bsClean(t) });
     } else if (/\bHitters\b/i.test(tx)) { type = 'batting'; batting.push(bsClean(t)); }
     else if (/\bPitchers\b/i.test(tx)) { type = 'pitching'; pitching.push(bsDropCols(bsClean(t), ['WP', 'AB'])); }
-    else if (/^Final\b/i.test(tx) && /\bR\b/.test(tx) && !line) { type = 'line'; line = bsClean(t); }
+    // The line score is a finished game's R/H/E table. PrestoSports now prefixes
+    // it with an offscreen "Line Score" caption, so bsText reads "Line Score
+    // Final …"; older pages read just "Final …". Accept either lead-in.
+    else if (/^(?:Line Score\s+)?Final\b/i.test(tx) && /\bR\b/.test(tx) && !line) { type = 'line'; line = bsClean(t); }
     types.push({ type, head: tx.slice(0, 60) });
   }
   // Pitchers never hit (DH league): drop every pitcher's row from the Hitters
@@ -2100,6 +2103,23 @@ app.get('/debug/scan', async (q, r) => {
   } catch (err) {
     r.status(500).json({ error: String(err && err.message || err) });
   }
+});
+// Force-refresh one game's cached box score. A finished game's box is cached
+// forever (boxIsFinal), so when the league post-edits a final's box (a stat
+// correction), the site keeps serving the stale copy. This evicts the cached
+// box + walk data and re-fetches the corrected version. Ungated, like the
+// sibling /debug/* endpoints that also hit the upstream feed.
+app.get('/debug/box-refresh', async (q, r) => {
+  const id = String((q.query && q.query.id) || '');
+  if (!/^\d{8}_[a-z0-9]+$/i.test(id)) return r.status(400).json({ ok: false, error: 'pass ?id=YYYYMMDD_xxxx (a boxscore id)' });
+  const had = boxCache.has(id) || (boxWalkCache[id] != null);
+  boxCache.delete(id);
+  delete boxWalkCache[id];
+  const res = await fetchBoxPage(id);
+  if (!res || !res.ok) return r.status(502).json({ ok: false, id, evicted: had, error: 'refetch failed (status ' + (res && res.status) + ')' });
+  saveBoxCache(); // persist the eviction of the stale walk data too
+  r.set('Cache-Control', 'no-store');
+  r.json({ ok: true, id, evicted: had, refetched: true, teams: res.data.teams, counts: res.data.counts });
 });
 app.get('/api/game', (_q, r) => featured ? r.json(featured) : r.status(503).json({ status: 'waiting' }));
 app.get(['/gators-logo.png','/gators-logo.jpg'], (_q, r) => { r.set('Content-Type','image/png'); r.set('Cache-Control','public, max-age=86400'); r.send(Buffer.from(GATORS_LOGO_B64,'base64')); });
