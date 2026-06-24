@@ -2825,7 +2825,7 @@ function buildLive(g){
 function buildPitching(g){
   var P=g.pitchers;if(!P||!P.length)return '';
   function nm(t){return t.vh==='H'?g.home.short:g.away.short;}
-  var head='<tr><th class="lunm">Pitcher</th><th class="lpn">IP</th><th class="lpn">H</th><th class="lpn">R</th>'+
+  var head='<tr><th class="luu">#</th><th class="lunm">Pitcher</th><th class="lpn">IP</th><th class="lpn">H</th><th class="lpn">R</th>'+
     '<th class="lpn">ER</th><th class="lpn">BB</th><th class="lpn">K</th><th class="lpn">P</th></tr>';
   var blocks='';
   P.forEach(function(t){
@@ -2835,7 +2835,7 @@ function buildPitching(g){
       var slug=t.isGators?gatorSlug(r.name):null;
       var nme=esc(r.name||'');if(slug)nme='<a class="bxp" data-slug="'+esc(slug)+'">'+nme+'</a>';
       if(r.dec)nme+=' <span class="pdec">'+esc(r.dec)+'</span>';
-      rows+='<tr><td class="lunm">'+nme+'</td><td class="lpn">'+esc(String(r.ip))+'</td>'+
+      rows+='<tr><td class="luu">'+esc(String(r.uni||''))+'</td><td class="lunm">'+nme+'</td><td class="lpn">'+esc(String(r.ip))+'</td>'+
         '<td class="lpn">'+r.h+'</td><td class="lpn">'+r.r+'</td><td class="lpn">'+r.er+'</td>'+
         '<td class="lpn">'+r.bb+'</td><td class="lpn">'+r.k+'</td><td class="lpn">'+(r.np==null?'·':r.np)+'</td></tr>';
     });
