@@ -13,6 +13,15 @@ let webpush = null; try { webpush = require('web-push'); } catch (e) {}
 
 const PORT         = process.env.PORT || 8787;
 const POLL_MS      = Number(process.env.POLL_MS || 15000);
+// Deployed-build identity so it's possible to tell at a glance which commit is
+// actually live (Render exposes these env vars; locally they fall back to dev).
+// Surfaced in /health, /api/version, and a small footer in the app.
+const BUILD = {
+  commit: (process.env.RENDER_GIT_COMMIT || '').slice(0, 7) || 'dev',
+  branch: process.env.RENDER_GIT_BRANCH || '',
+  bootedAt: new Date().toISOString(),
+};
+const BUILD_LABEL = 'build ' + BUILD.commit + (BUILD.branch ? ' · ' + BUILD.branch : '');
 const LIVE_POLL_MS = Number(process.env.LIVE_POLL_MS || 7000);
 const SCHEDULE_URL = process.env.SCHEDULE_URL || 'https://texasleaguestats.prestosports.com/sports/bsb/2026/schedule';
 const SITE_URL     = (process.env.SITE_URL || 'https://gators.onrender.com').replace(/\/$/, '');
@@ -1901,10 +1910,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.get('/', (_q, r) => r.type('html').send(APP));
+app.get('/', (_q, r) => r.type('html').send(APP.replace('__BUILD_LABEL__', BUILD_LABEL)));
 app.get('/sw.js', (_q, r) => r.type('application/javascript').send(SW));
 app.get('/manifest.json', (_q, r) => r.type('application/json').send(MANIFEST));
-app.get('/health', (_q, r) => r.json({ ok: true, games: games.length, featured: featured && featured.id, push: pushReady }));
+app.get('/health', (_q, r) => r.json({ ok: true, build: BUILD, games: games.length, featured: featured && featured.id, push: pushReady }));
+app.get('/api/version', (_q, r) => r.json(BUILD));
 app.get('/debug', (_q, r) => {
   const html = lastHtml || '';
   const boxLinks = (html.match(/\/sports\/bsb\/\d{4}\/boxscores\/\d{8}_[a-z0-9]+\.xml/gi) || []).length;
@@ -2347,6 +2357,7 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .watchpill.replay{color:#fff;background:linear-gradient(180deg,var(--purple),var(--gator2));border-color:var(--purple);}
 .vs{font-size:10px;color:var(--mute);letter-spacing:.1em;text-transform:uppercase;}
 .note{margin-top:14px;font-size:11.5px;line-height:1.6;color:var(--mute);background:var(--bayou2);border:1px solid var(--line);border-radius:14px;padding:13px 15px;}
+.bld{margin:20px 0 6px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.08em;color:var(--mute);opacity:.5;}
 .note b{color:var(--bone);font-weight:600;}
 .jloc{text-align:center;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:10px;color:var(--mute);}
 .jtheme{margin-top:6px;text-align:center;font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-size:10.5px;color:#1a1330;background:linear-gradient(180deg,var(--gold2),var(--gold));border-radius:999px;padding:4px 11px;line-height:1.2;}
@@ -2606,6 +2617,7 @@ a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 <div class="sec sbsec" id="sbSec" style="display:none"><span>Around the League</span><span class="sbdate" id="sbMeta"></span></div>
 <div id="scoreboardBody"></div>
 </div>
+<div class="bld">__BUILD_LABEL__</div>
 </div>
 <div class="a2hs" id="a2hs">
 <img class="a2hsico" src="/icon-192.png" alt="">
