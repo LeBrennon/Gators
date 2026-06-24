@@ -862,7 +862,7 @@ async function fetchLiveForGame(boxscoreId, wantRaw) {
   const feed = await fetchLiveUpdate(auth.e, auth.h, boxUrl);
   out.feed = { url: feed.url, ok: feed.ok, status: feed.status, contentType: feed.contentType, length: feed.length, parseError: feed.parseError, head: feed.json ? undefined : feed.head };
   if (feed.json) {
-    out.live = summarizeLive(feed.json); out.teams = teamLineScores(feed.json); out.plays = summarizePlays(feed.json); out.lineups = lineupsFromFeed(feed.json); out.feedSource = feed.json.source;
+    out.live = summarizeLive(feed.json); out.teams = teamLineScores(feed.json); out.plays = summarizePlays(feed.json); out.lineups = lineupsFromFeed(feed.json); out.pitchers = pitchersFromFeed(feed.json); out.feedSource = feed.json.source;
     // Diagnostics only: when the situation block can't be parsed (live === null)
     // we can't tell from afar where the feed moved it. Surface the feed's
     // top-level keys, and the full payload on request, so /debug/live shows the
@@ -914,6 +914,42 @@ function lineupsFromFeed(json) {
       add('2B', h.double); add('3B', h.triple); add('HR', h.hr); add('SB', h.sb); add('E', fl.e);
     });
     return { vh: t.vh, name: t.name, teamId: t.teamId, isGators: t.teamId === GATORS_ID, rows: battingRows, notes };
+  }).filter(t => t.rows.length);
+}
+
+// Per-team pitching line for the live box: each pitcher who has taken the mound,
+// with IP/H/R/ER/BB/K and pitch count. The pitching record is read defensively
+// (it arrives as a 1-element array elsewhere) and field names are matched across
+// the spellings the feed has used, so a renamed key shows the stat, not a 0.
+function pitchersFromFeed(json) {
+  const teams = (json && json.team) || [];
+  const num = x => Number(x) || 0;
+  const pickv = (o, ks) => { for (const k of ks) if (o && o[k] != null && o[k] !== '') return o[k]; return null; };
+  return teams.map(t => {
+    const rows = [];
+    for (const p of (t.player || [])) {
+      const pg = (p.pitching && (Array.isArray(p.pitching) ? p.pitching[0] : p.pitching)) || null;
+      if (!pg) continue;
+      const ip = pickv(pg, ['ip']);
+      const pitches = pickv(pg, ['pitches', 'np', 'pitchcount', 'pc']);
+      // Only list pitchers who have actually appeared (recorded outs, thrown a
+      // pitch, or faced a batter) — not every rostered arm in the player list.
+      const appeared = (ip != null && parseFloat(ip) > 0) || num(pitches) > 0 || num(pickv(pg, ['bf', 'batters'])) > 0;
+      if (!appeared) continue;
+      rows.push({
+        name: String(p.name || p.shortname || '').trim(),
+        uni: p.uni != null ? String(p.uni) : '',
+        ip: ip != null ? String(ip) : '0.0',
+        h: num(pickv(pg, ['h', 'hits'])),
+        r: num(pickv(pg, ['r', 'runs'])),
+        er: num(pickv(pg, ['er', 'earned'])),
+        bb: num(pickv(pg, ['bb', 'walks'])),
+        k: num(pickv(pg, ['so', 'k', 'strikeouts'])),
+        np: pitches != null ? num(pitches) : null,
+        dec: String(pickv(pg, ['dec', 'decision', 'wls']) || '').trim(),
+      });
+    }
+    return { vh: t.vh, name: t.name, teamId: t.teamId, isGators: t.teamId === GATORS_ID, rows };
   }).filter(t => t.rows.length);
 }
 
@@ -1056,6 +1092,7 @@ async function enrichLive(norm) {
     }
     if (lf && lf.plays && lf.plays.length) norm.plays = lf.plays;
     if (lf && lf.lineups && lf.lineups.length) norm.lineups = lf.lineups;
+    if (lf && lf.pitchers && lf.pitchers.length) norm.pitchers = lf.pitchers;
     // The feed knows the last out has been made before the schedule says
     // "Final"; flip to the final screen now and anchor the post-game window.
     if (feedGameOver(norm.live, norm.away.runs, norm.home.runs)) {
@@ -2276,7 +2313,7 @@ if (require.main === module) {
   loadBoxCache(); // restore cached final box scores so we don't re-fetch them
   app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleDailyRoster(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); });
 }
-module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, extractEventAuth,
+module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, pitchersFromFeed, extractEventAuth,
   dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseGameLog, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver };
 
 // ----- embedded service worker ---------------------------------------------
@@ -2424,6 +2461,10 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .lutbl td.lut{font-family:'JetBrains Mono',monospace;color:var(--gold2);}
 .lutbl tr.cur td{background:linear-gradient(90deg,rgba(236,201,19,.12),transparent);}
 .lutbl tr.cur td.lunm{color:var(--gold2);}
+.ptbl td.lpn,.ptbl th.lpn{text-align:right;font-family:'JetBrains Mono',monospace;width:1%;white-space:nowrap;}
+.ptbl td.lpn{color:var(--bone);}
+.pthead{margin-top:10px;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold2);font-weight:700;padding:0 7px 3px;}
+.pdec{color:var(--gold2);font-weight:700;font-size:10px;}
 .lunotes{margin-top:10px;display:flex;flex-direction:column;gap:5px;}
 .lunote{font-size:11.5px;line-height:1.45;color:var(--bone);}
 .lunk{font-family:'Oswald',sans-serif;font-weight:700;font-size:10px;letter-spacing:.04em;color:var(--gold2);margin-right:5px;}
@@ -2774,8 +2815,33 @@ function buildLive(g){
   }
   var line=buildLineScore(g);
   var lineup=buildLineup(g);
+  var pitching=buildPitching(g);
   var pbp=buildPbp(g);
-  return sit+(bp?'<div class="lbp">'+bp+'</div>':'')+line+pbp+lineup;
+  return sit+(bp?'<div class="lbp">'+bp+'</div>':'')+line+pbp+lineup+pitching;
+}
+// Live pitching box: each team's pitchers who have appeared, with their game
+// line (IP/H/R/ER/BB/K and pitch count). Gators names link to their profile.
+function buildPitching(g){
+  var P=g.pitchers;if(!P||!P.length)return '';
+  function nm(t){return t.vh==='H'?g.home.short:g.away.short;}
+  var head='<tr><th class="lunm">Pitcher</th><th class="lpn">IP</th><th class="lpn">H</th><th class="lpn">R</th>'+
+    '<th class="lpn">ER</th><th class="lpn">BB</th><th class="lpn">K</th><th class="lpn">P</th></tr>';
+  var blocks='';
+  P.forEach(function(t){
+    if(!t.rows||!t.rows.length)return;
+    var rows='';
+    t.rows.forEach(function(r){
+      var slug=t.isGators?gatorSlug(r.name):null;
+      var nme=esc(r.name||'');if(slug)nme='<a class="bxp" data-slug="'+esc(slug)+'">'+nme+'</a>';
+      if(r.dec)nme+=' <span class="pdec">'+esc(r.dec)+'</span>';
+      rows+='<tr><td class="lunm">'+nme+'</td><td class="lpn">'+esc(String(r.ip))+'</td>'+
+        '<td class="lpn">'+r.h+'</td><td class="lpn">'+r.r+'</td><td class="lpn">'+r.er+'</td>'+
+        '<td class="lpn">'+r.bb+'</td><td class="lpn">'+r.k+'</td><td class="lpn">'+(r.np==null?'·':r.np)+'</td></tr>';
+    });
+    blocks+='<div class="pthead">'+esc(nm(t))+'</div><div class="lubox"><table class="lutbl ptbl">'+head+rows+'</table></div>';
+  });
+  if(!blocks)return '';
+  return '<div class="lineup"><div class="luh">Pitching</div>'+blocks+'</div>';
 }
 // Final-score recap shown in the panel once a game ends: a "Final" banner, the
 // score with the winner emphasized, and buttons into the box score / play-by-play.
