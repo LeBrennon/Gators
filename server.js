@@ -25,6 +25,9 @@ const BUILD_LABEL = 'build ' + BUILD.commit + (BUILD.branch ? ' · ' + BUILD.bra
 const LIVE_POLL_MS = Number(process.env.LIVE_POLL_MS || 7000);
 const SCHEDULE_URL = process.env.SCHEDULE_URL || 'https://texasleaguestats.prestosports.com/sports/bsb/2026/schedule';
 const SITE_URL     = (process.env.SITE_URL || 'https://gators.onrender.com').replace(/\/$/, '');
+// Secret key gating the private GM game reports (/report, /reports). When unset,
+// reports are locked entirely (private by default).
+const REPORT_KEY   = process.env.REPORT_KEY || '';
 const VAPID_PUB    = process.env.VAPID_PUBLIC_KEY || '';
 const VAPID_PRIV   = process.env.VAPID_PRIVATE_KEY || '';
 const VAPID_MAIL   = process.env.VAPID_CONTACT || 'mailto:you@example.com';
@@ -2218,17 +2221,49 @@ function buildReportHtml(data){
   const title=(gObj&&oObj)?('Gators '+gObj.r+'-'+oObj.r+' '+(oObj.name)+' · Report'):'Gators Game Report';
   return reportPage(title,h);
 }
+// Private-report gate: locked entirely unless REPORT_KEY is configured, then it
+// requires a matching ?key=. Returns true when access is allowed; otherwise it
+// sends the locked page and returns false.
+function reportLocked(q, r) {
+  if (!REPORT_KEY) { r.status(403).type('html').send(reportError('Reports are private. The site owner needs to set a REPORT_KEY to enable them.')); return true; }
+  if (!q.query || String(q.query.key || '') !== REPORT_KEY) { r.status(403).type('html').send(reportError('This report is private.')); return true; }
+  return false;
+}
 app.get('/report', async (q, r) => {
+  if (reportLocked(q, r)) return;
   const id = q.query && q.query.id;
   try {
     if (!id || !/^\d{8}_[a-z0-9]+$/i.test(id)) return r.status(400).type('html').send(reportError('Pass ?id=YYYYMMDD_xxxx (a game id).'));
     const res = await fetchBoxPage(id);
     if (!res.ok || !res.data) return r.status(502).type('html').send(reportError('Box score not available yet — check back after the game.'));
-    r.set('Cache-Control', 'public, max-age=300');
+    r.set('Cache-Control', 'private, no-store');
     r.type('html').send(buildReportHtml(res.data));
   } catch (err) {
     r.status(500).type('html').send(reportError(String(err && err.message || err)));
   }
+});
+// Private index of finished-game reports — the owner's jump-off point for
+// grabbing a link to share. Each link carries the key so the GM can open it
+// without the index.
+app.get('/reports', (q, r) => {
+  if (reportLocked(q, r)) return;
+  const key = encodeURIComponent(String(q.query.key));
+  const finals = games.filter(g => g.state === 'final').slice().sort((a, b) => (b.sortKey || 0) - (a.sortKey || 0));
+  let body = '<div class="rh"><div class="rt">Gators Game Reports</div></div><div class="rd">Private · ' + finals.length + ' game' + (finals.length === 1 ? '' : 's') + '</div>';
+  if (!finals.length) body += '<div class="empty">No finished games yet.</div>';
+  else {
+    body += '<ul class="plist">' + finals.map(g => {
+      const gat = (g.home && g.home.id === GATORS_ID) ? g.home : g.away;
+      const opp = (g.home && g.home.id === GATORS_ID) ? g.away : g.home;
+      const score = (gat.score != null && opp.score != null) ? (gat.score + '–' + opp.score) : '';
+      const res = (gat.score != null && opp.score != null) ? (gat.score > opp.score ? 'W' : (gat.score < opp.score ? 'L' : 'T')) : '';
+      return '<li><a style="color:var(--gold2);text-decoration:none;font-weight:600;display:block" href="/report?id=' + encodeURIComponent(g.id) + '&key=' + key + '">'
+        + '<span class="pinn">' + repEsc(g.dateLabel || '') + '</span> ' + repEsc((res ? res + ' ' : '') + score) + ' vs ' + repEsc((opp && (opp.short || opp.name)) || '') + ' ›</a></li>';
+    }).join('') + '</ul>';
+  }
+  body += '<div class="foot">Share an individual game link with the GM — keep this index link private.</div>';
+  r.set('Cache-Control', 'private, no-store');
+  r.type('html').send(reportPage('Gators Game Reports', body));
 });
 app.get('/api/schedule', (_q, r) => r.json({ games: games.map(decorateGame) }));
 app.get('/api/standings', (_q, r) => {
@@ -3002,7 +3037,6 @@ function buildFinal(g){
   if(g.status!=='final')return '';
   var btns='<button class="fbtn" data-final="box" data-id="'+esc(g.id)+'">Box Score</button>'
     +'<button class="fbtn" data-final="pbp" data-id="'+esc(g.id)+'">Play-by-Play</button>'
-    +'<a class="fbtn rep" href="/report?id='+esc(g.id)+'" target="_blank" rel="noopener">Game Report</a>'
     +(g.replayUrl?('<a class="fbtn rep" href="'+esc(g.replayUrl)+'" target="_blank" rel="noopener">Watch Replay</a>'):'');
   return '<div class="finalcard"><div class="finalbtns">'+btns+'</div></div>';
 }
