@@ -31,6 +31,17 @@ test('extractEventAuth: reads the 2026 PrestoSports gameday conf format', () => 
   });
 });
 
+test('extractEventAuth: 2026 entry-point URL carries only e (no hash)', () => {
+  // Real page shape: the gameday entry point now passes just the event id with a
+  // trailing & and no &h=, and there is no eventIdHashCode field. The feed takes
+  // the event id alone, so e must come back even without a hash.
+  const html = "conf.gamedayServiceEntryPointUrl = '/action/sports/liveupdate?e=mrd6azore5odmfgz&';";
+  const out = extractEventAuth(html);
+  assert.equal(out.e, 'mrd6azore5odmfgz');
+  assert.equal(out.h, null);
+  assert.equal(out.how, 'gameday-conf-nohash');
+});
+
 test('extractEventAuth: not found returns nulls', () => {
   assert.deepEqual(extractEventAuth('<html>no tokens</html>'), { e: null, h: null, how: 'not-found' });
 });
