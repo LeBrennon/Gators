@@ -10,6 +10,7 @@ const crypto = require('crypto');
 const cors = require('cors');
 const fs = require('fs');
 let webpush = null; try { webpush = require('web-push'); } catch (e) {}
+let nodemailer = null; try { nodemailer = require('nodemailer'); } catch (e) {}
 
 const PORT         = process.env.PORT || 8787;
 const POLL_MS      = Number(process.env.POLL_MS || 15000);
@@ -24,10 +25,15 @@ const BUILD = {
 const BUILD_LABEL = 'build ' + BUILD.commit + (BUILD.branch ? ' · ' + BUILD.branch : '');
 const LIVE_POLL_MS = Number(process.env.LIVE_POLL_MS || 7000);
 const SCHEDULE_URL = process.env.SCHEDULE_URL || 'https://texasleaguestats.prestosports.com/sports/bsb/2026/schedule';
-const SITE_URL     = (process.env.SITE_URL || 'https://gators.onrender.com').replace(/\/$/, '');
+const SITE_URL     = (process.env.SITE_URL || 'https://whatisthegatorscore.com').replace(/\/$/, '');
 // Secret key gating the private GM game reports (/report, /reports). When unset,
 // reports are locked entirely (private by default).
 const REPORT_KEY   = process.env.REPORT_KEY || '';
+// Gmail (app-password) auto-email of game reports after each final.
+const MAIL_USER    = process.env.GMAIL_USER || '';
+const MAIL_PASS    = process.env.GMAIL_APP_PASSWORD || '';
+const REPORT_TO    = (process.env.REPORT_TO || 'brennonmbaseball@gmail.com').split(',').map(s => s.trim()).filter(Boolean);
+const mailReady    = !!(nodemailer && MAIL_USER && MAIL_PASS);
 const VAPID_PUB    = process.env.VAPID_PUBLIC_KEY || '';
 const VAPID_PRIV   = process.env.VAPID_PRIVATE_KEY || '';
 const VAPID_MAIL   = process.env.VAPID_CONTACT || 'mailto:you@example.com';
@@ -1084,6 +1090,7 @@ async function pollSchedule() {
       const date = (featured && featured.date) || todayCentralYmd();
       await refreshLeagueLiveScores(parseLeagueScoreboard(lastHtml, date), featured && featured.id);
     } catch (e) { /* board still works from schedule scores */ }
+    try { await dispatchReports(); } catch (e) { /* report email is best-effort */ }
   } catch (err) { process.stdout.write('\r[poll error] ' + err.message + '        '); }
 }
 // For a live game, pull the league's live feed for the at-bat situation
@@ -2069,6 +2076,56 @@ async function fetchBoxPage(id) {
   boxInflight.set(id, job);
   job.finally(() => boxInflight.delete(id));
   return job;
+}
+// ---- auto-email a game report to the GM after each final -------------------
+// Reuses the same private /report link. To avoid backfilling the whole season,
+// the first run seeds every already-final game as "sent"; only games that go
+// final while we're running get emailed. Needs Gmail creds + REPORT_KEY.
+const REPORTS_SENT_FILE = (process.env.CACHE_DIR || '.') + '/reports-sent.json';
+const reportSent = new Set();
+let reportsSeeded = false;
+(function loadReportsSent() {
+  try { const a = JSON.parse(fs.readFileSync(REPORTS_SENT_FILE, 'utf8')); if (Array.isArray(a)) { a.forEach(id => reportSent.add(id)); reportsSeeded = reportSent.size > 0; } } catch (e) {}
+})();
+function saveReportsSent() { try { fs.writeFileSync(REPORTS_SENT_FILE, JSON.stringify([...reportSent])); } catch (e) {} }
+let _mailer = null;
+function getMailer() { if (!_mailer && mailReady) _mailer = nodemailer.createTransport({ service: 'gmail', auth: { user: MAIL_USER, pass: MAIL_PASS } }); return _mailer; }
+function gameResultBits(g) {
+  const gat = g.gatorsHome ? g.home : g.away, opp = g.gatorsHome ? g.away : g.home;
+  const gr = gat && gat.score, or = opp && opp.score;
+  const has = gr != null && or != null;
+  return { oppName: (g.opponent && (g.opponent.short || g.opponent.name)) || (opp && opp.short) || 'opponent',
+    res: has ? (gr > or ? 'W' : gr < or ? 'L' : 'T') : '', score: has ? (gr + '-' + or) : '' };
+}
+async function emailReport(g) {
+  const t = getMailer(); if (!t) return false;
+  const b = gameResultBits(g);
+  const url = SITE_URL + '/report?id=' + encodeURIComponent(g.id) + '&key=' + encodeURIComponent(REPORT_KEY);
+  const head = (g.dateLabel || '') + (b.score ? (' · ' + b.res + ' ' + b.score + ' vs ' + b.oppName) : '');
+  const subject = 'Gators Game Report' + (b.score ? (' — ' + b.res + ' ' + b.score + ' vs ' + b.oppName) : '') + (g.dateLabel ? (' (' + g.dateLabel + ')') : '');
+  const text = 'Gumbeaux Gators — Game Report\n' + head + '\n\nFull report: ' + url + '\n';
+  const html = '<div style="font-family:Arial,Helvetica,sans-serif;max-width:520px">'
+    + '<h2 style="margin:0 0 2px;color:#16102b">Gumbeaux Gators — Game Report</h2>'
+    + '<p style="margin:0 0 14px;color:#555">' + repEsc(head) + '</p>'
+    + '<p style="margin:0 0 14px"><a href="' + repEsc(url) + '" style="background:#714ad2;color:#fff;padding:11px 18px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">View full report</a></p>'
+    + '<p style="color:#999;font-size:12px;word-break:break-all">' + repEsc(url) + '</p></div>';
+  await t.sendMail({ from: 'Gumbeaux Gators <' + MAIL_USER + '>', to: REPORT_TO.join(', '), subject, text, html });
+  process.stdout.write('\n[report] emailed ' + g.id + ' to ' + REPORT_TO.join(', ') + '\n');
+  return true;
+}
+async function dispatchReports() {
+  const finals = (games || []).filter(g => g.state === 'final');
+  // Seed once so we never email the back catalogue on boot.
+  if (!reportsSeeded) { finals.forEach(g => reportSent.add(g.id)); reportsSeeded = true; saveReportsSent(); return; }
+  if (!mailReady || !REPORT_KEY || !REPORT_TO.length) return;   // not configured yet
+  for (const g of finals) {
+    if (reportSent.has(g.id)) continue;
+    try {
+      const res = await fetchBoxPage(g.id);
+      if (!res.ok || !res.data) continue;   // box not ready yet — retry next poll
+      if (await emailReport(g)) { reportSent.add(g.id); saveReportsSent(); }
+    } catch (e) { /* retry next poll */ }
+  }
 }
 app.get('/api/boxscore', async (q, r) => {
   const id = q.query && q.query.id;
