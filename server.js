@@ -2086,6 +2086,150 @@ app.get('/api/boxscore', async (q, r) => {
     r.status(500).json({ error: String(err && err.message || err) });
   }
 });
+// ---- shareable per-game GM report ------------------------------------------
+// A standalone, self-styled page (no app shell) summarizing one game for the
+// Gators GM: result + line score, every pitcher's line (both teams), batting,
+// scoring plays, Gators key plays, and Gators mistakes. Built from the same
+// box-score parse as /api/boxscore.
+function repEsc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c];});}
+// Box tables wrap Gators names in <a class="bxp" data-slug> profile links that
+// only work inside the app; flatten them to plain text for the standalone page.
+function repStripLinks(html){return String(html||'').replace(/<a\b[^>]*class="bxp"[^>]*>([\s\S]*?)<\/a>/gi,'$1');}
+function repLineRows(lineHtml){
+  const rows=(lineHtml||'').match(/<tr\b[\s\S]*?<\/tr>/gi)||[];const out=[];
+  for(const row of rows){
+    const cells=row.match(/<t[dh]\b[\s\S]*?<\/t[dh]>/gi)||[];
+    if(cells.length<4)continue;
+    const name=bsText(cells[0]);
+    if(!name||/^final$/i.test(name))continue;
+    out.push({name,r:bsText(cells[cells.length-3]),h:bsText(cells[cells.length-2]),e:bsText(cells[cells.length-1])});
+  }
+  return out;
+}
+// Walk the play-by-play once, bucketing run-scoring plays (both teams), Gators
+// key plays (XBH/SB), and Gators mistakes (pitching miscues on defense,
+// baserunning blunders on offense). The half-inning title names the batting team.
+function repPlays(pbp){
+  const scoring=[],key=[],mist=[];
+  for(const half of (pbp||[])){
+    const title=half.title||'';
+    const innM=title.match(/((?:Top|Bottom) of [^-–]*)/i);
+    const inn=innM?innM[1].trim():title.trim();
+    const btM=title.match(/[-–]\s*(.+?)\s*batting/i);
+    const batTeam=btM?btM[1].trim():'';
+    const gBat=/gator/i.test(batTeam);
+    const rows=(half.html||'').match(/<tr\b[\s\S]*?<\/tr>/gi)||[];
+    for(const row of rows){
+      const tx=bsText(row).replace(/\s*\d+\s*out\s*$/i,'').trim();
+      if(!tx)continue;
+      if(/\bscored\b|home run\b|homered|grand slam/i.test(tx))scoring.push({inn,team:batTeam,tx});
+      if(gBat&&/doubled|tripled|homered|home run\b|stole|stolen base/i.test(tx))key.push({inn,tx});
+      if(gBat){if(/caught stealing|picked off|left early/i.test(tx))mist.push({inn,tx});}
+      else{if(/wild pitch|hit by pitch|hit batter|\bbalk\b|passed ball/i.test(tx))mist.push({inn,tx});}
+    }
+  }
+  return {scoring,key,mist};
+}
+function reportPage(title,bodyHtml){
+  return '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">'
+    +'<meta name="viewport" content="width=device-width, initial-scale=1">'
+    +'<title>'+repEsc(title)+'</title><style>'
+    +':root{--bayou:#16102b;--bayou2:#1e1640;--line:#41327a;--gold:#ecc913;--gold2:#ffd633;--purple:#714ad2;--bone:#f0ede4;--mute:#9a8cc4;--win:#7BD88F;--loss:#e0524a;}'
+    +'*{box-sizing:border-box;}body{margin:0;background:var(--bayou);color:var(--bone);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.45;padding:18px 14px 48px;}'
+    +'.rwrap{max-width:760px;margin:0 auto;}'
+    +'.rh{text-align:center;margin-bottom:6px;}.rh .rt{font-family:Georgia,serif;font-weight:800;font-size:24px;color:var(--gold);letter-spacing:.5px;}'
+    +'.rd{text-align:center;color:var(--mute);font-size:12px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px;}'
+    +'.rscore{text-align:center;font-size:30px;font-weight:800;margin:10px 0 2px;}'
+    +'.rres{display:inline-block;font-weight:800;font-size:13px;letter-spacing:.1em;text-transform:uppercase;padding:3px 10px;border-radius:999px;}'
+    +'.rres.w{color:var(--win);background:rgba(123,216,143,.12);}.rres.l{color:var(--loss);background:rgba(224,82,74,.12);}.rres.t{color:var(--mute);background:rgba(154,140,196,.12);}'
+    +'.rmatch{text-align:center;color:var(--bone);font-size:14px;margin:4px 0 2px;}'
+    +'.sec{font-family:Georgia,serif;font-weight:700;font-size:16px;color:var(--gold2);margin:24px 0 8px;border-bottom:1px solid var(--line);padding-bottom:5px;}'
+    +'.subh{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);font-weight:700;margin:14px 0 5px;}'
+    +'.rtw{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:10px;background:var(--bayou2);margin-bottom:6px;}'
+    +'.rtw table{width:100%;border-collapse:collapse;font-size:13px;white-space:nowrap;}'
+    +'.rtw th{background:rgba(113,74,210,.18);color:var(--mute);font-size:10px;letter-spacing:.05em;text-transform:uppercase;text-align:right;padding:7px 9px;font-weight:700;}'
+    +'.rtw th:first-child{text-align:left;}'
+    +'.rtw td{padding:7px 9px;border-top:1px solid var(--line);text-align:right;}.rtw td:first-child{text-align:left;font-weight:600;}'
+    +'.rtw b{color:var(--gold2);}'
+    +'.plist{list-style:none;margin:0;padding:0;}.plist li{padding:7px 2px;border-top:1px solid var(--line);font-size:13.5px;}.plist li:first-child{border-top:none;}'
+    +'.pinn{display:inline-block;min-width:96px;color:var(--gold2);font-size:11px;font-weight:700;letter-spacing:.03em;}'
+    +'.pteam{color:var(--mute);font-size:11px;}'
+    +'.mlist li{color:#ffd9d5;}.klist li{color:#e9ffe0;}'
+    +'.empty{color:var(--mute);font-size:13px;font-style:italic;padding:6px 2px;}'
+    +'.foot{margin-top:30px;text-align:center;color:var(--mute);font-size:11px;}'
+    +'</style></head><body><div class="rwrap">'+bodyHtml+'</div></body></html>';
+}
+function reportError(msg){return reportPage('Gators Game Report','<div class="rh"><div class="rt">Gators Game Report</div></div><p class="empty" style="text-align:center">'+repEsc(msg)+'</p>');}
+function buildReportHtml(data){
+  const id=data.id||'';const ymd=id.slice(0,8);
+  const dl=/^\d{8}$/.test(ymd)?dateFromId(ymd).label:'';
+  const lt=repLineRows(data.line);
+  const gObj=lt.find(t=>/gator/i.test(t.name))||null;
+  const oObj=lt.find(t=>!/gator/i.test(t.name))||null;
+  const won=(gObj&&oObj)?(+gObj.r>+oObj.r):null;
+  const tie=(gObj&&oObj)?(+gObj.r===+oObj.r):false;
+  const box=data.box||[];
+  const find=(g,kind)=>box.find(b=>(g?/gator/i.test(b.label):!/gator/i.test(b.label))&&new RegExp(kind,'i').test(b.label));
+  const gPit=find(true,'pitching'),oPit=find(false,'pitching'),gBat=find(true,'batting'),oBat=find(false,'batting');
+  const plays=repPlays(data.pbp);
+  const gNotes=(gBat&&gBat.notes)||{};
+  const tbl=b=>b?('<div class="rtw">'+repStripLinks(b.html)+'</div>'):'';
+  let h='';
+  // Header
+  h+='<div class="rh"><div class="rt">Gators Game Report</div></div>';
+  if(dl)h+='<div class="rd">'+repEsc(dl)+'</div>';
+  if(gObj&&oObj){
+    const cls=tie?'t':(won?'w':'l');const word=tie?'Tie':(won?'Win':'Loss');
+    h+='<div class="rscore">'+repEsc(gObj.name)+' '+repEsc(gObj.r)+' – '+repEsc(oObj.r)+' '+repEsc(oObj.name)+'</div>';
+    h+='<div style="text-align:center;margin-bottom:6px"><span class="rres '+cls+'">'+word+'</span></div>';
+  }
+  // Line score
+  if(data.line)h+='<div class="sec">Final</div><div class="rtw">'+repStripLinks(data.line)+'</div>';
+  // Pitching — every pitcher that threw
+  if(gPit||oPit){
+    h+='<div class="sec">Pitching</div>';
+    if(gPit){h+='<div class="subh">'+repEsc((gObj&&gObj.name)||'Gators')+'</div>'+tbl(gPit);}
+    if(oPit){h+='<div class="subh">'+repEsc((oObj&&oObj.name)||'Opponent')+'</div>'+tbl(oPit);}
+  }
+  // Batting
+  if(gBat||oBat){
+    h+='<div class="sec">Batting</div>';
+    if(gBat){h+='<div class="subh">'+repEsc((gObj&&gObj.name)||'Gators')+'</div>'+tbl(gBat);}
+    if(oBat){h+='<div class="subh">'+repEsc((oObj&&oObj.name)||'Opponent')+'</div>'+tbl(oBat);}
+  }
+  // Scoring plays (both teams)
+  h+='<div class="sec">Scoring Plays</div>';
+  if(plays.scoring.length){
+    h+='<ul class="plist">'+plays.scoring.map(p=>'<li><span class="pinn">'+repEsc(p.inn)+'</span> '+repEsc(p.tx)+'</li>').join('')+'</ul>';
+  }else h+='<div class="empty">No scoring plays parsed.</div>';
+  // Gators key plays
+  const keyLines=[];
+  ['HR','3B','2B','SB'].forEach(k=>{if(gNotes[k])keyLines.push('<li><span class="pinn">'+k+'</span> '+repEsc(gNotes[k])+'</li>');});
+  plays.key.forEach(p=>keyLines.push('<li><span class="pinn">'+repEsc(p.inn)+'</span> '+repEsc(p.tx)+'</li>'));
+  h+='<div class="sec">Gators Key Plays</div>';
+  h+=keyLines.length?('<ul class="plist klist">'+keyLines.join('')+'</ul>'):'<div class="empty">No extra-base hits or steals.</div>';
+  // Gators mistakes
+  const mLines=[];
+  if(gNotes.E)mLines.push('<li><span class="pinn">Errors</span> '+repEsc(gNotes.E)+'</li>');
+  plays.mist.forEach(p=>mLines.push('<li><span class="pinn">'+repEsc(p.inn)+'</span> '+repEsc(p.tx)+'</li>'));
+  h+='<div class="sec">Gators Mistakes</div>';
+  h+=mLines.length?('<ul class="plist mlist">'+mLines.join('')+'</ul>'):'<div class="empty">No errors or miscues. Clean game.</div>';
+  h+='<div class="foot">Gumbeaux Gators · whatisthegatorscore.com</div>';
+  const title=(gObj&&oObj)?('Gators '+gObj.r+'-'+oObj.r+' '+(oObj.name)+' · Report'):'Gators Game Report';
+  return reportPage(title,h);
+}
+app.get('/report', async (q, r) => {
+  const id = q.query && q.query.id;
+  try {
+    if (!id || !/^\d{8}_[a-z0-9]+$/i.test(id)) return r.status(400).type('html').send(reportError('Pass ?id=YYYYMMDD_xxxx (a game id).'));
+    const res = await fetchBoxPage(id);
+    if (!res.ok || !res.data) return r.status(502).type('html').send(reportError('Box score not available yet — check back after the game.'));
+    r.set('Cache-Control', 'public, max-age=300');
+    r.type('html').send(buildReportHtml(res.data));
+  } catch (err) {
+    r.status(500).type('html').send(reportError(String(err && err.message || err)));
+  }
+});
 app.get('/api/schedule', (_q, r) => r.json({ games: games.map(decorateGame) }));
 app.get('/api/standings', (_q, r) => {
   if (!standingsTable.length) pollStandings();
@@ -2321,7 +2465,7 @@ if (require.main === module) {
   app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleDailyRoster(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, pitchersFromFeed, extractEventAuth,
-  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseGameLog, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver };
+  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseGameLog, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, buildReportHtml, repPlays, repLineRows };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
@@ -2858,6 +3002,7 @@ function buildFinal(g){
   if(g.status!=='final')return '';
   var btns='<button class="fbtn" data-final="box" data-id="'+esc(g.id)+'">Box Score</button>'
     +'<button class="fbtn" data-final="pbp" data-id="'+esc(g.id)+'">Play-by-Play</button>'
+    +'<a class="fbtn rep" href="/report?id='+esc(g.id)+'" target="_blank" rel="noopener">Game Report</a>'
     +(g.replayUrl?('<a class="fbtn rep" href="'+esc(g.replayUrl)+'" target="_blank" rel="noopener">Watch Replay</a>'):'');
   return '<div class="finalcard"><div class="finalbtns">'+btns+'</div></div>';
 }
