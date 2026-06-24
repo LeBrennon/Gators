@@ -1337,22 +1337,24 @@ function parseGameLog(tables) {
       const get = k => { const j = idx(k); return (j >= 0 && c[j] != null) ? bsText(c[j]) : ''; };
       const num = v => v && v !== '-' && v !== '';
       const date = bsText(c[0]), opp = bsText(c[1]), score = bsText(c[2]);
-      // Game-log rows link to the box score (in the Score cell); surface that URL
-      // so the date can deep-link to the game on PrestoSports.
+      // Game-log rows carry the box-score link (in the Score cell); surface both
+      // the upstream URL and the bare game id so the date can deep-link to our
+      // own in-app box score (openBox) rather than out to PrestoSports.
       const bm = rows[i].match(/\/boxscores\/(\d{8}_[a-z0-9]+)\.xml/i);
       const boxUrl = bm ? boxscoreUrl(bm[1]) : '';
+      const boxId = bm ? bm[1] : '';
       if (isPit) {
         const ip = get('ip'), h = get('h'), r = get('r'), er = get('er'), bb = get('bb'), k = get('k');
         // Only games the pitcher actually appeared in: recorded outs, or faced
         // batters (a hit/run/walk/strikeout). Skips listed-but-didn't-pitch rows.
         const appeared = ipToOuts(ip) > 0 || [h, r, er, bb, k].some(v => NUM(v) > 0);
         if (!appeared) continue;
-        pit.push({ date, opp, score, ip, h, r, er, bb, k, era: get('era'), boxUrl });
+        pit.push({ date, opp, score, ip, h, r, er, bb, k, era: get('era'), boxUrl, boxId });
       } else {
         const pa = get('pa'), ab = get('ab');
         if (!num(pa) && !num(ab)) continue;
         if ((pa === '0' || pa === '') && (ab === '0' || ab === '')) continue;
-        bat.push({ date, opp, score, ab, h: get('h'), hr: get('hr'), rbi: get('rbi'), bb: get('bb'), k: get('k'), avg: get('avg'), boxUrl });
+        bat.push({ date, opp, score, ab, h: get('h'), hr: get('hr'), rbi: get('rbi'), bb: get('bb'), k: get('k'), avg: get('avg'), boxUrl, boxId });
       }
     }
   }
@@ -3378,7 +3380,7 @@ function connect(){var lastData=0;
   setInterval(function(){if(Date.now()-lastData>45000)setChip('off');},10000);}
 var _box=null;
 function bsScoreFromLine(line){try{var rows=line.match(new RegExp('<tr[^]*?</tr>','gi'))||[];var rs=[];rows.forEach(function(r){var c=r.match(new RegExp('<t[dh][^]*?</t[dh]>','gi'))||[];if(c.length>3){var nm=c[0].replace(/<[^>]+>/g,'').trim();if(nm&&!/^final$/i.test(nm))rs.push(c[c.length-3].replace(/<[^>]+>/g,'').trim());}});return rs.length>=2?rs[0]+'\u2013'+rs[1]:'';}catch(e){return'';}}
-function openBox(id,tab){var m=$('bxModal');m.classList.add('show');syncBg();
+function openBox(id,tab){var m=$('bxModal');m.classList.add('show');m.style.zIndex=++modalZ;syncBg();
   if(!rosterData)loadRoster(); // so tapping a Gators name in the box can open their profile
   tab=tab==='pbp'?'pbp':'box';
   $('tabBox').classList.toggle('on',tab==='box');$('tabPbp').classList.toggle('on',tab==='pbp');
@@ -3637,7 +3639,7 @@ function openCoach(num){
   var info='<div class="bio">'+bi('Role',c.title)+(c.home?bi('Hometown',c.home):'')+'</div>';
   var bioBlock=c.bio?('<div class="statblock"><h4>Bio</h4><p class="cbio">'+esc(c.bio)+'</p></div>'):'';
   $('plBody').innerHTML=info+bioBlock;
-  $('plModal').classList.add('show');syncBg();
+  $('plModal').classList.add('show');$('plModal').style.zIndex=++modalZ;syncBg();
 }
 function openPlayer(slug){
   var p=null;for(var i=0;i<rosterData.length;i++)if(rosterData[i].slug===slug)p=rosterData[i];
@@ -3653,7 +3655,7 @@ function openPlayer(slug){
     bi('Hometown',p.home||'—')+bi('School',p.school||'—')+
     (p.bday?bi('Birthday',p.bday):'')+'</div>';
   $('plBody').innerHTML=bio+'<div id="plStats">'+statBlocks(p)+'</div><div id="plGl"><div class="spin" style="padding:16px">Loading game log…</div></div>';
-  $('plModal').classList.add('show');syncBg();
+  $('plModal').classList.add('show');$('plModal').style.zIndex=++modalZ;syncBg();
   fetch('/api/player?slug='+encodeURIComponent(slug)).then(function(r){return r.json();}).then(function(d){
     if(plCur!==slug)return;
     var m=Object.assign({},p);
@@ -3675,7 +3677,7 @@ function glTable(rows,cols){
   for(var i=0;i<cols.length;i++)h+='<th>'+cols[i][1]+'</th>';
   h+='</tr>';
   for(var j=0;j<rows.length;j++){var g=rows[j];
-    var dt=g.boxUrl?('<a class="gld" href="'+esc(g.boxUrl)+'" target="_blank" rel="noopener">'+esc(g.date)+'</a>'):esc(g.date);
+    var dt=g.boxId?('<a class="gld" role="button" tabindex="0" data-glbox="'+esc(g.boxId)+'">'+esc(g.date)+'</a>'):esc(g.date);
     h+='<tr><td>'+dt+'</td><td>'+esc(oppShort(g.opp))+'</td>';
     for(var i2=0;i2<cols.length;i2++){var v=g[cols[i2][0]];h+='<td>'+((v==null||v===''||v==='-')?'·':esc(v))+'</td>';}
     h+='</tr>';
@@ -3689,7 +3691,13 @@ document.addEventListener('click',function(e){var b=e.target.closest&&e.target.c
 document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-lineup]');if(b)setLineupTeam(b.getAttribute('data-lineup'));});
 document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-final]');if(b)openBox(b.getAttribute('data-id'),b.getAttribute('data-final'));});
 document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a.bxp[data-slug]');if(a){e.preventDefault();openPlayer(a.getAttribute('data-slug'));}});
+// Game-log date → our in-app box score for that game (not PrestoSports). openBox
+// raises its modal to the front, so it layers over the open player profile.
+document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-glbox]');if(b){e.preventDefault();openBox(b.getAttribute('data-glbox'),'box');}});
 $('navRoster').addEventListener('click',function(){setView('roster');});
+// Most-recently-opened modal wins: each open bumps this so it stacks on top,
+// regardless of DOM order (player→box and box→player both layer correctly).
+var modalZ=80;
 function syncBg(){document.body.classList.toggle('noscroll',!!document.querySelector('.modal.show'));}
 $('plClose').addEventListener('click',function(){$('plModal').classList.remove('show');syncBg();});
 $('plModal').addEventListener('click',function(e){if(e.target===this){this.classList.remove('show');syncBg();}});

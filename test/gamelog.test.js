@@ -31,6 +31,8 @@ test('parseGameLog: extracts the box score URL from a row link', () => {
   const { pit } = parseGameLog([tbl]);
   assert.equal(pit.length, 1);
   assert.match(pit[0].boxUrl, /\/boxscores\/20260610_ab12\.xml$/);
+  // The bare game id powers the in-app box-score deep link (openBox).
+  assert.equal(pit[0].boxId, '20260610_ab12');
 });
 
 test('parseGameLog: drops listed-but-did-not-pitch rows', () => {
