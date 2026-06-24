@@ -13,6 +13,15 @@ let webpush = null; try { webpush = require('web-push'); } catch (e) {}
 
 const PORT         = process.env.PORT || 8787;
 const POLL_MS      = Number(process.env.POLL_MS || 15000);
+// Deployed-build identity so it's possible to tell at a glance which commit is
+// actually live (Render exposes these env vars; locally they fall back to dev).
+// Surfaced in /health, /api/version, and a small footer in the app.
+const BUILD = {
+  commit: (process.env.RENDER_GIT_COMMIT || '').slice(0, 7) || 'dev',
+  branch: process.env.RENDER_GIT_BRANCH || '',
+  bootedAt: new Date().toISOString(),
+};
+const BUILD_LABEL = 'build ' + BUILD.commit + (BUILD.branch ? ' · ' + BUILD.branch : '');
 const LIVE_POLL_MS = Number(process.env.LIVE_POLL_MS || 7000);
 const SCHEDULE_URL = process.env.SCHEDULE_URL || 'https://texasleaguestats.prestosports.com/sports/bsb/2026/schedule';
 const SITE_URL     = (process.env.SITE_URL || 'https://gators.onrender.com').replace(/\/$/, '');
@@ -761,9 +770,12 @@ function activePlayerLine(json, name, kind) {
   return info;
 }
 
-// Boil the feed's status block down to the live game situation.
+// Boil the feed's status block down to the live game situation. Every element
+// in this feed can arrive as a 1-element array (the same convention val() peels
+// off the scalar fields), so unwrap an array-wrapped <status> too.
 function summarizeLive(json) {
-  const s = json && json.status; if (!s) return null;
+  const s = json && (Array.isArray(json.status) ? json.status[0] : json.status);
+  if (!s) return null;
   const battingHome = val(s.vh) === 'H';
   return {
     complete: val(s.complete) === 'Y',
@@ -821,7 +833,7 @@ function teamLineScores(json) {
 // the tight live poll then only needs the lightweight liveupdate JSON.
 const liveAuthCache = {};
 // Full chain: boxscore page -> event id + hash -> live feed -> summary.
-async function fetchLiveForGame(boxscoreId) {
+async function fetchLiveForGame(boxscoreId, wantRaw) {
   const boxUrl = boxscoreUrl(boxscoreId);
   const out = { boxscoreId, boxUrl };
   let auth = liveAuthCache[boxscoreId];
@@ -839,7 +851,15 @@ async function fetchLiveForGame(boxscoreId) {
   }
   const feed = await fetchLiveUpdate(auth.e, auth.h, boxUrl);
   out.feed = { url: feed.url, ok: feed.ok, status: feed.status, contentType: feed.contentType, length: feed.length, parseError: feed.parseError, head: feed.json ? undefined : feed.head };
-  if (feed.json) { out.live = summarizeLive(feed.json); out.teams = teamLineScores(feed.json); out.plays = summarizePlays(feed.json); out.lineups = lineupsFromFeed(feed.json); out.feedSource = feed.json.source; }
+  if (feed.json) {
+    out.live = summarizeLive(feed.json); out.teams = teamLineScores(feed.json); out.plays = summarizePlays(feed.json); out.lineups = lineupsFromFeed(feed.json); out.feedSource = feed.json.source;
+    // Diagnostics only: when the situation block can't be parsed (live === null)
+    // we can't tell from afar where the feed moved it. Surface the feed's
+    // top-level keys, and the full payload on request, so /debug/live shows the
+    // real shape without hauling it through the normal live-poll path.
+    out.feedKeys = Object.keys(feed.json);
+    if (wantRaw) out.raw = feed.json;
+  }
   return out;
 }
 
@@ -1890,10 +1910,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.get('/', (_q, r) => r.type('html').send(APP));
+app.get('/', (_q, r) => r.type('html').send(APP.replace('__BUILD_LABEL__', BUILD_LABEL)));
 app.get('/sw.js', (_q, r) => r.type('application/javascript').send(SW));
 app.get('/manifest.json', (_q, r) => r.type('application/json').send(MANIFEST));
-app.get('/health', (_q, r) => r.json({ ok: true, games: games.length, featured: featured && featured.id, push: pushReady }));
+app.get('/health', (_q, r) => r.json({ ok: true, build: BUILD, games: games.length, featured: featured && featured.id, push: pushReady }));
+app.get('/api/version', (_q, r) => r.json(BUILD));
 app.get('/debug', (_q, r) => {
   const html = lastHtml || '';
   const boxLinks = (html.match(/\/sports\/bsb\/\d{4}\/boxscores\/\d{8}_[a-z0-9]+\.xml/gi) || []).length;
@@ -1916,7 +1937,7 @@ app.get('/debug/live', async (q, r) => {
   try {
     const id = (q.query && q.query.id) || (featured && featured.id);
     if (!id) return r.status(503).json({ error: 'no game id yet — pass ?id=YYYYMMDD_xxxx or wait for the schedule poll' });
-    const result = await fetchLiveForGame(id);
+    const result = await fetchLiveForGame(id, true);
     r.json(result);
   } catch (err) {
     r.status(500).json({ error: String(err && err.message || err) });
@@ -2336,6 +2357,7 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .watchpill.replay{color:#fff;background:linear-gradient(180deg,var(--purple),var(--gator2));border-color:var(--purple);}
 .vs{font-size:10px;color:var(--mute);letter-spacing:.1em;text-transform:uppercase;}
 .note{margin-top:14px;font-size:11.5px;line-height:1.6;color:var(--mute);background:var(--bayou2);border:1px solid var(--line);border-radius:14px;padding:13px 15px;}
+.bld{margin:20px 0 6px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.08em;color:var(--mute);opacity:.5;}
 .note b{color:var(--bone);font-weight:600;}
 .jloc{text-align:center;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:10px;color:var(--mute);}
 .jtheme{margin-top:6px;text-align:center;font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-size:10.5px;color:#1a1330;background:linear-gradient(180deg,var(--gold2),var(--gold));border-radius:999px;padding:4px 11px;line-height:1.2;}
@@ -2595,6 +2617,7 @@ a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 <div class="sec sbsec" id="sbSec" style="display:none"><span>Around the League</span><span class="sbdate" id="sbMeta"></span></div>
 <div id="scoreboardBody"></div>
 </div>
+<div class="bld">__BUILD_LABEL__</div>
 </div>
 <div class="a2hs" id="a2hs">
 <img class="a2hsico" src="/icon-192.png" alt="">
@@ -2672,21 +2695,27 @@ function baseDiamond(b){
 }
 function outsDots(n){n=n||0;var h='';for(var i=0;i<3;i++)h+='<span class="odot'+(i<n?' on':'')+'"></span>';return h;}
 function buildLive(g){
-  var L=g.live;if(!(g.status==='live'&&L))return '';
-  var count=L.count||((L.balls||0)+'-'+(L.strikes||0));
-  var sit='<div class="lsit">'+
-    '<div class="lcell"><div class="lv">'+esc(count)+'</div><div class="ll">Count</div></div>'+
-    baseDiamond(L.bases)+
-    '<div class="lcell"><div class="lv">'+outsDots(L.outs)+'</div><div class="ll">'+((L.outs||0)===1?'Out':'Outs')+'</div></div>'+
-    '</div>';
-  var bp='';
-  if(L.pitcherInfo||L.batterInfo){
-    if(L.pitcherInfo)bp+=matchupCard('Pitching',L.pitcherInfo);
-    if(L.pitcherInfo&&L.batterInfo)bp+='<div class="mvs">— pitching to —</div>';
-    if(L.batterInfo)bp+=matchupCard('At bat',L.batterInfo);
-  }else{
-    if(L.pitcher)bp+='<div class="bprow"><span class="bpk">Pitching</span><span class="bpn">'+esc(L.pitcher)+'</span></div>';
-    if(L.batter)bp+='<div class="bprow"><span class="bpk">At bat</span><span class="bpn">'+esc(L.batter)+'</span></div>';
+  if(g.status!=='live')return '';
+  // The count/bases/outs strip and the pitcher-vs-batter cards need the feed's
+  // at-bat situation; the line score, play-by-play, and lineup come from other
+  // parts of the same feed. Render whatever parsed instead of hiding the whole
+  // panel when only the situation block is missing.
+  var L=g.live,sit='',bp='';
+  if(L){
+    var count=L.count||((L.balls||0)+'-'+(L.strikes||0));
+    sit='<div class="lsit">'+
+      '<div class="lcell"><div class="lv">'+esc(count)+'</div><div class="ll">Count</div></div>'+
+      baseDiamond(L.bases)+
+      '<div class="lcell"><div class="lv">'+outsDots(L.outs)+'</div><div class="ll">'+((L.outs||0)===1?'Out':'Outs')+'</div></div>'+
+      '</div>';
+    if(L.pitcherInfo||L.batterInfo){
+      if(L.pitcherInfo)bp+=matchupCard('Pitching',L.pitcherInfo);
+      if(L.pitcherInfo&&L.batterInfo)bp+='<div class="mvs">— pitching to —</div>';
+      if(L.batterInfo)bp+=matchupCard('At bat',L.batterInfo);
+    }else{
+      if(L.pitcher)bp+='<div class="bprow"><span class="bpk">Pitching</span><span class="bpn">'+esc(L.pitcher)+'</span></div>';
+      if(L.batter)bp+='<div class="bprow"><span class="bpk">At bat</span><span class="bpn">'+esc(L.batter)+'</span></div>';
+    }
   }
   var line=buildLineScore(g);
   var lineup=buildLineup(g);
