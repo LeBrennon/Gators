@@ -31,6 +31,15 @@ test('extractEventAuth: reads the 2026 PrestoSports gameday conf format', () => 
   });
 });
 
+test('extractEventAuth: reads a base64 eventIdHashCode containing / + =', () => {
+  // Real 2026 page: conf.eventId then conf.eventIdHashCode, whose value is
+  // base64 and can contain /, + and = — the regex must not stop at the slash.
+  const html = "conf.eventId = 'mrd6azore5odmfgz'; conf.eventIdHashCode = 'WKIEpkL/Kb6zTCvFEeNmbMnD8QKvJYUz';";
+  assert.deepEqual(extractEventAuth(html), {
+    e: 'mrd6azore5odmfgz', h: 'WKIEpkL/Kb6zTCvFEeNmbMnD8QKvJYUz', how: 'gameday-conf',
+  });
+});
+
 test('extractEventAuth: 2026 entry-point URL carries only e (no hash)', () => {
   // Real page shape: the gameday entry point now passes just the event id with a
   // trailing & and no &h=, and there is no eventIdHashCode field. The feed takes

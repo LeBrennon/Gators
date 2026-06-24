@@ -659,18 +659,24 @@ const has = x => { const v = val(x); return v != null && String(v).trim() !== ''
 // widget uses. Pull them out so we can call the feed ourselves.
 function extractEventAuth(html) {
   const clean = String(html || '').replace(/&amp;/g, '&');
+  // The access hash is a base64 value, so it can contain / + = on top of the
+  // url-safe _ - alphabet — the character class must allow all of them or a hash
+  // like "WKIEpkL/Kb6z…" is silently dropped (the feed then 400s as "Empty
+  // event ID code parameter"). Callers must URL-encode it before use.
+  const B64 = 'A-Za-z0-9_+/=\\-';
   // Older format: a complete liveupdate URL carrying both params.
-  let m = clean.match(/liveupdate\?e=([a-z0-9]+)&h=([A-Za-z0-9_\-]+)/i);
+  let m = clean.match(new RegExp('liveupdate\\?e=([a-z0-9]+)&h=([' + B64 + ']+)', 'i'));
   if (m) return { e: m[1], h: m[2], how: 'liveupdate-url' };
   // 2026 PrestoSports gameday config: conf.eventId + conf.eventIdHashCode
   // (the [:=] guard keeps `eventId` from matching inside `eventIdHashCode`).
   const e = (clean.match(/eventId\s*[:=]\s*["']([A-Za-z0-9]{8,})["']/i) || [])[1]
          || (clean.match(/liveupdate\?e=([A-Za-z0-9]+)/i) || [])[1];
-  const h = (clean.match(/(?:eventIdHashCode|gamedayHashCode|liveHash|hashCode|hash)\s*[:=]\s*["']([A-Za-z0-9_\-]{16,})["']/i) || [])[1]
-         || (clean.match(/liveupdate\?e=[A-Za-z0-9]+&(?:amp;)?h=([A-Za-z0-9_\-]{16,})/i) || [])[1]
+  const h = (clean.match(new RegExp('(?:eventIdHashCode|gamedayHashCode|liveHash|hashCode|hash)\\s*[:=]\\s*["\']([' + B64 + ']{16,})["\']', 'i')) || [])[1]
+         || (clean.match(new RegExp('liveupdate\\?e=[A-Za-z0-9]+&(?:amp;)?h=([' + B64 + ']{16,})', 'i')) || [])[1]
          || null;
-  // The current gameday entry-point URL carries only ?e=… (no &h=), and the feed
-  // accepts the event id alone — so return e even when no hash is present.
+  // The feed requires the hash; the entry-point URL no longer carries it inline,
+  // so it's read from conf.eventIdHashCode above. Returning e without a hash is a
+  // last-resort fallback (it lets the auth cache/diagnostics show the event id).
   if (e) return { e, h: h || null, how: h ? 'gameday-conf' : 'gameday-conf-nohash' };
   return { e: null, h: null, how: 'not-found' };
 }
@@ -733,7 +739,8 @@ async function fetchText(url, referer) {
 }
 
 async function fetchLiveUpdate(e, h, referer) {
-  const url = ORIGIN + '/action/sports/liveupdate?e=' + e + (h ? '&h=' + h : '');
+  // h is base64 (may contain / + =), so it must be percent-encoded for the query.
+  const url = ORIGIN + '/action/sports/liveupdate?e=' + encodeURIComponent(e) + (h ? '&h=' + encodeURIComponent(h) : '');
   const headers = { 'user-agent': UA, 'accept': 'application/json, text/javascript, */*; q=0.01',
     'x-requested-with': 'XMLHttpRequest', 'cache-control': 'no-cache' };
   if (referer) headers.referer = referer;
