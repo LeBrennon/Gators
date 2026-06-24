@@ -3063,10 +3063,7 @@ function mergeStats(list){
 function clientComplete(){return !!rosterData&&rosterData.every(pHasStats);}
 function setRmeta(d){
   if(!rosterData)return;
-  var meta=rosterData.length+' players';
-  if(!clientComplete())meta+=' · loading stats…';
-  else if(d&&d.updated)meta+=' · stats updated '+agoTxt(d.updated);
-  var el=$('rmeta');if(el)el.textContent=meta;
+  var el=$('rmeta');if(el)el.textContent=rosterData.length+' players';
 }
 function loadStandings(){
   if(standingsReq)return;standingsReq=true;
