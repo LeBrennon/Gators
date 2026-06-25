@@ -3,7 +3,12 @@
   "version": "1.0.0",
   "description": "Live Gators score + inning from the Texas League schedule, with push alerts. Single-file, fits a free host.",
   "main": "server.js",
-  "scripts": { "start": "node server.js", "test": "node --test" },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test",
+    "report:season": "node scripts/season-report.js",
+    "report:game": "node scripts/postgame-report.js"
+  },
   "engines": { "node": ">=18" },
   "dependencies": {
     "cors": "^2.8.5",
