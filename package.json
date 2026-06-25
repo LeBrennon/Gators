@@ -7,7 +7,8 @@
     "start": "node server.js",
     "test": "node --test",
     "report:season": "node scripts/season-report.js",
-    "report:game": "node scripts/postgame-report.js"
+    "report:game": "node scripts/postgame-report.js",
+    "report:pdf": "node scripts/postgame-report.js latest --pdf"
   },
   "engines": { "node": ">=18" },
   "dependencies": {
