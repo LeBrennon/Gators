@@ -1288,7 +1288,7 @@ async function pollLive() {
 }
 
 // ===== Roster + player season stats =========================================
-// Official gameday roster (TCL gameday sheet, updated 6/20). Bios are static;
+// Official gameday roster (TCL gameday sheet, updated 6/25). Bios are static;
 // season stats are pulled live from the league stats site and cached.
 const GATORS_SLUG = 'lakecharlesgumbeauxgators';
 const playerUrl = slug => SPORT_BASE + '/players/' + slug;
@@ -1296,27 +1296,29 @@ const leagueStatsUrl = pos => SPORT_BASE + '/players?view=&r=0&pos=' + pos + '&s
 
 const ROSTER = [
   { num: 2,  name: 'Jaxon Landreneau', slug: 'jaxonlandreneautqp8',  pos: 'Utility', cls: 'Junior',       ht: '5-10', wt: '190', b: 'R', t: 'R', bday: '10/20/2004', home: 'Lake Charles, LA', school: 'LSU-Eunice' },
-  { num: 4,  name: 'Jake Smith',       slug: 'jakesmith8yx5',        pos: 'IF',      cls: 'Junior',       ht: '5-10', wt: '170', b: 'R', t: 'R', bday: '',           home: 'Rosepine, LA',     school: 'LSU-Eunice' },
+  // Recently activated (6/25 sheet); placeholder slug until his Presto player page
+  // exists, so the `note` shows on his profile instead of stats until his first game.
+  { num: 3,  name: 'Griffin Hebert',   slug: 'griffinhebert',        pos: 'Utility', cls: 'Sophomore',    ht: '',     wt: '',    b: '', t: '', bday: '',            home: '',                 school: '', note: 'Recently activated — season stats will appear after his first game.' },
+  { num: 4,  name: 'Jake Smith',       slug: 'jakesmith8yx5',        pos: 'IF',      cls: 'Junior',       ht: '5-10', wt: '170', b: 'R', t: 'R', bday: '01/24/2004', home: 'Rosepine, LA',     school: 'LSU-Eunice' },
   { num: 5,  name: 'Davis Duhon',      slug: 'davisduhons0vw',       pos: 'P',       cls: 'Junior',       ht: '6-0',  wt: '185', b: 'L', t: 'L', bday: '03/12/2005', home: 'Katy, TX',         school: 'Louisiana Christian' },
   { num: 6,  name: 'Nathan McDonald',  slug: 'nathanmcdonaldftgl',   pos: 'Utility', cls: 'Senior',       ht: '6-0',  wt: '175', b: 'R', t: 'R', bday: '07/17/2004', home: 'McComb, MS',       school: 'Loyola-New Orleans' },
   { num: 9,  name: 'James Reina',      slug: 'jamesreinaluai',       pos: 'IF',      cls: 'Junior',       ht: '5-9',  wt: '180', b: 'R', t: 'R', bday: '10/07/2004', home: 'Lake Charles, LA', school: 'Stephen F. Austin' },
   { num: 11, name: 'Diego Corrales',   slug: 'diegocorrales91v5',    pos: 'P',       cls: 'Junior',       ht: '5-8',  wt: '185', b: 'L', t: 'L', bday: '08/01/2005', home: 'Lake Charles, LA', school: 'McNeese State' },
   { num: 14, name: 'Brandon Levy',     slug: 'brandonlevyejo5',      pos: 'Two-Way', cls: 'Junior',       ht: '5-10', wt: '180', b: 'R', t: 'R', bday: '05/25/2004', home: 'Bossier City, LA', school: 'New Orleans' },
-  { num: 16, name: 'Daniel Midkiff',   slug: 'danielmidkifffqkb',    pos: 'P',       cls: 'Sophomore',    ht: '6-2',  wt: '208', b: 'R', t: 'R', bday: '',           home: 'Buna, TX',         school: 'Lamar' },
+  { num: 16, name: 'Daniel Midkiff',   slug: 'danielmidkifffqkb',    pos: 'P',       cls: 'Sophomore',    ht: '6-2',  wt: '208', b: 'R', t: 'R', bday: '05/20/2007', home: 'Buna, TX',         school: 'Lamar' },
   { num: 17, name: 'Ayden Sunday',     slug: 'aydensundayyp1j',      pos: 'OF',      cls: 'Sophomore',    ht: '6-0',  wt: '185', b: 'R', t: 'R', bday: '',           home: 'Nederland, TX',    school: 'Lamar' },
   { num: 18, name: 'Bryson Pierce',    slug: 'brysonpiercex3u3',     pos: 'Two-Way', cls: 'Sophomore',    ht: '6-2',  wt: '185', b: 'L', t: 'L', bday: '11/17/2005', home: 'Benton, LA',       school: 'Benton' },
   { num: 19, name: 'Jack Garcille',    slug: 'jackgarcille9sq9',     pos: 'P',       cls: 'HS Senior',    ht: '6-6',  wt: '210', b: 'R', t: 'R', bday: '07/07/2008', home: 'Lake Charles, LA', school: 'McNeese State' },
   { num: 20, name: 'Connor Walker',    slug: 'connorwalkerbj77',     pos: 'Utility', cls: 'Sophomore',    ht: '5-10', wt: '200', b: 'R', t: 'R', bday: '02/12/2007', home: 'Lake Charles, LA', school: 'McNeese State' },
   { num: 21, name: 'Bankston Lembcke', slug: 'bankstonlembckeoxyb',  pos: 'IF',      cls: 'Junior',       ht: '5-11', wt: '205', b: 'R', t: 'R', bday: '11/14/2005', home: 'Klein, TX',        school: 'Bradley' },
   { num: 22, name: 'Matthew McKinley', slug: 'matthewmckinleylgvq',  pos: 'Two-Way', cls: 'Sophomore',    ht: '5-11', wt: '205', b: 'L', t: 'L', bday: '12/14/2006', home: 'Brandon, MS',      school: 'Meridian CC' },
-  { num: 24, name: 'John Munnerlyn',   slug: 'johnmunnerlynzovp',    pos: 'P',       cls: 'Sophomore',    ht: '6-4',  wt: '205', b: 'R', t: 'R', bday: '11/20/2006', home: 'Loreauville, LA',  school: 'Bossier Parish CC' },
+  { num: 24, name: 'John Munnerlyn',   slug: 'johnmunnerlynzovp',    pos: 'P',       cls: 'R-Sophomore',  ht: '6-4',  wt: '205', b: 'R', t: 'R', bday: '11/20/2006', home: 'Loreauville, LA',  school: 'Bossier Parish CC' },
   { num: 25, name: 'Reid Snider',      slug: 'reidsnidern8g1',       pos: 'Utility', cls: 'Junior',       ht: '6-4',  wt: '210', b: 'R', t: 'R', bday: '08/30/2004', home: 'Lake Charles, LA', school: 'Louisiana Tech' },
   { num: 26, name: 'Chance Fouts',     slug: 'chancefouts0mpc',      pos: 'P',       cls: 'Sophomore',    ht: '6-0',  wt: '210', b: 'R', t: 'R', bday: '11/04/2005', home: 'Spring Branch, TX', school: 'Vernon College' },
   { num: 27, name: 'Easton Culp',      slug: 'eastonculpilgr',       pos: 'C',       cls: 'Senior',       ht: '6-0',  wt: '200', b: 'R', t: 'R', bday: '07/20/2004', home: 'Salado, TX',       school: 'Lamar' },
   { num: 28, name: 'Andrew Ramos',     slug: 'andrewramos4y33',      pos: 'Utility', cls: 'Sophomore',    ht: '5-10', wt: '',    b: 'R', t: 'R', bday: '',           home: 'Deer Park, TX',    school: 'San Jacinto CC' },
   { num: 29, name: 'Sawyer Simmons',   slug: 'sawyersimmonss92p',    pos: 'P',       cls: 'Senior',       ht: '6-1',  wt: '193', b: 'R', t: 'L', bday: '03/30/2005', home: 'Bossier City, LA', school: 'Southeastern Louisiana' },
   { num: 30, name: 'Kasen Bellard',    slug: 'kasenbellard59c8',     pos: 'OF',      cls: 'Junior',       ht: '6-0',  wt: '180', b: 'R', t: 'R', bday: '10/07/2005', home: 'Lake Charles, LA', school: 'Nicholls State' },
-  { num: 33, name: 'Asa Thompson',     slug: 'asathompsonz8vo',      pos: 'P',       cls: 'Junior',       ht: '6-5',  wt: '210', b: 'L', t: 'L', bday: '06/22/2006', home: 'San Antonio, TX',  school: 'Charleston Southern' },
   { num: 35, name: 'Jeremiah Torres',  slug: 'jeremiahtorrescsuy',   pos: 'IF',      cls: 'Junior',       ht: '6-0',  wt: '210', b: 'R', t: 'R', bday: '05/10/2006', home: 'Klein, TX',        school: 'Southern Indiana' },
   { num: 36, name: 'Jake Rider',       slug: 'jakeridergyu4',        pos: 'P',       cls: 'Junior',       ht: '6-4',  wt: '220', b: 'R', t: 'R', bday: '10/11/2005', home: 'Lake Charles, LA', school: 'Nunez CC' },
   { num: 37, name: 'Landon Richards',  slug: 'landonrichards2fu3',   pos: 'P',       cls: 'Sophomore',    ht: '5-11', wt: '235', b: 'R', t: 'R', bday: '06/22/2007', home: 'Orange, TX',       school: 'Angelina College' },
@@ -3751,7 +3753,9 @@ function statBlocks(p){
   if(p.hit&&Number(p.hit.sb)>0)hitDefs.push(['sb','SB']);
   var batBlock=p.hit?('<div class="statblock"><h4 class="bat">Hitting</h4>'+sgrid(p.hit,p.hitRanks,hitDefs)+'</div>'):'';
   var pitBlock=p.pit?('<div class="statblock"><h4>Pitching</h4>'+sgrid(p.pit,p.pitRanks,[['era','ERA'],['whip','WHIP'],['ip','IP'],['w','W'],['l','L'],['sv','SV'],['app','APP'],['gs','GS'],['k','K'],['bb','BB'],['h','H'],['er','ER']])+'</div>'):'';
-  if(!batBlock&&!pitBlock)return '<div class="statblock"><div class="plimited" style="padding:2px">Season stats will appear here once this player records game action.</div></div>';
+  // A just-added player carries a one-off note (e.g. "recently activated") shown
+  // until his first game lands stats; everyone else gets the generic line.
+  if(!batBlock&&!pitBlock)return '<div class="statblock"><div class="plimited" style="padding:2px">'+esc(p.note||'Season stats will appear here once this player records game action.')+'</div></div>';
   // Legend for the small gold rank — only ranks are a hitting thing, so it sits
   // directly under the Hitting block (and above Pitching for two-way players).
   var hasRanks=(p.hitRanks&&Object.keys(p.hitRanks).length)||(p.pitRanks&&Object.keys(p.pitRanks).length);
