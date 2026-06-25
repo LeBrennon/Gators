@@ -108,8 +108,8 @@ Team batting (H/BB/K) and pitching (ER/BB/K allowed) summed from individual play
 
 ## How to use this in a post-game report
 
-- **Frame each line vs. the season baseline** above (e.g. "2-for-4 raises X from .250 → .268" or "the 5 BB matches a season-long command theme").
+- **Auto-generate the game report:** `node scripts/postgame-report.js latest` (or pass a `Jun 24`-style date / box id). It frames every line against the baselines above.
+- **Frame each line vs. the season baseline** (e.g. "2-for-4 raises X from .250 → .268" or "the 5 BB matches a season-long command theme").
 - **Cite the Trend column** to call a player genuinely hot/cold vs. small-sample noise.
-- **Pitching:** compare the night's strike% and BB to the staff BB/9 baseline; flag arms whose L3 ERA diverges from season ERA.
 - **Regenerate** after the seed refreshes: `node scripts/season-report.js`.
 
