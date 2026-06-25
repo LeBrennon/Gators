@@ -3029,7 +3029,9 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 body.noscroll{overflow:hidden;}
 .sheet{background:var(--bayou2);border:1px solid var(--line);border-radius:20px;overflow:hidden;width:100%;max-width:560px;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 24px 60px -20px rgba(0,0,0,.85);}
 .shead{display:flex;align-items:center;gap:10px;padding:14px 16px 8px;}
-.sttl{font-family:'Oswald',sans-serif;font-weight:700;text-transform:uppercase;font-size:14px;letter-spacing:.03em;line-height:1.2;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sttlwrap{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;}
+.sttl{font-family:'Oswald',sans-serif;font-weight:700;text-transform:uppercase;font-size:14px;letter-spacing:.03em;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sdate{font-size:11px;color:var(--mute);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .sscore{font-family:'Oswald',sans-serif;font-weight:700;font-size:16px;color:var(--gold2);flex:none;white-space:nowrap;}
 .sclose{margin-left:auto;background:none;border:1px solid var(--line);color:var(--bone);border-radius:10px;width:34px;height:34px;font-size:15px;cursor:pointer;flex:none;}
 .tabs{display:flex;gap:8px;padding:2px 16px 0;}
@@ -3101,9 +3103,11 @@ body.noscroll{overflow:hidden;}
 .gltbl{overflow-x:auto;-webkit-overflow-scrolling:touch;}
 .gltbl a.gld{color:var(--gold2);text-decoration:none;font-weight:600;}
 .gltbl a.gld:hover{text-decoration:underline;}
-.gltbl table{width:100%;border-collapse:collapse;font-size:11px;white-space:nowrap;}
-.gltbl th{color:var(--mute);font-weight:700;text-transform:uppercase;font-size:9px;padding:6px 8px;border-bottom:1px solid var(--line);}
-.gltbl td{padding:6px 8px;text-align:center;border-bottom:1px solid var(--line);font-family:'JetBrains Mono',monospace;color:var(--bone);}
+.gltbl table{width:100%;border-collapse:collapse;font-size:10px;white-space:nowrap;}
+.gltbl th{color:var(--mute);font-weight:700;text-transform:uppercase;font-size:8.5px;padding:5px 3px;border-bottom:1px solid var(--line);}
+.gltbl td{padding:5px 3px;text-align:center;border-bottom:1px solid var(--line);font-family:'JetBrains Mono',monospace;color:var(--bone);}
+.gltbl td:first-child,.gltbl th:first-child{padding-left:2px;}
+.gltbl td:last-child,.gltbl th:last-child{padding-right:2px;}
 .gltbl td:first-child,.gltbl th:first-child{text-align:left;color:var(--mute);}
 .gltbl td:nth-child(2),.gltbl th:nth-child(2){text-align:left;}
 .gltbl tr:last-child td{border-bottom:none;}
@@ -3179,7 +3183,7 @@ a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 <button class="a2hsx" id="a2hsx" aria-label="Dismiss">✕</button>
 </div>
 <div class="modal" id="bxModal"><div class="sheet">
-<div class="shead"><span class="sttl" id="bxTtl">Box Score</span><span class="sscore" id="bxScore"></span><button class="sclose" id="bxClose" aria-label="Close">✕</button></div>
+<div class="shead"><div class="sttlwrap"><span class="sttl" id="bxTtl">Box Score</span><span class="sdate" id="bxDate"></span></div><span class="sscore" id="bxScore"></span><button class="sclose" id="bxClose" aria-label="Close">✕</button></div>
 <div class="tabs"><button class="tabb on" id="tabBox">Box Score</button><button class="tabb" id="tabPbp">Play-by-Play</button></div>
 <div class="sbody" id="bxBody"><div class="spin">Loading…</div></div>
 </div></div>
@@ -3523,6 +3527,9 @@ function openBox(id,tab){var m=$('bxModal');m.classList.add('show');m.style.zInd
   tab=tab==='pbp'?'pbp':'box';
   $('tabBox').classList.toggle('on',tab==='box');$('tabPbp').classList.toggle('on',tab==='pbp');
   $('bxTtl').textContent='Box Score';$('bxScore').textContent='';
+  // The box id is YYYYMMDD_xxxx, so the game date is known up front \u2014 show it in the
+  // header so it's clear which game opened (e.g. from a profile game-log date tap).
+  $('bxDate').textContent=boxDate(id);
   $('bxBody').innerHTML='<div class="spin">Loading\u2026</div>';
   fetch('/api/boxscore?id='+encodeURIComponent(id)).then(function(r){return r.json();}).then(function(d){
     if(d.error){$('bxBody').innerHTML='<div class="spin">'+esc(d.error)+'</div>';return;}
@@ -3824,6 +3831,10 @@ function glTable(rows,cols){
   }
   return h+'</table></div>';
 }
+// Box id is YYYYMMDD_xxxx -> "Jun 24, 2026" for the box-score modal header.
+function boxDate(id){var m=/^(\d{4})(\d{2})(\d{2})/.exec(id||'');if(!m)return '';
+  var mon=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m[2]-1];
+  return mon?(mon+' '+(+m[3])+', '+m[1]):'';}
 function oppShort(o){o=(o||'').replace('at ','@ ');var map={'Acadiana Cane Cutters':'Acadiana','Baton Rouge Rougarou':'Baton Rouge','Abilene Flying Bison':'Abilene','Brazos Valley Bombers':'Brazos Valley','San Antonio River Monsters':'San Antonio','Sherman Shadowcats':'Sherman','Victoria Generals':'Victoria','Lake Charles Gumbeaux Gators':'Gators'};for(var k in map)o=o.replace(k,map[k]);return o;}
 $('navScores').addEventListener('click',function(){setView('scores');});
 $('navStandings').addEventListener('click',function(){setView('standings');});
