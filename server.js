@@ -1288,7 +1288,7 @@ async function pollLive() {
 }
 
 // ===== Roster + player season stats =========================================
-// Official gameday roster (TCL gameday sheet, updated 6/20). Bios are static;
+// Official gameday roster (TCL gameday sheet, updated 6/25). Bios are static;
 // season stats are pulled live from the league stats site and cached.
 const GATORS_SLUG = 'lakecharlesgumbeauxgators';
 const playerUrl = slug => SPORT_BASE + '/players/' + slug;
@@ -1296,27 +1296,29 @@ const leagueStatsUrl = pos => SPORT_BASE + '/players?view=&r=0&pos=' + pos + '&s
 
 const ROSTER = [
   { num: 2,  name: 'Jaxon Landreneau', slug: 'jaxonlandreneautqp8',  pos: 'Utility', cls: 'Junior',       ht: '5-10', wt: '190', b: 'R', t: 'R', bday: '10/20/2004', home: 'Lake Charles, LA', school: 'LSU-Eunice' },
-  { num: 4,  name: 'Jake Smith',       slug: 'jakesmith8yx5',        pos: 'IF',      cls: 'Junior',       ht: '5-10', wt: '170', b: 'R', t: 'R', bday: '',           home: 'Rosepine, LA',     school: 'LSU-Eunice' },
+  // Recently activated (6/25 sheet); placeholder slug until his Presto player page
+  // exists, so the `note` shows on his profile instead of stats until his first game.
+  { num: 3,  name: 'Griffin Hebert',   slug: 'griffinhebert',        pos: 'Utility', cls: 'Sophomore',    ht: '',     wt: '',    b: '', t: '', bday: '',            home: '',                 school: '', note: 'Recently activated — season stats will appear after his first game.' },
+  { num: 4,  name: 'Jake Smith',       slug: 'jakesmith8yx5',        pos: 'IF',      cls: 'Junior',       ht: '5-10', wt: '170', b: 'R', t: 'R', bday: '01/24/2004', home: 'Rosepine, LA',     school: 'LSU-Eunice' },
   { num: 5,  name: 'Davis Duhon',      slug: 'davisduhons0vw',       pos: 'P',       cls: 'Junior',       ht: '6-0',  wt: '185', b: 'L', t: 'L', bday: '03/12/2005', home: 'Katy, TX',         school: 'Louisiana Christian' },
   { num: 6,  name: 'Nathan McDonald',  slug: 'nathanmcdonaldftgl',   pos: 'Utility', cls: 'Senior',       ht: '6-0',  wt: '175', b: 'R', t: 'R', bday: '07/17/2004', home: 'McComb, MS',       school: 'Loyola-New Orleans' },
   { num: 9,  name: 'James Reina',      slug: 'jamesreinaluai',       pos: 'IF',      cls: 'Junior',       ht: '5-9',  wt: '180', b: 'R', t: 'R', bday: '10/07/2004', home: 'Lake Charles, LA', school: 'Stephen F. Austin' },
   { num: 11, name: 'Diego Corrales',   slug: 'diegocorrales91v5',    pos: 'P',       cls: 'Junior',       ht: '5-8',  wt: '185', b: 'L', t: 'L', bday: '08/01/2005', home: 'Lake Charles, LA', school: 'McNeese State' },
   { num: 14, name: 'Brandon Levy',     slug: 'brandonlevyejo5',      pos: 'Two-Way', cls: 'Junior',       ht: '5-10', wt: '180', b: 'R', t: 'R', bday: '05/25/2004', home: 'Bossier City, LA', school: 'New Orleans' },
-  { num: 16, name: 'Daniel Midkiff',   slug: 'danielmidkifffqkb',    pos: 'P',       cls: 'Sophomore',    ht: '6-2',  wt: '208', b: 'R', t: 'R', bday: '',           home: 'Buna, TX',         school: 'Lamar' },
+  { num: 16, name: 'Daniel Midkiff',   slug: 'danielmidkifffqkb',    pos: 'P',       cls: 'Sophomore',    ht: '6-2',  wt: '208', b: 'R', t: 'R', bday: '05/20/2007', home: 'Buna, TX',         school: 'Lamar' },
   { num: 17, name: 'Ayden Sunday',     slug: 'aydensundayyp1j',      pos: 'OF',      cls: 'Sophomore',    ht: '6-0',  wt: '185', b: 'R', t: 'R', bday: '',           home: 'Nederland, TX',    school: 'Lamar' },
   { num: 18, name: 'Bryson Pierce',    slug: 'brysonpiercex3u3',     pos: 'Two-Way', cls: 'Sophomore',    ht: '6-2',  wt: '185', b: 'L', t: 'L', bday: '11/17/2005', home: 'Benton, LA',       school: 'Benton' },
   { num: 19, name: 'Jack Garcille',    slug: 'jackgarcille9sq9',     pos: 'P',       cls: 'HS Senior',    ht: '6-6',  wt: '210', b: 'R', t: 'R', bday: '07/07/2008', home: 'Lake Charles, LA', school: 'McNeese State' },
   { num: 20, name: 'Connor Walker',    slug: 'connorwalkerbj77',     pos: 'Utility', cls: 'Sophomore',    ht: '5-10', wt: '200', b: 'R', t: 'R', bday: '02/12/2007', home: 'Lake Charles, LA', school: 'McNeese State' },
   { num: 21, name: 'Bankston Lembcke', slug: 'bankstonlembckeoxyb',  pos: 'IF',      cls: 'Junior',       ht: '5-11', wt: '205', b: 'R', t: 'R', bday: '11/14/2005', home: 'Klein, TX',        school: 'Bradley' },
   { num: 22, name: 'Matthew McKinley', slug: 'matthewmckinleylgvq',  pos: 'Two-Way', cls: 'Sophomore',    ht: '5-11', wt: '205', b: 'L', t: 'L', bday: '12/14/2006', home: 'Brandon, MS',      school: 'Meridian CC' },
-  { num: 24, name: 'John Munnerlyn',   slug: 'johnmunnerlynzovp',    pos: 'P',       cls: 'Sophomore',    ht: '6-4',  wt: '205', b: 'R', t: 'R', bday: '11/20/2006', home: 'Loreauville, LA',  school: 'Bossier Parish CC' },
+  { num: 24, name: 'John Munnerlyn',   slug: 'johnmunnerlynzovp',    pos: 'P',       cls: 'R-Sophomore',  ht: '6-4',  wt: '205', b: 'R', t: 'R', bday: '11/20/2006', home: 'Loreauville, LA',  school: 'Bossier Parish CC' },
   { num: 25, name: 'Reid Snider',      slug: 'reidsnidern8g1',       pos: 'Utility', cls: 'Junior',       ht: '6-4',  wt: '210', b: 'R', t: 'R', bday: '08/30/2004', home: 'Lake Charles, LA', school: 'Louisiana Tech' },
   { num: 26, name: 'Chance Fouts',     slug: 'chancefouts0mpc',      pos: 'P',       cls: 'Sophomore',    ht: '6-0',  wt: '210', b: 'R', t: 'R', bday: '11/04/2005', home: 'Spring Branch, TX', school: 'Vernon College' },
   { num: 27, name: 'Easton Culp',      slug: 'eastonculpilgr',       pos: 'C',       cls: 'Senior',       ht: '6-0',  wt: '200', b: 'R', t: 'R', bday: '07/20/2004', home: 'Salado, TX',       school: 'Lamar' },
   { num: 28, name: 'Andrew Ramos',     slug: 'andrewramos4y33',      pos: 'Utility', cls: 'Sophomore',    ht: '5-10', wt: '',    b: 'R', t: 'R', bday: '',           home: 'Deer Park, TX',    school: 'San Jacinto CC' },
   { num: 29, name: 'Sawyer Simmons',   slug: 'sawyersimmonss92p',    pos: 'P',       cls: 'Senior',       ht: '6-1',  wt: '193', b: 'R', t: 'L', bday: '03/30/2005', home: 'Bossier City, LA', school: 'Southeastern Louisiana' },
   { num: 30, name: 'Kasen Bellard',    slug: 'kasenbellard59c8',     pos: 'OF',      cls: 'Junior',       ht: '6-0',  wt: '180', b: 'R', t: 'R', bday: '10/07/2005', home: 'Lake Charles, LA', school: 'Nicholls State' },
-  { num: 33, name: 'Asa Thompson',     slug: 'asathompsonz8vo',      pos: 'P',       cls: 'Junior',       ht: '6-5',  wt: '210', b: 'L', t: 'L', bday: '06/22/2006', home: 'San Antonio, TX',  school: 'Charleston Southern' },
   { num: 35, name: 'Jeremiah Torres',  slug: 'jeremiahtorrescsuy',   pos: 'IF',      cls: 'Junior',       ht: '6-0',  wt: '210', b: 'R', t: 'R', bday: '05/10/2006', home: 'Klein, TX',        school: 'Southern Indiana' },
   { num: 36, name: 'Jake Rider',       slug: 'jakeridergyu4',        pos: 'P',       cls: 'Junior',       ht: '6-4',  wt: '220', b: 'R', t: 'R', bday: '10/11/2005', home: 'Lake Charles, LA', school: 'Nunez CC' },
   { num: 37, name: 'Landon Richards',  slug: 'landonrichards2fu3',   pos: 'P',       cls: 'Sophomore',    ht: '5-11', wt: '235', b: 'R', t: 'R', bday: '06/22/2007', home: 'Orange, TX',       school: 'Angelina College' },
@@ -1620,6 +1622,12 @@ const recHasData = rec => !!(rec && (rec.hit || rec.pit || rec.glBat.length || r
 // A "full" record carries player-page detail (game logs + stats like SB), as
 // opposed to a league-leaderboard seed that only has headline card stats.
 const recIsFull = rec => !!(rec && ((rec.glBat && rec.glBat.length) || (rec.glPit && rec.glPit.length)));
+// A record is "fresh" while it's younger than this. The daily poll re-scrapes any
+// player whose record is older, so list-view card stats (served from rosterStats)
+// refresh day to day instead of freezing at whatever was first scraped. 20h sits
+// below the ~24h between daily polls, so every player refreshes once a day.
+const RECORD_TTL_MS = 20 * 60 * 60 * 1000;
+const recFresh = rec => !!(rec && rec.ts && (Date.now() - rec.ts < RECORD_TTL_MS));
 function storePlayer(slug, rec) {
   const had = playerCache[slug];
   if (recHasData(rec) || !had) {
@@ -1663,10 +1671,13 @@ async function pollRoster() {
     saveCache(); // persist the fast seed right away
     let pass = 0;
     while (pass < 5) {
-      // Players with no card stats first (so they appear ASAP), then ones that
-      // have card stats but no full record yet (to cache game logs for profiles).
+      // Players with no card stats first (so they appear ASAP), then ones whose
+      // record needs a (re)fetch: either no full record yet (to cache game logs
+      // for profiles) or a record old enough that its stats should refresh. The
+      // refetch's storePlayer rewrites rosterStats, so the list view's card stats
+      // update instead of staying pinned to the first scrape.
       const missing = ROSTER.filter(pl => playerNeedsData(pl.slug));
-      const stale = ROSTER.filter(pl => !playerNeedsData(pl.slug) && !recHasData(playerCache[pl.slug]));
+      const stale = ROSTER.filter(pl => !playerNeedsData(pl.slug) && !recFresh(playerCache[pl.slug]));
       const todo = missing.concat(stale);
       if (!todo.length) break;
       // Fetch player pages with limited concurrency so a full cold scrape lands
@@ -3018,7 +3029,9 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 body.noscroll{overflow:hidden;}
 .sheet{background:var(--bayou2);border:1px solid var(--line);border-radius:20px;overflow:hidden;width:100%;max-width:560px;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 24px 60px -20px rgba(0,0,0,.85);}
 .shead{display:flex;align-items:center;gap:10px;padding:14px 16px 8px;}
-.sttl{font-family:'Oswald',sans-serif;font-weight:700;text-transform:uppercase;font-size:14px;letter-spacing:.03em;line-height:1.2;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sttlwrap{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;}
+.sttl{font-family:'Oswald',sans-serif;font-weight:700;text-transform:uppercase;font-size:14px;letter-spacing:.03em;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sdate{font-size:11px;color:var(--mute);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .sscore{font-family:'Oswald',sans-serif;font-weight:700;font-size:16px;color:var(--gold2);flex:none;white-space:nowrap;}
 .sclose{margin-left:auto;background:none;border:1px solid var(--line);color:var(--bone);border-radius:10px;width:34px;height:34px;font-size:15px;cursor:pointer;flex:none;}
 .tabs{display:flex;gap:8px;padding:2px 16px 0;}
@@ -3090,9 +3103,11 @@ body.noscroll{overflow:hidden;}
 .gltbl{overflow-x:auto;-webkit-overflow-scrolling:touch;}
 .gltbl a.gld{color:var(--gold2);text-decoration:none;font-weight:600;}
 .gltbl a.gld:hover{text-decoration:underline;}
-.gltbl table{width:100%;border-collapse:collapse;font-size:11px;white-space:nowrap;}
-.gltbl th{color:var(--mute);font-weight:700;text-transform:uppercase;font-size:9px;padding:6px 8px;border-bottom:1px solid var(--line);}
-.gltbl td{padding:6px 8px;text-align:center;border-bottom:1px solid var(--line);font-family:'JetBrains Mono',monospace;color:var(--bone);}
+.gltbl table{width:100%;border-collapse:collapse;font-size:10px;white-space:nowrap;}
+.gltbl th{color:var(--mute);font-weight:700;text-transform:uppercase;font-size:8.5px;padding:5px 3px;border-bottom:1px solid var(--line);}
+.gltbl td{padding:5px 3px;text-align:center;border-bottom:1px solid var(--line);font-family:'JetBrains Mono',monospace;color:var(--bone);}
+.gltbl td:first-child,.gltbl th:first-child{padding-left:2px;}
+.gltbl td:last-child,.gltbl th:last-child{padding-right:2px;}
 .gltbl td:first-child,.gltbl th:first-child{text-align:left;color:var(--mute);}
 .gltbl td:nth-child(2),.gltbl th:nth-child(2){text-align:left;}
 .gltbl tr:last-child td{border-bottom:none;}
@@ -3168,7 +3183,7 @@ a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 <button class="a2hsx" id="a2hsx" aria-label="Dismiss">✕</button>
 </div>
 <div class="modal" id="bxModal"><div class="sheet">
-<div class="shead"><span class="sttl" id="bxTtl">Box Score</span><span class="sscore" id="bxScore"></span><button class="sclose" id="bxClose" aria-label="Close">✕</button></div>
+<div class="shead"><div class="sttlwrap"><span class="sttl" id="bxTtl">Box Score</span><span class="sdate" id="bxDate"></span></div><span class="sscore" id="bxScore"></span><button class="sclose" id="bxClose" aria-label="Close">✕</button></div>
 <div class="tabs"><button class="tabb on" id="tabBox">Box Score</button><button class="tabb" id="tabPbp">Play-by-Play</button></div>
 <div class="sbody" id="bxBody"><div class="spin">Loading…</div></div>
 </div></div>
@@ -3512,6 +3527,9 @@ function openBox(id,tab){var m=$('bxModal');m.classList.add('show');m.style.zInd
   tab=tab==='pbp'?'pbp':'box';
   $('tabBox').classList.toggle('on',tab==='box');$('tabPbp').classList.toggle('on',tab==='pbp');
   $('bxTtl').textContent='Box Score';$('bxScore').textContent='';
+  // The box id is YYYYMMDD_xxxx, so the game date is known up front \u2014 show it in the
+  // header so it's clear which game opened (e.g. from a profile game-log date tap).
+  $('bxDate').textContent=boxDate(id);
   $('bxBody').innerHTML='<div class="spin">Loading\u2026</div>';
   fetch('/api/boxscore?id='+encodeURIComponent(id)).then(function(r){return r.json();}).then(function(d){
     if(d.error){$('bxBody').innerHTML='<div class="spin">'+esc(d.error)+'</div>';return;}
@@ -3742,7 +3760,9 @@ function statBlocks(p){
   if(p.hit&&Number(p.hit.sb)>0)hitDefs.push(['sb','SB']);
   var batBlock=p.hit?('<div class="statblock"><h4 class="bat">Hitting</h4>'+sgrid(p.hit,p.hitRanks,hitDefs)+'</div>'):'';
   var pitBlock=p.pit?('<div class="statblock"><h4>Pitching</h4>'+sgrid(p.pit,p.pitRanks,[['era','ERA'],['whip','WHIP'],['ip','IP'],['w','W'],['l','L'],['sv','SV'],['app','APP'],['gs','GS'],['k','K'],['bb','BB'],['h','H'],['er','ER']])+'</div>'):'';
-  if(!batBlock&&!pitBlock)return '<div class="statblock"><div class="plimited" style="padding:2px">Season stats will appear here once this player records game action.</div></div>';
+  // A just-added player carries a one-off note (e.g. "recently activated") shown
+  // until his first game lands stats; everyone else gets the generic line.
+  if(!batBlock&&!pitBlock)return '<div class="statblock"><div class="plimited" style="padding:2px">'+esc(p.note||'Season stats will appear here once this player records game action.')+'</div></div>';
   // Legend for the small gold rank — only ranks are a hitting thing, so it sits
   // directly under the Hitting block (and above Pitching for two-way players).
   var hasRanks=(p.hitRanks&&Object.keys(p.hitRanks).length)||(p.pitRanks&&Object.keys(p.pitRanks).length);
@@ -3811,6 +3831,10 @@ function glTable(rows,cols){
   }
   return h+'</table></div>';
 }
+// Box id is YYYYMMDD_xxxx -> "Jun 24, 2026" for the box-score modal header.
+function boxDate(id){var m=/^(\d{4})(\d{2})(\d{2})/.exec(id||'');if(!m)return '';
+  var mon=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m[2]-1];
+  return mon?(mon+' '+(+m[3])+', '+m[1]):'';}
 function oppShort(o){o=(o||'').replace('at ','@ ');var map={'Acadiana Cane Cutters':'Acadiana','Baton Rouge Rougarou':'Baton Rouge','Abilene Flying Bison':'Abilene','Brazos Valley Bombers':'Brazos Valley','San Antonio River Monsters':'San Antonio','Sherman Shadowcats':'Sherman','Victoria Generals':'Victoria','Lake Charles Gumbeaux Gators':'Gators'};for(var k in map)o=o.replace(k,map[k]);return o;}
 $('navScores').addEventListener('click',function(){setView('scores');});
 $('navStandings').addEventListener('click',function(){setView('standings');});
