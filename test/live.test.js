@@ -4,7 +4,7 @@
 // block down), and teamLineScores (per-team runs/hits/errors).
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { extractEventAuth, summarizeLive, teamLineScores, summarizePlays, pitchersFromFeed } = require('../server');
+const { extractEventAuth, summarizeLive, teamLineScores, summarizePlays, pitchersFromFeed, applyLivePitchCount } = require('../server');
 
 const GATORS = 'et1bt9sixrz5lnnl';
 
@@ -211,6 +211,36 @@ test('pitchersFromFeed: the just-entered current pitcher shows instantly, before
   assert.equal(rows.length, 2); // starter plus the reliever who just entered
   const fresh = rows.find(r => r.name === 'Fresh Arm');
   assert.deepEqual(fresh, { name: 'Fresh Arm', uni: '28', ip: '0.0', h: 0, r: 0, er: 0, bb: 0, k: 0, np: null, sp: null, dec: '' });
+});
+
+test('applyLivePitchCount: current pitcher count climbs with the in-progress at-bat', () => {
+  const live = { pitcher: 'Joe Arm', balls: 1, abPitches: 3,
+    pitcherInfo: { name: 'Joe Arm', pitches: 20, strikes: 13, balls: 7 } };
+  const pitchers = [{ isGators: true, rows: [{ name: 'Joe Arm', np: 20, sp: 65 }] }];
+  applyLivePitchCount('lp-climb', live, pitchers);
+  assert.equal(pitchers[0].rows[0].np, 23);        // 20 cumulative + 3 this at-bat
+  assert.equal(live.pitcherInfo.pitches, 23);
+  assert.equal(live.pitcherInfo.strikes, 15);      // 13 + (3 pitches - 1 ball)
+  assert.equal(live.pitcherInfo.balls, 8);         // 7 + 1 ball, and 15 + 8 === 23
+});
+
+test('applyLivePitchCount: a just-entered pitcher (null cumulative) shows his at-bat pitches', () => {
+  const pitchers = [{ rows: [{ name: 'Fresh Arm', np: null, sp: null }] }];
+  applyLivePitchCount('lp-fresh', { pitcher: 'Fresh Arm', balls: 0, abPitches: 2 }, pitchers);
+  assert.equal(pitchers[0].rows[0].np, 2);
+});
+
+test('applyLivePitchCount: no double-count when the cumulative absorbs the finished at-bat', () => {
+  // poll 1 — mid at-bat: cumulative 20, three pitches thrown this at-bat
+  applyLivePitchCount('lp-edge', { pitcher: 'Joe Arm', balls: 1, abPitches: 3,
+    pitcherInfo: { name: 'Joe Arm', pitches: 20, strikes: 13, balls: 7 } },
+    [{ rows: [{ name: 'Joe Arm', np: 20, sp: 65 }] }]);
+  // poll 2 — at-bat just ended: cumulative jumped to 23, but status.np still
+  // reports the finished at-bat (3) for one tick before it resets.
+  const pitchers = [{ rows: [{ name: 'Joe Arm', np: 23, sp: 65 }] }];
+  applyLivePitchCount('lp-edge', { pitcher: 'Joe Arm', balls: 1, abPitches: 3,
+    pitcherInfo: { name: 'Joe Arm', pitches: 23, strikes: 15, balls: 8 } }, pitchers);
+  assert.equal(pitchers[0].rows[0].np, 23);        // not 26 — the stale at-bat is suppressed
 });
 
 test('pitchersFromFeed: a non-appeared, non-current pitcher is still dropped', () => {

@@ -816,6 +816,7 @@ function summarizeLive(json) {
     balls: Number(val(s.b)) || 0,
     strikes: Number(val(s.s)) || 0,
     count: (val(s.b) || '0') + '-' + (val(s.s) || '0'),
+    abPitches: Number(val(s.np)) || 0, // pitches in the current at-bat (updates per pitch; resets each batter)
     batter: has(s.batter) ? val(s.batter) : null,
     pitcher: has(s.pitcher) ? val(s.pitcher) : null,
     batterInfo: has(s.batter) ? activePlayerLine(json, val(s.batter), 'batter') : null,
@@ -905,6 +906,9 @@ async function fetchLiveForGame(boxscoreId, wantRaw) {
     out.live = summarizeLive(feed.json); out.teams = teamLineScores(feed.json); out.plays = summarizePlays(feed.json); out.lineups = lineupsFromFeed(feed.json); out.pitchers = pitchersFromFeed(feed.json); out.feedSource = feed.json.source;
     // Show the batter's earlier at-bats this game on the live at-bat card.
     if (out.live && out.live.batterInfo && out.live.batter) out.live.batterInfo.prev = batterPriorPAs(out.plays, out.live.batter);
+    // Make the current pitcher's pitch count climb pitch-by-pitch (the feed's
+    // cumulative only updates at each at-bat's end).
+    if (out.live && out.pitchers) applyLivePitchCount(boxscoreId, out.live, out.pitchers);
     // Diagnostics only: when the situation block can't be parsed (live === null)
     // we can't tell from afar where the feed moved it. Surface the feed's
     // top-level keys, and the full payload on request, so /debug/live shows the
@@ -1007,6 +1011,36 @@ function pitchersFromFeed(json) {
     }
     return { vh: t.vh, name: t.name, teamId: t.teamId, isGators: t.teamId === GATORS_ID, rows };
   }).filter(t => t.rows.length);
+}
+
+// The feed only bumps a pitcher's cumulative `pitches` at each at-bat's end, so
+// the box lagged a full at-bat behind. status.np (live.abPitches) counts the
+// current at-bat's pitches and updates per pitch, so the live total for the
+// CURRENT pitcher = cumulative + current-at-bat pitches. Boundary guard: at an
+// at-bat's end the cumulative absorbs the finished at-bat one tick before
+// status.np resets to 0, which would briefly double-count — so when the
+// cumulative jumps for the same pitcher, drop the in-flight at-bat for that tick.
+// Recomputed from authoritative cumulative each poll, so any blip self-heals.
+const livePitchMem = {}; // gameId -> { name, cum }
+function applyLivePitchCount(gameId, live, pitchers) {
+  if (!live || !live.pitcher) return;
+  const name = String(live.pitcher).trim();
+  let row = null;
+  for (const t of (pitchers || [])) { const r = (t.rows || []).find(x => x.name === name); if (r) { row = r; break; } }
+  const cum = row && row.np != null ? row.np : 0;
+  const mem = livePitchMem[gameId];
+  const boundary = !!(mem && mem.name === name && cum > mem.cum);
+  livePitchMem[gameId] = { name, cum };
+  const abNp = boundary ? 0 : (live.abPitches || 0);
+  if (abNp <= 0) return;
+  const abBalls = Math.min(live.balls || 0, abNp);
+  const abStrikes = abNp - abBalls;
+  if (row) row.np = cum + abNp;
+  const pi = live.pitcherInfo;
+  if (pi && String(pi.name || '').trim() === name && pi.pitches != null) {
+    pi.pitches = pi.pitches + abNp;
+    if (pi.strikes != null) { pi.strikes = pi.strikes + abStrikes; pi.balls = pi.pitches - pi.strikes; }
+  }
 }
 
 function inningParts(status) {
@@ -2745,7 +2779,7 @@ if (require.main === module) {
   app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleDailyRoster(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); scheduleDailyStats(); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, pitchersFromFeed, extractEventAuth,
-  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseGameLog, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, buildReportHtml, repPlays, repLineRows, batterPriorPAs, summarizePlays };
+  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseGameLog, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, buildReportHtml, repPlays, repLineRows, batterPriorPAs, summarizePlays, applyLivePitchCount };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
