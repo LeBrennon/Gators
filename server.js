@@ -1620,6 +1620,12 @@ const recHasData = rec => !!(rec && (rec.hit || rec.pit || rec.glBat.length || r
 // A "full" record carries player-page detail (game logs + stats like SB), as
 // opposed to a league-leaderboard seed that only has headline card stats.
 const recIsFull = rec => !!(rec && ((rec.glBat && rec.glBat.length) || (rec.glPit && rec.glPit.length)));
+// A record is "fresh" while it's younger than this. The daily poll re-scrapes any
+// player whose record is older, so list-view card stats (served from rosterStats)
+// refresh day to day instead of freezing at whatever was first scraped. 20h sits
+// below the ~24h between daily polls, so every player refreshes once a day.
+const RECORD_TTL_MS = 20 * 60 * 60 * 1000;
+const recFresh = rec => !!(rec && rec.ts && (Date.now() - rec.ts < RECORD_TTL_MS));
 function storePlayer(slug, rec) {
   const had = playerCache[slug];
   if (recHasData(rec) || !had) {
@@ -1663,10 +1669,13 @@ async function pollRoster() {
     saveCache(); // persist the fast seed right away
     let pass = 0;
     while (pass < 5) {
-      // Players with no card stats first (so they appear ASAP), then ones that
-      // have card stats but no full record yet (to cache game logs for profiles).
+      // Players with no card stats first (so they appear ASAP), then ones whose
+      // record needs a (re)fetch: either no full record yet (to cache game logs
+      // for profiles) or a record old enough that its stats should refresh. The
+      // refetch's storePlayer rewrites rosterStats, so the list view's card stats
+      // update instead of staying pinned to the first scrape.
       const missing = ROSTER.filter(pl => playerNeedsData(pl.slug));
-      const stale = ROSTER.filter(pl => !playerNeedsData(pl.slug) && !recHasData(playerCache[pl.slug]));
+      const stale = ROSTER.filter(pl => !playerNeedsData(pl.slug) && !recFresh(playerCache[pl.slug]));
       const todo = missing.concat(stale);
       if (!todo.length) break;
       // Fetch player pages with limited concurrency so a full cold scrape lands
