@@ -198,3 +198,27 @@ test('pitchersFromFeed: missing team array yields empty list', () => {
   assert.deepEqual(pitchersFromFeed({}), []);
   assert.deepEqual(pitchersFromFeed(null), []);
 });
+
+test('pitchersFromFeed: the just-entered current pitcher shows instantly, before throwing', () => {
+  const json = {
+    status: { pitcher: ['Fresh Arm'] },
+    team: [{ vh: 'V', name: 'Gators', teamId: GATORS, player: [
+      { name: 'Starter', uni: '10', pitching: [{ ip: '5.0', h: '4', r: '2', er: '2', bb: '1', so: '5', pitches: '70', strikes: '45' }] },
+      { name: 'Fresh Arm', uni: '28', pitching: [{ appear: '1' }] }, // just announced, no pitch data yet
+    ] }],
+  };
+  const rows = pitchersFromFeed(json)[0].rows;
+  assert.equal(rows.length, 2); // starter plus the reliever who just entered
+  const fresh = rows.find(r => r.name === 'Fresh Arm');
+  assert.deepEqual(fresh, { name: 'Fresh Arm', uni: '28', ip: '0.0', h: 0, r: 0, er: 0, bb: 0, k: 0, np: null, sp: null, dec: '' });
+});
+
+test('pitchersFromFeed: a non-appeared, non-current pitcher is still dropped', () => {
+  const json = {
+    status: { pitcher: ['Someone Else'] },
+    team: [{ vh: 'V', name: 'Gators', teamId: GATORS, player: [
+      { name: 'Idle Arm', uni: '40', pitching: [{ appear: '1' }] }, // in the pen, not the current pitcher
+    ] }],
+  };
+  assert.deepEqual(pitchersFromFeed(json), []);
+});

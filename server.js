@@ -967,16 +967,23 @@ function pitchersFromFeed(json) {
   const teams = (json && json.team) || [];
   const num = x => Number(x) || 0;
   const pickv = (o, ks) => { for (const k of ks) if (o && o[k] != null && o[k] !== '') return o[k]; return null; };
+  // The current pitcher (from the status block) is shown the instant he's
+  // announced, even before throwing a pitch, so a pitching change appears
+  // in the box right away.
+  const s = json && (Array.isArray(json.status) ? json.status[0] : json.status);
+  const curPitcher = s ? String(val(s.pitcher) || '').trim() : '';
   return teams.map(t => {
     const rows = [];
     for (const p of (t.player || [])) {
-      const pg = (p.pitching && (Array.isArray(p.pitching) ? p.pitching[0] : p.pitching)) || null;
-      if (!pg) continue;
+      const pgRaw = (p.pitching && (Array.isArray(p.pitching) ? p.pitching[0] : p.pitching)) || null;
+      const isCurrent = curPitcher && [p.name, p.shortname, p.revname].some(n => n && String(n).trim() === curPitcher);
+      if (!pgRaw && !isCurrent) continue;
+      const pg = pgRaw || {};
       const ip = pickv(pg, ['ip']);
       const pitches = pickv(pg, ['pitches', 'np', 'pitchcount', 'pc']);
-      // Only list pitchers who have actually appeared (recorded outs, thrown a
-      // pitch, or faced a batter) — not every rostered arm in the player list.
-      const appeared = (ip != null && parseFloat(ip) > 0) || num(pitches) > 0 || num(pickv(pg, ['bf', 'batters'])) > 0;
+      // List pitchers who have appeared (recorded outs, thrown a pitch, or faced
+      // a batter), plus the just-entered current pitcher — not every rostered arm.
+      const appeared = isCurrent || (ip != null && parseFloat(ip) > 0) || num(pitches) > 0 || num(pickv(pg, ['bf', 'batters'])) > 0;
       if (!appeared) continue;
       const np = pitches != null ? num(pitches) : null;
       // Strike%: prefer a strikes count from the feed; else derive it from balls
