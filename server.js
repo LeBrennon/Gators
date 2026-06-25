@@ -789,6 +789,9 @@ function activePlayerLine(json, name, kind) {
     if (g.bb != null) parts.push(n(g.bb) + ' BB');
     info.line = parts.join(', ') || null;
     info.pitches = g.pitches != null ? n(g.pitches) : null;
+    // The feed gives total pitches and strikes; balls is the remainder.
+    info.strikes = (info.pitches != null && g.strikes != null) ? n(g.strikes) : null;
+    info.balls = (info.pitches != null && info.strikes != null) ? Math.max(0, info.pitches - info.strikes) : null;
   } else {
     const h = p.hitting || {};
     if (h.ab != null) info.line = n(h.h) + ' - ' + n(h.ab) + ', ' + n(h.rbi) + ' RBI, ' + n(h.so) + ' K';
@@ -3298,7 +3301,11 @@ function buildLineScore(g){
 function matchupCard(role,info){
   var meta=[];if(info.pos)meta.push(esc(info.pos));if(info.uni)meta.push('#'+esc(String(info.uni)));
   var stat=info.line?esc(info.line):'';
-  if(info.pitches!=null)stat+=(stat?' · ':'')+esc(String(info.pitches))+' P';
+  if(info.pitches!=null){
+    var pc=esc(String(info.pitches))+' P';
+    if(info.strikes!=null&&info.balls!=null)pc+=' ('+esc(String(info.strikes))+' S / '+esc(String(info.balls))+' B)';
+    stat+=(stat?' · ':'')+pc;
+  }
   var prev='';
   if(info.prev&&info.prev.length)prev='<div class="mprev">'+info.prev.map(function(x){
     return '<span class="mpa"><b>'+esc(x.inn)+'</b> '+esc(x.res)+'</span>';}).join('')+'</div>';
