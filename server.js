@@ -2928,8 +2928,8 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 body.noscroll{overflow:hidden;}
 .sheet{background:var(--bayou2);border:1px solid var(--line);border-radius:20px;overflow:hidden;width:100%;max-width:560px;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 24px 60px -20px rgba(0,0,0,.85);}
 .shead{display:flex;align-items:center;gap:10px;padding:14px 16px 8px;}
-.sttl{font-family:'Oswald',sans-serif;font-weight:700;text-transform:uppercase;font-size:13px;letter-spacing:.03em;line-height:1.2;}
-.sscore{font-family:'Oswald',sans-serif;font-weight:700;font-size:16px;color:var(--gold2);}
+.sttl{font-family:'Oswald',sans-serif;font-weight:700;text-transform:uppercase;font-size:14px;letter-spacing:.03em;line-height:1.2;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sscore{font-family:'Oswald',sans-serif;font-weight:700;font-size:16px;color:var(--gold2);flex:none;white-space:nowrap;}
 .sclose{margin-left:auto;background:none;border:1px solid var(--line);color:var(--bone);border-radius:10px;width:34px;height:34px;font-size:15px;cursor:pointer;flex:none;}
 .tabs{display:flex;gap:8px;padding:2px 16px 0;}
 .tabb{flex:1;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.05em;font-size:12px;padding:10px;border-radius:11px 11px 0 0;border:1px solid var(--line);border-bottom:none;color:var(--mute);background:transparent;cursor:pointer;}
@@ -3409,7 +3409,7 @@ function openBox(id,tab){var m=$('bxModal');m.classList.add('show');m.style.zInd
   fetch('/api/boxscore?id='+encodeURIComponent(id)).then(function(r){return r.json();}).then(function(d){
     if(d.error){$('bxBody').innerHTML='<div class="spin">'+esc(d.error)+'</div>';return;}
     _box=d;
-    if(d.teams&&d.teams.length>=2)$('bxTtl').textContent=d.teams[0]+' @ '+d.teams[1];
+    if(d.teams&&d.teams.length>=2)$('bxTtl').textContent=oppShort(d.teams[0])+' @ '+oppShort(d.teams[1]);
     if(d.line){var sc=bsScoreFromLine(d.line);if(sc)$('bxScore').textContent=sc;}
     showTab(tab);
   }).catch(function(){$('bxBody').innerHTML='<div class="spin">Could not load box score.</div>';});}
