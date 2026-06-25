@@ -1312,7 +1312,7 @@ const ROSTER = [
   { num: 20, name: 'Connor Walker',    slug: 'connorwalkerbj77',     pos: 'Utility', cls: 'Sophomore',    ht: '5-10', wt: '200', b: 'R', t: 'R', bday: '02/12/2007', home: 'Lake Charles, LA', school: 'McNeese State' },
   { num: 21, name: 'Bankston Lembcke', slug: 'bankstonlembckeoxyb',  pos: 'IF',      cls: 'Junior',       ht: '5-11', wt: '205', b: 'R', t: 'R', bday: '11/14/2005', home: 'Klein, TX',        school: 'Bradley' },
   { num: 22, name: 'Matthew McKinley', slug: 'matthewmckinleylgvq',  pos: 'Two-Way', cls: 'Sophomore',    ht: '5-11', wt: '205', b: 'L', t: 'L', bday: '12/14/2006', home: 'Brandon, MS',      school: 'Meridian CC' },
-  { num: 24, name: 'John Munnerlyn',   slug: 'johnmunnerlynzovp',    pos: 'P',       cls: 'R-Sophomore',  ht: '6-4',  wt: '205', b: 'R', t: 'R', bday: '11/20/2006', home: 'Loreauville, LA',  school: 'Bossier Parish CC' },
+  { num: 24, name: 'John Munnerlyn',   slug: 'johnmunnerlynzovp',    pos: 'P',       cls: 'R-Freshman',   ht: '6-4',  wt: '205', b: 'R', t: 'R', bday: '11/20/2006', home: 'Loreauville, LA',  school: 'Bossier Parish CC' },
   { num: 25, name: 'Reid Snider',      slug: 'reidsnidern8g1',       pos: 'Utility', cls: 'Junior',       ht: '6-4',  wt: '210', b: 'R', t: 'R', bday: '08/30/2004', home: 'Lake Charles, LA', school: 'Louisiana Tech' },
   { num: 26, name: 'Chance Fouts',     slug: 'chancefouts0mpc',      pos: 'P',       cls: 'Sophomore',    ht: '6-0',  wt: '210', b: 'R', t: 'R', bday: '11/04/2005', home: 'Spring Branch, TX', school: 'Vernon College' },
   { num: 27, name: 'Easton Culp',      slug: 'eastonculpilgr',       pos: 'C',       cls: 'Senior',       ht: '6-0',  wt: '200', b: 'R', t: 'R', bday: '07/20/2004', home: 'Salado, TX',       school: 'Lamar' },
