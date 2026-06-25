@@ -845,6 +845,27 @@ function summarizePlays(json) {
   return out;
 }
 
+// The current batter's completed plate appearances earlier in THIS game, read
+// from the play-by-play. Each play's narrative leads with the batter's name
+// ("Bankston Lembcke lined out to cf ..."), so a play belongs to this batter
+// when its text starts with their name AND the remainder opens with a plate-
+// appearance verb (BS_PA_RE) — which skips baserunning sub-rows ("stole second",
+// "advanced to third"). Powers the "what they've done today" line on the live
+// at-bat card. Returns [{ inn: '2nd', res: 'Struck out' }, ...] in order.
+function batterPriorPAs(plays, batterName) {
+  const nm = String(batterName || '').trim();
+  if (!nm || !Array.isArray(plays)) return [];
+  const out = [];
+  for (const p of plays) {
+    const t = String(p.text || '').trim();
+    if (t.slice(0, nm.length) !== nm) continue;
+    const rest = t.slice(nm.length).trim();
+    if (!BS_PA_RE.test(rest)) continue;
+    out.push({ inn: bsOrd(p.inning), res: cap(bsNormRes(rest)) });
+  }
+  return out;
+}
+
 function teamLineScores(json) {
   return (json && json.team || []).map(t => ({
     vh: t.vh, name: t.name, teamId: t.teamId, isGators: t.teamId === GATORS_ID,
@@ -879,6 +900,8 @@ async function fetchLiveForGame(boxscoreId, wantRaw) {
   out.feed = { url: feed.url, ok: feed.ok, status: feed.status, contentType: feed.contentType, length: feed.length, parseError: feed.parseError, head: feed.json ? undefined : feed.head };
   if (feed.json) {
     out.live = summarizeLive(feed.json); out.teams = teamLineScores(feed.json); out.plays = summarizePlays(feed.json); out.lineups = lineupsFromFeed(feed.json); out.pitchers = pitchersFromFeed(feed.json); out.feedSource = feed.json.source;
+    // Show the batter's earlier at-bats this game on the live at-bat card.
+    if (out.live && out.live.batterInfo && out.live.batter) out.live.batterInfo.prev = batterPriorPAs(out.plays, out.live.batter);
     // Diagnostics only: when the situation block can't be parsed (live === null)
     // we can't tell from afar where the feed moved it. Surface the feed's
     // top-level keys, and the full payload on request, so /debug/live shows the
@@ -2712,7 +2735,7 @@ if (require.main === module) {
   app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleDailyRoster(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); scheduleDailyStats(); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, pitchersFromFeed, extractEventAuth,
-  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseGameLog, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, buildReportHtml, repPlays, repLineRows };
+  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseGameLog, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, buildReportHtml, repPlays, repLineRows, batterPriorPAs, summarizePlays };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
@@ -2828,6 +2851,9 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .mname{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;color:var(--bone);font-weight:700;font-size:14px;margin-top:2px;}
 .mmeta{font-family:'JetBrains Mono',monospace;font-weight:600;font-size:10.5px;color:var(--mute);letter-spacing:.03em;}
 .mstat{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--gold2);margin-top:3px;}
+.mprev{display:flex;flex-wrap:wrap;gap:3px 12px;margin-top:6px;padding-top:6px;border-top:1px solid var(--line);}
+.mpa{font-size:11px;color:var(--mute);line-height:1.3;}
+.mpa b{color:var(--bone);font-weight:600;font-family:'JetBrains Mono',monospace;font-size:10px;margin-right:3px;}
 .mvs{text-align:center;font-family:'Oswald',sans-serif;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin:1px 0;}
 .finalcard{display:flex;flex-direction:column;align-items:center;gap:13px;padding:6px 0 2px;}
 .finalbtns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;}
@@ -3273,9 +3299,12 @@ function matchupCard(role,info){
   var meta=[];if(info.pos)meta.push(esc(info.pos));if(info.uni)meta.push('#'+esc(String(info.uni)));
   var stat=info.line?esc(info.line):'';
   if(info.pitches!=null)stat+=(stat?' · ':'')+esc(String(info.pitches))+' P';
+  var prev='';
+  if(info.prev&&info.prev.length)prev='<div class="mprev">'+info.prev.map(function(x){
+    return '<span class="mpa"><b>'+esc(x.inn)+'</b> '+esc(x.res)+'</span>';}).join('')+'</div>';
   return '<div class="mcard"><div class="mrole">'+role+'</div>'+
     '<div class="mname">'+esc(info.name)+(meta.length?'<span class="mmeta">'+meta.join(' ')+'</span>':'')+'</div>'+
-    (stat?'<div class="mstat">'+stat+'</div>':'')+'</div>';
+    (stat?'<div class="mstat">'+stat+'</div>':'')+prev+'</div>';
 }
 // Map a lineup player name to a roster slug (Gators only), so lineup names can
 // open the player profile the same way box-score names do. Built lazily from
