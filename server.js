@@ -23,7 +23,7 @@ const BUILD = {
   bootedAt: new Date().toISOString(),
 };
 const BUILD_LABEL = 'build ' + BUILD.commit + (BUILD.branch ? ' · ' + BUILD.branch : '');
-const LIVE_POLL_MS = Number(process.env.LIVE_POLL_MS || 7000);
+const LIVE_POLL_MS = Number(process.env.LIVE_POLL_MS || 4000); // tight enough that the live count/score/pitch-count track pitch-by-pitch
 const SCHEDULE_URL = process.env.SCHEDULE_URL || 'https://texasleaguestats.prestosports.com/sports/bsb/2026/schedule';
 const SITE_URL     = (process.env.SITE_URL || 'https://whatisthegatorscore.com').replace(/\/$/, '');
 // Secret key gating the private GM game reports (/report, /reports). When unset,
@@ -3428,7 +3428,12 @@ function connect(){var lastData=0;
   function applyGame(g){if(g&&g.home){renderGame(g);lastData=Date.now();if($('viewStandings').style.display!=='none')silentStandings();}}
   function pollGame(){fetch('/api/game').then(function(r){return r.ok?r.json():null;}).then(applyGame).catch(function(){});}
   pollGame();
-  setInterval(function(){pollGame();loadSched();},15000);
+  // Poll the live game often so the score/count/pitch-count stay fresh even when
+  // the SSE push stalls (e.g. behind the non-www->www redirect). /api/game is
+  // served from cache, so this only hits our own server. Schedule changes
+  // rarely, so it stays on the slower cadence.
+  setInterval(pollGame,5000);
+  setInterval(loadSched,15000);
   function openSSE(){var es;try{es=new EventSource('/api/stream');}catch(e){return;}
     es.onmessage=function(ev){try{var m=JSON.parse(ev.data);if(m.type==='game')applyGame(m.game);else if(m.type==='alert')toast(emo(m.tag),m.title,m.body,(m.tag==='lead'||m.tag==='final')?'lead':'');}catch(x){}};
     es.onerror=function(){try{es.close();}catch(x){}setTimeout(openSSE,8000);};}
