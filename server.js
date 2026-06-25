@@ -909,6 +909,8 @@ async function fetchLiveForGame(boxscoreId, wantRaw) {
     // Make the current pitcher's pitch count climb pitch-by-pitch (the feed's
     // cumulative only updates at each at-bat's end).
     if (out.live && out.pitchers) applyLivePitchCount(boxscoreId, out.live, out.pitchers);
+    // Per-team pitching totals row (after the live pitch-count adjustment above).
+    if (out.pitchers) out.pitchers.forEach(t => { t.totals = pitchingTotals(t.rows); });
     // Diagnostics only: when the situation block can't be parsed (live === null)
     // we can't tell from afar where the feed moved it. Surface the feed's
     // top-level keys, and the full payload on request, so /debug/live shows the
@@ -1041,6 +1043,22 @@ function applyLivePitchCount(gameId, live, pitchers) {
     pi.pitches = pi.pitches + abNp;
     if (pi.strikes != null) { pi.strikes = pi.strikes + abStrikes; pi.balls = pi.pitches - pi.strikes; }
   }
+}
+
+// Team pitching totals for the box's "Totals" row. IP sums by outs (the .1/.2
+// are thirds of an inning, not decimals); H/R/ER/BB/K/P sum straight; S% is
+// recomputed from each line's strikes (derived from its own S% and pitch count).
+function pitchingTotals(rows) {
+  const num = x => Number(x) || 0;
+  let outs = 0, h = 0, r = 0, er = 0, bb = 0, k = 0, np = 0, strikes = 0, hasNp = false;
+  for (const x of (rows || [])) {
+    const m = String(x.ip == null ? '' : x.ip).match(/^(\d+)(?:\.(\d))?$/);
+    if (m) outs += num(m[1]) * 3 + num(m[2]);
+    h += num(x.h); r += num(x.r); er += num(x.er); bb += num(x.bb); k += num(x.k);
+    if (x.np != null) { hasNp = true; np += num(x.np); if (x.sp != null) strikes += Math.round(num(x.sp) / 100 * num(x.np)); }
+  }
+  return { ip: Math.floor(outs / 3) + '.' + (outs % 3), h, r, er, bb, k,
+    np: hasNp ? np : null, sp: (hasNp && np) ? Math.round(strikes / np * 100) : null };
 }
 
 function inningParts(status) {
@@ -2779,7 +2797,7 @@ if (require.main === module) {
   app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleDailyRoster(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); scheduleDailyStats(); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, pitchersFromFeed, extractEventAuth,
-  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseGameLog, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, buildReportHtml, repPlays, repLineRows, batterPriorPAs, summarizePlays, applyLivePitchCount };
+  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseGameLog, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, buildReportHtml, repPlays, repLineRows, batterPriorPAs, summarizePlays, applyLivePitchCount, pitchingTotals };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
@@ -2930,6 +2948,8 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .lutbl tr.cur td{background:linear-gradient(90deg,rgba(236,201,19,.12),transparent);}
 .lutbl tr.cur td.lunm{color:var(--gold2);}
 .ptbl td.lpn,.ptbl th.lpn{text-align:right;font-family:'JetBrains Mono',monospace;width:1%;white-space:nowrap;}
+.lutbl tr.pttot td{border-top:2px solid var(--line);font-weight:700;color:var(--mute);}
+.lutbl tr.pttot td.lunm{color:var(--bone);text-transform:uppercase;font-size:10px;letter-spacing:.06em;}
 .ptbl td.lpn{color:var(--bone);}
 .pthead{margin-top:10px;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold2);font-weight:700;padding:0 7px 3px;}
 .pdec{color:var(--gold2);font-weight:700;font-size:10px;}
@@ -3308,6 +3328,11 @@ function buildPitching(g){
         '<td class="lpn">'+r.bb+'</td><td class="lpn">'+r.k+'</td><td class="lpn">'+(r.np==null?'·':r.np)+'</td>'+
         '<td class="lpn">'+(r.sp==null?'·':r.sp)+'</td></tr>';
     });
+    var T=t.totals;
+    if(T)rows+='<tr class="pttot"><td class="luu"></td><td class="lunm">Totals</td><td class="lpn">'+esc(String(T.ip))+'</td>'+
+      '<td class="lpn">'+T.h+'</td><td class="lpn">'+T.r+'</td><td class="lpn">'+T.er+'</td>'+
+      '<td class="lpn">'+T.bb+'</td><td class="lpn">'+T.k+'</td><td class="lpn">'+(T.np==null?'·':T.np)+'</td>'+
+      '<td class="lpn">'+(T.sp==null?'·':T.sp)+'</td></tr>';
     blocks+='<div class="pthead">'+esc(nm(t))+'</div><div class="lubox"><table class="lutbl ptbl">'+head+rows+'</table></div>';
   });
   if(!blocks)return '';

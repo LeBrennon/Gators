@@ -4,7 +4,7 @@
 // block down), and teamLineScores (per-team runs/hits/errors).
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { extractEventAuth, summarizeLive, teamLineScores, summarizePlays, pitchersFromFeed, applyLivePitchCount } = require('../server');
+const { extractEventAuth, summarizeLive, teamLineScores, summarizePlays, pitchersFromFeed, applyLivePitchCount, pitchingTotals } = require('../server');
 
 const GATORS = 'et1bt9sixrz5lnnl';
 
@@ -241,6 +241,31 @@ test('applyLivePitchCount: no double-count when the cumulative absorbs the finis
   applyLivePitchCount('lp-edge', { pitcher: 'Joe Arm', balls: 1, abPitches: 3,
     pitcherInfo: { name: 'Joe Arm', pitches: 23, strikes: 15, balls: 8 } }, pitchers);
   assert.equal(pitchers[0].rows[0].np, 23);        // not 26 — the stale at-bat is suppressed
+});
+
+test('pitchingTotals: sums a team line, carrying innings by outs', () => {
+  const rows = [
+    { ip: '6.0', h: 6, r: 2, er: 2, bb: 0, k: 3, np: 89, sp: 64 },
+    { ip: '1.2', h: 1, r: 1, er: 1, bb: 2, k: 1, np: 30, sp: 57 },
+    { ip: '0.2', h: 0, r: 0, er: 0, bb: 1, k: 0, np: 11, sp: 55 },
+  ];
+  const t = pitchingTotals(rows);
+  assert.equal(t.ip, '8.1');          // 18 + 5 + 2 = 25 outs = 8 1/3
+  assert.equal(t.h, 7); assert.equal(t.r, 3); assert.equal(t.er, 3);
+  assert.equal(t.bb, 3); assert.equal(t.k, 4);
+  assert.equal(t.np, 130);            // 89 + 30 + 11
+  // strikes: round(.64*89)+round(.57*30)+round(.55*11) = 57+17+6 = 80; 80/130 = 62%
+  assert.equal(t.sp, 62);
+});
+
+test('pitchingTotals: a just-entered pitcher (no pitch count) does not break the total', () => {
+  const t = pitchingTotals([
+    { ip: '2.0', h: 1, r: 0, er: 0, bb: 1, k: 4, np: 28, sp: 60 },
+    { ip: '0.0', h: 0, r: 0, er: 0, bb: 0, k: 0, np: null, sp: null }, // just entered
+  ]);
+  assert.equal(t.ip, '2.0');
+  assert.equal(t.np, 28);             // null pitch count ignored
+  assert.equal(t.k, 4);
 });
 
 test('pitchersFromFeed: a non-appeared, non-current pitcher is still dropped', () => {
