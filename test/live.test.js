@@ -89,6 +89,31 @@ test('summarizeLive: missing status returns null', () => {
   assert.equal(summarizeLive(null), null);
 });
 
+test('summarizeLive: pitcher info carries pitch count with strikes and balls', () => {
+  const json = {
+    status: { vh: ['V'], inning: ['4'], pitcher: ['Jaykub Reyes'] },
+    team: [{ vh: 'V', player: [
+      { name: 'Jaykub Reyes', uni: '23', pitching: [{ ip: '3.0', er: '2', so: '1', bb: '0', pitches: '49', strikes: '33' }] },
+    ] }],
+  };
+  const info = summarizeLive(json).pitcherInfo;
+  assert.equal(info.line, '3.0 IP, 2 ER, 1 K, 0 BB');
+  assert.equal(info.pitches, 49);
+  assert.equal(info.strikes, 33);
+  assert.equal(info.balls, 16); // 49 - 33
+});
+
+test('summarizeLive: a pitcher with no pitches yet has no strikes/balls', () => {
+  const json = {
+    status: { pitcher: ['Matthew McKinley'] },
+    team: [{ player: [{ name: 'Matthew McKinley', uni: '22', pitching: [{ appear: '2' }] }] }],
+  };
+  const info = summarizeLive(json).pitcherInfo;
+  assert.equal(info.pitches, null);
+  assert.equal(info.strikes, null);
+  assert.equal(info.balls, null);
+});
+
 test('teamLineScores: flattens each team line, per-inning runs, and flags the Gators', () => {
   const json = { team: [
     { vh: 'V', name: 'Gators', teamId: GATORS, linescore: { runs: 3, hits: 5, errs: 0,
