@@ -186,6 +186,7 @@ function computeBoxStats(halves, lineHtml) {
     const opp = grid.find(r => !/gator/i.test(r.name));
     if (gators && opp) {
       if (gators.e != null) out.errors = gators.e;
+      out.innings = { gators: gators.innings.slice(), opp: opp.innings.slice() };  // runs by inning, for the game-story
       let sd = 0;
       const N = Math.max(gators.innings.length, opp.innings.length);
       for (let i = 0; i < N; i++) {
@@ -278,6 +279,54 @@ function gameLinesFromBox(data) {
 // ---- the words (facts only) ------------------------------------------------
 const resultWord = game.win == null ? 'played' : game.win ? 'won' : 'lost';
 
+// One-paragraph game story, assembled from the data: the lead reflects the
+// result and margin, the middle traces the scoring by inning (from the line
+// score), then the starter's line and the multi-hit bats. Degrades gracefully
+// when the inning-by-inning line score isn't available (uses totals instead).
+const ORD = n => n + (['th', 'st', 'nd', 'rd'][(n % 100 - n % 10 == 10) ? 0 : n % 10] || 'th');
+function buildNarrative(bat, pit, tb, tp, stats) {
+  const won = game.win === true, lost = game.win === false;
+  const margin = game.gs - game.os;
+  const shutout = won && game.os === 0;
+  const where = game.home ? 'at home' : 'on the road';
+  const score = `${game.gs}–${game.os}`;
+  let verb;
+  if (won) verb = shutout ? 'blanked' : margin >= 6 ? 'rolled past' : margin <= 2 ? 'edged' : 'beat';
+  else if (lost) verb = margin <= -6 ? 'were handled by' : margin >= -2 ? 'came up just short against' : 'lost to';
+  else verb = 'played';
+  const lead = game.win == null
+    ? `The Gumbeaux Gators played ${oppName} ${where}`
+    : `The Gumbeaux Gators ${verb} ${oppName} ${score} ${where}`;
+
+  let flow;
+  const inn = stats && stats.innings && stats.innings.gators;
+  const scoredIn = inn ? inn.map((v, i) => (v > 0 ? i + 1 : 0)).filter(Boolean) : [];
+  if (scoredIn.length) {
+    const early = scoredIn.some(n => n <= 3), late = scoredIn.some(n => n >= 7);
+    const where = list(scoredIn.map(ORD));
+    if (early && late) flow = `They got on the board early and kept adding on, plating runs in the ${where} innings.`;
+    else if (early) flow = `They jumped ahead early, scoring in the ${where} innings.`;
+    else if (late) flow = `They broke through late, scoring in the ${where} innings.`;
+    else flow = `The scoring came in the ${where} innings.`;
+  } else {
+    flow = `The offense put together ${plural(tb.h, 'hit')} and ${plural(game.gs, 'run')}.`;
+  }
+
+  const ace = [...pit].sort((a, b) => b.outs - a.outs)[0];
+  let arm = '';
+  if (ace && ace.outs > 0) {
+    const sc = ace.r === 0;
+    arm = ` ${ace.meta.name} ${sc ? 'was sharp' : 'took the ball'}, going ${ace.ipStr} innings with ${plural(ace.k, 'strikeout')}${sc ? ' and no runs allowed' : ` and ${plural(ace.r, 'run')} allowed`}.`;
+  }
+
+  const mh = bat.filter(b => b.h >= 2).sort((a, b) => b.h - a.h || b.rbi - a.rbi);
+  let bats = '';
+  if (mh.length) bats = ` At the plate, ${list(mh.slice(0, 3).map(b => b.meta.name))} each had multiple hits${tb.h ? ` in a ${tb.h}-hit effort` : ''}.`;
+  else if (tb.h) { const t = bat.filter(b => b.h > 0).sort((a, b) => b.h - a.h)[0]; if (t) bats = ` ${t.meta.name} led the way with ${plural(t.h, 'hit')}.`; }
+
+  return `${lead}. ${flow}${arm}${bats}`;
+}
+
 // Build the game-specific recap + key facts from the chosen game lines (box when
 // available, seed otherwise). bat/pit rows carry {slug, meta:{name}, h, ab, rbi,
 // hr?, outs, ipStr, h, r, er, bb, k}; tb/tp are team totals.
@@ -287,12 +336,9 @@ function buildGameContent(bat, pit, tb, tp, stats) {
   const ip = tp.outs / 3;
   const pct = x => x == null ? null : Math.round(x * 100) + '%';
 
-  const recap = [];
-  recap.push(`The Gumbeaux Gators ${resultWord} ${game.gs}–${game.os} ${game.home ? 'at home' : 'on the road'} against ${oppName} on ${game.date}. They are now ${T.w}–${T.l}.`);
-  const off = `The offense had ${plural(tb.h, 'hit')} and scored ${plural(game.gs, 'run')}${tb.bb ? `, with ${plural(tb.bb, 'walk')}` : ''}${tb.hr ? ` and ${plural(tb.hr, 'home run')}` : ''}.`;
-  const overPace = gameBB9 != null && staffBB9 != null && gameBB9 > staffBB9 * 1.15;
-  const pitch = `The pitching staff allowed ${plural(tp.r, 'run')} (${tp.er} earned) over ${ipStr(tp.outs)} innings and issued ${plural(tp.bb, 'walk')}${overPace ? ', above the season pace' : ''}.`;
-  recap.push(off + ' ' + pitch);
+  // The Recap is the one-paragraph game story; the strips and sections below
+  // carry the precise numbers, so it doesn't repeat the totals.
+  const recap = [buildNarrative(bat, pit, tb, tp, stats)];
 
   // Key hitters: multi-hit games (or the hits leader if none).
   const keyHitters = [];
