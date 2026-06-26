@@ -76,44 +76,55 @@ const txt = s => String(s || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' '
 async function getBoxStats() {
   if (NOBOX) return null;
   // Test/offline hook: read a saved box-score HTML instead of fetching.
-  if (process.env.BOX_FIXTURE) { try { return parseBoxStats(fs.readFileSync(process.env.BOX_FIXTURE, 'utf8')); } catch (e) { return null; } }
+  if (process.env.BOX_FIXTURE) { try { const html = fs.readFileSync(process.env.BOX_FIXTURE, 'utf8'); return computeBoxStats(halvesFromHtml(html), html); } catch (e) { return null; } }
   const id = String(game.id);
   if (!/^\d{8}_[a-z0-9]+$/i.test(id)) return null;
-  const year = id.slice(0, 4);
-  const base = process.env.BOX_BASE || `https://texasleaguestats.prestosports.com/sports/bsb/${year}/boxscores`;
-  const url = `${base}/${id}.xml?view=plays`;
-  // Mirror the app's box fetch: browser UA + referer, no restrictive Accept.
-  const headers = {
-    'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
-    'accept-language': 'en-US,en;q=0.9', 'cache-control': 'no-cache',
-    referer: process.env.BOX_REFERER || `https://texasleaguestats.prestosports.com/sports/bsb/${year}/schedule`,
-  };
+  // Fetch the box THROUGH the app (Render reaches PrestoSports; GitHub's runner
+  // IPs are 403'd by the stats site). /api/boxscore returns the parsed box with
+  // play-by-play + line score.
+  const appBase = (process.env.REPORT_APP_BASE || 'https://gators.onrender.com').replace(/\/$/, '');
+  const url = `${appBase}/api/boxscore?id=${encodeURIComponent(id)}`;
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 20000);
-      const r = await fetch(url, { headers, redirect: 'follow', signal: ctl.signal });
+      const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 25000);
+      const r = await fetch(url, { headers: { 'user-agent': 'gators-report', accept: 'application/json' }, signal: ctl.signal });
       clearTimeout(to);
-      if (!r.ok) { console.error(`[report] box fetch ${r.status} for ${url} (try ${attempt}/3)`); if (attempt < 3) { await new Promise(s => setTimeout(s, 1500 * attempt)); continue; } return null; }
-      const html = await r.text();
-      const stats = parseBoxStats(html);
-      if (stats.firstPitchStrikePct == null && stats.shutdown == null) console.error(`[report] box fetched (${html.length} bytes) but no pitch sequences or line score parsed from ${url}`);
+      if (!r.ok) { console.error(`[report] /api/boxscore ${r.status} for ${id} (try ${attempt}/3)`); if (attempt < 3) { await new Promise(s => setTimeout(s, 2000 * attempt)); continue; } return null; }
+      const data = await r.json();
+      if (!data || data.error) { console.error(`[report] /api/boxscore returned no data for ${id}${data && data.error ? ': ' + data.error : ''}`); return null; }
+      const halves = (data.pbp || []).map(pp => ({ side: /top/i.test(pp.title || '') ? 'top' : 'bot', html: pp.html || '' }));
+      const stats = computeBoxStats(halves, data.line || '');
+      if (stats.firstPitchStrikePct == null && stats.shutdown == null) console.error(`[report] box fetched (${(data.pbp || []).length} pbp halves) but no pitch sequences or line score parsed for ${id}`);
       return stats;
-    } catch (e) { console.error(`[report] box fetch error for ${url}: ${e.message} (try ${attempt}/3)`); if (attempt < 3) { await new Promise(s => setTimeout(s, 1500 * attempt)); continue; } return null; }
+    } catch (e) { console.error(`[report] /api/boxscore error for ${id}: ${e.message} (try ${attempt}/3)`); if (attempt < 3) { await new Promise(s => setTimeout(s, 2000 * attempt)); continue; } return null; }
   }
   return null;
 }
 
-function parseBoxStats(html) {
-  const out = { firstPitchStrikePct: null, strikePct: null, threeBall: null, shutdown: null };
-  // ---- pitch sequences in Gators-fielding half-innings --------------------
+// Split a raw box-score page into half-inning chunks (used by the BOX_FIXTURE
+// offline hook). Each play-by-play table is one half; its side comes from the
+// "Top/Bottom of ... Inning" text.
+function halvesFromHtml(html) {
   const tables = html.match(/<table[\s\S]*?<\/table>/gi) || [];
-  let pa = 0, fpStrike = 0, balls = 0, strikes = 0, threeBall = 0;
+  const halves = [];
   for (const t of tables) {
-    const head = txt((t.match(/<tr[\s\S]*?<\/tr>/i) || [''])[0]);
-    const m = head.match(/(?:Top|Bottom) of[^]*?[-–]\s*(.+?)\s+batting/i);
-    if (!m) continue;                       // not a play-by-play half-inning table
-    if (/gator/i.test(m[1])) continue;      // Gators batting -> they're NOT pitching this half
-    const seqs = t.match(/\(\s*\d+-\d+\s+[A-Za-z]+\s*\)/g) || [];
+    const m = txt(t).match(/(Top|Bottom) of[^]*?Inning/i);
+    if (!m) continue;
+    halves.push({ side: /top/i.test(m[1]) ? 'top' : 'bot', html: t });
+  }
+  return halves;
+}
+
+// Gators-staff command stats from the half-innings they pitched (the opponent's
+// halves: top when the Gators are home, bottom when away) plus shutdown innings
+// from the line score. `halves` = [{side:'top'|'bot', html}].
+function computeBoxStats(halves, lineHtml) {
+  const out = { firstPitchStrikePct: null, strikePct: null, threeBall: null, shutdown: null };
+  const fielding = game.home ? 'top' : 'bot';
+  let pa = 0, fpStrike = 0, balls = 0, strikes = 0, threeBall = 0;
+  for (const h of halves) {
+    if (h.side !== fielding) continue;
+    const seqs = (h.html || '').match(/\(\s*\d+-\d+\s+[A-Za-z]+\s*\)/g) || [];
     for (const raw of seqs) {
       const seq = (raw.match(/\d+-\d+\s+([A-Za-z]+)/) || [])[1]; if (!seq) continue;
       pa++;
@@ -130,7 +141,7 @@ function parseBoxStats(html) {
     if (strikes + balls > 0) out.strikePct = strikes / (strikes + balls);
   }
   // ---- shutdown innings from the score-by-innings line ---------------------
-  const grid = lineGrid(html);
+  const grid = lineGrid(lineHtml);
   if (grid) {
     const gators = grid.find(r => /gator/i.test(r.name));
     const opp = grid.find(r => !/gator/i.test(r.name));
@@ -332,4 +343,4 @@ async function main() {
 }
 
 if (require.main === module) main();
-module.exports = { parseBoxStats, lineGrid };
+module.exports = { computeBoxStats, halvesFromHtml, lineGrid };
