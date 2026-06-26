@@ -461,13 +461,13 @@ body{font-family:Georgia,'Times New Roman',serif;color:#1b1e27;font-size:13px;li
 .band{display:flex;align-items:center;gap:16px;color:#fff;padding:18px 22px;border-radius:12px;border:2px solid #ecc913;
 background:linear-gradient(rgba(22,16,43,.02),rgba(22,16,43,.16))${croc ? `,url('${croc}') center center / cover no-repeat` : ''};
 background-color:#3a2480;box-shadow:0 4px 14px rgba(58,36,128,.3),inset 0 0 0 1px rgba(255,255,255,.08);}
-.band img{width:62px;height:62px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.6));}
+.band img{width:62px;height:62px;}
 .k{font-family:'Helvetica Neue',Arial,sans-serif;font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:#ffd633;font-weight:800;text-shadow:0 1px 2px rgba(0,0,0,.5);}
 .band h1{font-family:'Helvetica Neue',Arial,sans-serif;font-size:27px;font-weight:900;line-height:1.08;margin:2px 0;text-shadow:0 2px 4px rgba(0,0,0,.55);}
 .band .sub{font-family:Arial,sans-serif;font-size:12px;font-weight:700;color:#efe7ff;text-shadow:0 1px 2px rgba(0,0,0,.5);}
 .badge{margin-left:auto;text-align:center;font-family:'Helvetica Neue',Arial,sans-serif;}
-.badge .r{display:inline-block;background:${resColor};color:#fff;font-weight:900;font-size:15px;letter-spacing:.04em;padding:5px 17px;border-radius:6px;box-shadow:0 2px 5px rgba(0,0,0,.4);}
-.badge .sc{font-size:26px;color:#fff;margin-top:4px;font-weight:900;text-shadow:0 2px 4px rgba(0,0,0,.5);}
+.badge .r{display:inline-block;background:${resColor};color:#fff;font-weight:900;font-size:15px;letter-spacing:.04em;padding:5px 17px;border-radius:6px;}
+.badge .sc{font-size:26px;color:#fff;margin-top:4px;font-weight:900;}
 .strips{display:flex;gap:12px;margin-top:17px;}
 .strip{flex:1;}
 .slab{font-family:'Helvetica Neue',Arial,sans-serif;font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#fff;background:linear-gradient(180deg,#714ad2,#4e3191);padding:6px 12px;border-radius:7px 7px 0 0;}
