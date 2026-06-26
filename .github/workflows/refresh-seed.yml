@@ -23,6 +23,11 @@ on:
         description: 'Box id (YYYYMMDD_xxxx) to report; blank = latest final'
         required: false
         default: ''
+      dry_run:
+        description: 'Build the report and upload the artifact only — do NOT email'
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: write
@@ -48,8 +53,9 @@ jobs:
           [ -z "$GID" ] && GID="${{ github.event.inputs.game_id }}"
           echo "game_id=$GID" >> "$GITHUB_OUTPUT"
           # Scheduled runs refresh the seed but don't email (avoids a 2am duplicate
-          # of the instant game-final email); dispatch and manual runs email.
-          if [ "${{ github.event_name }}" = "schedule" ]; then
+          # of the instant game-final email); a manual dry_run also skips email;
+          # dispatch and normal manual runs email.
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
             echo "email=false" >> "$GITHUB_OUTPUT"
           else
             echo "email=true"  >> "$GITHUB_OUTPUT"
