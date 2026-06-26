@@ -289,7 +289,13 @@ function buildGameContent(bat, pit, tb, tp, stats) {
   if (longOuting && longOuting.outs > 0) { const s = PIT_SEASON[longOuting.slug]; keyFacts.push(`${longOuting.meta.name} threw ${longOuting.ipStr} innings (${longOuting.h} H, ${longOuting.r} R, ${longOuting.bb} BB, ${longOuting.k} K)${s ? `, and carries a ${r2(s.era)} ERA` : ''}.`); }
   if (tp.bb >= 5 && staffBB9 != null) keyFacts.push(`The staff walked ${tp.bb} batters, against a season average of about ${staffBB9.toFixed(1)} per nine innings.`);
   if (stats && stats.threePitchInnings) keyFacts.push(`The offense had ${plural(stats.threePitchInnings, 'three-pitch inning')} (three outs on three pitches).`);
-  return { recap, keyFacts, gameBB9, partial };
+
+  // Every Gators pitcher of the night, in the order they appeared, with his line.
+  const pitcherLines = pit.filter(p => p.outs > 0 || p.h || p.bb || p.k).map(p => {
+    const s = PIT_SEASON[p.slug];
+    return `${p.meta.name} — ${p.ipStr} IP, ${plural(p.h, 'hit')}, ${plural(p.r, 'run')} (${p.er} earned), ${plural(p.bb, 'walk')}, ${plural(p.k, 'strikeout')}${s ? ` (season ${r2(s.era)} ERA)` : ''}.`;
+  });
+  return { recap, keyFacts, pitcherLines, gameBB9, partial };
 }
 
 const trends = [];
@@ -319,7 +325,7 @@ function pitchingFacts(box) {
 const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 function buildMarkdown(content, pitchFacts) {
-  const { recap, keyFacts, partial } = content;
+  const { recap, keyFacts, pitcherLines, partial } = content;
   const L = []; const p = s => L.push(s);
   p(`# Gators Game Report — ${game.date}, 2026`);
   p('');
@@ -331,6 +337,7 @@ function buildMarkdown(content, pitchFacts) {
   p('## Key Facts'); p('');
   keyFacts.forEach(t => p(`- ${t}`));
   p('');
+  if (pitcherLines && pitcherLines.length) { p('## Pitching'); p(''); pitcherLines.forEach(t => p(`- ${t}`)); p(''); }
   if (pitchFacts.length) { p('## Pitching Detail'); p(''); pitchFacts.forEach(t => p(`- ${t}`)); p(''); }
   p('## Trends'); p('');
   trends.forEach(t => p(`- ${t}`));
@@ -344,7 +351,7 @@ function buildMarkdown(content, pitchFacts) {
 }
 
 function buildHtml(content, pitchFacts) {
-  const { recap, keyFacts, partial } = content;
+  const { recap, keyFacts, pitcherLines, partial } = content;
   const win = game.win;
   const resColor = win == null ? '#714ad2' : win ? '#1f9d57' : '#c0392b';
   const resWord = win == null ? 'PLAYED' : win ? 'WIN' : 'LOSS';
@@ -377,6 +384,7 @@ ul.facts li:before{content:'';position:absolute;left:3px;top:13px;width:8px;heig
   if (partial) H.push(`<div class='warn'>⚠️ Heads up — tonight's box score is still coming in, so a few details may fill in later.</div>`);
   H.push(`<h2>Recap</h2><div class='lead'>${recap.map(s => `<p>${esc(s)}</p>`).join('')}</div>`);
   H.push(section('Key Facts', keyFacts));
+  H.push(section('Pitching', pitcherLines || []));
   H.push(section('Pitching Detail', pitchFacts));
   H.push(section('Trends', trends));
   H.push(section('Season', [seasonLine]));
