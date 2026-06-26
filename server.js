@@ -2954,7 +2954,7 @@ body.noscroll{overflow:hidden;}
 .shead{display:flex;align-items:center;gap:10px;padding:14px 16px 8px;}
 .sttlwrap{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;}
 .sttl{font-family:'Oswald',sans-serif;font-weight:700;text-transform:uppercase;font-size:14px;letter-spacing:.03em;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.sdate{font-size:11px;color:var(--mute);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sdate{font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;text-transform:uppercase;color:var(--gold2);letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .sscore{font-family:'Oswald',sans-serif;font-weight:700;font-size:16px;color:var(--gold2);flex:none;white-space:nowrap;}
 .sclose{margin-left:auto;background:none;border:1px solid var(--line);color:var(--bone);border-radius:10px;width:34px;height:34px;font-size:15px;cursor:pointer;flex:none;}
 .tabs{display:flex;gap:8px;padding:2px 16px 0;}
