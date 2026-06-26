@@ -3401,12 +3401,14 @@ function buildLive(g){
   }
   // Surface the most recent play right under the count/bases/outs so you see the
   // at-bat result without scrolling to the play-by-play. It clears once the next
-  // batter sees a pitch — abPitches resets to 0 each batter and ticks up on the
-  // first pitch — so the result shows only in the gap between at-bats. Flashes on
-  // change (see renderGame); run-scoring plays get a green accent.
+  // batter sees a pitch (abPitches resets to 0 each batter and ticks up on the
+  // first pitch), and also clears when a new half-inning starts — the prior out
+  // belongs to the other team, so we only keep it while the latest play is still
+  // in the current half. Flashes on change (renderGame); scored plays go green.
   var lastPlay='';
   if((!L||!L.abPitches)&&g.plays&&g.plays.length){var lp=g.plays[g.plays.length-1];
-    if(lp&&lp.text)lastPlay='<div class="lastplay'+(lp.scored?' scored':'')+'" id="lastPlay"><span class="lplab">Last play</span><span class="lptx">'+esc(lp.text)+'</span></div>';}
+    var inHalf=!L||(lp.inning===(+L.inning)&&lp.half===(L.half==='Top'?'top':'bot'));
+    if(lp&&lp.text&&inHalf)lastPlay='<div class="lastplay'+(lp.scored?' scored':'')+'" id="lastPlay"><span class="lplab">Last play</span><span class="lptx">'+esc(lp.text)+'</span></div>';}
   var line=buildLineScore(g);
   var lineup=buildLineup(g);
   var pitching=buildPitching(g);
