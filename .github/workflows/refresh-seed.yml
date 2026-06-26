@@ -84,10 +84,10 @@ jobs:
           TARGET="${{ steps.plan.outputs.game_id }}"; [ -z "$TARGET" ] && TARGET="latest"
           echo "target=$TARGET  chromium=${CHROMIUM_PATH:-<none, will fall back>}"
           for i in 1 2 3 4 5 6; do
-            if node scripts/postgame-report.js "$TARGET" --pdf --write; then
+            if node scripts/postgame-report.js "$TARGET" --pdf --write --strict; then
               echo "built=true" >> "$GITHUB_OUTPUT"; exit 0
             fi
-            echo "  '$TARGET' not in the seed yet — waiting 120s, then rebuilding ($i/6)"
+            echo "  '$TARGET' has no pitching data yet (unposted or rate-limited) — waiting 120s, then rebuilding ($i/6)"
             sleep 120
             node scripts/build-seed.js || true
           done
