@@ -95,6 +95,13 @@ jobs:
           echo "::error::could not build a report for '$TARGET' (stats never posted in time)"
           exit 1
 
+      - name: Preview report in the log (dry run only)
+        if: steps.build.outputs.built == 'true' && github.event.inputs.dry_run == 'true'
+        run: |
+          echo "----- REPORT MARKDOWN PREVIEW BEGIN -----"
+          cat reports/postgame/*.md
+          echo "----- REPORT MARKDOWN PREVIEW END -----"
+
       - name: Upload the report artifact
         if: steps.build.outputs.built == 'true'
         uses: actions/upload-artifact@v4

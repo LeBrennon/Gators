@@ -73,6 +73,24 @@ const recentGames = S.SCHED.filter(g => g.win != null).slice(-6);
 // ===========================================================================
 const txt = s => String(s || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ').trim();
 
+// Total pitches thrown by the Gators staff, summed from the box pitching table's
+// pitch-count column (#P, formerly NP). Used for an accurate team strike %.
+function gatorsPitchesNP(box) {
+  if (!Array.isArray(box)) return 0;
+  const t = box.find(b => /gator|gumbeaux/i.test(b.label || '') && /pitching/i.test(b.label || ''));
+  if (!t) return 0;
+  const rows = (t.html || '').match(/<tr[\s\S]*?<\/tr>/gi) || []; if (!rows.length) return 0;
+  const head = (rows[0].match(/<t[dh][\s\S]*?<\/t[dh]>/gi) || []).map(c => txt(c).toUpperCase());
+  let idx = head.indexOf('#P'); if (idx < 0) idx = head.indexOf('NP'); if (idx < 0) return 0;
+  let np = 0;
+  for (const r of rows.slice(1)) {
+    const c = (r.match(/<t[dh][\s\S]*?<\/t[dh]>/gi) || []).map(txt);
+    if (/total/i.test(c[0] || '')) continue;
+    np += parseInt(c[idx], 10) || 0;
+  }
+  return np;
+}
+
 async function getBoxStats() {
   if (NOBOX) return null;
   // Test/offline hook: read a saved box-score HTML instead of fetching.
@@ -94,6 +112,11 @@ async function getBoxStats() {
       if (!data || data.error) { console.error(`[report] /api/boxscore returned no data for ${id}${data && data.error ? ': ' + data.error : ''}`); return null; }
       const halves = (data.pbp || []).map(pp => ({ side: /top/i.test(pp.title || '') ? 'top' : 'bot', html: pp.html || '' }));
       const stats = computeBoxStats(halves, data.line || '');
+      // Accurate strike% = (total pitches − balls) / total pitches. The pitch
+      // letters omit balls-in-play (a strike), so the letter-only ratio runs low;
+      // use the box's pitch-count column for the denominator instead.
+      const np = gatorsPitchesNP(data.box);
+      if (np && stats._balls != null) stats.strikePct = (np - stats._balls) / np;
       if (stats.firstPitchStrikePct == null && stats.shutdown == null) console.error(`[report] box fetched (${(data.pbp || []).length} pbp halves) but no pitch sequences or line score parsed for ${id}`);
       return stats;
     } catch (e) { console.error(`[report] /api/boxscore error for ${id}: ${e.message} (try ${attempt}/3)`); if (attempt < 3) { await new Promise(s => setTimeout(s, 2000 * attempt)); continue; } return null; }
@@ -134,6 +157,7 @@ function computeBoxStats(halves, lineHtml) {
       if (b >= 3) threeBall++;
     }
   }
+  out._balls = balls;
   if (pa > 0) {
     out.firstPitchStrikePct = fpStrike / pa;
     out.threeBall = threeBall;
