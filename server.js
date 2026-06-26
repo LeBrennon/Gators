@@ -2279,7 +2279,12 @@ app.set('trust proxy', true);   // Render is behind a proxy — read the real cl
 app.use(cors());
 app.use(express.json());
 
-app.get('/', (q, r) => { recordVisit(q); r.type('html').send(APP.replace('__BUILD_LABEL__', BUILD_LABEL)); });
+// no-cache (not no-store): the browser may keep a copy but MUST revalidate with
+// the server every load, so a new deploy's HTML/JS reaches users immediately
+// instead of being served stale from cache (ETag makes the revalidation a cheap
+// 304 when nothing changed). Without this the single-page UI freezes at whatever
+// version was first cached while live scores keep updating via the APIs.
+app.get('/', (q, r) => { recordVisit(q); r.set('Cache-Control', 'no-cache'); r.type('html').send(APP.replace('__BUILD_LABEL__', BUILD_LABEL)); });
 app.get('/sw.js', (_q, r) => r.type('application/javascript').send(SW));
 app.get('/manifest.json', (_q, r) => r.type('application/json').send(MANIFEST));
 app.get('/health', (_q, r) => r.json({ ok: true, build: BUILD, games: games.length, featured: featured && featured.id, push: pushReady }));
