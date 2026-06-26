@@ -299,11 +299,22 @@ function buildGameContent(bat, pit, tb, tp, stats) {
   return { recap, keyFacts, pitcherLines, gameBB9, partial };
 }
 
-const trends = [];
-if (hotBats.length) trends.push(`Hot at the plate (last 5 games): ${list(hotBats.map(b => `${b.meta.name} ${r3(b.l5avg)} (season ${r3(b.avg)})`))}.`);
-if (coldBats.length) trends.push(`Cold at the plate (last 5 games): ${list(coldBats.map(b => `${b.meta.name} ${r3(b.l5avg)} (season ${r3(b.avg)})`))}.`);
-if (heavyArms.length) trends.push(`Most-used arms in the last week: ${list(heavyArms.map(x => `${x.p.meta.name} (${plural(x.wl.apps, 'appearance')})`))}.`);
-if (recentGames.length) trends.push(`Last ${recentGames.length} games: ${recentGames.map(g => `${g.win ? 'W' : 'L'} ${g.gs}-${g.os}`).join(', ')}.`);
+// Build the trend lines. The seed's last-5 average lags the game just played
+// (the per-player logs post late), so a player can look "hot" while having gone
+// hitless tonight. Cross-check against tonight's box: don't call a hitter hot if
+// he was held hitless (0-for-3+) tonight, and don't call him cold if he had a
+// multi-hit night.
+function buildTrends(bat) {
+  const lineFor = b => (bat || []).find(x => x.slug && x.slug === b.slug);
+  const hot = hotBats.filter(b => { const g = lineFor(b); return !(g && g.ab >= 3 && g.h === 0); });
+  const cold = coldBats.filter(b => { const g = lineFor(b); return !(g && g.h >= 2); });
+  const t = [];
+  if (hot.length) t.push(`Hot at the plate (last 5 games): ${list(hot.map(b => `${b.meta.name} ${r3(b.l5avg)} (season ${r3(b.avg)})`))}.`);
+  if (cold.length) t.push(`Cold at the plate (last 5 games): ${list(cold.map(b => `${b.meta.name} ${r3(b.l5avg)} (season ${r3(b.avg)})`))}.`);
+  if (heavyArms.length) t.push(`Most-used arms in the last week: ${list(heavyArms.map(x => `${x.p.meta.name} (${plural(x.wl.apps, 'appearance')})`))}.`);
+  if (recentGames.length) t.push(`Last ${recentGames.length} games: ${recentGames.map(g => `${g.win ? 'W' : 'L'} ${g.gs}-${g.os}`).join(', ')}.`);
+  return t;
+}
 
 const seasonLine = `Record ${T.w}–${T.l}, ${SEASON.diff >= 0 ? '+' : ''}${SEASON.diff} run differential, ${SEASON.last10} over the last 10 games.`;
 
@@ -312,11 +323,11 @@ function pitchingFacts(box) {
   const f = [];
   if (!box) return f;
   const pct = x => Math.round(x * 100) + '%';
-  if (box.firstPitchStrikePct != null) f.push(`First-pitch strikes: ${pct(box.firstPitchStrikePct)} — the staff threw a first-pitch strike in ${box._fp.fpStrike} of ${box._fp.pa} plate appearances.`);
-  if (box.strikePct != null) f.push(`Strike percentage: ${pct(box.strikePct)} of the staff's pitches were strikes.`);
-  if (box.threeBall != null) f.push(`Three-ball counts: ${box.threeBall} hitter${box.threeBall === 1 ? ' was' : 's were'} taken to a three-ball count.`);
-  if (box.twoOutWalks != null) f.push(`Two-out walks issued: ${box.twoOutWalks}${box.twoOutWalks === 0 ? '' : ' — free runners on after two were out'}.`);
-  if (box.shutdown != null) f.push(`Shutdown innings: ${box.shutdown} — the staff held the opponent scoreless the half-inning right after the Gators scored.`);
+  if (box.firstPitchStrikePct != null) f.push(`First-pitch strikes: ${pct(box.firstPitchStrikePct)} (${box._fp.fpStrike} of ${box._fp.pa}).`);
+  if (box.strikePct != null) f.push(`Strike percentage: ${pct(box.strikePct)}.`);
+  if (box.threeBall != null) f.push(`Three-ball counts: ${box.threeBall}.`);
+  if (box.twoOutWalks != null) f.push(`Two-out walks issued: ${box.twoOutWalks}.`);
+  if (box.shutdown != null) f.push(`Shutdown innings: ${box.shutdown}.`);
   return f;
 }
 
@@ -325,7 +336,7 @@ function pitchingFacts(box) {
 // ===========================================================================
 const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-function buildMarkdown(content, pitchFacts) {
+function buildMarkdown(content, pitchFacts, trends) {
   const { recap, keyFacts, pitcherLines, partial } = content;
   const L = []; const p = s => L.push(s);
   p(`# Gators Game Report — ${game.date}, 2026`);
@@ -351,7 +362,7 @@ function buildMarkdown(content, pitchFacts) {
   return L.join('\n');
 }
 
-function buildHtml(content, pitchFacts) {
+function buildHtml(content, pitchFacts, trends) {
   const { recap, keyFacts, pitcherLines, partial } = content;
   const win = game.win;
   const resColor = win == null ? '#714ad2' : win ? '#1f9d57' : '#c0392b';
@@ -364,9 +375,9 @@ function buildHtml(content, pitchFacts) {
 *{box-sizing:border-box;margin:0;padding:0;}
 html{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
 body{font-family:Georgia,'Times New Roman',serif;color:#1b1e27;font-size:12.5px;line-height:1.5;font-weight:500;}
-.band{display:flex;align-items:center;gap:14px;color:#fff;padding:15px 18px;border-radius:9px;border:1px solid #ecc913;
-background:linear-gradient(135deg,rgba(113,74,210,.66),rgba(22,16,43,.86))${croc ? `,url('${croc}') center center / cover no-repeat` : ''};
-background-color:#1a1138;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);}
+.band{display:flex;align-items:center;gap:14px;color:#fff;padding:16px 18px;border-radius:11px;border:2px solid #ecc913;
+background:linear-gradient(rgba(22,16,43,.12),rgba(22,16,43,.34))${croc ? `,url('${croc}') center center / cover no-repeat` : ''};
+background-color:#3a2480;box-shadow:0 3px 10px rgba(22,16,43,.35),inset 0 0 0 1px rgba(255,255,255,.08);}
 .band img{width:54px;height:54px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.6));}
 .k{font-family:'Helvetica Neue',Arial,sans-serif;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:#ffd633;font-weight:800;text-shadow:0 1px 3px rgba(0,0,0,.55);}
 .band h1{font-family:'Helvetica Neue',Arial,sans-serif;font-size:23px;font-weight:900;line-height:1.12;margin:1px 0;text-shadow:0 2px 5px rgba(0,0,0,.6);}
@@ -450,11 +461,12 @@ async function main() {
   }
   const content = buildGameContent(bat, pit, tb, tp, stats);
   const pitchFacts = pitchingFacts(stats);
-  const md = buildMarkdown(content, pitchFacts);
+  const trends = buildTrends(bat);
+  const md = buildMarkdown(content, pitchFacts, trends);
 
   if (PDF || HTML) {
     ensureDir();
-    const html = buildHtml(content, pitchFacts);
+    const html = buildHtml(content, pitchFacts, trends);
     if (HTML) { const hf = path.join(outDir, `${stem}.html`); fs.writeFileSync(hf, html); console.error('wrote', path.relative(path.join(__dirname, '..'), hf)); }
     if (PDF) { const out = path.join(outDir, `${stem}.pdf`); if (renderPdf(html, out)) console.log('wrote', path.relative(path.join(__dirname, '..'), out)); }
   }
