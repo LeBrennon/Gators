@@ -161,6 +161,15 @@ function gatorsLogoDataUri() {
   } catch (e) { return ''; }
 }
 
+// The purple croc-skin background tile the website uses (server.js BG_TILE_B64).
+function crocSkinDataUri() {
+  try {
+    const src = fs.readFileSync(path.join(ROOT, 'server.js'), 'utf8');
+    const m = src.match(/BG_TILE_B64\s*=\s*'([A-Za-z0-9+/=]+)'/);
+    return m ? 'data:image/jpeg;base64,' + m[1] : '';
+  } catch (e) { return ''; }
+}
+
 // ---- per-game team trend (sum player logs by game) -------------------------
 function teamGameTrends() {
   const games = {};
@@ -220,5 +229,5 @@ module.exports = {
   seed, PC, RS, ROSTER, SCHED,
   num, i3, ipStr, r3, r2, pct, signed, pts, boxId, byBox, oppShort,
   teamSummary, batters, pitchers, teamGameTrends, indexBySlug,
-  resolveGame, gameBatting, gamePitching, gatorsLogoDataUri,
+  resolveGame, gameBatting, gamePitching, gatorsLogoDataUri, crocSkinDataUri,
 };

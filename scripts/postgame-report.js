@@ -356,30 +356,33 @@ function buildHtml(content, pitchFacts) {
   const win = game.win;
   const resColor = win == null ? '#714ad2' : win ? '#1f9d57' : '#c0392b';
   const resWord = win == null ? 'PLAYED' : win ? 'WIN' : 'LOSS';
+  const croc = S.crocSkinDataUri();   // purple croc-skin texture from the website
   const section = (title, items) => items.length ? `<h2>${esc(title)}</h2><ul class='facts'>${items.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : '';
   const H = [];
   H.push(`<!doctype html><html><head><meta charset='utf-8'><style>
 @page{size:letter;margin:0.6in 0.7in;}
 *{box-sizing:border-box;margin:0;padding:0;}
 html{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-body{font-family:Georgia,'Times New Roman',serif;color:#23262f;font-size:12.5px;line-height:1.5;}
-.band{display:flex;align-items:center;gap:14px;background:#16102b;color:#fff;padding:13px 18px;border-radius:9px;}
-.band img{width:52px;height:52px;}
-.k{font-family:'Helvetica Neue',Arial,sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#ffd633;font-weight:700;}
-.band h1{font-family:'Helvetica Neue',Arial,sans-serif;font-size:22px;font-weight:800;line-height:1.12;margin:1px 0;}
-.band .sub{font-family:Arial,sans-serif;font-size:12px;color:#cdbdf2;}
+body{font-family:Georgia,'Times New Roman',serif;color:#1b1e27;font-size:12.5px;line-height:1.5;font-weight:500;}
+.band{display:flex;align-items:center;gap:14px;color:#fff;padding:15px 18px;border-radius:9px;border:1px solid #ecc913;
+background:linear-gradient(135deg,rgba(113,74,210,.66),rgba(22,16,43,.86))${croc ? `,url('${croc}') center center / cover no-repeat` : ''};
+background-color:#1a1138;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);}
+.band img{width:54px;height:54px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.6));}
+.k{font-family:'Helvetica Neue',Arial,sans-serif;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:#ffd633;font-weight:800;text-shadow:0 1px 3px rgba(0,0,0,.55);}
+.band h1{font-family:'Helvetica Neue',Arial,sans-serif;font-size:23px;font-weight:900;line-height:1.12;margin:1px 0;text-shadow:0 2px 5px rgba(0,0,0,.6);}
+.band .sub{font-family:Arial,sans-serif;font-size:12px;font-weight:700;color:#f1e9ff;text-shadow:0 1px 3px rgba(0,0,0,.55);}
 .badge{margin-left:auto;text-align:center;font-family:'Helvetica Neue',Arial,sans-serif;}
-.badge .r{display:inline-block;background:${resColor};color:#fff;font-weight:800;font-size:16px;letter-spacing:.05em;padding:6px 16px;border-radius:6px;}
-.badge .sc{font-size:15px;color:#fff;margin-top:5px;font-weight:700;}
-h2{font-family:'Helvetica Neue',Arial,sans-serif;font-size:12.5px;text-transform:uppercase;letter-spacing:.09em;color:#5b3fb0;border-bottom:2px solid #ecc913;padding-bottom:3px;margin:13px 0 7px;}
+.badge .r{display:inline-block;background:${resColor};color:#fff;font-weight:900;font-size:16px;letter-spacing:.05em;padding:6px 16px;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,.45);}
+.badge .sc{font-size:16px;color:#fff;margin-top:5px;font-weight:800;text-shadow:0 1px 3px rgba(0,0,0,.55);}
+h2{font-family:'Helvetica Neue',Arial,sans-serif;font-size:13px;text-transform:uppercase;letter-spacing:.09em;color:#43258f;font-weight:800;border-bottom:2px solid #ecc913;padding-bottom:3px;margin:13px 0 7px;}
 p{margin:7px 0;}
-.lead p{font-size:13px;}
+.lead p{font-size:13px;font-weight:600;color:#16181f;}
 ul.facts{list-style:none;}
-ul.facts li{position:relative;padding:4.5px 0 4.5px 24px;border-bottom:1px solid #eee;}
+ul.facts li{position:relative;padding:4.5px 0 4.5px 24px;border-bottom:1px solid #e6e6e6;font-weight:600;color:#1b1e27;}
 ul.facts li:last-child{border-bottom:none;}
-ul.facts li:before{content:'';position:absolute;left:3px;top:13px;width:8px;height:8px;border-radius:2px;background:#714ad2;}
-.warn{background:#fff5f5;border:1px solid #f0b8b8;color:#9b2c2c;border-radius:7px;padding:8px 11px;font-family:Arial,sans-serif;font-size:10.5px;margin:10px 0;}
-.foot{margin-top:12px;border-top:1px solid #ddd;padding-top:7px;font-family:Arial,sans-serif;font-size:9px;color:#9a9aa3;font-style:italic;}
+ul.facts li:before{content:'';position:absolute;left:3px;top:12px;width:9px;height:9px;border-radius:2px;background:#714ad2;}
+.warn{background:#fff5f5;border:1px solid #f0b8b8;color:#9b2c2c;border-radius:7px;padding:8px 11px;font-family:Arial,sans-serif;font-size:10.5px;font-weight:600;margin:10px 0;}
+.foot{margin-top:12px;border-top:1px solid #ddd;padding-top:7px;font-family:Arial,sans-serif;font-size:9px;color:#8a8a93;font-style:italic;}
 </style></head><body>`);
   H.push(`<div class='band'><img src='${S.gatorsLogoDataUri()}'><div><div class='k'>Gumbeaux Gators · Game Report</div><h1>${esc(game.date)} vs ${esc(oppName)}</h1><div class='sub'>${game.home ? 'Home game' : 'Road game'} · Record now ${T.w}–${T.l}</div></div><div class='badge'><div class='r'>${resWord}</div><div class='sc'>${game.gs}–${game.os}</div></div></div>`);
   if (partial) H.push(`<div class='warn'>⚠️ Heads up — tonight's box score is still coming in, so a few details may fill in later.</div>`);
