@@ -353,7 +353,9 @@ function buildTrends(bat) {
   return t;
 }
 
-const seasonLine = `Record ${T.w}–${T.l}, ${SEASON.diff >= 0 ? '+' : ''}${SEASON.diff} run differential, ${SEASON.last10} over the last 10 games.`;
+// Record is already in the header, so the Season line skips it and shows the
+// season context that isn't up top (run differential + last-10 form).
+const seasonLine = `${SEASON.diff >= 0 ? '+' : ''}${SEASON.diff} run differential; ${SEASON.last10} over the last 10 games.`;
 
 // ===========================================================================
 // Render (markdown + branded PDF). Wrapped so the box-score fetch can finish.
