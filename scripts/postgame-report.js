@@ -324,6 +324,7 @@ function ensureDir() { if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recurs
 async function main() {
   const box = await getBoxStats();
   if (!NOBOX && !box) console.error('[report] box-score command stats unavailable (offline or no play-by-play) — Pitching Detail omitted.');
+  if (box) console.error('[report] pitch stats: ' + JSON.stringify(box));
   const pitchFacts = pitchingFacts(box);
   const md = buildMarkdown(pitchFacts);
 
