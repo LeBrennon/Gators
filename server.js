@@ -947,18 +947,29 @@ function lineupsFromFeed(json) {
       if (p.name) byName[String(p.name).trim()] = p;
     });
     const order = (t.batords && t.batords.batord) || (t.starters && t.starters.starter) || [];
+    // Mark substitute batters so the lineup can indent them under the player
+    // they replaced, like the box score: a batter is a sub if his lineup spot
+    // already appeared above him (the starter or an earlier sub holds it) or
+    // he's flagged PH/PR.
+    const seenSpot = new Set();
     const rows = order.map(o => {
       const p = byUni[String(o.uni)] || byName[String(o.name || '').trim()] || {};
       const h = p.hitting || {};
       const ab = h.ab != null ? Number(h.ab) || 0 : null;
       const hits = h.h != null ? Number(h.h) || 0 : null;
+      const spot = o.spot != null ? Number(o.spot) : null;
+      const pos = String(o.pos || p.pos || '').toUpperCase();
+      const firstPos = pos.split(/[-/ ]/)[0];
+      let sub = firstPos === 'PH' || firstPos === 'PR';
+      if (spot != null) { if (seenSpot.has(spot)) sub = true; else seenSpot.add(spot); }
       return {
-        spot: o.spot != null ? Number(o.spot) : null,
-        pos: String(o.pos || p.pos || '').toUpperCase(),
+        spot,
+        pos,
         uni: o.uni != null ? String(o.uni) : (p.uni != null ? String(p.uni) : ''),
         name: String(o.name || p.name || '').trim(),
         bats: String(p.bats || '').toUpperCase(),
         today: ab == null ? '—' : (hits + ' for ' + ab),
+        sub,
       };
     });
     // Every TCL game uses a DH, so the pitcher never bats — leave them out.
@@ -3039,6 +3050,8 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .lutbl td.lut{font-family:'JetBrains Mono',monospace;color:var(--gold2);}
 .lutbl tr.cur td{background:linear-gradient(90deg,rgba(236,201,19,.12),transparent);}
 .lutbl tr.cur td.lunm{color:var(--gold2);}
+.lutbl tr.lusub td{border-top:0;}
+.lutbl tr.lusub td.lunm{padding-left:22px;}
 .ptbl td.lpn,.ptbl th.lpn{text-align:right;font-family:'JetBrains Mono',monospace;width:1%;white-space:nowrap;}
 .lutbl tr.pttot td{border-top:2px solid var(--line);font-weight:700;color:var(--mute);}
 .lutbl tr.pttot td.lunm{color:var(--bone);text-transform:uppercase;font-size:10px;letter-spacing:.06em;}
@@ -3529,7 +3542,10 @@ function buildLineup(g){
     var slug=team.isGators?gatorSlug(r.name):null;
     var nmeCell=esc(r.name||'');
     if(slug)nmeCell='<a class="bxp" data-slug="'+esc(slug)+'">'+nmeCell+'</a>';
-    rows+='<tr'+(cur?' class="cur"':'')+'><td class="lus">'+esc(String(r.spot||''))+'</td>'+
+    // Substitutes (pinch hitters/runners) sit under the player they replaced and
+    // share his spot, so drop the number and indent the name, like the box score.
+    var cls=(cur?'cur':'')+(r.sub?(cur?' ':'')+'lusub':'');
+    rows+='<tr'+(cls?' class="'+cls+'"':'')+'><td class="lus">'+esc(r.sub?'':String(r.spot||''))+'</td>'+
       '<td>'+esc(r.pos||'')+'</td><td class="luu">'+esc(String(r.uni||''))+'</td>'+
       '<td class="lunm">'+nmeCell+'</td><td>'+esc(r.bats||'')+'</td>'+
       '<td class="lut">'+esc(r.today||'')+'</td></tr>';
