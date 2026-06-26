@@ -1,11 +1,15 @@
-name: Refresh roster seed
+name: Refresh seed + post-game report
 
-# Rebuilds the committed warm-boot snapshot (roster-seed.json) from the live
-# deploy so a fresh deploy's first paint shows recent stats. Runs daily and can
-# be triggered manually. The running site always shows live stats regardless —
-# this only affects the brief first-paint window right after a deploy. Stats
-# change on game days (every day but Monday); the "commit only if changed" step
-# below means the off-day run is a no-op, so it only acts when stats moved.
+# One daily pass right after games end (07:00 UTC ≈ 2am Central):
+#   1. Rebuild the warm-boot snapshot (roster-seed.json) from the live deploy and
+#      commit it when stats moved (i.e. a game happened).
+#   2. When stats moved, build the personal post-game report (branded one-page PDF
+#      + markdown) for the latest final and upload it as a downloadable artifact.
+#
+# The report is a PERSONAL artifact, not a website feature. reports/postgame/ is
+# gitignored (it's reproducible from the seed), so the report is delivered as a
+# build artifact — and emailed to you as well if Gmail secrets are configured.
+# Off days (no game) leave the seed unchanged, so the report steps are skipped.
 
 on:
   schedule:
@@ -32,14 +36,58 @@ jobs:
       - name: Rebuild seed from the live deploy
         run: node scripts/build-seed.js
 
-      - name: Commit if the seed changed
+      - name: Did the seed change? (a game happened)
+        id: seed
         run: |
           if git diff --quiet -- roster-seed.json; then
-            echo "roster-seed.json unchanged — nothing to commit"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "roster-seed.json unchanged — off day, no report to build"
           else
-            git config user.name  "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add roster-seed.json
-            git commit -m "Auto-refresh roster-seed.json"
-            git push
+            echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Commit the refreshed seed
+        if: steps.seed.outputs.changed == 'true'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add roster-seed.json
+          git commit -m "Auto-refresh roster-seed.json"
+          git push
+
+      - name: Build the post-game report (latest final)
+        if: steps.seed.outputs.changed == 'true'
+        run: |
+          export CHROMIUM_PATH="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
+          echo "chromium: ${CHROMIUM_PATH:-<none — script will try its own fallbacks>}"
+          node scripts/postgame-report.js latest --pdf --write
+
+      - name: Upload the report (downloadable from this run)
+        if: steps.seed.outputs.changed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: gators-postgame-report
+          path: reports/postgame/
+          if-no-files-found: warn
+          retention-days: 90
+
+      # Optional: email the PDF to yourself. Runs only when a Gmail App Password
+      # secret is configured, so it's a no-op until you opt in (see the PR notes).
+      - name: Is email configured?
+        id: mail
+        env:
+          PW: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: |
+          if [ -n "$PW" ]; then echo "enabled=true" >> "$GITHUB_OUTPUT"; else echo "enabled=false" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Install deps for emailing
+        if: steps.seed.outputs.changed == 'true' && steps.mail.outputs.enabled == 'true'
+        run: npm ci
+
+      - name: Email the report to yourself
+        if: steps.seed.outputs.changed == 'true' && steps.mail.outputs.enabled == 'true'
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          REPORT_TO: ${{ secrets.REPORT_TO }}
+        run: node scripts/email-report.js
