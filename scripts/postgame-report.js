@@ -362,8 +362,8 @@ function buildHtml(content, pitchFacts) {
 @page{size:letter;margin:0.6in 0.7in;}
 *{box-sizing:border-box;margin:0;padding:0;}
 html{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-body{font-family:Georgia,'Times New Roman',serif;color:#23262f;font-size:13px;line-height:1.6;}
-.band{display:flex;align-items:center;gap:14px;background:#16102b;color:#fff;padding:15px 18px;border-radius:9px;}
+body{font-family:Georgia,'Times New Roman',serif;color:#23262f;font-size:12.5px;line-height:1.5;}
+.band{display:flex;align-items:center;gap:14px;background:#16102b;color:#fff;padding:13px 18px;border-radius:9px;}
 .band img{width:52px;height:52px;}
 .k{font-family:'Helvetica Neue',Arial,sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#ffd633;font-weight:700;}
 .band h1{font-family:'Helvetica Neue',Arial,sans-serif;font-size:22px;font-weight:800;line-height:1.12;margin:1px 0;}
@@ -371,15 +371,15 @@ body{font-family:Georgia,'Times New Roman',serif;color:#23262f;font-size:13px;li
 .badge{margin-left:auto;text-align:center;font-family:'Helvetica Neue',Arial,sans-serif;}
 .badge .r{display:inline-block;background:${resColor};color:#fff;font-weight:800;font-size:16px;letter-spacing:.05em;padding:6px 16px;border-radius:6px;}
 .badge .sc{font-size:15px;color:#fff;margin-top:5px;font-weight:700;}
-h2{font-family:'Helvetica Neue',Arial,sans-serif;font-size:13px;text-transform:uppercase;letter-spacing:.09em;color:#5b3fb0;border-bottom:2px solid #ecc913;padding-bottom:4px;margin:20px 0 10px;}
-p{margin:9px 0;}
-.lead p{font-size:13.5px;}
+h2{font-family:'Helvetica Neue',Arial,sans-serif;font-size:12.5px;text-transform:uppercase;letter-spacing:.09em;color:#5b3fb0;border-bottom:2px solid #ecc913;padding-bottom:3px;margin:13px 0 7px;}
+p{margin:7px 0;}
+.lead p{font-size:13px;}
 ul.facts{list-style:none;}
-ul.facts li{position:relative;padding:7px 0 7px 24px;border-bottom:1px solid #eee;}
+ul.facts li{position:relative;padding:4.5px 0 4.5px 24px;border-bottom:1px solid #eee;}
 ul.facts li:last-child{border-bottom:none;}
 ul.facts li:before{content:'';position:absolute;left:3px;top:13px;width:8px;height:8px;border-radius:2px;background:#714ad2;}
 .warn{background:#fff5f5;border:1px solid #f0b8b8;color:#9b2c2c;border-radius:7px;padding:8px 11px;font-family:Arial,sans-serif;font-size:10.5px;margin:10px 0;}
-.foot{margin-top:18px;border-top:1px solid #ddd;padding-top:8px;font-family:Arial,sans-serif;font-size:9px;color:#9a9aa3;font-style:italic;}
+.foot{margin-top:12px;border-top:1px solid #ddd;padding-top:7px;font-family:Arial,sans-serif;font-size:9px;color:#9a9aa3;font-style:italic;}
 </style></head><body>`);
   H.push(`<div class='band'><img src='${S.gatorsLogoDataUri()}'><div><div class='k'>Gumbeaux Gators · Game Report</div><h1>${esc(game.date)} vs ${esc(oppName)}</h1><div class='sub'>${game.home ? 'Home game' : 'Road game'} · Record now ${T.w}–${T.l}</div></div><div class='badge'><div class='r'>${resWord}</div><div class='sc'>${game.gs}–${game.os}</div></div></div>`);
   if (partial) H.push(`<div class='warn'>⚠️ Heads up — tonight's box score is still coming in, so a few details may fill in later.</div>`);
