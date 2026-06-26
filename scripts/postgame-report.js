@@ -135,22 +135,36 @@ function halvesFromHtml(html) {
 // halves: top when the Gators are home, bottom when away) plus shutdown innings
 // from the line score. `halves` = [{side:'top'|'bot', html}].
 function computeBoxStats(halves, lineHtml) {
-  const out = { firstPitchStrikePct: null, strikePct: null, threeBall: null, shutdown: null };
-  const fielding = game.home ? 'top' : 'bot';
-  let pa = 0, fpStrike = 0, balls = 0, strikes = 0, threeBall = 0;
+  const out = { firstPitchStrikePct: null, strikePct: null, threeBall: null, shutdown: null, twoOutWalks: null, threePitchInnings: null };
+  const fielding = game.home ? 'top' : 'bot';     // halves the Gators pitched
+  const batting = game.home ? 'bot' : 'top';      // halves the Gators hit
+  let pa = 0, fpStrike = 0, balls = 0, strikes = 0, threeBall = 0, twoOutWalks = 0, threePitch = 0;
   for (const h of halves) {
-    if (h.side !== fielding) continue;
-    const seqs = (h.html || '').match(/\(\s*\d+-\d+\s+[A-Za-z]+\s*\)/g) || [];
-    for (const raw of seqs) {
-      const seq = (raw.match(/\d+-\d+\s+([A-Za-z]+)/) || [])[1]; if (!seq) continue;
-      pa++;
-      if (!/[BH]/i.test(seq[0])) fpStrike++;             // first pitch a strike?
-      let b = 0; for (const ch of seq) { if (/[BH]/i.test(ch)) b++; else strikes++; }
-      balls += b;
-      if (b >= 3) threeBall++;
+    if (h.side === fielding) {
+      const seqs = (h.html || '').match(/\(\s*\d+-\d+\s+[A-Za-z]+\s*\)/g) || [];
+      for (const raw of seqs) {
+        const seq = (raw.match(/\d+-\d+\s+([A-Za-z]+)/) || [])[1]; if (!seq) continue;
+        pa++;
+        if (!/[BH]/i.test(seq[0])) fpStrike++;             // first pitch a strike?
+        let b = 0; for (const ch of seq) { if (/[BH]/i.test(ch)) b++; else strikes++; }
+        balls += b;
+        if (b >= 3) threeBall++;
+      }
+      // Two-out walks issued: a walk play with two outs already recorded.
+      for (const r of (h.html || '').match(/<tr[\s\S]*?<\/tr>/gi) || []) {
+        const t = txt(r);
+        if (/\bwalked\b/i.test(t) && /\b2 outs?\b/i.test(t)) twoOutWalks++;
+      }
+    } else if (h.side === batting) {
+      // 3-pitch inning: exactly three plate appearances, each ended on the first
+      // pitch (0-0 count) — three outs on three pitches.
+      const counts = (h.html || '').match(/\(\s*\d+-\d+/g) || [];
+      if (counts.length === 3 && counts.every(c => /\(\s*0-0/.test(c))) threePitch++;
     }
   }
   out._balls = balls;
+  out.twoOutWalks = twoOutWalks;
+  out.threePitchInnings = threePitch;
   if (pa > 0) {
     out.firstPitchStrikePct = fpStrike / pa;
     out.threeBall = threeBall;
@@ -257,7 +271,7 @@ const resultWord = game.win == null ? 'played' : game.win ? 'won' : 'lost';
 // Build the game-specific recap + key facts from the chosen game lines (box when
 // available, seed otherwise). bat/pit rows carry {slug, meta:{name}, h, ab, rbi,
 // hr?, outs, ipStr, h, r, er, bb, k}; tb/tp are team totals.
-function buildGameContent(bat, pit, tb, tp) {
+function buildGameContent(bat, pit, tb, tp, stats) {
   const gameBB9 = tp.outs ? (tp.bb * 27) / tp.outs : null;
   const partial = tp.outs === 0;   // no pitching logged yet -> incomplete
   const recap = [];
@@ -274,6 +288,7 @@ function buildGameContent(bat, pit, tb, tp) {
   const longOuting = [...pit].sort((a, b) => b.outs - a.outs)[0];
   if (longOuting && longOuting.outs > 0) { const s = PIT_SEASON[longOuting.slug]; keyFacts.push(`${longOuting.meta.name} threw ${longOuting.ipStr} innings (${longOuting.h} H, ${longOuting.r} R, ${longOuting.bb} BB, ${longOuting.k} K)${s ? `, and carries a ${r2(s.era)} ERA` : ''}.`); }
   if (tp.bb >= 5 && staffBB9 != null) keyFacts.push(`The staff walked ${tp.bb} batters, against a season average of about ${staffBB9.toFixed(1)} per nine innings.`);
+  if (stats && stats.threePitchInnings) keyFacts.push(`The offense had ${plural(stats.threePitchInnings, 'three-pitch inning')} (three outs on three pitches).`);
   return { recap, keyFacts, gameBB9, partial };
 }
 
@@ -293,6 +308,7 @@ function pitchingFacts(box) {
   if (box.firstPitchStrikePct != null) f.push(`First-pitch strikes: ${pct(box.firstPitchStrikePct)} — the staff threw a first-pitch strike in ${box._fp.fpStrike} of ${box._fp.pa} plate appearances.`);
   if (box.strikePct != null) f.push(`Strike percentage: ${pct(box.strikePct)} of the staff's pitches were strikes.`);
   if (box.threeBall != null) f.push(`Three-ball counts: ${box.threeBall} hitter${box.threeBall === 1 ? ' was' : 's were'} taken to a three-ball count.`);
+  if (box.twoOutWalks != null) f.push(`Two-out walks issued: ${box.twoOutWalks}${box.twoOutWalks === 0 ? '' : ' — free runners on after two were out'}.`);
   if (box.shutdown != null) f.push(`Shutdown innings: ${box.shutdown} — the staff held the opponent scoreless the half-inning right after the Gators scored.`);
   return f;
 }
@@ -412,7 +428,7 @@ async function main() {
     tb = bat.reduce((a, b) => ({ ab: a.ab + b.ab, h: a.h + b.h, hr: a.hr + b.hr, rbi: a.rbi + b.rbi, bb: a.bb + b.bb, k: a.k + b.k }), { ab: 0, h: 0, hr: 0, rbi: 0, bb: 0, k: 0 });
     tp = pit.reduce((a, p) => ({ outs: a.outs + p.outs, h: a.h + p.h, r: a.r + p.r, er: a.er + p.er, bb: a.bb + p.bb, k: a.k + p.k }), { outs: 0, h: 0, r: 0, er: 0, bb: 0, k: 0 });
   }
-  const content = buildGameContent(bat, pit, tb, tp);
+  const content = buildGameContent(bat, pit, tb, tp, stats);
   const pitchFacts = pitchingFacts(stats);
   const md = buildMarkdown(content, pitchFacts);
 
