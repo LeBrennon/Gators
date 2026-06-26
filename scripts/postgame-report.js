@@ -152,10 +152,16 @@ function computeBoxStats(halves, lineHtml) {
         balls += b;
         if (b >= 3) threeBall++;
       }
-      // Two-out walks issued: a walk play with two outs already recorded.
+      // Two-out walks issued: count walks thrown with two outs already recorded.
+      // A walk play carries no out annotation of its own (the "(N out)" sits on
+      // the previous out play), so track the running out count through the half
+      // and check it when a walk occurs, rather than grepping the walk line.
+      let outs = 0;
       for (const r of (h.html || '').match(/<tr[\s\S]*?<\/tr>/gi) || []) {
         const t = txt(r);
-        if (/\bwalked\b/i.test(t) && /\b2 outs?\b/i.test(t)) twoOutWalks++;
+        if (/\bwalked\b/i.test(t) && outs === 2) twoOutWalks++;
+        const om = t.match(/\b([0-3])\s+outs?\b/i);
+        if (om) outs = parseInt(om[1], 10);
       }
     } else if (h.side === batting) {
       // 3-pitch inning: exactly three plate appearances, each ended on the first
