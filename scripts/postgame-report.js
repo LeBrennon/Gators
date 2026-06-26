@@ -56,7 +56,6 @@ function workload(slug, days) {
 const HB = S.batters(), PB = S.pitchers();
 const hotBats = HB.filter(b => b.pa >= 15 && b.l5avg != null && b.trend != null && b.trend >= 0.05).sort((a, b) => b.trend - a.trend).slice(0, 4);
 const coldBats = HB.filter(b => b.pa >= 15 && b.l5avg != null && b.trend != null && b.trend <= -0.05).sort((a, b) => a.trend - b.trend).slice(0, 4);
-const highEra = PB.filter(p => p.ip >= 8 && p.era >= 5.5).sort((a, b) => b.era - a.era).slice(0, 4);
 const heavyArms = PB.map(p => ({ p, wl: workload(p.slug, 7) })).filter(x => x.wl.apps >= 3).sort((a, b) => b.wl.apps - a.wl.apps);
 const recentGames = S.SCHED.filter(g => g.win != null).slice(-6);
 
@@ -281,7 +280,6 @@ function buildGameContent(bat, pit, tb, tp) {
 const trends = [];
 if (hotBats.length) trends.push(`Hot at the plate (last 5 games): ${list(hotBats.map(b => `${b.meta.name} ${r3(b.l5avg)} (season ${r3(b.avg)})`))}.`);
 if (coldBats.length) trends.push(`Cold at the plate (last 5 games): ${list(coldBats.map(b => `${b.meta.name} ${r3(b.l5avg)} (season ${r3(b.avg)})`))}.`);
-if (highEra.length) trends.push(`Highest ERAs on the staff: ${list(highEra.map(p => `${p.meta.name} ${r2(p.era)}`))}.`);
 if (heavyArms.length) trends.push(`Most-used arms in the last week: ${list(heavyArms.map(x => `${x.p.meta.name} (${plural(x.wl.apps, 'appearance')})`))}.`);
 if (recentGames.length) trends.push(`Last ${recentGames.length} games: ${recentGames.map(g => `${g.win ? 'W' : 'L'} ${g.gs}-${g.os}`).join(', ')}.`);
 
