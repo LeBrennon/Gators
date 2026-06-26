@@ -26,13 +26,12 @@ const BUILD_LABEL = 'build ' + BUILD.commit + (BUILD.branch ? ' · ' + BUILD.bra
 const LIVE_POLL_MS = Number(process.env.LIVE_POLL_MS || 4000); // tight enough that the live count/score/pitch-count track pitch-by-pitch
 const SCHEDULE_URL = process.env.SCHEDULE_URL || 'https://texasleaguestats.prestosports.com/sports/bsb/2026/schedule';
 const SITE_URL     = (process.env.SITE_URL || 'https://whatisthegatorscore.com').replace(/\/$/, '');
-// Secret key gating the private GM game reports (/report, /reports). When unset,
-// reports are locked entirely (private by default).
+// Secret key gating the private analytics page (/stats). When unset, it's
+// locked entirely (private by default).
 const REPORT_KEY   = process.env.REPORT_KEY || '';
-// Gmail (app-password) auto-email of game reports after each final.
+// Gmail (app-password) sender for the daily visitor-analytics digest.
 const MAIL_USER    = process.env.GMAIL_USER || '';
 const MAIL_PASS    = process.env.GMAIL_APP_PASSWORD || '';
-const REPORT_TO    = (process.env.REPORT_TO || 'brennonmbaseball@gmail.com').split(',').map(s => s.trim()).filter(Boolean);
 const mailReady    = !!(nodemailer && MAIL_USER && MAIL_PASS);
 // Daily unique-visitor analytics: digest recipient + a salt for hashing IPs
 // (we never store raw IPs). Same-day dedupe stays stable across restarts.
@@ -1205,7 +1204,6 @@ async function pollSchedule() {
       const date = (featured && featured.date) || todayCentralYmd();
       await refreshLeagueLiveScores(parseLeagueScoreboard(lastHtml, date), featured && featured.id);
     } catch (e) { /* board still works from schedule scores */ }
-    try { await dispatchReports(); } catch (e) { /* report email is best-effort */ }
   } catch (err) { process.stdout.write('\r[poll error] ' + err.message + '        '); }
 }
 // For a live game, pull the league's live feed for the at-bat situation
@@ -2358,57 +2356,9 @@ async function fetchBoxPage(id) {
   job.finally(() => boxInflight.delete(id));
   return job;
 }
-// ---- auto-email a game report to the GM after each final -------------------
-// Reuses the same private /report link. To avoid backfilling the whole season,
-// the first run seeds every already-final game as "sent"; only games that go
-// final while we're running get emailed. Needs Gmail creds + REPORT_KEY.
-const REPORTS_SENT_FILE = (process.env.CACHE_DIR || '.') + '/reports-sent.json';
-const reportSent = new Set();
-let reportsSeeded = false;
-(function loadReportsSent() {
-  try { const a = JSON.parse(fs.readFileSync(REPORTS_SENT_FILE, 'utf8')); if (Array.isArray(a)) { a.forEach(id => reportSent.add(id)); reportsSeeded = reportSent.size > 0; } } catch (e) {}
-})();
-function saveReportsSent() { try { fs.writeFileSync(REPORTS_SENT_FILE, JSON.stringify([...reportSent])); } catch (e) {} }
+// Gmail transport, shared by the daily visitor-analytics digest.
 let _mailer = null;
 function getMailer() { if (!_mailer && mailReady) _mailer = nodemailer.createTransport({ service: 'gmail', auth: { user: MAIL_USER, pass: MAIL_PASS } }); return _mailer; }
-function gameResultBits(g) {
-  const gat = g.gatorsHome ? g.home : g.away, opp = g.gatorsHome ? g.away : g.home;
-  const gr = gat && gat.score, or = opp && opp.score;
-  const has = gr != null && or != null;
-  return { oppName: (g.opponent && (g.opponent.short || g.opponent.name)) || (opp && opp.short) || 'opponent',
-    res: has ? (gr > or ? 'W' : gr < or ? 'L' : 'T') : '', score: has ? (gr + '-' + or) : '' };
-}
-async function emailReport(g, toList) {
-  const t = getMailer(); if (!t) return false;
-  const to = (toList && toList.length ? toList : REPORT_TO).join(', ');
-  const b = gameResultBits(g);
-  const url = SITE_URL + '/report?id=' + encodeURIComponent(g.id) + '&key=' + encodeURIComponent(REPORT_KEY);
-  const head = (g.dateLabel || '') + (b.score ? (' · ' + b.res + ' ' + b.score + ' vs ' + b.oppName) : '');
-  const subject = 'Gators Game Report' + (b.score ? (' — ' + b.res + ' ' + b.score + ' vs ' + b.oppName) : '') + (g.dateLabel ? (' (' + g.dateLabel + ')') : '');
-  const text = 'Gumbeaux Gators — Game Report\n' + head + '\n\nFull report: ' + url + '\n';
-  const html = '<div style="font-family:Arial,Helvetica,sans-serif;max-width:520px">'
-    + '<h2 style="margin:0 0 2px;color:#16102b">Gumbeaux Gators — Game Report</h2>'
-    + '<p style="margin:0 0 14px;color:#555">' + repEsc(head) + '</p>'
-    + '<p style="margin:0 0 14px"><a href="' + repEsc(url) + '" style="background:#714ad2;color:#fff;padding:11px 18px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">View full report</a></p>'
-    + '<p style="color:#999;font-size:12px;word-break:break-all">' + repEsc(url) + '</p></div>';
-  await t.sendMail({ from: 'Gumbeaux Gators <' + MAIL_USER + '>', to, subject, text, html });
-  process.stdout.write('\n[report] emailed ' + g.id + ' to ' + to + '\n');
-  return true;
-}
-async function dispatchReports() {
-  const finals = (games || []).filter(g => g.state === 'final');
-  // Seed once so we never email the back catalogue on boot.
-  if (!reportsSeeded) { finals.forEach(g => reportSent.add(g.id)); reportsSeeded = true; saveReportsSent(); return; }
-  if (!mailReady || !REPORT_KEY || !REPORT_TO.length) return;   // not configured yet
-  for (const g of finals) {
-    if (reportSent.has(g.id)) continue;
-    try {
-      const res = await fetchBoxPage(g.id);
-      if (!res.ok || !res.data) continue;   // box not ready yet — retry next poll
-      if (await emailReport(g)) { reportSent.add(g.id); saveReportsSent(); }
-    } catch (e) { /* retry next poll */ }
-  }
-}
 app.get('/api/boxscore', async (q, r) => {
   const id = q.query && q.query.id;
   try {
@@ -2428,50 +2378,9 @@ app.get('/api/boxscore', async (q, r) => {
     r.status(500).json({ error: String(err && err.message || err) });
   }
 });
-// ---- shareable per-game GM report ------------------------------------------
-// A standalone, self-styled page (no app shell) summarizing one game for the
-// Gators GM: result + line score, every pitcher's line (both teams), batting,
-// scoring plays, Gators key plays, and Gators mistakes. Built from the same
-// box-score parse as /api/boxscore.
+// ---- private analytics page shell ------------------------------------------
+// HTML-escape helper shared by the /stats page and the daily visitor-digest email.
 function repEsc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c];});}
-// Box tables wrap Gators names in <a class="bxp" data-slug> profile links that
-// only work inside the app; flatten them to plain text for the standalone page.
-function repStripLinks(html){return String(html||'').replace(/<a\b[^>]*class="bxp"[^>]*>([\s\S]*?)<\/a>/gi,'$1');}
-function repLineRows(lineHtml){
-  const rows=(lineHtml||'').match(/<tr\b[\s\S]*?<\/tr>/gi)||[];const out=[];
-  for(const row of rows){
-    const cells=row.match(/<t[dh]\b[\s\S]*?<\/t[dh]>/gi)||[];
-    if(cells.length<4)continue;
-    const name=bsText(cells[0]);
-    if(!name||/^final$/i.test(name))continue;
-    out.push({name,r:bsText(cells[cells.length-3]),h:bsText(cells[cells.length-2]),e:bsText(cells[cells.length-1])});
-  }
-  return out;
-}
-// Walk the play-by-play once, bucketing run-scoring plays (both teams), Gators
-// key plays (XBH/SB), and Gators mistakes (pitching miscues on defense,
-// baserunning blunders on offense). The half-inning title names the batting team.
-function repPlays(pbp){
-  const scoring=[],key=[],mist=[];
-  for(const half of (pbp||[])){
-    const title=half.title||'';
-    const innM=title.match(/((?:Top|Bottom) of [^-–]*)/i);
-    const inn=innM?innM[1].trim():title.trim();
-    const btM=title.match(/[-–]\s*(.+?)\s*batting/i);
-    const batTeam=btM?btM[1].trim():'';
-    const gBat=/gator/i.test(batTeam);
-    const rows=(half.html||'').match(/<tr\b[\s\S]*?<\/tr>/gi)||[];
-    for(const row of rows){
-      const tx=bsText(row).replace(/\s*\d+\s*out\s*$/i,'').trim();
-      if(!tx)continue;
-      if(/\bscored\b|home run\b|homered|grand slam/i.test(tx))scoring.push({inn,team:batTeam,tx});
-      if(gBat&&/doubled|tripled|homered|home run\b|stole|stolen base/i.test(tx))key.push({inn,tx});
-      if(gBat){if(/caught stealing|picked off|left early/i.test(tx))mist.push({inn,tx});}
-      else{if(/wild pitch|hit by pitch|hit batter|\bbalk\b|passed ball/i.test(tx))mist.push({inn,tx});}
-    }
-  }
-  return {scoring,key,mist};
-}
 function reportPage(title,bodyHtml){
   return '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">'
     +'<meta name="viewport" content="width=device-width, initial-scale=1">'
@@ -2501,139 +2410,16 @@ function reportPage(title,bodyHtml){
     +'.foot{margin-top:30px;text-align:center;color:var(--mute);font-size:11px;}'
     +'</style></head><body><div class="rwrap">'+bodyHtml+'</div></body></html>';
 }
-function reportError(msg){return reportPage('Gators Game Report','<div class="rh"><div class="rt">Gators Game Report</div></div><p class="empty" style="text-align:center">'+repEsc(msg)+'</p>');}
-function buildReportHtml(data){
-  const id=data.id||'';const ymd=id.slice(0,8);
-  const dl=/^\d{8}$/.test(ymd)?dateFromId(ymd).label:'';
-  const lt=repLineRows(data.line);
-  const gObj=lt.find(t=>/gator/i.test(t.name))||null;
-  const oObj=lt.find(t=>!/gator/i.test(t.name))||null;
-  const won=(gObj&&oObj)?(+gObj.r>+oObj.r):null;
-  const tie=(gObj&&oObj)?(+gObj.r===+oObj.r):false;
-  const box=data.box||[];
-  const find=(g,kind)=>box.find(b=>(g?/gator/i.test(b.label):!/gator/i.test(b.label))&&new RegExp(kind,'i').test(b.label));
-  const gPit=find(true,'pitching'),oPit=find(false,'pitching'),gBat=find(true,'batting'),oBat=find(false,'batting');
-  const plays=repPlays(data.pbp);
-  const gNotes=(gBat&&gBat.notes)||{};
-  const tbl=b=>b?('<div class="rtw">'+repStripLinks(b.html)+'</div>'):'';
-  let h='';
-  // Header
-  h+='<div class="rh"><div class="rt">Gators Game Report</div></div>';
-  if(dl)h+='<div class="rd">'+repEsc(dl)+'</div>';
-  if(gObj&&oObj){
-    const cls=tie?'t':(won?'w':'l');const word=tie?'Tie':(won?'Win':'Loss');
-    h+='<div class="rscore">'+repEsc(gObj.name)+' '+repEsc(gObj.r)+' – '+repEsc(oObj.r)+' '+repEsc(oObj.name)+'</div>';
-    h+='<div style="text-align:center;margin-bottom:6px"><span class="rres '+cls+'">'+word+'</span></div>';
-  }
-  // Line score
-  if(data.line)h+='<div class="sec">Final</div><div class="rtw">'+repStripLinks(data.line)+'</div>';
-  // Pitching — every pitcher that threw
-  if(gPit||oPit){
-    h+='<div class="sec">Pitching</div>';
-    if(gPit){h+='<div class="subh">'+repEsc((gObj&&gObj.name)||'Gators')+'</div>'+tbl(gPit);}
-    if(oPit){h+='<div class="subh">'+repEsc((oObj&&oObj.name)||'Opponent')+'</div>'+tbl(oPit);}
-  }
-  // Batting
-  if(gBat||oBat){
-    h+='<div class="sec">Batting</div>';
-    if(gBat){h+='<div class="subh">'+repEsc((gObj&&gObj.name)||'Gators')+'</div>'+tbl(gBat);}
-    if(oBat){h+='<div class="subh">'+repEsc((oObj&&oObj.name)||'Opponent')+'</div>'+tbl(oBat);}
-  }
-  // Scoring plays (both teams)
-  h+='<div class="sec">Scoring Plays</div>';
-  if(plays.scoring.length){
-    h+='<ul class="plist">'+plays.scoring.map(p=>'<li><span class="pinn">'+repEsc(p.inn)+'</span> '+repEsc(p.tx)+'</li>').join('')+'</ul>';
-  }else h+='<div class="empty">No scoring plays parsed.</div>';
-  // Gators key plays
-  const keyLines=[];
-  ['HR','3B','2B','SB'].forEach(k=>{if(gNotes[k])keyLines.push('<li><span class="pinn">'+k+'</span> '+repEsc(gNotes[k])+'</li>');});
-  plays.key.forEach(p=>keyLines.push('<li><span class="pinn">'+repEsc(p.inn)+'</span> '+repEsc(p.tx)+'</li>'));
-  h+='<div class="sec">Gators Key Plays</div>';
-  h+=keyLines.length?('<ul class="plist klist">'+keyLines.join('')+'</ul>'):'<div class="empty">No extra-base hits or steals.</div>';
-  // Gators mistakes
-  const mLines=[];
-  if(gNotes.E)mLines.push('<li><span class="pinn">Errors</span> '+repEsc(gNotes.E)+'</li>');
-  plays.mist.forEach(p=>mLines.push('<li><span class="pinn">'+repEsc(p.inn)+'</span> '+repEsc(p.tx)+'</li>'));
-  h+='<div class="sec">Gators Mistakes</div>';
-  h+=mLines.length?('<ul class="plist mlist">'+mLines.join('')+'</ul>'):'<div class="empty">No errors or miscues. Clean game.</div>';
-  h+='<div class="foot">Gumbeaux Gators · whatisthegatorscore.com</div>';
-  const title=(gObj&&oObj)?('Gators '+gObj.r+'-'+oObj.r+' '+(oObj.name)+' · Report'):'Gators Game Report';
-  return reportPage(title,h);
-}
-// Private-report gate: locked entirely unless REPORT_KEY is configured, then it
+function reportError(msg){return reportPage('Gators','<div class="rh"><div class="rt">Gators</div></div><p class="empty" style="text-align:center">'+repEsc(msg)+'</p>');}
+// Private-page gate: locked entirely unless REPORT_KEY is configured, then it
 // requires a matching ?key=. Returns true when access is allowed; otherwise it
 // sends the locked page and returns false.
 function reportLocked(q, r) {
-  if (!REPORT_KEY) { r.status(403).type('html').send(reportError('Reports are private. The site owner needs to set a REPORT_KEY to enable them.')); return true; }
-  if (!q.query || String(q.query.key || '') !== REPORT_KEY) { r.status(403).type('html').send(reportError('This report is private.')); return true; }
+  if (!REPORT_KEY) { r.status(403).type('html').send(reportError('This page is private. The site owner needs to set a REPORT_KEY to enable it.')); return true; }
+  if (!q.query || String(q.query.key || '') !== REPORT_KEY) { r.status(403).type('html').send(reportError('This page is private.')); return true; }
   return false;
 }
-app.get('/report', async (q, r) => {
-  if (reportLocked(q, r)) return;
-  const id = q.query && q.query.id;
-  try {
-    if (!id || !/^\d{8}_[a-z0-9]+$/i.test(id)) return r.status(400).type('html').send(reportError('Pass ?id=YYYYMMDD_xxxx (a game id).'));
-    const res = await fetchBoxPage(id);
-    if (!res.ok || !res.data) return r.status(502).type('html').send(reportError('Box score not available yet — check back after the game.'));
-    r.set('Cache-Control', 'private, no-store');
-    r.type('html').send(buildReportHtml(res.data));
-  } catch (err) {
-    r.status(500).type('html').send(reportError(String(err && err.message || err)));
-  }
-});
-// On-demand send: email a game report now (defaults to tonight's / the latest
-// finished Gators game). ?id= a specific game, ?to= override the recipient.
-// Same key gate. Use it to send a report without waiting for the auto-trigger.
-app.get('/report/send', async (q, r) => {
-  if (reportLocked(q, r)) return;
-  if (!mailReady) return r.status(503).type('html').send(reportError('Email isn’t configured yet — set GMAIL_USER and GMAIL_APP_PASSWORD.'));
-  try {
-    let id = q.query.id;
-    if (!id) {
-      const today = todayCentralYmd();
-      const finals = (games || []).filter(g => g.state === 'final').slice().sort((a, b) => (b.sortKey || 0) - (a.sortKey || 0));
-      const g = finals.find(g => g.date === today) || finals[0];
-      if (!g) return r.status(404).type('html').send(reportError('No finished Gators game found to send yet.'));
-      id = g.id;
-    }
-    if (!/^\d{8}_[a-z0-9]+$/i.test(id)) return r.status(400).type('html').send(reportError('Bad game id.'));
-    const res = await fetchBoxPage(id);
-    if (!res.ok || !res.data) return r.status(502).type('html').send(reportError('Box score not available yet for that game — try again after it finals.'));
-    const g = (games || []).find(x => x.id === id) || { id, gatorsHome: false, away: {}, home: {}, opponent: {}, dateLabel: '' };
-    const to = q.query.to ? String(q.query.to).split(',').map(s => s.trim()).filter(Boolean) : null;
-    const ok = await emailReport(g, to);
-    if (!ok) return r.status(502).type('html').send(reportError('Could not send the email.'));
-    reportSent.add(id); saveReportsSent();
-    r.set('Cache-Control', 'no-store');
-    return r.type('html').send(reportPage('Report sent', '<div class="rh"><div class="rt">Report sent ✅</div></div><div class="rd">'+repEsc(id)+'</div><p class="empty" style="text-align:center">Emailed to '+repEsc((to || REPORT_TO).join(', '))+'</p>'));
-  } catch (err) {
-    r.status(500).type('html').send(reportError(String(err && err.message || err)));
-  }
-});
-// Private index of finished-game reports — the owner's jump-off point for
-// grabbing a link to share. Each link carries the key so the GM can open it
-// without the index.
-app.get('/reports', (q, r) => {
-  if (reportLocked(q, r)) return;
-  const key = encodeURIComponent(String(q.query.key));
-  const finals = games.filter(g => g.state === 'final').slice().sort((a, b) => (b.sortKey || 0) - (a.sortKey || 0));
-  let body = '<div class="rh"><div class="rt">Gators Game Reports</div></div><div class="rd">Private · ' + finals.length + ' game' + (finals.length === 1 ? '' : 's') + '</div>';
-  if (!finals.length) body += '<div class="empty">No finished games yet.</div>';
-  else {
-    body += '<ul class="plist">' + finals.map(g => {
-      const gat = (g.home && g.home.id === GATORS_ID) ? g.home : g.away;
-      const opp = (g.home && g.home.id === GATORS_ID) ? g.away : g.home;
-      const score = (gat.score != null && opp.score != null) ? (gat.score + '–' + opp.score) : '';
-      const res = (gat.score != null && opp.score != null) ? (gat.score > opp.score ? 'W' : (gat.score < opp.score ? 'L' : 'T')) : '';
-      return '<li><a style="color:var(--gold2);text-decoration:none;font-weight:600;display:block" href="/report?id=' + encodeURIComponent(g.id) + '&key=' + key + '">'
-        + '<span class="pinn">' + repEsc(g.dateLabel || '') + '</span> ' + repEsc((res ? res + ' ' : '') + score) + ' vs ' + repEsc((opp && (opp.short || opp.name)) || '') + ' ›</a></li>';
-    }).join('') + '</ul>';
-  }
-  body += '<div class="foot">Share an individual game link with the GM — keep this index link private.</div>';
-  r.set('Cache-Control', 'private, no-store');
-  r.type('html').send(reportPage('Gators Game Reports', body));
-});
-// Private daily unique-visitor report (same key gate as the game reports).
+// Private daily unique-visitor report, gated by REPORT_KEY.
 app.get('/stats', (q, r) => {
   if (reportLocked(q, r)) return;
   const today = todayCentralYmd();
@@ -2889,7 +2675,7 @@ if (require.main === module) {
   app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleDailyRoster(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); scheduleDailyStats(); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, pitchersFromFeed, extractEventAuth,
-  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseGameLog, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, buildReportHtml, repPlays, repLineRows, batterPriorPAs, summarizePlays, applyLivePitchCount, pitchingTotals };
+  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseGameLog, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, pitchingTotals };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
