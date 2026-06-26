@@ -1,27 +1,35 @@
 name: Refresh seed + post-game report
 
-# One daily pass right after games end (07:00 UTC ≈ 2am Central):
-#   1. Rebuild the warm-boot snapshot (roster-seed.json) from the live deploy and
-#      commit it when stats moved (i.e. a game happened).
-#   2. When stats moved, build the personal post-game report (branded one-page PDF
-#      + markdown) for the latest final and upload it as a downloadable artifact.
+# Runs three ways:
+#   • schedule (daily 07:00 UTC ≈ 2am Central) — rebuild + commit the warm-boot
+#     seed (roster-seed.json) and upload a fresh report artifact. No email.
+#   • repository_dispatch (type: gators-final) — fired by the live server within
+#     seconds of the last out. Builds the branded PDF for the just-finished game
+#     and EMAILS it to the recipients. This is the "as soon as the last out" path.
+#   • workflow_dispatch — manual run from the Actions tab (also emails), optionally
+#     for a specific box id.
 #
-# The report is a PERSONAL artifact, not a website feature. reports/postgame/ is
-# gitignored (it's reproducible from the seed), so the report is delivered as a
-# build artifact — and emailed to you as well if Gmail secrets are configured.
-# Off days (no game) leave the seed unchanged, so the report steps are skipped.
+# The report is a PERSONAL artifact — reports/postgame/ is gitignored, so it ships
+# as a build artifact and by email; it is never committed and never on the website.
 
 on:
   schedule:
-    - cron: '0 7 * * *'   # daily 07:00 UTC (~2am Central, after the nightly stats poll)
-  workflow_dispatch: {}    # allow manual runs from the Actions tab
+    - cron: '0 7 * * *'
+  repository_dispatch:
+    types: [gators-final]
+  workflow_dispatch:
+    inputs:
+      game_id:
+        description: 'Box id (YYYYMMDD_xxxx) to report; blank = latest final'
+        required: false
+        default: ''
 
 permissions:
-  contents: write          # let the default token commit the refreshed seed
+  contents: write
 
 concurrency:
   group: refresh-seed
-  cancel-in-progress: true
+  cancel-in-progress: false   # let a game-final build finish even if the cron overlaps
 
 jobs:
   refresh:
@@ -33,37 +41,56 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Rebuild seed from the live deploy
-        run: node scripts/build-seed.js
-
-      - name: Did the seed change? (a game happened)
-        id: seed
+      - name: Resolve target game + whether to email
+        id: plan
         run: |
-          if git diff --quiet -- roster-seed.json; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "roster-seed.json unchanged — off day, no report to build"
+          GID="${{ github.event.client_payload.id }}"
+          [ -z "$GID" ] && GID="${{ github.event.inputs.game_id }}"
+          echo "game_id=$GID" >> "$GITHUB_OUTPUT"
+          # Scheduled runs refresh the seed but don't email (avoids a 2am duplicate
+          # of the instant game-final email); dispatch and manual runs email.
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "email=false" >> "$GITHUB_OUTPUT"
           else
-            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "email=true"  >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Commit the refreshed seed
-        if: steps.seed.outputs.changed == 'true'
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add roster-seed.json
-          git commit -m "Auto-refresh roster-seed.json"
-          git push
+      - name: Rebuild seed from the live deploy
+        run: node scripts/build-seed.js || true
 
-      - name: Build the post-game report (latest final)
-        if: steps.seed.outputs.changed == 'true'
+      - name: Commit the refreshed seed (scheduled run only)
+        if: github.event_name == 'schedule'
+        run: |
+          if git diff --quiet -- roster-seed.json; then
+            echo "roster-seed.json unchanged — nothing to commit"
+          else
+            git config user.name  "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add roster-seed.json
+            git commit -m "Auto-refresh roster-seed.json"
+            git push
+          fi
+
+      - name: Build the post-game report (waits for stats to post)
+        id: build
         run: |
           export CHROMIUM_PATH="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
-          echo "chromium: ${CHROMIUM_PATH:-<none — script will try its own fallbacks>}"
-          node scripts/postgame-report.js latest --pdf --write
+          TARGET="${{ steps.plan.outputs.game_id }}"; [ -z "$TARGET" ] && TARGET="latest"
+          echo "target=$TARGET  chromium=${CHROMIUM_PATH:-<none, will fall back>}"
+          for i in 1 2 3 4 5 6; do
+            if node scripts/postgame-report.js "$TARGET" --pdf --write; then
+              echo "built=true" >> "$GITHUB_OUTPUT"; exit 0
+            fi
+            echo "  '$TARGET' not in the seed yet — waiting 120s, then rebuilding ($i/6)"
+            sleep 120
+            node scripts/build-seed.js || true
+          done
+          echo "built=false" >> "$GITHUB_OUTPUT"
+          echo "::error::could not build a report for '$TARGET' (stats never posted in time)"
+          exit 1
 
-      - name: Upload the report (downloadable from this run)
-        if: steps.seed.outputs.changed == 'true'
+      - name: Upload the report artifact
+        if: steps.build.outputs.built == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: gators-postgame-report
@@ -71,8 +98,6 @@ jobs:
           if-no-files-found: warn
           retention-days: 90
 
-      # Optional: email the PDF to yourself. Runs only when a Gmail App Password
-      # secret is configured, so it's a no-op until you opt in (see the PR notes).
       - name: Is email configured?
         id: mail
         env:
@@ -81,11 +106,11 @@ jobs:
           if [ -n "$PW" ]; then echo "enabled=true" >> "$GITHUB_OUTPUT"; else echo "enabled=false" >> "$GITHUB_OUTPUT"; fi
 
       - name: Install deps for emailing
-        if: steps.seed.outputs.changed == 'true' && steps.mail.outputs.enabled == 'true'
+        if: steps.build.outputs.built == 'true' && steps.plan.outputs.email == 'true' && steps.mail.outputs.enabled == 'true'
         run: npm ci
 
-      - name: Email the report to yourself
-        if: steps.seed.outputs.changed == 'true' && steps.mail.outputs.enabled == 'true'
+      - name: Email the report to recipients
+        if: steps.build.outputs.built == 'true' && steps.plan.outputs.email == 'true' && steps.mail.outputs.enabled == 'true'
         env:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
