@@ -794,7 +794,14 @@ function activePlayerLine(json, name, kind) {
     info.balls = (info.pitches != null && info.strikes != null) ? Math.max(0, info.pitches - info.strikes) : null;
   } else {
     const h = p.hitting || {};
-    if (h.ab != null) info.line = n(h.h) + ' - ' + n(h.ab) + ', ' + n(h.rbi) + ' RBI, ' + n(h.so) + ' K';
+    // Keep the H-AB hitting line, but drop RBI/K when they're zero — only surface
+    // the extras a batter actually has.
+    if (h.ab != null) {
+      let s = n(h.h) + ' - ' + n(h.ab);
+      if (n(h.rbi) > 0) s += ', ' + n(h.rbi) + ' RBI';
+      if (n(h.so) > 0) s += ', ' + n(h.so) + ' K';
+      info.line = s;
+    }
   }
   return info;
 }
