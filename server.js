@@ -2461,6 +2461,22 @@ function repPlays(pbp){
   }
   return {scoring,key,mist};
 }
+// Parse a box-score pitching table into ordered {name, dec} rows. The box lists
+// pitchers in the order they appeared, so the first is the starting pitcher; the
+// decision rides in the name cell as a parenthetical the box already tags —
+// "(W)", "(L, 2-3)", "(SV)", "(H)". Header row[0] and any Totals row are skipped.
+function repPitchers(tableHtml){
+  const rows=(tableHtml||'').match(/<tr\b[\s\S]*?<\/tr>/gi)||[];
+  const out=[];
+  for(let i=1;i<rows.length;i++){
+    const cell=(rows[i].match(/<t[dh]\b[\s\S]*?<\/t[dh]>/i)||[''])[0];
+    const raw=bsText(cell).trim();
+    if(!raw||/^totals$/i.test(raw))continue;
+    const m=raw.match(/\(\s*(W|L|SV|S|H|HLD|BS)\b[^)]*\)/i);
+    out.push({name:raw.replace(/\s*\([^)]*\)\s*$/,'').trim(),dec:m?m[1].toUpperCase():null});
+  }
+  return out;
+}
 function reportPage(title,bodyHtml){
   return '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">'
     +'<meta name="viewport" content="width=device-width, initial-scale=1">'
@@ -2473,6 +2489,11 @@ function reportPage(title,bodyHtml){
     +'.rscore{text-align:center;font-size:30px;font-weight:800;margin:10px 0 2px;}'
     +'.rres{display:inline-block;font-weight:800;font-size:13px;letter-spacing:.1em;text-transform:uppercase;padding:3px 10px;border-radius:999px;}'
     +'.rres.w{color:var(--win);background:rgba(123,216,143,.12);}.rres.l{color:var(--loss);background:rgba(224,82,74,.12);}.rres.t{color:var(--mute);background:rgba(154,140,196,.12);}'
+    +'.rdec{text-align:center;font-size:13.5px;color:var(--bone);margin:6px 0 2px;}'
+    +'.rdec .dk{color:var(--mute);font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-right:3px;}'
+    +'.rdec .sep{color:var(--line);margin:0 6px;}'
+    +'.pmeta{font-size:11.5px;color:var(--mute);margin:0 0 6px;}.pmeta b{color:var(--bone);font-weight:600;}'
+    +'.dec{color:var(--gold2);font-weight:700;}'
     +'.rmatch{text-align:center;color:var(--bone);font-size:14px;margin:4px 0 2px;}'
     +'.sec{font-family:Georgia,serif;font-weight:700;font-size:16px;color:var(--gold2);margin:24px 0 8px;border-bottom:1px solid var(--line);padding-bottom:5px;}'
     +'.subh{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);font-weight:700;margin:14px 0 5px;}'
@@ -2502,6 +2523,12 @@ function buildReportHtml(data){
   const box=data.box||[];
   const find=(g,kind)=>box.find(b=>(g?/gator/i.test(b.label):!/gator/i.test(b.label))&&new RegExp(kind,'i').test(b.label));
   const gPit=find(true,'pitching'),oPit=find(false,'pitching'),gBat=find(true,'batting'),oBat=find(false,'batting');
+  const gP=repPitchers(gPit&&gPit.html),oP=repPitchers(oPit&&oPit.html);
+  // Pull the night's decisions (W/L/SV) from both staffs so the GM sees who's on
+  // the hook before scrolling the box. The starter is each table's first row.
+  const allP=gP.map(p=>({name:p.name,dec:p.dec})).concat(oP.map(p=>({name:p.name,dec:p.dec})));
+  const pickDec=codes=>allP.find(p=>codes.indexOf(p.dec)!==-1)||null;
+  const decW=pickDec(['W']),decL=pickDec(['L']),decS=pickDec(['SV','S']);
   const plays=repPlays(data.pbp);
   const gNotes=(gBat&&gBat.notes)||{};
   const tbl=b=>b?('<div class="rtw">'+repStripLinks(b.html)+'</div>'):'';
@@ -2514,13 +2541,21 @@ function buildReportHtml(data){
     h+='<div class="rscore">'+repEsc(gObj.name)+' '+repEsc(gObj.r)+' – '+repEsc(oObj.r)+' '+repEsc(oObj.name)+'</div>';
     h+='<div style="text-align:center;margin-bottom:6px"><span class="rres '+cls+'">'+word+'</span></div>';
   }
+  // Pitching decisions (W / L / SV) — surfaced up top, in the conventional order.
+  const decBits=[];
+  if(decW)decBits.push('<span class="dk">W</span>'+repEsc(decW.name));
+  if(decL)decBits.push('<span class="dk">L</span>'+repEsc(decL.name));
+  if(decS)decBits.push('<span class="dk">SV</span>'+repEsc(decS.name));
+  if(decBits.length)h+='<div class="rdec">'+decBits.join('<span class="sep">·</span>')+'</div>';
   // Line score
   if(data.line)h+='<div class="sec">Final</div><div class="rtw">'+repStripLinks(data.line)+'</div>';
-  // Pitching — every pitcher that threw
+  // Pitching — every pitcher that threw. Name the starter and bullpen depth so
+  // the pitching workload reads at a glance (the box lists them in order pitched).
+  const staffMeta=arr=>arr.length?'<div class="pmeta">Started: <b>'+repEsc(arr[0].name)+'</b>'+(arr.length>1?' · '+(arr.length-1)+' in relief':'')+'</div>':'';
   if(gPit||oPit){
     h+='<div class="sec">Pitching</div>';
-    if(gPit){h+='<div class="subh">'+repEsc((gObj&&gObj.name)||'Gators')+'</div>'+tbl(gPit);}
-    if(oPit){h+='<div class="subh">'+repEsc((oObj&&oObj.name)||'Opponent')+'</div>'+tbl(oPit);}
+    if(gPit){h+='<div class="subh">'+repEsc((gObj&&gObj.name)||'Gators')+'</div>'+staffMeta(gP)+tbl(gPit);}
+    if(oPit){h+='<div class="subh">'+repEsc((oObj&&oObj.name)||'Opponent')+'</div>'+staffMeta(oP)+tbl(oPit);}
   }
   // Batting
   if(gBat||oBat){
