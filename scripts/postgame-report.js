@@ -437,8 +437,6 @@ function buildMarkdown(content, trends) {
   p('## Season'); p('');
   p(`- ${seasonLine}`);
   p('');
-  p(`_Built from the season stats and the game's play-by-play. WHIP = walks + hits per inning. A shutdown inning is a scoreless half-inning thrown right after the Gators scored._`);
-  p('');
   return L.join('\n');
 }
 
@@ -486,7 +484,6 @@ li{position:relative;padding:5.5px 0 5.5px 16px;border-bottom:1px solid #eee;}
 li:last-child{border-bottom:none;}
 li:before{content:'';position:absolute;left:0;top:12px;width:7px;height:7px;border-radius:2px;background:#714ad2;}
 .warn{background:#fff5f5;border:1px solid #f0b8b8;color:#9b2c2c;border-radius:7px;padding:8px 11px;font-family:Arial,sans-serif;font-size:10.5px;font-weight:600;margin:13px 0 0;}
-.foot{margin-top:auto;padding-top:11px;border-top:1px solid #ddd;font-family:Arial,sans-serif;font-size:9px;color:#9a96a8;font-style:italic;}
 </style></head><body>`);
   H.push(`<div class='band'><img src='${S.gatorsLogoDataUri()}'><div><div class='k'>Gumbeaux Gators · Game Report</div><h1>${esc(game.date)} vs ${esc(oppName)}</h1><div class='sub'>${game.home ? 'Home game' : 'Road game'} · Record now ${T.w}–${T.l}</div></div><div class='badge'><div class='r'>${resWord}</div><div class='sc'>${game.gs}–${game.os}</div></div></div>`);
   if (partial) H.push(`<div class='warn'>⚠️ Heads up — tonight's box score is still coming in, so a few details may fill in later.</div>`);
@@ -500,7 +497,6 @@ li:before{content:'';position:absolute;left:0;top:12px;width:7px;height:7px;bord
   H.push(blk('Trends', trends.length ? ul(trends) : ''));
   H.push(blk('Season', `<p>${esc(seasonLine)}</p>`));
   H.push(`</div>`);
-  H.push(`<div class='foot'>Built from the season stats and the game's play-by-play. WHIP = walks + hits per inning. A shutdown inning is a scoreless half-inning thrown right after the Gators scored.</div>`);
   H.push(`</body></html>`);
   return H.join('\n');
 }
