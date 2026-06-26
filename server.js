@@ -2954,7 +2954,7 @@ body.noscroll{overflow:hidden;}
 .shead{display:flex;align-items:center;gap:10px;padding:14px 16px 8px;}
 .sttlwrap{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;}
 .sttl{font-family:'Oswald',sans-serif;font-weight:700;text-transform:uppercase;font-size:14px;letter-spacing:.03em;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.sdate{font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;text-transform:uppercase;color:var(--gold2);letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sdate{font-family:'Oswald',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--gold2);letter-spacing:.14em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .sscore{font-family:'Oswald',sans-serif;font-weight:700;font-size:16px;color:var(--gold2);flex:none;white-space:nowrap;}
 .sclose{margin-left:auto;background:none;border:1px solid var(--line);color:var(--bone);border-radius:10px;width:34px;height:34px;font-size:15px;cursor:pointer;flex:none;}
 .tabs{display:flex;gap:8px;padding:2px 16px 0;}
@@ -3106,7 +3106,7 @@ a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 <button class="a2hsx" id="a2hsx" aria-label="Dismiss">✕</button>
 </div>
 <div class="modal" id="bxModal"><div class="sheet">
-<div class="shead"><div class="sttlwrap"><span class="sttl" id="bxTtl">Box Score</span><span class="sdate" id="bxDate"></span></div><span class="sscore" id="bxScore"></span><button class="sclose" id="bxClose" aria-label="Close">✕</button></div>
+<div class="shead"><div class="sttlwrap"><span class="sdate" id="bxDate"></span><span class="sttl" id="bxTtl">Box Score</span></div><span class="sscore" id="bxScore"></span><button class="sclose" id="bxClose" aria-label="Close">✕</button></div>
 <div class="tabs"><button class="tabb on" id="tabBox">Box Score</button><button class="tabb" id="tabPbp">Play-by-Play</button></div>
 <div class="sbody" id="bxBody"><div class="spin">Loading…</div></div>
 </div></div>
