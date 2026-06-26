@@ -110,6 +110,7 @@ async function getBoxStats() {
       // letters omit balls-in-play (a strike), so the letter-only ratio runs low;
       // use the box's pitch-count column for the denominator instead.
       const np = gatorsPitchesNP(data.box);
+      if (np) stats.np = np;
       if (np && stats._balls != null) stats.strikePct = (np - stats._balls) / np;
       if (stats.firstPitchStrikePct == null && stats.shutdown == null) console.error(`[report] box fetched (${(data.pbp || []).length} pbp halves) but no pitch sequences or line score parsed for ${id}`);
       return { stats, data };
@@ -136,7 +137,7 @@ function halvesFromHtml(html) {
 // halves: top when the Gators are home, bottom when away) plus shutdown innings
 // from the line score. `halves` = [{side:'top'|'bot', html}].
 function computeBoxStats(halves, lineHtml) {
-  const out = { firstPitchStrikePct: null, strikePct: null, threeBall: null, shutdown: null, twoOutWalks: null, threePitchInnings: null };
+  const out = { firstPitchStrikePct: null, strikePct: null, threeBall: null, shutdown: null, twoOutWalks: null, threePitchInnings: null, errors: null };
   const fielding = game.home ? 'top' : 'bot';     // halves the Gators pitched
   const batting = game.home ? 'bot' : 'top';      // halves the Gators hit
   let pa = 0, fpStrike = 0, balls = 0, strikes = 0, threeBall = 0, twoOutWalks = 0, threePitch = 0;
@@ -178,6 +179,7 @@ function computeBoxStats(halves, lineHtml) {
     const gators = grid.find(r => /gator/i.test(r.name));
     const opp = grid.find(r => !/gator/i.test(r.name));
     if (gators && opp) {
+      if (gators.e != null) out.errors = gators.e;
       let sd = 0;
       const N = Math.max(gators.innings.length, opp.innings.length);
       for (let i = 0; i < N; i++) {
@@ -209,7 +211,8 @@ function lineGrid(html) {
       if (c.length < 5) continue;
       const name = c[0]; if (!name || /^final$/i.test(name)) continue;
       const innings = c.slice(1, c.length - 3).map(x => parseInt(x, 10) || 0);
-      teams.push({ name, innings });
+      const r = parseInt(c[c.length - 3], 10) || 0, hh = parseInt(c[c.length - 2], 10) || 0, e = parseInt(c[c.length - 1], 10) || 0;
+      teams.push({ name, innings, r, h: hh, e });
     }
     if (teams.length >= 2) return teams;
   }
@@ -275,6 +278,9 @@ const resultWord = game.win == null ? 'played' : game.win ? 'won' : 'lost';
 function buildGameContent(bat, pit, tb, tp, stats) {
   const gameBB9 = tp.outs ? (tp.bb * 27) / tp.outs : null;
   const partial = tp.outs === 0;   // no pitching logged yet -> incomplete
+  const ip = tp.outs / 3;
+  const pct = x => x == null ? null : Math.round(x * 100) + '%';
+
   const recap = [];
   recap.push(`The Gumbeaux Gators ${resultWord} ${game.gs}–${game.os} ${game.home ? 'at home' : 'on the road'} against ${oppName} on ${game.date}. They are now ${T.w}–${T.l}.`);
   const off = `The offense had ${plural(tb.h, 'hit')} and scored ${plural(game.gs, 'run')}${tb.bb ? `, with ${plural(tb.bb, 'walk')}` : ''}${tb.hr ? ` and ${plural(tb.hr, 'home run')}` : ''}.`;
@@ -282,21 +288,52 @@ function buildGameContent(bat, pit, tb, tp, stats) {
   const pitch = `The pitching staff allowed ${plural(tp.r, 'run')} (${tp.er} earned) over ${ipStr(tp.outs)} innings and issued ${plural(tp.bb, 'walk')}${overPace ? ', above the season pace' : ''}.`;
   recap.push(off + ' ' + pitch);
 
-  const keyFacts = [];
+  // Key hitters: multi-hit games (or the hits leader if none).
+  const keyHitters = [];
   const multiHit = bat.filter(b => b.h >= 2).sort((a, b) => b.h - a.h || b.rbi - a.rbi);
-  multiHit.forEach(b => { const s = BAT_SEASON[b.slug]; keyFacts.push(`${b.meta.name} went ${b.h}-for-${b.ab}${b.rbi ? `, ${b.rbi} RBI` : ''}${b.hr ? `, ${plural(b.hr, 'home run')}` : ''}${s ? ` (batting ${r3(s.avg)} on the season)` : ''}.`); });
-  if (!multiHit.length && tb.h > 0) { const tBat = bat.filter(b => b.h > 0).sort((a, b) => b.h - a.h)[0]; if (tBat) keyFacts.push(`${tBat.meta.name} had ${plural(tBat.h, 'hit')} to lead the offense.`); }
-  const longOuting = [...pit].sort((a, b) => b.outs - a.outs)[0];
-  if (longOuting && longOuting.outs > 0) { const s = PIT_SEASON[longOuting.slug]; keyFacts.push(`${longOuting.meta.name} threw ${longOuting.ipStr} innings (${longOuting.h} H, ${longOuting.r} R, ${longOuting.bb} BB, ${longOuting.k} K)${s ? `, and carries a ${r2(s.era)} ERA` : ''}.`); }
-  if (tp.bb >= 5 && staffBB9 != null) keyFacts.push(`The staff walked ${tp.bb} batters, against a season average of about ${staffBB9.toFixed(1)} per nine innings.`);
-  if (stats && stats.threePitchInnings) keyFacts.push(`The offense had ${plural(stats.threePitchInnings, 'three-pitch inning')} (three outs on three pitches).`);
+  multiHit.forEach(b => { const s = BAT_SEASON[b.slug]; keyHitters.push(`${b.meta.name} went ${b.h}-for-${b.ab}${b.rbi ? `, ${b.rbi} RBI` : ''}${b.hr ? `, ${plural(b.hr, 'home run')}` : ''}${s ? ` (batting ${r3(s.avg)} on the season)` : ''}.`); });
+  if (!multiHit.length && tb.h > 0) { const tBat = bat.filter(b => b.h > 0).sort((a, b) => b.h - a.h)[0]; if (tBat) keyHitters.push(`${tBat.meta.name} had ${plural(tBat.h, 'hit')} to lead the offense.`); }
+
+  // What stood out: derived facts a GM tracks (no recommendations).
+  const analysis = [];
+  const qs = pit.filter(p => p.outs >= 18 && p.er <= 3).sort((a, b) => b.outs - a.outs);
+  qs.forEach(p => { const sl = p.r === 0; analysis.push(`${p.meta.name} turned in a quality start: ${p.ipStr} ${sl ? 'scoreless innings' : 'innings'} on ${plural(p.h, 'hit')}${sl ? '' : `, ${plural(p.er, 'earned run')}`}, with ${plural(p.k, 'strikeout')}.`); });
+  const arms = pit.filter(p => p.outs > 0).length;
+  if (tp.outs > 0 && tp.r === 0 && arms > 1) analysis.push(`The staff combined on a shutout, striking out ${tp.k} against ${plural(tp.bb, 'walk')} (${tp.k}-to-${tp.bb}).`);
+  else if (tp.outs > 0 && tp.k) analysis.push(`The staff struck out ${tp.k} and walked ${plural(tp.bb, 'batter')}${tp.bb ? ` (${(tp.k / tp.bb).toFixed(1)}-to-1)` : ''}.`);
+  if (tb.ab != null) analysis.push(`The offense drew ${plural(tb.bb, 'walk')} against ${plural(tb.k, 'strikeout')} and reached base ${tb.h + tb.bb} times by hit or walk.`);
+  if (stats && stats.threePitchInnings) analysis.push(`The offense had ${plural(stats.threePitchInnings, 'three-pitch inning')} (three outs on three pitches).`);
+  if (tp.bb >= 5 && staffBB9 != null) analysis.push(`The staff issued ${tp.bb} walks, above its season pace of about ${staffBB9.toFixed(1)} per nine.`);
 
   // Every Gators pitcher of the night, in the order they appeared, with his line.
   const pitcherLines = pit.filter(p => p.outs > 0 || p.h || p.bb || p.k).map(p => {
     const s = PIT_SEASON[p.slug];
     return `${p.meta.name} — ${p.ipStr} IP, ${plural(p.h, 'hit')}, ${plural(p.r, 'run')} (${p.er} earned), ${plural(p.bb, 'walk')}, ${plural(p.k, 'strikeout')}${s ? ` (season ${r2(s.era)} ERA)` : ''}.`;
   });
-  return { recap, keyFacts, pitcherLines, gameBB9, partial };
+
+  // GM metric tiles.
+  const offense = [
+    ['AVG', tb.ab ? r3(tb.h / tb.ab) : '—'],
+    ['Hits', String(tb.h)],
+    ['RBI', String(tb.rbi != null ? tb.rbi : '—')],
+    ['Walks', String(tb.bb)],
+    ['Strikeouts', String(tb.k)],
+  ];
+  const whip = ip ? (tp.bb + tp.h) / ip : null;
+  const pitching = [['Strikeouts', String(tp.k)]];
+  if (whip != null) pitching.push(['WHIP', whip.toFixed(2)]);
+  if (stats && stats.np && ip) pitching.push(['Pitches/Inn', (stats.np / ip).toFixed(1)]);
+  if (stats && stats.firstPitchStrikePct != null) pitching.push(['1st-Pitch K', pct(stats.firstPitchStrikePct)]);
+  if (stats && stats.strikePct != null) pitching.push(['Strike %', pct(stats.strikePct)]);
+  const command = [];
+  if (stats) {
+    if (stats.threeBall != null) command.push(['Three-ball counts', String(stats.threeBall)]);
+    if (stats.twoOutWalks != null) command.push(['Two-out walks', String(stats.twoOutWalks)]);
+    if (stats.shutdown != null) command.push(['Shutdown innings', String(stats.shutdown)]);
+    if (stats.errors != null) command.push(['Errors', String(stats.errors)]);
+  }
+  const gm = { offense, pitching, command };
+  return { recap, keyHitters, analysis, pitcherLines, gm, gameBB9, partial };
 }
 
 // Build the trend lines. The seed's last-5 average lags the game just played
@@ -318,26 +355,13 @@ function buildTrends(bat) {
 
 const seasonLine = `Record ${T.w}–${T.l}, ${SEASON.diff >= 0 ? '+' : ''}${SEASON.diff} run differential, ${SEASON.last10} over the last 10 games.`;
 
-// Pitching-detail facts, filled from the box score when available.
-function pitchingFacts(box) {
-  const f = [];
-  if (!box) return f;
-  const pct = x => Math.round(x * 100) + '%';
-  if (box.firstPitchStrikePct != null) f.push(`First-pitch strikes: ${pct(box.firstPitchStrikePct)} (${box._fp.fpStrike} of ${box._fp.pa}).`);
-  if (box.strikePct != null) f.push(`Strike percentage: ${pct(box.strikePct)}.`);
-  if (box.threeBall != null) f.push(`Three-ball counts: ${box.threeBall}.`);
-  if (box.twoOutWalks != null) f.push(`Two-out walks issued: ${box.twoOutWalks}.`);
-  if (box.shutdown != null) f.push(`Shutdown innings: ${box.shutdown}.`);
-  return f;
-}
-
 // ===========================================================================
 // Render (markdown + branded PDF). Wrapped so the box-score fetch can finish.
 // ===========================================================================
 const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-function buildMarkdown(content, pitchFacts, trends) {
-  const { recap, keyFacts, pitcherLines, partial } = content;
+function buildMarkdown(content, trends) {
+  const { recap, keyHitters, analysis, pitcherLines, gm, partial } = content;
   const L = []; const p = s => L.push(s);
   p(`# Gators Game Report — ${game.date}, 2026`);
   p('');
@@ -346,64 +370,83 @@ function buildMarkdown(content, pitchFacts, trends) {
   if (partial) { p('> Heads up: tonight\'s box score is still coming in, so a few details may fill in later.'); p(''); }
   p('## Recap'); p('');
   recap.forEach(s => { p(s); p(''); });
-  p('## Key Facts'); p('');
-  keyFacts.forEach(t => p(`- ${t}`));
-  p('');
-  if (pitcherLines && pitcherLines.length) { p('## Pitching'); p(''); pitcherLines.forEach(t => p(`- ${t}`)); p(''); }
-  if (pitchFacts.length) { p('## Pitching Detail'); p(''); pitchFacts.forEach(t => p(`- ${t}`)); p(''); }
+  const strip = (label, arr) => { if (arr && arr.length) { p(`**${label}:** ` + arr.map(([k, v]) => `${k} ${v}`).join(' · ')); p(''); } };
+  strip('Offense', gm.offense);
+  strip('Pitching', gm.pitching);
+  if (analysis.length) { p('## What Stood Out'); p(''); analysis.forEach(t => p(`- ${t}`)); p(''); }
+  if (keyHitters.length) { p('## Key Hitters'); p(''); keyHitters.forEach(t => p(`- ${t}`)); p(''); }
+  if (pitcherLines.length) { p('## Pitching'); p(''); pitcherLines.forEach(t => p(`- ${t}`)); p(''); }
+  if (gm.command.length) { p('## Command & Defense'); p(''); p(gm.command.map(([k, v]) => `${k} ${v}`).join(' · ')); p(''); }
   p('## Trends'); p('');
   trends.forEach(t => p(`- ${t}`));
   p('');
   p('## Season'); p('');
   p(`- ${seasonLine}`);
   p('');
-  p(`_Built from the season stats and the game's play-by-play. “Last 5 games” is a player's batting average over his five most recent games. A shutdown inning is a scoreless half-inning thrown right after the Gators scored._`);
+  p(`_Built from the season stats and the game's play-by-play. WHIP = walks + hits per inning. A shutdown inning is a scoreless half-inning thrown right after the Gators scored._`);
   p('');
   return L.join('\n');
 }
 
-function buildHtml(content, pitchFacts, trends) {
-  const { recap, keyFacts, pitcherLines, partial } = content;
+function buildHtml(content, trends) {
+  const { recap, keyHitters, analysis, pitcherLines, gm, partial } = content;
   const win = game.win;
   const resColor = win == null ? '#714ad2' : win ? '#1f9d57' : '#c0392b';
   const resWord = win == null ? 'PLAYED' : win ? 'WIN' : 'LOSS';
   const croc = S.crocSkinDataUri();   // purple croc-skin texture from the website
-  const section = (title, items) => items.length ? `<h2>${esc(title)}</h2><ul class='facts'>${items.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : '';
+  const ul = items => `<ul>${items.map(t => `<li>${esc(t)}</li>`).join('')}</ul>`;
+  const tiles = arr => `<div class='tiles'>${arr.map(([k, v]) => `<div class='st'><b>${esc(v)}</b><span>${esc(k)}</span></div>`).join('')}</div>`;
+  const strip = (label, arr) => arr && arr.length ? `<div class='strip'><div class='slab'>${esc(label)}</div>${tiles(arr)}</div>` : '';
+  const blk = (title, inner) => inner ? `<div class='blk'><h2>${esc(title)}</h2>${inner}</div>` : '';
   const H = [];
   H.push(`<!doctype html><html><head><meta charset='utf-8'><style>
-@page{size:letter;margin:0.6in 0.7in;}
+@page{size:letter;margin:0;}
 *{box-sizing:border-box;margin:0;padding:0;}
 html{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-body{font-family:Georgia,'Times New Roman',serif;color:#1b1e27;font-size:12.5px;line-height:1.5;font-weight:500;}
-.band{display:flex;align-items:center;gap:14px;color:#fff;padding:16px 18px;border-radius:11px;border:2px solid #ecc913;
-background:linear-gradient(rgba(22,16,43,.12),rgba(22,16,43,.34))${croc ? `,url('${croc}') center center / cover no-repeat` : ''};
-background-color:#3a2480;box-shadow:0 3px 10px rgba(22,16,43,.35),inset 0 0 0 1px rgba(255,255,255,.08);}
+body{font-family:Georgia,'Times New Roman',serif;color:#1b1e27;font-size:11.5px;line-height:1.46;padding:26px 30px;}
+.band{display:flex;align-items:center;gap:14px;color:#fff;padding:15px 18px;border-radius:11px;border:2px solid #ecc913;
+background:linear-gradient(rgba(22,16,43,.1),rgba(22,16,43,.32))${croc ? `,url('${croc}') center center / cover no-repeat` : ''};
+background-color:#3a2480;box-shadow:0 4px 12px rgba(58,36,128,.28),inset 0 0 0 1px rgba(255,255,255,.08);}
 .band img{width:54px;height:54px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.6));}
-.k{font-family:'Helvetica Neue',Arial,sans-serif;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:#ffd633;font-weight:800;text-shadow:0 1px 3px rgba(0,0,0,.55);}
-.band h1{font-family:'Helvetica Neue',Arial,sans-serif;font-size:23px;font-weight:900;line-height:1.12;margin:1px 0;text-shadow:0 2px 5px rgba(0,0,0,.6);}
-.band .sub{font-family:Arial,sans-serif;font-size:12px;font-weight:700;color:#f1e9ff;text-shadow:0 1px 3px rgba(0,0,0,.55);}
+.k{font-family:'Helvetica Neue',Arial,sans-serif;font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:#ffd633;font-weight:800;text-shadow:0 1px 2px rgba(0,0,0,.5);}
+.band h1{font-family:'Helvetica Neue',Arial,sans-serif;font-size:23px;font-weight:900;line-height:1.1;margin:1px 0;text-shadow:0 2px 4px rgba(0,0,0,.55);}
+.band .sub{font-family:Arial,sans-serif;font-size:11px;font-weight:700;color:#efe7ff;text-shadow:0 1px 2px rgba(0,0,0,.5);}
 .badge{margin-left:auto;text-align:center;font-family:'Helvetica Neue',Arial,sans-serif;}
-.badge .r{display:inline-block;background:${resColor};color:#fff;font-weight:900;font-size:16px;letter-spacing:.05em;padding:6px 16px;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,.45);}
-.badge .sc{font-size:16px;color:#fff;margin-top:5px;font-weight:800;text-shadow:0 1px 3px rgba(0,0,0,.55);}
-h2{font-family:'Helvetica Neue',Arial,sans-serif;font-size:13px;text-transform:uppercase;letter-spacing:.09em;color:#43258f;font-weight:800;border-bottom:2px solid #ecc913;padding-bottom:3px;margin:13px 0 7px;}
-p{margin:7px 0;}
-.lead p{font-size:13px;font-weight:600;color:#16181f;}
-ul.facts{list-style:none;}
-ul.facts li{position:relative;padding:4.5px 0 4.5px 24px;border-bottom:1px solid #e6e6e6;font-weight:600;color:#1b1e27;}
-ul.facts li:last-child{border-bottom:none;}
-ul.facts li:before{content:'';position:absolute;left:3px;top:12px;width:9px;height:9px;border-radius:2px;background:#714ad2;}
-.warn{background:#fff5f5;border:1px solid #f0b8b8;color:#9b2c2c;border-radius:7px;padding:8px 11px;font-family:Arial,sans-serif;font-size:10.5px;font-weight:600;margin:10px 0;}
-.foot{margin-top:12px;border-top:1px solid #ddd;padding-top:7px;font-family:Arial,sans-serif;font-size:9px;color:#8a8a93;font-style:italic;}
+.badge .r{display:inline-block;background:${resColor};color:#fff;font-weight:900;font-size:14px;letter-spacing:.04em;padding:4px 15px;border-radius:6px;box-shadow:0 2px 5px rgba(0,0,0,.4);}
+.badge .sc{font-size:21px;color:#fff;margin-top:3px;font-weight:900;text-shadow:0 2px 4px rgba(0,0,0,.5);}
+.strips{display:flex;gap:10px;margin-top:13px;}
+.strip{flex:1;}
+.slab{font-family:'Helvetica Neue',Arial,sans-serif;font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#fff;background:linear-gradient(180deg,#714ad2,#4e3191);padding:4px 10px;border-radius:6px 6px 0 0;}
+.tiles{display:flex;border:1px solid #e6def7;border-top:none;border-radius:0 0 6px 6px;overflow:hidden;}
+.st{flex:1;text-align:center;padding:6px 2px;background:#f7f4fd;border-right:1px solid #e6def7;}
+.st:last-child{border-right:none;}
+.st b{display:block;font-family:'Helvetica Neue',Arial,sans-serif;font-size:15px;color:#3a2480;}
+.st span{font-family:Arial,sans-serif;font-size:7px;text-transform:uppercase;letter-spacing:.02em;color:#6b5ba0;font-weight:700;}
+.cols{column-count:2;column-gap:22px;margin-top:14px;}
+.blk{break-inside:avoid;margin-bottom:12px;}
+.blk .tiles{border-top:1px solid #e6def7;border-radius:6px;}
+h2{font-family:'Helvetica Neue',Arial,sans-serif;font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:#43258f;font-weight:800;border-bottom:2px solid #ecc913;padding-bottom:3px;margin-bottom:6px;}
+p{margin:4px 0;}
+ul{list-style:none;}
+li{position:relative;padding:3.5px 0 3.5px 14px;border-bottom:1px solid #eee;}
+li:last-child{border-bottom:none;}
+li:before{content:'';position:absolute;left:0;top:9px;width:6px;height:6px;border-radius:2px;background:#714ad2;}
+.warn{background:#fff5f5;border:1px solid #f0b8b8;color:#9b2c2c;border-radius:7px;padding:7px 10px;font-family:Arial,sans-serif;font-size:10px;font-weight:600;margin:11px 0 0;}
+.foot{margin-top:8px;font-family:Arial,sans-serif;font-size:8.5px;color:#9a96a8;font-style:italic;}
 </style></head><body>`);
   H.push(`<div class='band'><img src='${S.gatorsLogoDataUri()}'><div><div class='k'>Gumbeaux Gators · Game Report</div><h1>${esc(game.date)} vs ${esc(oppName)}</h1><div class='sub'>${game.home ? 'Home game' : 'Road game'} · Record now ${T.w}–${T.l}</div></div><div class='badge'><div class='r'>${resWord}</div><div class='sc'>${game.gs}–${game.os}</div></div></div>`);
   if (partial) H.push(`<div class='warn'>⚠️ Heads up — tonight's box score is still coming in, so a few details may fill in later.</div>`);
-  H.push(`<h2>Recap</h2><div class='lead'>${recap.map(s => `<p>${esc(s)}</p>`).join('')}</div>`);
-  H.push(section('Key Facts', keyFacts));
-  H.push(section('Pitching', pitcherLines || []));
-  H.push(section('Pitching Detail', pitchFacts));
-  H.push(section('Trends', trends));
-  H.push(section('Season', [seasonLine]));
-  H.push(`<div class='foot'>Built from the season stats and the game's play-by-play. “Last 5 games” is a player's batting average over his five most recent games. A shutdown inning is a scoreless half-inning thrown right after the Gators scored.</div>`);
+  H.push(`<div class='strips'>${strip('Offense', gm.offense)}${strip('Pitching', gm.pitching)}</div>`);
+  H.push(`<div class='cols'>`);
+  H.push(blk('Recap', recap.map(s => `<p>${esc(s)}</p>`).join('')));
+  H.push(blk('What Stood Out', analysis.length ? ul(analysis) : ''));
+  H.push(blk('Key Hitters', keyHitters.length ? ul(keyHitters) : ''));
+  H.push(blk('Pitching', pitcherLines.length ? ul(pitcherLines) : ''));
+  H.push(blk('Command & Defense', gm.command.length ? tiles(gm.command) : ''));
+  H.push(blk('Trends', trends.length ? ul(trends) : ''));
+  H.push(blk('Season', `<p>${esc(seasonLine)}</p>`));
+  H.push(`</div>`);
+  H.push(`<div class='foot'>Built from the season stats and the game's play-by-play. WHIP = walks + hits per inning. A shutdown inning is a scoreless half-inning thrown right after the Gators scored.</div>`);
   H.push(`</body></html>`);
   return H.join('\n');
 }
@@ -460,13 +503,12 @@ async function main() {
     process.exit(2);
   }
   const content = buildGameContent(bat, pit, tb, tp, stats);
-  const pitchFacts = pitchingFacts(stats);
   const trends = buildTrends(bat);
-  const md = buildMarkdown(content, pitchFacts, trends);
+  const md = buildMarkdown(content, trends);
 
   if (PDF || HTML) {
     ensureDir();
-    const html = buildHtml(content, pitchFacts, trends);
+    const html = buildHtml(content, trends);
     if (HTML) { const hf = path.join(outDir, `${stem}.html`); fs.writeFileSync(hf, html); console.error('wrote', path.relative(path.join(__dirname, '..'), hf)); }
     if (PDF) { const out = path.join(outDir, `${stem}.pdf`); if (renderPdf(html, out)) console.log('wrote', path.relative(path.join(__dirname, '..'), out)); }
   }
