@@ -904,8 +904,13 @@ async function fetchLiveForGame(boxscoreId, wantRaw) {
   out.feed = { url: feed.url, ok: feed.ok, status: feed.status, contentType: feed.contentType, length: feed.length, parseError: feed.parseError, head: feed.json ? undefined : feed.head };
   if (feed.json) {
     out.live = summarizeLive(feed.json); out.teams = teamLineScores(feed.json); out.plays = summarizePlays(feed.json); out.lineups = lineupsFromFeed(feed.json); out.pitchers = pitchersFromFeed(feed.json); out.feedSource = feed.json.source;
-    // Show the batter's earlier at-bats this game on the live at-bat card.
-    if (out.live && out.live.batterInfo && out.live.batter) out.live.batterInfo.prev = batterPriorPAs(out.plays, out.live.batter);
+    // Show the batter's earlier at-bats this game on the live at-bat card; on his
+    // FIRST plate appearance (no prior PAs) there's no game line yet, so swap in
+    // his school/class + season AVG/RBI/(HR|SB|H) instead.
+    if (out.live && out.live.batterInfo && out.live.batter) {
+      out.live.batterInfo.prev = batterPriorPAs(out.plays, out.live.batter);
+      if (!out.live.batterInfo.prev.length) Object.assign(out.live.batterInfo, firstAbStats(out.live.batter));
+    }
     // Make the current pitcher's pitch count climb pitch-by-pitch (the feed's
     // cumulative only updates at each at-bat's end).
     if (out.live && out.pitchers) applyLivePitchCount(boxscoreId, out.live, out.pitchers);
@@ -1552,6 +1557,63 @@ function effectiveHitRanks(slug, hit, ownRanks) {
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let rosterStats = {};       // slug -> light { kind, hit, pit, hitRanks, pitRanks } for cards
+
+// ----- league batter bios + stats (for the live "1st AB" card) ---------------
+// On a batter's first plate appearance we have no this-game line, so we show his
+// school, class, and season AVG/RBI/(HR|SB|H) instead. Bios for every TCL player
+// come from the committed gameday-roster dataset; season stats come from our own
+// roster cache (Gators) or the league hitting leaderboard (opponents).
+let LEAGUE_BIO = {};  // normName -> { t:team, s:school, c:class }
+try { LEAGUE_BIO = JSON.parse(fs.readFileSync(__dirname + '/league-roster.json', 'utf8')); } catch (e) {}
+// Match the normalizer used to build league-roster.json: "Last, First" -> "first
+// last", drop suffixes/punctuation, lowercase, collapse spaces.
+function normPlayerName(n) {
+  let s = String(n || '').replace(/’/g, "'").trim();
+  if (s.includes(',')) { const p = s.split(','); s = (p[1] + ' ' + p[0]).trim(); }
+  return s.toLowerCase().replace(/\b(jr|sr|ii|iii|iv)\b/g, '').replace(/[^a-z\s]/g, '').replace(/\s+/g, ' ').trim();
+}
+const GATOR_BY_NORM = {}; for (const p of ROSTER) GATOR_BY_NORM[normPlayerName(p.name)] = p;
+let leagueHitterStats = {};  // normName -> { avg, hr, rbi, h } for every league hitter
+// Like parseLeagueStats but keeps ALL teams, keyed by normalized player name, so
+// an opponent batter's season line can be shown on his first at-bat.
+function parseAllLeagueHitters(html) {
+  const tables = (html || '').match(/<table\b[\s\S]*?<\/table>/gi) || [];
+  let tbl = null, head = null;
+  for (const t of tables) { const rows = rowsOf(t); if (rows.length < 2) continue; const hd = cellsOf(rows[0]).map(x => bsText(x).split(/\s+/)[0].toLowerCase()); if (hd.indexOf('team') === -1) continue; tbl = t; head = hd; break; }
+  if (!tbl || head.indexOf('avg') === -1) return {};
+  const rows = rowsOf(tbl); const out = {};
+  for (let i = 1; i < rows.length; i++) {
+    const c = cellsOf(rows[i]); if (c.length < 4) continue;
+    const name = firstLink(c[1]).text; if (!name) continue;
+    const o = {}; for (let k = 3; k < c.length && k < head.length; k++) { if (head[k]) o[head[k]] = bsText(c[k]); }
+    out[normPlayerName(name)] = { avg: o.avg, hr: o.hr, rbi: o.rbi, h: o.h };
+  }
+  return out;
+}
+// Build the first-at-bat enrichment (bio + 3 season stats) for a batter by name.
+// Third stat is HR, else SB (Gators only — the league leaderboard omits SB), else
+// Hits. Returns { firstAB:true } with whatever data we have; absent -> just "1st AB".
+function firstAbStats(name) {
+  const key = normPlayerName(name);
+  let bio = null, hit = null;
+  const g = GATOR_BY_NORM[key];
+  if (g) { bio = { school: g.school, cls: g.cls }; const s = rosterStats[g.slug]; hit = (s && s.hit) || null; }
+  else { const b = LEAGUE_BIO[key]; if (b) bio = { school: b.s, cls: b.c }; hit = leagueHitterStats[key] || null; }
+  const N = v => { const n = Number(v); return isFinite(n) ? n : 0; };
+  const has = v => v != null && v !== '' && v !== '-';
+  const line = [];
+  if (hit) {
+    if (has(hit.avg)) line.push(['AVG', String(hit.avg)]);
+    if (has(hit.rbi)) line.push(['RBI', String(N(hit.rbi))]);
+    let third = null;
+    if (N(hit.hr) > 0) third = ['HR', String(N(hit.hr))];
+    else if (N(hit.sb) > 0) third = ['SB', String(N(hit.sb))];
+    else if (has(hit.h)) third = ['H', String(N(hit.h))];
+    if (third) line.push(third);
+  }
+  const bioStr = bio ? [bio.school, bio.cls].filter(Boolean).join(' · ') : '';
+  return { firstAB: true, bio: bioStr || null, seasonLine: line.length ? line : null };
+}
 const playerCache = {};     // slug -> full { ...light, glBat, glPit, ts } for profiles
 let rosterUpdated = 0;
 let rosterPolling = false;
@@ -1656,6 +1718,7 @@ async function pollRoster() {
       const [hRes, pRes] = await Promise.all([fetchText(leagueStatsUrl('h')), fetchText(leagueStatsUrl('p'))]);
       batMap = parseLeagueStats(hRes.body, 'h'); pitMap = parseLeagueStats(pRes.body, 'p');
       const lr = computeLeagueHitRanks(hRes.body); if (Object.keys(lr).length) leagueHitRanks = lr;
+      const lh = parseAllLeagueHitters(hRes.body); if (Object.keys(lh).length) leagueHitterStats = lh; // opponents' season lines for the live 1st-AB card
     } catch (e) {}
     // Fast seed: the league hitting + pitching pages cover most of the roster in
     // just two fetches, so cards show stats almost immediately. The per-player
@@ -2927,6 +2990,10 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .mprev{display:flex;flex-wrap:wrap;gap:3px 12px;margin-top:6px;padding-top:6px;border-top:1px solid var(--line);}
 .mpa{font-size:11px;color:var(--mute);line-height:1.3;}
 .mpa b{color:var(--bone);font-weight:600;font-family:'JetBrains Mono',monospace;font-size:10px;margin-right:3px;}
+.mfirst{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-top:4px;}
+.mfb{font-family:'Oswald',sans-serif;font-weight:700;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--bayou);background:var(--gold2);border-radius:5px;padding:1px 7px;}
+.mfbio{font-size:11px;color:var(--mute);}
+.mfk{color:var(--mute);font-size:9px;letter-spacing:.04em;margin-right:1px;}
 .mvs{text-align:center;font-family:'Oswald',sans-serif;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin:1px 0;}
 .finalcard{display:flex;flex-direction:column;align-items:center;gap:13px;padding:6px 0 2px;}
 .finalbtns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;}
@@ -3381,6 +3448,15 @@ function buildLineScore(g){
 }
 function matchupCard(role,info){
   var meta=[];if(info.pos)meta.push(esc(info.pos));if(info.uni)meta.push('#'+esc(String(info.uni)));
+  var head='<div class="mrole">'+role+'</div><div class="mname">'+esc(info.name)+(meta.length?'<span class="mmeta">'+meta.join(' ')+'</span>':'')+'</div>';
+  // First plate appearance of the game: no game line yet, so show "1st AB" plus
+  // the batter's school/class and season AVG/RBI/(HR|SB|H). If we have no data on
+  // him at all, the card just states it's his first at-bat.
+  if(info.firstAB){
+    var fb='<div class="mfirst"><span class="mfb">1st AB</span>'+(info.bio?'<span class="mfbio">'+esc(info.bio)+'</span>':'')+'</div>';
+    var sl=(info.seasonLine&&info.seasonLine.length)?'<div class="mstat">'+info.seasonLine.map(function(s){return '<span class="mfk">'+esc(s[0])+'</span> '+esc(s[1]);}).join('   ')+'</div>':'';
+    return '<div class="mcard">'+head+fb+sl+'</div>';
+  }
   var stat=info.line?esc(info.line):'';
   if(info.pitches!=null){
     var pc=esc(String(info.pitches))+' P';
@@ -3390,9 +3466,7 @@ function matchupCard(role,info){
   var prev='';
   if(info.prev&&info.prev.length)prev='<div class="mprev">'+info.prev.map(function(x){
     return '<span class="mpa"><b>'+esc(x.inn)+'</b> '+esc(x.res)+'</span>';}).join('')+'</div>';
-  return '<div class="mcard"><div class="mrole">'+role+'</div>'+
-    '<div class="mname">'+esc(info.name)+(meta.length?'<span class="mmeta">'+meta.join(' ')+'</span>':'')+'</div>'+
-    (stat?'<div class="mstat">'+stat+'</div>':'')+prev+'</div>';
+  return '<div class="mcard">'+head+(stat?'<div class="mstat">'+stat+'</div>':'')+prev+'</div>';
 }
 // Map a lineup player name to a roster slug (Gators only), so lineup names can
 // open the player profile the same way box-score names do. Built lazily from
