@@ -1133,6 +1133,48 @@ function finalAnchorMs(g) {
 function finalIsFresh(g, nowMs) {
   return nowMs - finalAnchorMs(g) < FINAL_WINDOW_MS;
 }
+
+// ---- instant post-game report trigger --------------------------------------
+// When a Gators game first goes final, ping GitHub's repository_dispatch so the
+// Actions workflow rebuilds the seed, renders the branded one-page PDF, and
+// emails it to the recipients — within a couple minutes of the last out. The PDF
+// can't be rendered here (no Chromium on the host), so GitHub does it. Personal
+// delivery only; nothing is served on the website. Configure on the server with
+// GH_DISPATCH_TOKEN (a GitHub token with repo "contents: write"); without it the
+// trigger is simply off.
+const GH_DISPATCH_TOKEN = process.env.GH_DISPATCH_TOKEN || '';
+const GH_DISPATCH_REPO  = process.env.GH_DISPATCH_REPO  || 'LeBrennon/Gators';
+const DISPATCH_SENT_FILE = (process.env.CACHE_DIR || '.') + '/report-dispatched.json';
+const reportDispatched = new Set();
+let reportDispatchSeeded = false;
+(function loadReportDispatched() {
+  try { const a = JSON.parse(fs.readFileSync(DISPATCH_SENT_FILE, 'utf8')); if (Array.isArray(a)) a.forEach(id => reportDispatched.add(id)); } catch (e) {}
+  reportDispatchSeeded = reportDispatched.size > 0;
+})();
+function saveReportDispatched() { try { fs.writeFileSync(DISPATCH_SENT_FILE, JSON.stringify([...reportDispatched])); } catch (e) {} }
+function isGatorsGame(g) {
+  return !!(g && (g.isGators || (g.home && g.home.id === GATORS_ID) || (g.away && g.away.id === GATORS_ID)));
+}
+async function dispatchFinalReport() {
+  const finals = (games || []).filter(g => g.state === 'final' && isGatorsGame(g));
+  // First poll after a (re)start: mark every already-final game as handled so a
+  // restart never re-fires reports for the back catalogue.
+  if (!reportDispatchSeeded) { finals.forEach(g => reportDispatched.add(g.id)); reportDispatchSeeded = true; saveReportDispatched(); return; }
+  if (!GH_DISPATCH_TOKEN) return;   // trigger not configured — instant email path is off
+  for (const g of finals) {
+    if (reportDispatched.has(g.id)) continue;
+    try {
+      const res = await fetch('https://api.github.com/repos/' + GH_DISPATCH_REPO + '/dispatches', {
+        method: 'POST',
+        headers: { authorization: 'Bearer ' + GH_DISPATCH_TOKEN, accept: 'application/vnd.github+json',
+          'content-type': 'application/json', 'user-agent': 'gators-report' },
+        body: JSON.stringify({ event_type: 'gators-final', client_payload: { id: g.id } }),
+      });
+      if (res.ok || res.status === 204) { reportDispatched.add(g.id); saveReportDispatched(); process.stdout.write('\n[report] triggered build for ' + g.id + '\n'); }
+      else process.stdout.write('\n[report] trigger failed ' + res.status + ' for ' + g.id + '\n');
+    } catch (e) { /* retry next poll */ }
+  }
+}
 // Detect a finished game straight from the live feed, before PrestoSports flips
 // its "complete" flag or the schedule text says "Final" (both lag): three outs
 // in the final scheduled inning (or later) with a team ahead means it's over.
@@ -1204,6 +1246,7 @@ async function pollSchedule() {
       const date = (featured && featured.date) || todayCentralYmd();
       await refreshLeagueLiveScores(parseLeagueScoreboard(lastHtml, date), featured && featured.id);
     } catch (e) { /* board still works from schedule scores */ }
+    try { await dispatchFinalReport(); } catch (e) { /* report trigger is best-effort */ }
   } catch (err) { process.stdout.write('\r[poll error] ' + err.message + '        '); }
 }
 // For a live game, pull the league's live feed for the at-bat situation

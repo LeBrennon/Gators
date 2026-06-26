@@ -1,23 +1,35 @@
-name: Refresh roster seed
+name: Refresh seed + post-game report
 
-# Rebuilds the committed warm-boot snapshot (roster-seed.json) from the live
-# deploy so a fresh deploy's first paint shows recent stats. Runs daily and can
-# be triggered manually. The running site always shows live stats regardless —
-# this only affects the brief first-paint window right after a deploy. Stats
-# change on game days (every day but Monday); the "commit only if changed" step
-# below means the off-day run is a no-op, so it only acts when stats moved.
+# Runs three ways:
+#   • schedule (daily 07:00 UTC ≈ 2am Central) — rebuild + commit the warm-boot
+#     seed (roster-seed.json) and upload a fresh report artifact. No email.
+#   • repository_dispatch (type: gators-final) — fired by the live server within
+#     seconds of the last out. Builds the branded PDF for the just-finished game
+#     and EMAILS it to the recipients. This is the "as soon as the last out" path.
+#   • workflow_dispatch — manual run from the Actions tab (also emails), optionally
+#     for a specific box id.
+#
+# The report is a PERSONAL artifact — reports/postgame/ is gitignored, so it ships
+# as a build artifact and by email; it is never committed and never on the website.
 
 on:
   schedule:
-    - cron: '0 7 * * *'   # daily 07:00 UTC (~2am Central, after the nightly stats poll)
-  workflow_dispatch: {}    # allow manual runs from the Actions tab
+    - cron: '0 7 * * *'
+  repository_dispatch:
+    types: [gators-final]
+  workflow_dispatch:
+    inputs:
+      game_id:
+        description: 'Box id (YYYYMMDD_xxxx) to report; blank = latest final'
+        required: false
+        default: ''
 
 permissions:
-  contents: write          # let the default token commit the refreshed seed
+  contents: write
 
 concurrency:
   group: refresh-seed
-  cancel-in-progress: true
+  cancel-in-progress: false   # let a game-final build finish even if the cron overlaps
 
 jobs:
   refresh:
@@ -29,10 +41,25 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Rebuild seed from the live deploy
-        run: node scripts/build-seed.js
+      - name: Resolve target game + whether to email
+        id: plan
+        run: |
+          GID="${{ github.event.client_payload.id }}"
+          [ -z "$GID" ] && GID="${{ github.event.inputs.game_id }}"
+          echo "game_id=$GID" >> "$GITHUB_OUTPUT"
+          # Scheduled runs refresh the seed but don't email (avoids a 2am duplicate
+          # of the instant game-final email); dispatch and manual runs email.
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "email=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "email=true"  >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Commit if the seed changed
+      - name: Rebuild seed from the live deploy
+        run: node scripts/build-seed.js || true
+
+      - name: Commit the refreshed seed (scheduled run only)
+        if: github.event_name == 'schedule'
         run: |
           if git diff --quiet -- roster-seed.json; then
             echo "roster-seed.json unchanged — nothing to commit"
@@ -43,3 +70,49 @@ jobs:
             git commit -m "Auto-refresh roster-seed.json"
             git push
           fi
+
+      - name: Build the post-game report (waits for stats to post)
+        id: build
+        run: |
+          export CHROMIUM_PATH="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
+          TARGET="${{ steps.plan.outputs.game_id }}"; [ -z "$TARGET" ] && TARGET="latest"
+          echo "target=$TARGET  chromium=${CHROMIUM_PATH:-<none, will fall back>}"
+          for i in 1 2 3 4 5 6; do
+            if node scripts/postgame-report.js "$TARGET" --pdf --write; then
+              echo "built=true" >> "$GITHUB_OUTPUT"; exit 0
+            fi
+            echo "  '$TARGET' not in the seed yet — waiting 120s, then rebuilding ($i/6)"
+            sleep 120
+            node scripts/build-seed.js || true
+          done
+          echo "built=false" >> "$GITHUB_OUTPUT"
+          echo "::error::could not build a report for '$TARGET' (stats never posted in time)"
+          exit 1
+
+      - name: Upload the report artifact
+        if: steps.build.outputs.built == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: gators-postgame-report
+          path: reports/postgame/
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Is email configured?
+        id: mail
+        env:
+          PW: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: |
+          if [ -n "$PW" ]; then echo "enabled=true" >> "$GITHUB_OUTPUT"; else echo "enabled=false" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Install deps for emailing
+        if: steps.build.outputs.built == 'true' && steps.plan.outputs.email == 'true' && steps.mail.outputs.enabled == 'true'
+        run: npm ci
+
+      - name: Email the report to recipients
+        if: steps.build.outputs.built == 'true' && steps.plan.outputs.email == 'true' && steps.mail.outputs.enabled == 'true'
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          REPORT_TO: ${{ secrets.REPORT_TO }}
+        run: node scripts/email-report.js
