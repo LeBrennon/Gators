@@ -32,19 +32,13 @@ if (!game) { console.error(`No game found for "${target}". Try 'latest', a date 
 
 const BAT_SEASON = S.indexBySlug(S.batters());
 const PIT_SEASON = S.indexBySlug(S.pitchers());
-const bat = S.gameBatting(game.id);
-const pit = S.gamePitching(game.id);
 const T = S.teamSummary(game.id);
 const SEASON = S.teamSummary();
 
-const tb = bat.reduce((a, b) => ({ ab: a.ab + b.ab, h: a.h + b.h, hr: a.hr + b.hr, rbi: a.rbi + b.rbi, bb: a.bb + b.bb, k: a.k + b.k }), { ab: 0, h: 0, hr: 0, rbi: 0, bb: 0, k: 0 });
-const tp = pit.reduce((a, p) => ({ outs: a.outs + p.outs, h: a.h + p.h, r: a.r + p.r, er: a.er + p.er, bb: a.bb + p.bb, k: a.k + p.k }), { outs: 0, h: 0, r: 0, er: 0, bb: 0, k: 0 });
-
+// Season-wide staff walk rate (baseline for the recap's command note).
 const staffIP = S.pitchers().reduce((a, x) => a + x.outs, 0) / 3;
 const staffBB = S.pitchers().reduce((a, x) => a + x.bb, 0);
 const staffBB9 = staffIP ? (staffBB * 9) / staffIP : null;
-const gameBB9 = tp.outs ? (tp.bb * 27) / tp.outs : null;
-const partial = game.win != null && tp.outs > 0 && tp.outs < 18;
 
 const oppName = S.oppShort(game.opp).replace(/^@ /, '');
 const list = a => !a.length ? '' : a.length === 1 ? a[0] : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1];
@@ -92,11 +86,11 @@ function gatorsPitchesNP(box) {
 }
 
 async function getBoxStats() {
-  if (NOBOX) return null;
+  if (NOBOX) return { stats: null, data: null };
   // Test/offline hook: read a saved box-score HTML instead of fetching.
-  if (process.env.BOX_FIXTURE) { try { const html = fs.readFileSync(process.env.BOX_FIXTURE, 'utf8'); return computeBoxStats(halvesFromHtml(html), html); } catch (e) { return null; } }
+  if (process.env.BOX_FIXTURE) { try { const html = fs.readFileSync(process.env.BOX_FIXTURE, 'utf8'); return { stats: computeBoxStats(halvesFromHtml(html), html), data: null }; } catch (e) { return { stats: null, data: null }; } }
   const id = String(game.id);
-  if (!/^\d{8}_[a-z0-9]+$/i.test(id)) return null;
+  if (!/^\d{8}_[a-z0-9]+$/i.test(id)) return { stats: null, data: null };
   // Fetch the box THROUGH the app (Render reaches PrestoSports; GitHub's runner
   // IPs are 403'd by the stats site). /api/boxscore returns the parsed box with
   // play-by-play + line score.
@@ -107,9 +101,9 @@ async function getBoxStats() {
       const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 25000);
       const r = await fetch(url, { headers: { 'user-agent': 'gators-report', accept: 'application/json' }, signal: ctl.signal });
       clearTimeout(to);
-      if (!r.ok) { let body = ''; try { body = (await r.text()).slice(0, 200); } catch (e) {} console.error(`[report] /api/boxscore ${r.status} for ${id}: ${body} (try ${attempt}/3)`); if (attempt < 3) { await new Promise(s => setTimeout(s, 2000 * attempt)); continue; } return null; }
+      if (!r.ok) { let body = ''; try { body = (await r.text()).slice(0, 200); } catch (e) {} console.error(`[report] /api/boxscore ${r.status} for ${id}: ${body} (try ${attempt}/3)`); if (attempt < 3) { await new Promise(s => setTimeout(s, 2000 * attempt)); continue; } return { stats: null, data: null }; }
       const data = await r.json();
-      if (!data || data.error) { console.error(`[report] /api/boxscore returned no data for ${id}${data && data.error ? ': ' + data.error : ''}`); return null; }
+      if (!data || data.error) { console.error(`[report] /api/boxscore returned no data for ${id}${data && data.error ? ': ' + data.error : ''}`); return { stats: null, data: null }; }
       const halves = (data.pbp || []).map(pp => ({ side: /top/i.test(pp.title || '') ? 'top' : 'bot', html: pp.html || '' }));
       const stats = computeBoxStats(halves, data.line || '');
       // Accurate strike% = (total pitches − balls) / total pitches. The pitch
@@ -118,10 +112,10 @@ async function getBoxStats() {
       const np = gatorsPitchesNP(data.box);
       if (np && stats._balls != null) stats.strikePct = (np - stats._balls) / np;
       if (stats.firstPitchStrikePct == null && stats.shutdown == null) console.error(`[report] box fetched (${(data.pbp || []).length} pbp halves) but no pitch sequences or line score parsed for ${id}`);
-      return stats;
-    } catch (e) { console.error(`[report] /api/boxscore error for ${id}: ${e.message} (try ${attempt}/3)`); if (attempt < 3) { await new Promise(s => setTimeout(s, 2000 * attempt)); continue; } return null; }
+      return { stats, data };
+    } catch (e) { console.error(`[report] /api/boxscore error for ${id}: ${e.message} (try ${attempt}/3)`); if (attempt < 3) { await new Promise(s => setTimeout(s, 2000 * attempt)); continue; } return { stats: null, data: null }; }
   }
-  return null;
+  return { stats: null, data: null };
 }
 
 // Split a raw box-score page into half-inning chunks (used by the BOX_FIXTURE
@@ -208,25 +202,81 @@ function lineGrid(html) {
   return null;
 }
 
+// ---- game batting/pitching lines straight from the box ----------------------
+// The per-player game-log pages lag the box, so pull the game's hitting and
+// pitching lines from the box itself (/api/boxscore, already fetched). Returns
+// { tb, tp, hitters, pitchers } shaped like the seed's gameBatting/gamePitching,
+// or null if the box tables aren't present.
+function ipToOuts(ip) { const m = String(ip || '').trim().match(/^(\d+)(?:\.(\d))?$/); return m ? (+m[1]) * 3 + (m[2] ? +m[2] : 0) : 0; }
+function parseBoxTable(entry) {
+  if (!entry || !entry.html) return null;
+  const rows = entry.html.match(/<tr[\s\S]*?<\/tr>/gi) || []; if (rows.length < 2) return null;
+  const header = (rows[0].match(/<t[dh][\s\S]*?<\/t[dh]>/gi) || []).map(c => txt(c).toUpperCase());
+  const out = [];
+  for (const r of rows.slice(1)) {
+    const cellsHtml = r.match(/<t[dh][\s\S]*?<\/t[dh]>/gi) || []; if (!cellsHtml.length) continue;
+    out.push({ cells: cellsHtml.map(txt), slug: (cellsHtml[0].match(/data-slug="([^"]+)"/) || [])[1] || null, header });
+  }
+  return { header, rows: out };
+}
+function gameLinesFromBox(data) {
+  const box = data && data.box; if (!Array.isArray(box)) return null;
+  const find = kind => box.find(b => /gator|gumbeaux/i.test(b.label || '') && new RegExp(kind, 'i').test(b.label || ''));
+  const battingEntry = find('batting');
+  const bt = parseBoxTable(battingEntry), pt = parseBoxTable(find('pitching'));
+  if (!bt && !pt) return null;
+  const num = v => parseInt(v, 10) || 0;
+  const col = (row, name) => { const i = row.header.indexOf(name); return i >= 0 ? row.cells[i] : ''; };
+  const nm = row => (row.slug && S.ROSTER[row.slug] && S.ROSTER[row.slug].name) || txt(row.cells[0]).replace(/\s*\([^)]*\)\s*$/, '').trim();
+  const isTot = row => /^totals?$/i.test(txt(row.cells[0]).trim());
+  const hrNote = (battingEntry && battingEntry.notes && battingEntry.notes.HR) || '';
+  const hr = hrNote ? hrNote.split(',').reduce((a, s) => { const m = s.match(/\((\d+)\)/); return a + (m ? +m[1] : 1); }, 0) : 0;
+  let tb = { ab: 0, h: 0, hr, rbi: 0, bb: 0, k: 0 }; const hitters = [];
+  if (bt) for (const row of bt.rows) {
+    if (isTot(row)) { tb = { ab: num(col(row, 'AB')), h: num(col(row, 'H')), hr, rbi: num(col(row, 'RBI')), bb: num(col(row, 'BB')), k: num(col(row, 'K')) }; continue; }
+    const name = nm(row); if (!name || /hitters?/i.test(name)) continue;
+    hitters.push({ slug: row.slug, meta: { name }, ab: num(col(row, 'AB')), h: num(col(row, 'H')), rbi: num(col(row, 'RBI')), bb: num(col(row, 'BB')), k: num(col(row, 'K')), hr: 0 });
+  }
+  let tp = { outs: 0, h: 0, r: 0, er: 0, bb: 0, k: 0 }; const pitchers = [];
+  if (pt) for (const row of pt.rows) {
+    if (isTot(row)) { tp = { outs: ipToOuts(col(row, 'IP')), h: num(col(row, 'H')), r: num(col(row, 'R')), er: num(col(row, 'ER')), bb: num(col(row, 'BB')), k: num(col(row, 'K')) }; continue; }
+    const name = nm(row); if (!name || /pitchers?/i.test(name)) continue;
+    const ip = col(row, 'IP') || '0.0';
+    pitchers.push({ slug: row.slug, meta: { name }, ipStr: ip, outs: ipToOuts(ip), h: num(col(row, 'H')), r: num(col(row, 'R')), er: num(col(row, 'ER')), bb: num(col(row, 'BB')), k: num(col(row, 'K')) });
+  }
+  // No Totals row -> sum the player rows.
+  const sum = (arr, k) => arr.reduce((a, x) => a + (x[k] || 0), 0);
+  if (bt && !tb.h && hitters.length) tb = { ab: sum(hitters, 'ab'), h: sum(hitters, 'h'), hr, rbi: sum(hitters, 'rbi'), bb: sum(hitters, 'bb'), k: sum(hitters, 'k') };
+  if (pt && !tp.outs && pitchers.length) tp = { outs: sum(pitchers, 'outs'), h: sum(pitchers, 'h'), r: sum(pitchers, 'r'), er: sum(pitchers, 'er'), bb: sum(pitchers, 'bb'), k: sum(pitchers, 'k') };
+  if (!hitters.length && !pitchers.length) return null;
+  return { tb, tp, hitters, pitchers };
+}
+
 // ---- the words (facts only) ------------------------------------------------
 const resultWord = game.win == null ? 'played' : game.win ? 'won' : 'lost';
 
-const recap = [];
-recap.push(`The Gumbeaux Gators ${resultWord} ${game.gs}–${game.os} ${game.home ? 'at home' : 'on the road'} against ${oppName} on ${game.date}. They are now ${T.w}–${T.l}.`);
-{
+// Build the game-specific recap + key facts from the chosen game lines (box when
+// available, seed otherwise). bat/pit rows carry {slug, meta:{name}, h, ab, rbi,
+// hr?, outs, ipStr, h, r, er, bb, k}; tb/tp are team totals.
+function buildGameContent(bat, pit, tb, tp) {
+  const gameBB9 = tp.outs ? (tp.bb * 27) / tp.outs : null;
+  const partial = tp.outs === 0;   // no pitching logged yet -> incomplete
+  const recap = [];
+  recap.push(`The Gumbeaux Gators ${resultWord} ${game.gs}–${game.os} ${game.home ? 'at home' : 'on the road'} against ${oppName} on ${game.date}. They are now ${T.w}–${T.l}.`);
   const off = `The offense had ${plural(tb.h, 'hit')} and scored ${plural(game.gs, 'run')}${tb.bb ? `, with ${plural(tb.bb, 'walk')}` : ''}${tb.hr ? ` and ${plural(tb.hr, 'home run')}` : ''}.`;
   const overPace = gameBB9 != null && staffBB9 != null && gameBB9 > staffBB9 * 1.15;
   const pitch = `The pitching staff allowed ${plural(tp.r, 'run')} (${tp.er} earned) over ${ipStr(tp.outs)} innings and issued ${plural(tp.bb, 'walk')}${overPace ? ', above the season pace' : ''}.`;
   recap.push(off + ' ' + pitch);
-}
 
-const keyFacts = [];
-const multiHit = bat.filter(b => b.h >= 2).sort((a, b) => b.h - a.h || b.rbi - a.rbi);
-multiHit.forEach(b => { const s = BAT_SEASON[b.slug]; keyFacts.push(`${b.meta.name} went ${b.h}-for-${b.ab}${b.rbi ? `, ${b.rbi} RBI` : ''}${b.hr ? `, ${plural(b.hr, 'home run')}` : ''}${s ? ` (batting ${r3(s.avg)} on the season)` : ''}.`); });
-if (!multiHit.length && tb.h > 0) { const tBat = bat.filter(b => b.h > 0).sort((a, b) => b.h - a.h)[0]; if (tBat) keyFacts.push(`${tBat.meta.name} had ${plural(tBat.h, 'hit')} to lead the offense.`); }
-const longOuting = [...pit].sort((a, b) => b.outs - a.outs)[0];
-if (longOuting && longOuting.outs > 0) { const s = PIT_SEASON[longOuting.slug]; keyFacts.push(`${longOuting.meta.name} threw ${longOuting.ipStr} innings (${longOuting.h} H, ${longOuting.r} R, ${longOuting.bb} BB, ${longOuting.k} K)${s ? `, and carries a ${r2(s.era)} ERA` : ''}.`); }
-if (tp.bb >= 5 && staffBB9 != null) keyFacts.push(`The staff walked ${tp.bb} batters, against a season average of about ${staffBB9.toFixed(1)} per nine innings.`);
+  const keyFacts = [];
+  const multiHit = bat.filter(b => b.h >= 2).sort((a, b) => b.h - a.h || b.rbi - a.rbi);
+  multiHit.forEach(b => { const s = BAT_SEASON[b.slug]; keyFacts.push(`${b.meta.name} went ${b.h}-for-${b.ab}${b.rbi ? `, ${b.rbi} RBI` : ''}${b.hr ? `, ${plural(b.hr, 'home run')}` : ''}${s ? ` (batting ${r3(s.avg)} on the season)` : ''}.`); });
+  if (!multiHit.length && tb.h > 0) { const tBat = bat.filter(b => b.h > 0).sort((a, b) => b.h - a.h)[0]; if (tBat) keyFacts.push(`${tBat.meta.name} had ${plural(tBat.h, 'hit')} to lead the offense.`); }
+  const longOuting = [...pit].sort((a, b) => b.outs - a.outs)[0];
+  if (longOuting && longOuting.outs > 0) { const s = PIT_SEASON[longOuting.slug]; keyFacts.push(`${longOuting.meta.name} threw ${longOuting.ipStr} innings (${longOuting.h} H, ${longOuting.r} R, ${longOuting.bb} BB, ${longOuting.k} K)${s ? `, and carries a ${r2(s.era)} ERA` : ''}.`); }
+  if (tp.bb >= 5 && staffBB9 != null) keyFacts.push(`The staff walked ${tp.bb} batters, against a season average of about ${staffBB9.toFixed(1)} per nine innings.`);
+  return { recap, keyFacts, gameBB9, partial };
+}
 
 const trends = [];
 if (hotBats.length) trends.push(`Hot at the plate (last 5 games): ${list(hotBats.map(b => `${b.meta.name} ${r3(b.l5avg)} (season ${r3(b.avg)})`))}.`);
@@ -254,7 +304,8 @@ function pitchingFacts(box) {
 // ===========================================================================
 const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-function buildMarkdown(pitchFacts) {
+function buildMarkdown(content, pitchFacts) {
+  const { recap, keyFacts, partial } = content;
   const L = []; const p = s => L.push(s);
   p(`# Gators Game Report — ${game.date}, 2026`);
   p('');
@@ -278,7 +329,8 @@ function buildMarkdown(pitchFacts) {
   return L.join('\n');
 }
 
-function buildHtml(pitchFacts) {
+function buildHtml(content, pitchFacts) {
+  const { recap, keyFacts, partial } = content;
   const win = game.win;
   const resColor = win == null ? '#714ad2' : win ? '#1f9d57' : '#c0392b';
   const resWord = win == null ? 'PLAYED' : win ? 'WIN' : 'LOSS';
@@ -346,15 +398,29 @@ const stem = `${game.id.slice(0, 8)}-${S.oppShort(game.opp).replace(/[^a-z0-9]+/
 function ensureDir() { if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true }); }
 
 async function main() {
-  const box = await getBoxStats();
-  if (!NOBOX && !box) console.error('[report] box-score command stats unavailable (offline or no play-by-play) — Pitching Detail omitted.');
-  if (box) console.error('[report] pitch stats: ' + JSON.stringify(box));
-  const pitchFacts = pitchingFacts(box);
-  const md = buildMarkdown(pitchFacts);
+  const { stats, data } = await getBoxStats();
+  if (!NOBOX && !stats) console.error('[report] box-score command stats unavailable (offline or no play-by-play) — Pitching Detail omitted.');
+  if (stats) console.error('[report] pitch stats: ' + JSON.stringify(stats));
+
+  // Prefer the game's batting/pitching lines from the box (complete the moment
+  // the box posts); fall back to the seed's per-player game logs (which lag).
+  const lines = data ? gameLinesFromBox(data) : null;
+  let bat, pit, tb, tp;
+  if (lines && lines.tp.outs > 0 && lines.hitters.length) {
+    ({ tb, tp } = lines); bat = lines.hitters; pit = lines.pitchers;
+  } else {
+    if (lines) console.error('[report] box lines incomplete — using seed game logs');
+    bat = S.gameBatting(game.id); pit = S.gamePitching(game.id);
+    tb = bat.reduce((a, b) => ({ ab: a.ab + b.ab, h: a.h + b.h, hr: a.hr + b.hr, rbi: a.rbi + b.rbi, bb: a.bb + b.bb, k: a.k + b.k }), { ab: 0, h: 0, hr: 0, rbi: 0, bb: 0, k: 0 });
+    tp = pit.reduce((a, p) => ({ outs: a.outs + p.outs, h: a.h + p.h, r: a.r + p.r, er: a.er + p.er, bb: a.bb + p.bb, k: a.k + p.k }), { outs: 0, h: 0, r: 0, er: 0, bb: 0, k: 0 });
+  }
+  const content = buildGameContent(bat, pit, tb, tp);
+  const pitchFacts = pitchingFacts(stats);
+  const md = buildMarkdown(content, pitchFacts);
 
   if (PDF || HTML) {
     ensureDir();
-    const html = buildHtml(pitchFacts);
+    const html = buildHtml(content, pitchFacts);
     if (HTML) { const hf = path.join(outDir, `${stem}.html`); fs.writeFileSync(hf, html); console.error('wrote', path.relative(path.join(__dirname, '..'), hf)); }
     if (PDF) { const out = path.join(outDir, `${stem}.pdf`); if (renderPdf(html, out)) console.log('wrote', path.relative(path.join(__dirname, '..'), out)); }
   }
@@ -368,4 +434,4 @@ async function main() {
 }
 
 if (require.main === module) main();
-module.exports = { computeBoxStats, halvesFromHtml, lineGrid };
+module.exports = { computeBoxStats, halvesFromHtml, lineGrid, gameLinesFromBox, ipToOuts };
