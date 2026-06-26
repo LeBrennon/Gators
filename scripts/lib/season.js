@@ -151,6 +151,16 @@ function pitchers() {
 
 const indexBySlug = arr => arr.reduce((m, x) => (m[x.slug] = x, m), {});
 
+// The official Gumbeaux Gators logo (base64 PNG) is embedded in server.js for the
+// app; reuse it as a data URI so branded PDFs carry the real mark, no network.
+function gatorsLogoDataUri() {
+  try {
+    const src = fs.readFileSync(path.join(ROOT, 'server.js'), 'utf8');
+    const m = src.match(/GATORS_LOGO_B64\s*=\s*'([A-Za-z0-9+/=]+)'/);
+    return m ? 'data:image/png;base64,' + m[1] : '';
+  } catch (e) { return ''; }
+}
+
 // ---- per-game team trend (sum player logs by game) -------------------------
 function teamGameTrends() {
   const games = {};
@@ -210,5 +220,5 @@ module.exports = {
   seed, PC, RS, ROSTER, SCHED,
   num, i3, ipStr, r3, r2, pct, signed, pts, boxId, byBox, oppShort,
   teamSummary, batters, pitchers, teamGameTrends, indexBySlug,
-  resolveGame, gameBatting, gamePitching,
+  resolveGame, gameBatting, gamePitching, gatorsLogoDataUri,
 };
