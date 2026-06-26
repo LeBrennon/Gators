@@ -89,7 +89,7 @@ async function getBoxStats() {
       const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 25000);
       const r = await fetch(url, { headers: { 'user-agent': 'gators-report', accept: 'application/json' }, signal: ctl.signal });
       clearTimeout(to);
-      if (!r.ok) { console.error(`[report] /api/boxscore ${r.status} for ${id} (try ${attempt}/3)`); if (attempt < 3) { await new Promise(s => setTimeout(s, 2000 * attempt)); continue; } return null; }
+      if (!r.ok) { let body = ''; try { body = (await r.text()).slice(0, 200); } catch (e) {} console.error(`[report] /api/boxscore ${r.status} for ${id}: ${body} (try ${attempt}/3)`); if (attempt < 3) { await new Promise(s => setTimeout(s, 2000 * attempt)); continue; } return null; }
       const data = await r.json();
       if (!data || data.error) { console.error(`[report] /api/boxscore returned no data for ${id}${data && data.error ? ': ' + data.error : ''}`); return null; }
       const halves = (data.pbp || []).map(pp => ({ side: /top/i.test(pp.title || '') ? 'top' : 'bot', html: pp.html || '' }));
