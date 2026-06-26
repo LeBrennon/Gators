@@ -1,8 +1,13 @@
 #!/usr/bin/env node
 // Post-game report generator for the Gumbeaux Gators — written for the GM.
 // A one-page write-up in plain English: what happened and how players/teams are
-// trending. Facts only — no recommendations, no charts. Reconstructed offline
-// from the daily seed.
+// trending. Facts only — no recommendations, no charts.
+//
+// Most of it is reconstructed offline from the daily seed. A few command stats
+// (first-pitch strikes, strike %, three-ball counts) and shutdown innings need
+// the box score's play-by-play, so when possible the script fetches the box for
+// the game being reported; if that's unavailable (offline, or the league didn't
+// publish pitch sequences) those lines are simply omitted.
 //
 //   node scripts/postgame-report.js               # latest game -> markdown on stdout
 //   node scripts/postgame-report.js "Jun 24"      # a specific date
@@ -19,6 +24,7 @@ const args = process.argv.slice(2).filter(a => !a.startsWith('--'));
 const WRITE = FLAGS.has('--write');
 const PDF = FLAGS.has('--pdf');
 const HTML = FLAGS.has('--html');
+const NOBOX = FLAGS.has('--no-box'); // skip the box-score fetch (force offline)
 const target = args[0] || 'latest';
 
 const game = S.resolveGame(target);
@@ -40,9 +46,6 @@ const staffBB9 = staffIP ? (staffBB * 9) / staffIP : null;
 const gameBB9 = tp.outs ? (tp.bb * 27) / tp.outs : null;
 const partial = game.win != null && tp.outs > 0 && tp.outs < 18;
 
-// ===========================================================================
-// Trends under the hood (used to state the facts; nothing here is advice).
-// ===========================================================================
 const oppName = S.oppShort(game.opp).replace(/^@ /, '');
 const list = a => !a.length ? '' : a.length === 1 ? a[0] : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1];
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
@@ -63,6 +66,102 @@ const highEra = PB.filter(p => p.ip >= 8 && p.era >= 5.5).sort((a, b) => b.era -
 const heavyArms = PB.map(p => ({ p, wl: workload(p.slug, 7) })).filter(x => x.wl.apps >= 3).sort((a, b) => b.wl.apps - a.wl.apps);
 const recentGames = S.SCHED.filter(g => g.win != null).slice(-6);
 
+// ===========================================================================
+// Box-score command stats (need play-by-play; fetched at run time when possible).
+// All measure the GATORS pitching staff: pitch sequences come from the half-
+// innings where the OPPONENT is batting (i.e. the Gators are on the mound).
+// ===========================================================================
+const txt = s => String(s || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ').trim();
+
+async function getBoxStats() {
+  if (NOBOX) return null;
+  // Test/offline hook: read a saved box-score HTML instead of fetching.
+  if (process.env.BOX_FIXTURE) { try { return parseBoxStats(fs.readFileSync(process.env.BOX_FIXTURE, 'utf8')); } catch (e) { return null; } }
+  const id = String(game.id);
+  if (!/^\d{8}_[a-z0-9]+$/i.test(id)) return null;
+  const base = process.env.BOX_BASE || `https://texasleaguestats.prestosports.com/sports/bsb/${id.slice(0, 4)}/boxscores`;
+  const url = `${base}/${id}.xml?view=plays`;
+  let html;
+  try {
+    const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 15000);
+    const r = await fetch(url, { headers: { 'user-agent': 'Mozilla/5.0', accept: 'text/html,application/xml' }, signal: ctl.signal });
+    clearTimeout(to);
+    if (!r.ok) return null;
+    html = await r.text();
+  } catch (e) { return null; }
+  return parseBoxStats(html);
+}
+
+function parseBoxStats(html) {
+  const out = { firstPitchStrikePct: null, strikePct: null, threeBall: null, shutdown: null };
+  // ---- pitch sequences in Gators-fielding half-innings --------------------
+  const tables = html.match(/<table[\s\S]*?<\/table>/gi) || [];
+  let pa = 0, fpStrike = 0, balls = 0, strikes = 0, threeBall = 0;
+  for (const t of tables) {
+    const head = txt((t.match(/<tr[\s\S]*?<\/tr>/i) || [''])[0]);
+    const m = head.match(/(?:Top|Bottom) of[^]*?[-–]\s*(.+?)\s+batting/i);
+    if (!m) continue;                       // not a play-by-play half-inning table
+    if (/gator/i.test(m[1])) continue;      // Gators batting -> they're NOT pitching this half
+    const seqs = t.match(/\(\s*\d+-\d+\s+[A-Za-z]+\s*\)/g) || [];
+    for (const raw of seqs) {
+      const seq = (raw.match(/\d+-\d+\s+([A-Za-z]+)/) || [])[1]; if (!seq) continue;
+      pa++;
+      if (!/[BH]/i.test(seq[0])) fpStrike++;             // first pitch a strike?
+      let b = 0; for (const ch of seq) { if (/[BH]/i.test(ch)) b++; else strikes++; }
+      balls += b;
+      if (b >= 3) threeBall++;
+    }
+  }
+  if (pa > 0) {
+    out.firstPitchStrikePct = fpStrike / pa;
+    out.threeBall = threeBall;
+    out._fp = { fpStrike, pa };
+    if (strikes + balls > 0) out.strikePct = strikes / (strikes + balls);
+  }
+  // ---- shutdown innings from the score-by-innings line ---------------------
+  const grid = lineGrid(html);
+  if (grid) {
+    const gators = grid.find(r => /gator/i.test(r.name));
+    const opp = grid.find(r => !/gator/i.test(r.name));
+    if (gators && opp) {
+      let sd = 0;
+      const N = Math.max(gators.innings.length, opp.innings.length);
+      for (let i = 0; i < N; i++) {
+        const gRuns = gators.innings[i] || 0;
+        if (gRuns <= 0) continue;
+        if (game.home) {                              // Gators bat bottom; next half = top of i+1
+          if (i + 1 < N && (opp.innings[i + 1] || 0) === 0 && i + 1 < opp.innings.length) sd++;
+        } else {                                      // Gators bat top; next half = bottom of i
+          if (i < opp.innings.length && (opp.innings[i] || 0) === 0) sd++;
+        }
+      }
+      out.shutdown = sd;
+    }
+  }
+  return out;
+}
+
+function lineGrid(html) {
+  const tables = html.match(/<table[\s\S]*?<\/table>/gi) || [];
+  for (const t of tables) {
+    const rows = t.match(/<tr[\s\S]*?<\/tr>/gi) || []; if (rows.length < 3) continue;
+    const head = (rows[0].match(/<t[dh][\s\S]*?<\/t[dh]>/gi) || []).map(c => txt(c).toUpperCase());
+    if (head.length < 5) continue;
+    if (head[head.length - 3] !== 'R' || head[head.length - 2] !== 'H' || head[head.length - 1] !== 'E') continue;
+    if (!head.includes('1')) continue;            // needs inning columns
+    const teams = [];
+    for (const r of rows.slice(1)) {
+      const c = (r.match(/<t[dh][\s\S]*?<\/t[dh]>/gi) || []).map(txt);
+      if (c.length < 5) continue;
+      const name = c[0]; if (!name || /^final$/i.test(name)) continue;
+      const innings = c.slice(1, c.length - 3).map(x => parseInt(x, 10) || 0);
+      teams.push({ name, innings });
+    }
+    if (teams.length >= 2) return teams;
+  }
+  return null;
+}
+
 // ---- the words (facts only) ------------------------------------------------
 const resultWord = game.win == null ? 'played' : game.win ? 'won' : 'lost';
 
@@ -75,7 +174,6 @@ recap.push(`The Gumbeaux Gators ${resultWord} ${game.gs}–${game.os} ${game.hom
   recap.push(off + ' ' + pitch);
 }
 
-// Key facts — what happened tonight, stated plainly.
 const keyFacts = [];
 const multiHit = bat.filter(b => b.h >= 2).sort((a, b) => b.h - a.h || b.rbi - a.rbi);
 multiHit.forEach(b => { const s = BAT_SEASON[b.slug]; keyFacts.push(`${b.meta.name} went ${b.h}-for-${b.ab}${b.rbi ? `, ${b.rbi} RBI` : ''}${b.hr ? `, ${plural(b.hr, 'home run')}` : ''}${s ? ` (batting ${r3(s.avg)} on the season)` : ''}.`); });
@@ -84,7 +182,6 @@ const longOuting = [...pit].sort((a, b) => b.outs - a.outs)[0];
 if (longOuting && longOuting.outs > 0) { const s = PIT_SEASON[longOuting.slug]; keyFacts.push(`${longOuting.meta.name} threw ${longOuting.ipStr} innings (${longOuting.h} H, ${longOuting.r} R, ${longOuting.bb} BB, ${longOuting.k} K)${s ? `, and carries a ${r2(s.era)} ERA` : ''}.`); }
 if (tp.bb >= 5 && staffBB9 != null) keyFacts.push(`The staff walked ${tp.bb} batters, against a season average of about ${staffBB9.toFixed(1)} per nine innings.`);
 
-// Trends — directional facts, no recommendations.
 const trends = [];
 if (hotBats.length) trends.push(`Hot at the plate (last 5 games): ${list(hotBats.map(b => `${b.meta.name} ${r3(b.l5avg)} (season ${r3(b.avg)})`))}.`);
 if (coldBats.length) trends.push(`Cold at the plate (last 5 games): ${list(coldBats.map(b => `${b.meta.name} ${r3(b.l5avg)} (season ${r3(b.avg)})`))}.`);
@@ -94,40 +191,48 @@ if (recentGames.length) trends.push(`Last ${recentGames.length} games: ${recentG
 
 const seasonLine = `Record ${T.w}–${T.l}, ${SEASON.diff >= 0 ? '+' : ''}${SEASON.diff} run differential, ${SEASON.last10} over the last 10 games.`;
 
-// ===========================================================================
-// Markdown
-// ===========================================================================
-const L = []; const p = s => L.push(s);
-p(`# Gators Game Report — ${game.date}, 2026`);
-p('');
-p(`**${resultWord.toUpperCase()} ${game.gs}–${game.os}** · ${game.home ? 'Home' : 'Away'} vs ${oppName} · Record ${T.w}–${T.l}`);
-p('');
-if (partial) { p('> Heads up: tonight\'s box score is still coming in, so a few details may fill in later.'); p(''); }
-p('## Recap');
-p('');
-recap.forEach(s => { p(s); p(''); });
-p('## Key Facts');
-p('');
-keyFacts.forEach(t => p(`- ${t}`));
-p('');
-p('## Trends');
-p('');
-trends.forEach(t => p(`- ${t}`));
-p('');
-p('## Season');
-p('');
-p(`- ${seasonLine}`);
-p('');
-p(`_Built from the season stats. “Last 5 games” is a player's batting average over his five most recent games._`);
-p('');
-const md = L.join('\n');
+// Pitching-detail facts, filled from the box score when available.
+function pitchingFacts(box) {
+  const f = [];
+  if (!box) return f;
+  const pct = x => Math.round(x * 100) + '%';
+  if (box.firstPitchStrikePct != null) f.push(`First-pitch strikes: ${pct(box.firstPitchStrikePct)} — the staff threw a first-pitch strike in ${box._fp.fpStrike} of ${box._fp.pa} plate appearances.`);
+  if (box.strikePct != null) f.push(`Strike percentage: ${pct(box.strikePct)} of the staff's pitches were strikes.`);
+  if (box.threeBall != null) f.push(`Three-ball counts: ${box.threeBall} hitter${box.threeBall === 1 ? ' was' : 's were'} taken to a three-ball count.`);
+  if (box.shutdown != null) f.push(`Shutdown innings: ${box.shutdown} — the staff held the opponent scoreless the half-inning right after the Gators scored.`);
+  return f;
+}
 
 // ===========================================================================
-// Branded one-page PDF — clean, document-style, no charts.
+// Render (markdown + branded PDF). Wrapped so the box-score fetch can finish.
 // ===========================================================================
 const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-function buildHtml() {
+function buildMarkdown(pitchFacts) {
+  const L = []; const p = s => L.push(s);
+  p(`# Gators Game Report — ${game.date}, 2026`);
+  p('');
+  p(`**${resultWord.toUpperCase()} ${game.gs}–${game.os}** · ${game.home ? 'Home' : 'Away'} vs ${oppName} · Record ${T.w}–${T.l}`);
+  p('');
+  if (partial) { p('> Heads up: tonight\'s box score is still coming in, so a few details may fill in later.'); p(''); }
+  p('## Recap'); p('');
+  recap.forEach(s => { p(s); p(''); });
+  p('## Key Facts'); p('');
+  keyFacts.forEach(t => p(`- ${t}`));
+  p('');
+  if (pitchFacts.length) { p('## Pitching Detail'); p(''); pitchFacts.forEach(t => p(`- ${t}`)); p(''); }
+  p('## Trends'); p('');
+  trends.forEach(t => p(`- ${t}`));
+  p('');
+  p('## Season'); p('');
+  p(`- ${seasonLine}`);
+  p('');
+  p(`_Built from the season stats and the game's play-by-play. “Last 5 games” is a player's batting average over his five most recent games. A shutdown inning is a scoreless half-inning thrown right after the Gators scored._`);
+  p('');
+  return L.join('\n');
+}
+
+function buildHtml(pitchFacts) {
   const win = game.win;
   const resColor = win == null ? '#714ad2' : win ? '#1f9d57' : '#c0392b';
   const resWord = win == null ? 'PLAYED' : win ? 'WIN' : 'LOSS';
@@ -160,9 +265,10 @@ ul.facts li:before{content:'';position:absolute;left:3px;top:13px;width:8px;heig
   if (partial) H.push(`<div class='warn'>⚠️ Heads up — tonight's box score is still coming in, so a few details may fill in later.</div>`);
   H.push(`<h2>Recap</h2><div class='lead'>${recap.map(s => `<p>${esc(s)}</p>`).join('')}</div>`);
   H.push(section('Key Facts', keyFacts));
+  H.push(section('Pitching Detail', pitchFacts));
   H.push(section('Trends', trends));
   H.push(section('Season', [seasonLine]));
-  H.push(`<div class='foot'>Built from the season stats. “Last 5 games” is a player's batting average over his five most recent games.</div>`);
+  H.push(`<div class='foot'>Built from the season stats and the game's play-by-play. “Last 5 games” is a player's batting average over his five most recent games. A shutdown inning is a scoreless half-inning thrown right after the Gators scored.</div>`);
   H.push(`</body></html>`);
   return H.join('\n');
 }
@@ -189,21 +295,30 @@ function renderPdf(html, outPath) {
   } catch (e) { console.error('Chromium PDF render failed:', e.message, '\nHTML left at ' + tmp); return false; }
 }
 
-// ---- output ----------------------------------------------------------------
 const outDir = path.join(__dirname, '..', 'reports', 'postgame');
 const stem = `${game.id.slice(0, 8)}-${S.oppShort(game.opp).replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`;
 function ensureDir() { if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true }); }
 
-if (PDF || HTML) {
-  ensureDir();
-  const html = buildHtml();
-  if (HTML) { const hf = path.join(outDir, `${stem}.html`); fs.writeFileSync(hf, html); console.error('wrote', path.relative(path.join(__dirname, '..'), hf)); }
-  if (PDF) { const out = path.join(outDir, `${stem}.pdf`); if (renderPdf(html, out)) console.log('wrote', path.relative(path.join(__dirname, '..'), out)); }
+async function main() {
+  const box = await getBoxStats();
+  if (!NOBOX && !box) console.error('[report] box-score command stats unavailable (offline or no play-by-play) — Pitching Detail omitted.');
+  const pitchFacts = pitchingFacts(box);
+  const md = buildMarkdown(pitchFacts);
+
+  if (PDF || HTML) {
+    ensureDir();
+    const html = buildHtml(pitchFacts);
+    if (HTML) { const hf = path.join(outDir, `${stem}.html`); fs.writeFileSync(hf, html); console.error('wrote', path.relative(path.join(__dirname, '..'), hf)); }
+    if (PDF) { const out = path.join(outDir, `${stem}.pdf`); if (renderPdf(html, out)) console.log('wrote', path.relative(path.join(__dirname, '..'), out)); }
+  }
+  if (WRITE) {
+    ensureDir();
+    const file = path.join(outDir, `${stem}.md`);
+    fs.writeFileSync(file, md + '\n');
+    console.error('wrote', path.relative(path.join(__dirname, '..'), file));
+  }
+  if (!PDF) process.stdout.write(md + '\n');
 }
-if (WRITE) {
-  ensureDir();
-  const file = path.join(outDir, `${stem}.md`);
-  fs.writeFileSync(file, md + '\n');
-  console.error('wrote', path.relative(path.join(__dirname, '..'), file));
-}
-if (!PDF) process.stdout.write(md + '\n');
+
+if (require.main === module) main();
+module.exports = { parseBoxStats, lineGrid };
