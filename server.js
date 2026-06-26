@@ -2976,6 +2976,13 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .lcell .lv{font-family:'Oswald',sans-serif;font-weight:700;font-size:21px;color:var(--bone);line-height:1;display:flex;gap:6px;justify-content:center;align-items:center;min-height:21px;}
 .lcell .ll{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin-top:6px;}
 .diamond{width:58px;height:50px;flex:none;}
+.lastplay{display:flex;gap:9px;align-items:baseline;background:var(--bayou2);border:1px solid var(--line);border-left:3px solid var(--gold2);border-radius:9px;padding:7px 11px;margin:9px auto 0;max-width:420px;}
+.lastplay.scored{border-left-color:#7BD88F;background:rgba(123,216,143,.09);}
+.lastplay .lplab{font-family:'Oswald',sans-serif;font-weight:600;font-size:9px;letter-spacing:.09em;text-transform:uppercase;color:var(--gold2);flex:none;line-height:1.5;}
+.lastplay.scored .lplab{color:#7BD88F;}
+.lastplay .lptx{font-size:12px;color:var(--bone);line-height:1.35;}
+.lastplay.lpnew{animation:lpin .75s ease;}
+@keyframes lpin{0%{transform:translateY(-5px);opacity:.15;box-shadow:0 0 0 2px rgba(255,214,51,.55);}60%{box-shadow:0 0 0 2px rgba(255,214,51,.18);}100%{transform:translateY(0);opacity:1;box-shadow:0 0 0 2px rgba(255,214,51,0);}}
 .odot{display:inline-block;width:11px;height:11px;border-radius:50%;border:1.5px solid var(--mute);}
 .odot.on{background:var(--gold);border-color:var(--gold);}
 .lbp{display:flex;flex-direction:column;gap:7px;}
@@ -3305,6 +3312,7 @@ var FX=(function(){
   return {show:show};
 })();
 var prev={a:null,h:null};
+var lastPlayTx='',lastPlayGid=null; // track the live "Last play" text to flash only on change
 function renderGame(g){
   var ah=!g.gatorsHome, hh=g.gatorsHome;
   $('awayTm').classList.toggle('gators',ah);$('homeTm').classList.toggle('gators',hh);
@@ -3349,6 +3357,13 @@ function renderGame(g){
     var pl=document.getElementById('pbplist');var sc=pl?pl.scrollTop:0;
     var lh=(g.status==='final')?buildFinal(g):buildLive(g);lp.innerHTML=lh;lp.style.display=lh?'':'none';
     var pl2=document.getElementById('pbplist');if(pl2&&sc)pl2.scrollTop=sc;
+    // Flash the "Last play" banner only when the play text actually changed —
+    // not on every poll, and not when first switching to this game.
+    var lpb=document.getElementById('lastPlay');
+    if(lpb){var lt=lpb.querySelector('.lptx');var ntx=lt?lt.textContent:'';
+      if(g.id===lastPlayGid&&ntx&&ntx!==lastPlayTx){lpb.classList.remove('lpnew');void lpb.offsetWidth;lpb.classList.add('lpnew');}
+      lastPlayTx=ntx;}
+    lastPlayGid=g.id;
   }
   lastGame=g;
   setChip(g.status);
@@ -3384,11 +3399,17 @@ function buildLive(g){
       if(L.batter)bp+='<div class="bprow"><span class="bpk">At bat</span><span class="bpn">'+esc(L.batter)+'</span></div>';
     }
   }
+  // Surface the most recent play right under the count/bases/outs so you see the
+  // at-bat result without scrolling to the play-by-play. Flashes on change (see
+  // renderGame). Run-scoring plays get a green accent.
+  var lastPlay='';
+  if(g.plays&&g.plays.length){var lp=g.plays[g.plays.length-1];
+    if(lp&&lp.text)lastPlay='<div class="lastplay'+(lp.scored?' scored':'')+'" id="lastPlay"><span class="lplab">Last play</span><span class="lptx">'+esc(lp.text)+'</span></div>';}
   var line=buildLineScore(g);
   var lineup=buildLineup(g);
   var pitching=buildPitching(g);
   var pbp=buildPbp(g);
-  return sit+(bp?'<div class="lbp">'+bp+'</div>':'')+line+pbp+lineup+pitching;
+  return sit+lastPlay+(bp?'<div class="lbp">'+bp+'</div>':'')+line+pbp+lineup+pitching;
 }
 // Live pitching box: each team's pitchers who have appeared, with their game
 // line (IP/H/R/ER/BB/K and pitch count). Gators names link to their profile.
