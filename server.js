@@ -3400,10 +3400,12 @@ function buildLive(g){
     }
   }
   // Surface the most recent play right under the count/bases/outs so you see the
-  // at-bat result without scrolling to the play-by-play. Flashes on change (see
-  // renderGame). Run-scoring plays get a green accent.
+  // at-bat result without scrolling to the play-by-play. It clears once the next
+  // batter sees a pitch — abPitches resets to 0 each batter and ticks up on the
+  // first pitch — so the result shows only in the gap between at-bats. Flashes on
+  // change (see renderGame); run-scoring plays get a green accent.
   var lastPlay='';
-  if(g.plays&&g.plays.length){var lp=g.plays[g.plays.length-1];
+  if((!L||!L.abPitches)&&g.plays&&g.plays.length){var lp=g.plays[g.plays.length-1];
     if(lp&&lp.text)lastPlay='<div class="lastplay'+(lp.scored?' scored':'')+'" id="lastPlay"><span class="lplab">Last play</span><span class="lptx">'+esc(lp.text)+'</span></div>';}
   var line=buildLineScore(g);
   var lineup=buildLineup(g);
