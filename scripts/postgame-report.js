@@ -58,13 +58,67 @@ const arrow = (cur, base, goodLow) => {
 };
 const trendTag = b => b.trend == null ? '' : (b.trend > 0.001 ? ` ▲${S.pts(b.trend)}` : b.trend < -0.001 ? ` ▼${S.pts(b.trend)}` : ' ·');
 
+// ---- GM analytics ----------------------------------------------------------
+const oppName = S.oppShort(game.opp).replace(/^@ /, '');
+const r1 = x => (x == null || !isFinite(x)) ? '—' : x.toFixed(1);
+const pct0 = x => (x == null || !isFinite(x)) ? '—' : (x * 100).toFixed(0) + '%';
+const nm = m => `${m.meta && m.meta.num ? m.meta.num + ' ' : ''}${m.meta ? m.meta.name : ''}`;
+// Compact tonight batting line: "2-4 · HR, 2 RBI".
+function nightBat(b) { let s = `${b.h}-${b.ab}`; const x = []; if (b.hr) x.push(`${b.hr} HR`); if (b.rbi) x.push(`${b.rbi} RBI`); if (b.bb) x.push(`${b.bb} BB`); if (b.k) x.push(`${b.k} K`); return x.length ? `${s} · ${x.join(', ')}` : s; }
+
+// Pythagorean record from run differential — are we beating or trailing the
+// record our run scoring/prevention "should" produce? A luck/clutch signal.
+const pythPct = (T.rf || T.ra) ? (T.rf * T.rf) / (T.rf * T.rf + T.ra * T.ra) : 0;
+const pythW = Math.round(pythPct * (T.w + T.l)), pythL = (T.w + T.l) - pythW, luck = T.w - pythW;
+
+// Trailing-N-day pitcher workload as of this game (appearances + IP) — fatigue.
+const gameDayMs = (() => { const m = String(game.id).match(/^(\d{4})(\d{2})(\d{2})/); return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) : null; })();
+function boxDayMs(g) { const m = String(S.boxId(g)).match(/^(\d{4})(\d{2})(\d{2})/); return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) : null; }
+function workload(slug, days) {
+  const logs = (S.PC[slug] && S.PC[slug].glPit) || []; let apps = 0, outs = 0;
+  if (gameDayMs != null) for (const g of logs) { const d = boxDayMs(g); if (d == null) continue; const ago = (gameDayMs - d) / 864e5; if (ago >= 0 && ago < days) { apps++; outs += S.i3(g.ip); } }
+  return { apps, outs };
+}
+
+// Heuristic evaluation grade (a decision cue, not a verdict), gated on sample.
+function hitGrade(s) {
+  if (!s) return '—'; if (s.pa < 15) return 'Small sample';
+  if (s.ops >= 0.900) return 'Elite';
+  if (s.ops <= 0.600) return 'Struggling';
+  if (s.trend != null && s.trend >= 0.060) return 'Hot';
+  if (s.trend != null && s.trend <= -0.060) return 'Cold';
+  return 'Solid';
+}
+function pitGrade(s) {
+  if (!s) return '—'; if (s.ip < 5) return 'Small sample';
+  if (s.era >= 6 && s.ip >= 8) return 'Struggling';
+  if (s.bb9 != null && s.bb9 >= 5) return 'Wild';
+  if (s.l3era != null && s.l3era + 1.5 < s.era) return 'Trending up';
+  if (s.era <= 3.5 && (s.bb9 == null || s.bb9 <= 4)) return 'Reliable';
+  return 'Steady';
+}
+const GRADE_GOOD = ['Elite', 'Hot', 'Reliable', 'Trending up'];
+const GRADE_BAD = ['Struggling', 'Cold', 'Wild'];
+
+// Roster-wide watch lists for the GM action section (whole roster, not just the
+// players who appeared tonight, so bench/usage decisions are covered too).
+const HB = S.batters(), PB = S.pitchers();
+const watch = {
+  upBats: HB.filter(b => b.pa >= 15 && b.trend != null && b.trend >= 0.05).sort((a, b) => b.trend - a.trend),
+  coldBats: HB.filter(b => b.pa >= 15 && b.trend != null && b.trend <= -0.05).sort((a, b) => a.trend - b.trend),
+  strugBats: HB.filter(b => b.pa >= 30 && b.ops <= 0.600).sort((a, b) => a.ops - b.ops),
+  upArms: PB.filter(p => p.ip >= 8 && p.l3era != null && p.l3era + 1.5 < p.era).sort((a, b) => (a.l3era - a.era) - (b.l3era - b.era)),
+  strugArms: PB.filter(p => p.ip >= 8 && p.era >= 6).sort((a, b) => b.era - a.era),
+  heavyArms: PB.map(p => ({ p, wl: workload(p.slug, 7) })).filter(x => x.wl.apps >= 3).sort((a, b) => b.wl.apps - a.wl.apps),
+};
+
 // ---- header ----------------------------------------------------------------
 const res = game.win == null ? '' : (game.win ? 'W' : 'L') + ` ${game.gs}-${game.os}`;
 const where = game.home ? 'Home' : 'Away';
 p(`# Post-Game Report — ${game.date}, 2026`);
 p('');
-p(`**Lake Charles Gumbeaux Gators ${game.win ? '' : ''}vs. ${S.oppShort(game.opp).replace(/^@ /, '')}** — ${where}`);
-p(`**Final: ${res ? (game.win ? `Gators ${game.gs}, ${S.oppShort(game.opp).replace(/^@ /, '')} ${game.os}` : `${S.oppShort(game.opp).replace(/^@ /, '')} ${game.os}, Gators ${game.gs}`) : '—'} — ${game.win ? 'Win' : 'Loss'} · Record: ${T.w}-${T.l}**`);
+p(`**Lake Charles Gumbeaux Gators ${game.home ? 'vs.' : '@'} ${oppName}** — ${where} · Record: ${T.w}-${T.l}`);
+p(`**Final: ${res ? (game.win ? `Gators ${game.gs}, ${oppName} ${game.os}` : `${oppName} ${game.os}, Gators ${game.gs}`) : 'In progress'}${game.win == null ? '' : game.win ? ' — Win' : ' — Loss'}**`);
 p('');
 if (partial) { p('> ⚠️ **Partial data:** this game is still filling into the daily seed (only ' + ipStr(tp.outs) + ' IP of pitching logged so far). Re-run after the next refresh for the complete line.'); p(''); }
 
@@ -80,38 +134,55 @@ if (gameBB9 != null && staffBB9 != null) {
 p('');
 
 // ---- hitters ---------------------------------------------------------------
-p('## Hitters — tonight vs. season');
+p('## Hitters — performance & trend');
 p('');
-p('Trend = season hot/cold (last-5 AVG vs season). AVG→ = running average before→after this game.');
+p('PA = season sample size. ISO = isolated power (SLG−AVG). BB%/K% = plate discipline. TCL = league SLG rank. L5 = last-5 AVG with hot/cold arrow. Grade is a heuristic evaluation cue (see key).');
 p('');
-p('| Player | Tonight | HR | RBI | BB | K | Season AVG/OBP/SLG (OPS) | Rank | Trend | AVG→ |');
-p('|---|:--:|--:|--:|--:|--:|---|:--:|:--:|--:|');
+p('| Player | Tonight | PA | AVG/OBP/SLG | OPS | ISO | BB% | K% | TCL | L5 | Grade |');
+p('|---|:--|--:|---|--:|--:|--:|--:|:--:|:--:|:--:|');
 bat.forEach(b => {
   const s = BAT_SEASON[b.slug];
-  const line = `${b.h}-${b.ab}`;
-  const season = s ? `${r3(s.avg)}/${r3(s.obp)}/${r3(s.slg)} (${r3(s.ops)})` : '—';
+  const slash = s ? `${r3(s.avg)}/${r3(s.obp)}/${r3(s.slg)}` : '—';
   const rank = s && s.ranks && s.ranks.slg ? s.ranks.slg : '—';
-  const mv = b.avgAfter != null ? (b.avgBefore != null ? `${r3(b.avgBefore)}→${r3(b.avgAfter)}` : r3(b.avgAfter)) : '—';
-  p(`| ${b.meta.num ? b.meta.num + ' ' : ''}${b.meta.name} | ${line} | ${b.hr || ''} | ${b.rbi || ''} | ${b.bb || ''} | ${b.k || ''} | ${season} | ${rank} | ${s ? trendTag(s).trim() || '·' : '—'} | ${mv} |`);
+  const l5 = s && s.l5avg != null ? r3(s.l5avg) + (trendTag(s) || '') : '—';
+  p(`| ${nm(b)} | ${nightBat(b)} | ${s ? s.pa : '—'} | ${slash} | ${s ? r3(s.ops) : '—'} | ${s ? r3(s.iso) : '—'} | ${s ? pct0(s.bbp) : '—'} | ${s ? pct0(s.kp) : '—'} | ${rank} | ${l5} | ${hitGrade(s)} |`);
 });
 p('');
 
 // ---- pitchers --------------------------------------------------------------
-p('## Pitching — tonight vs. season');
+p('## Pitching — performance & workload');
 p('');
-p('Role/ERA/WHIP are season-to-date. L3 = last-3-outing form. ERA→ = running ERA before→after this game.');
+p('K/9 · BB/9 · BAA = stuff and command. L3 = last-3-outing ERA (recent form). 7d = appearances in the last 7 days (workload). Grade is a heuristic cue (see key).');
 p('');
-p('| Pitcher | Tonight (IP-H-R-ER-BB-K) | Season ERA/WHIP | Role | L3 ERA | ERA→ |');
-p('|---|:--:|:--:|:--:|--:|--:|');
+p('| Pitcher | Tonight (IP-H-R-ER-BB-K) | Role | ERA/WHIP | K/9 | BB/9 | BAA | L3 ERA | 7d | Grade |');
+p('|---|:--|:--:|:--:|--:|--:|--:|--:|:--:|:--:|');
 pit.forEach(pr => {
   const s = PIT_SEASON[pr.slug];
   const tonight = `${pr.ipStr}-${pr.h}-${pr.r}-${pr.er}-${pr.bb}-${pr.k}`;
-  const season = s ? `${r2(s.era)}/${r2(s.whip)}` : '—';
-  const role = s ? s.role : '—';
-  const l3 = s && s.l3era != null ? r2(s.l3era) : '—';
-  const mv = pr.eraAfter != null ? (pr.eraBefore != null ? `${r2(pr.eraBefore)}→${r2(pr.eraAfter)}` : r2(pr.eraAfter)) : '—';
-  p(`| ${pr.meta.num ? pr.meta.num + ' ' : ''}${pr.meta.name} | ${tonight} | ${season} | ${role} | ${l3} | ${mv} |`);
+  const ew = s ? `${r2(s.era)}/${r2(s.whip)}` : '—';
+  const wl = workload(pr.slug, 7);
+  p(`| ${nm(pr)} | ${tonight} | ${s ? s.role : '—'} | ${ew} | ${s ? r1(s.k9) : '—'} | ${s ? r1(s.bb9) : '—'} | ${s && s.baa ? r3(s.baa) : '—'} | ${s && s.l3era != null ? r2(s.l3era) : '—'} | ${wl.apps || '—'} | ${pitGrade(s)} |`);
 });
+p('');
+
+// ---- roster watch (GM action items) ----------------------------------------
+p('## Roster Watch — for the GM');
+p('');
+const cap = (arr, n, f) => arr.length ? arr.slice(0, n).map(f).join('; ') : '—';
+const upList = [
+  ...watch.upBats.slice(0, 5).map(b => `${b.meta.name} (L5 ${S.pts(b.trend)})`),
+  ...watch.upArms.slice(0, 3).map(x => `${x.meta.name} (L3 ${r2(x.l3era)} ERA)`),
+];
+const strugList = [
+  ...watch.strugBats.map(b => `${b.meta.name} (${r3(b.ops)} OPS, ${b.pa} PA)`),
+  ...watch.strugArms.map(x => `${x.meta.name} (${r2(x.era)} ERA)`),
+];
+p(`- **Trending up — ride / more reps:** ${upList.length ? upList.join('; ') : '—'}`);
+p(`- **Cooling off — keep an eye on:** ${cap(watch.coldBats, 6, b => `${b.meta.name} (L5 ${S.pts(b.trend)})`)}`);
+p(`- **Struggling — consider a change:** ${strugList.length ? strugList.slice(0, 8).join('; ') : '—'}`);
+p(`- **Workload — rest candidates:** ${watch.heavyArms.length ? watch.heavyArms.map(x => `${x.p.meta.name} (${x.wl.apps} app / ${ipStr(x.wl.outs)} IP, last 7d)`).join('; ') : '—'}`);
+p('');
+p('_Grades: **Elite** ≥.900 OPS · **Hot/Cold** ±60 pts L5 vs season · **Struggling** ≤.600 OPS (≥30 PA) · pitching **Reliable** ≤3.50 ERA & ≤4.0 BB/9 · **Wild** ≥5 BB/9 · **Trending up** L3 ≥1.5 ERA better. Heuristic cues, gated on sample size._');
 p('');
 
 // ---- auto notes ------------------------------------------------------------
@@ -137,7 +208,9 @@ p('## Season context (baseline)');
 p('');
 const allBat = S.batters();
 const topBats = allBat.filter(b => b.pa >= 20).slice(0, 3).map(b => `${b.meta.name} (${r3(b.ops)} OPS)`).join(', ');
-p(`- **Team:** ${T.w}-${T.l}, ${SEASON.diff >= 0 ? '+' : ''}${SEASON.diff} run differential on the season; ${SEASON.last10} last 10.`);
+p(`- **Team:** ${T.w}-${T.l}, ${SEASON.diff >= 0 ? '+' : ''}${SEASON.diff} run differential; ${SEASON.last10} last 10, ${SEASON.streak || '—'} streak.`);
+p(`- **Pythagorean:** ${pythW}-${pythL} expected from run differential — ${luck === 0 ? 'right on its record' : luck > 0 ? `+${luck} over (winning close ones / some luck)` : `${luck} under (underperforming the run diff)`}.`);
+p(`- **Splits:** ${SEASON.hw}-${SEASON.hl} home, ${SEASON.aw}-${SEASON.al} away, ${SEASON.oneRun} in one-run games.`);
 p(`- **Top bats:** ${topBats}.`);
 p(`- **Staff command:** ${staffBB9 ? staffBB9.toFixed(1) : '—'} BB/9 season-wide — the recurring run-prevention story.`);
 p('');
@@ -152,7 +225,7 @@ const md = L.join('\n');
 // so there's no heavy repo dependency.
 // ===========================================================================
 const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-function nightBat(b) { let s = `${b.h}-${b.ab}`; const x = []; if (b.hr) x.push(`${b.hr} HR`); if (b.rbi) x.push(`${b.rbi} RBI`); if (b.bb) x.push(`${b.bb} BB`); if (b.k) x.push(`${b.k} K`); return x.length ? `${s} · ${x.join(', ')}` : s; }
+const gradeHtml = t => `<span class='gd ${GRADE_GOOD.includes(t) ? 'good' : GRADE_BAD.includes(t) ? 'bad' : 'neu'}'>${esc(t)}</span>`;
 
 function buildHtml() {
   const oppName = S.oppShort(game.opp).replace(/^@ /, '');
@@ -199,6 +272,8 @@ th{background:#2b1e5c;color:#cdbdf2;text-align:left;padding:3px 6px;font-size:7.
 td{padding:2.5px 6px;border-bottom:1px solid #2b2150;color:#ece8f7;}
 tr:nth-child(even) td{background:#1a1338;}
 .c{text-align:center;}.tn{font-weight:700;color:#fff;}.rk{font-weight:700;color:#ffd633;}.dn{color:#e0a0a0;}
+.gd{font-weight:700;}.gd.good{color:#7BD88F;}.gd.bad{color:#e0a0a0;}.gd.neu{color:#b9a6ee;}
+.watch{list-style:none;font-size:8.4px;font-family:-apple-system,sans-serif;color:#e7e2f3;margin:1px 0 4px;}.watch li{margin:1.5px 0;}.watch b{color:#ffd633;}
 .totrow td{background:#241a4d;font-weight:700;color:#ffd633;border-top:1px solid #41327a;}
 ol{margin:3px 0 3px 16px;font-family:-apple-system,sans-serif;font-size:9px;color:#e7e2f3;}
 .cols{display:flex;gap:12px;}.cols>div{flex:1;}
@@ -209,27 +284,40 @@ ol{margin:3px 0 3px 16px;font-family:-apple-system,sans-serif;font-size:9px;colo
   if (partial) H.push(`<div class='warn'>⚠️ Partial data — this game is still filling into the daily seed (${ipStr(tp.outs)} IP logged). Re-run after the next refresh for the complete line.</div>`);
   H.push(`<div class='lead'><p><b class='g'>Bottom line —</b> ${lead}</p></div>`);
 
-  H.push(`<h2>Hitters — last night vs. season</h2><table><tr><th>Player</th><th class='c'>Last night</th><th>Season AVG/OBP/SLG (OPS)</th><th class='c'>TCL</th><th class='c'>Last 5</th></tr>`);
+  H.push(`<h2>Hitters — performance &amp; trend</h2><table><tr><th>Player</th><th class='c'>Last night</th><th class='c'>PA</th><th>AVG/OBP/SLG (OPS)</th><th class='c'>ISO</th><th class='c'>BB/K%</th><th class='c'>TCL</th><th class='c'>L5</th><th class='c'>Grade</th></tr>`);
   bat.forEach(b => {
     const s = BAT_SEASON[b.slug];
     const season = s ? `${r3(s.avg)}/${r3(s.obp)}/${r3(s.slg)} (${r3(s.ops)})` : '—';
     const rank = s && s.ranks && s.ranks.slg ? `<span class='rk'>${esc(s.ranks.slg)}</span>` : '—';
-    const l5 = s && s.l5avg != null ? r3(s.l5avg) : '—';
-    H.push(`<tr><td>${esc(b.meta.name)}${b.meta.pos ? ', ' + esc(b.meta.pos) : ''}</td><td class='c tn'>${nightBat(b)}</td><td>${season}</td><td class='c'>${rank}</td><td class='c'>${l5}</td></tr>`);
+    const l5 = s && s.l5avg != null ? r3(s.l5avg) + (trendTag(s) || '') : '—';
+    const disc = s ? `${pct0(s.bbp)}/${pct0(s.kp)}` : '—';
+    H.push(`<tr><td>${esc(b.meta.name)}${b.meta.pos ? ', ' + esc(b.meta.pos) : ''}</td><td class='c tn'>${nightBat(b)}</td><td class='c'>${s ? s.pa : '—'}</td><td>${season}</td><td class='c'>${s ? r3(s.iso) : '—'}</td><td class='c'>${disc}</td><td class='c'>${rank}</td><td class='c'>${l5}</td><td class='c'>${gradeHtml(hitGrade(s))}</td></tr>`);
   });
-  H.push(`<tr class='totrow'><td>TEAM</td><td class='c'>${tb.h} H · ${tb.rbi} RBI</td><td>${tb.bb} BB · ${tb.k} K · ${tb.ab} AB</td><td class='c'>—</td><td class='c'>—</td></tr></table>`);
+  H.push(`<tr class='totrow'><td>TEAM</td><td class='c'>${tb.h} H · ${tb.rbi} RBI</td><td class='c'>—</td><td>${tb.bb} BB · ${tb.k} K · ${tb.ab} AB</td><td class='c'>—</td><td class='c'>—</td><td class='c'>—</td><td class='c'>—</td><td class='c'>—</td></tr></table>`);
 
-  H.push(`<h2>Pitching — last night vs. season</h2><table><tr><th>Pitcher</th><th class='c'>Last night (IP-H-R-ER-BB-K)</th><th class='c'>Season ERA/WHIP</th><th class='c'>Role</th><th class='c'>L3 ERA</th></tr>`);
+  H.push(`<h2>Pitching — performance &amp; workload</h2><table><tr><th>Pitcher</th><th class='c'>Last night (IP-H-R-ER-BB-K)</th><th class='c'>Role</th><th class='c'>ERA/WHIP</th><th class='c'>K/9</th><th class='c'>BB/9</th><th class='c'>BAA</th><th class='c'>L3</th><th class='c'>7d</th><th class='c'>Grade</th></tr>`);
   pit.forEach(pr => {
     const s = PIT_SEASON[pr.slug];
     const tonight = `${pr.ipStr}-${pr.h}-${pr.r}-${pr.er}-${pr.bb}-${pr.k}`;
     const sev = s && s.era >= 6 ? ' dn' : '';
-    H.push(`<tr><td>${esc(pr.meta.name)}</td><td class='c tn'>${tonight}</td><td class='c${sev}'>${s ? `${r2(s.era)} / ${r2(s.whip)}` : '—'}</td><td class='c'>${s ? s.role : '—'}</td><td class='c${sev}'>${s && s.l3era != null ? r2(s.l3era) : '—'}</td></tr>`);
+    const wl = workload(pr.slug, 7);
+    H.push(`<tr><td>${esc(pr.meta.name)}</td><td class='c tn'>${tonight}</td><td class='c'>${s ? s.role : '—'}</td><td class='c${sev}'>${s ? `${r2(s.era)}/${r2(s.whip)}` : '—'}</td><td class='c'>${s ? r1(s.k9) : '—'}</td><td class='c'>${s ? r1(s.bb9) : '—'}</td><td class='c'>${s && s.baa ? r3(s.baa) : '—'}</td><td class='c${sev}'>${s && s.l3era != null ? r2(s.l3era) : '—'}</td><td class='c'>${wl.apps || '—'}</td><td class='c'>${gradeHtml(pitGrade(s))}</td></tr>`);
   });
-  H.push(`<tr class='totrow'><td>TEAM</td><td class='c'>${ipStr(tp.outs)} IP · ${tp.h} H · ${tp.er} ER · ${tp.k} K</td><td class='c'>${tp.bb} BB${gameBB9 != null ? ` · ${gameBB9.toFixed(1)} BB/9` : ''}</td><td class='c'>—</td><td class='c'>—</td></tr></table>`);
+  H.push(`<tr class='totrow'><td>TEAM</td><td class='c'>${ipStr(tp.outs)} IP · ${tp.h} H · ${tp.er} ER · ${tp.k} K</td><td class='c'>—</td><td class='c'>${tp.bb} BB${gameBB9 != null ? ` · ${gameBB9.toFixed(1)} BB/9` : ''}</td><td class='c'>—</td><td class='c'>—</td><td class='c'>—</td><td class='c'>—</td><td class='c'>—</td><td class='c'>—</td></tr></table>`);
 
-  H.push(`<div class='cols'><div><h2>Notes</h2><ol>${notes.map(n => `<li>${n}</li>`).join('')}</ol></div><div><h2>Season context</h2><p>${T.w}–${T.l}, ${SEASON.diff >= 0 ? '+' : ''}${SEASON.diff} diff, ${SEASON.last10} last 10. Top bats: ${topBats}. Lever stays <b class='g'>strike-throwing</b> (${staffBB9 ? staffBB9.toFixed(1) : '—'} BB/9).</p></div></div>`);
-  H.push(`<div class='foot'>Lines reconstructed from the daily seed (roster-seed.json); season AVG/OBP/SLG, TCL ranks, and Last-5 form are season-to-date. “Last 5” = batting average over the last five games (recent-form context, not a grade on tonight). OPS=OBP+SLG · L3=last 3 outings.</div>`);
+  // Roster Watch — GM action items across the whole roster.
+  const upHtml = [...watch.upBats.slice(0, 5).map(b => `${esc(b.meta.name)} (${S.pts(b.trend)})`), ...watch.upArms.slice(0, 3).map(x => `${esc(x.meta.name)} (L3 ${r2(x.l3era)})`)];
+  const strHtml = [...watch.strugBats.map(b => `${esc(b.meta.name)} (${r3(b.ops)})`), ...watch.strugArms.map(x => `${esc(x.meta.name)} (${r2(x.era)} ERA)`)];
+  const cold = watch.coldBats.slice(0, 6).map(b => `${esc(b.meta.name)} (${S.pts(b.trend)})`);
+  H.push(`<h2>Roster Watch — for the GM</h2><ul class='watch'>`
+    + `<li><b>Trending up (ride / more reps):</b> ${upHtml.length ? upHtml.join(' · ') : '—'}</li>`
+    + `<li><b>Cooling off (watch):</b> ${cold.length ? cold.join(' · ') : '—'}</li>`
+    + `<li><b>Struggling (consider a change):</b> ${strHtml.length ? strHtml.slice(0, 8).join(' · ') : '—'}</li>`
+    + `<li><b>Workload (rest candidates):</b> ${watch.heavyArms.length ? watch.heavyArms.map(x => `${esc(x.p.meta.name)} (${x.wl.apps} app/${ipStr(x.wl.outs)} IP · 7d)`).join(' · ') : '—'}</li>`
+    + `</ul>`);
+
+  H.push(`<div class='cols'><div><h2>Notes</h2><ol>${notes.map(n => `<li>${n}</li>`).join('')}</ol></div><div><h2>Season context</h2><p>${T.w}–${T.l}, ${SEASON.diff >= 0 ? '+' : ''}${SEASON.diff} run diff · <b class='g'>Pythag ${pythW}-${pythL}</b> (${luck === 0 ? 'on its record' : luck > 0 ? `+${luck} over` : `${luck} under`}) · ${SEASON.last10} L10. Home ${SEASON.hw}-${SEASON.hl}, away ${SEASON.aw}-${SEASON.al}, 1-run ${SEASON.oneRun}. Top bats: ${topBats}. Staff <b class='g'>${staffBB9 ? staffBB9.toFixed(1) : '—'} BB/9</b>.</p></div></div>`);
+  H.push(`<div class='foot'>Season slash, ISO, BB%/K%, TCL rank, K/9·BB/9·BAA and form are season-to-date from the daily seed. L5 = last-5-game AVG, L3 = last-3-outing ERA, 7d = appearances in the trailing 7 days. Grades are heuristic evaluation cues (Elite ≥.900 OPS · Hot/Cold ±60pts L5 · Struggling ≤.600 OPS or ≥6.00 ERA · Reliable ≤3.50 ERA &amp; ≤4 BB/9 · Wild ≥5 BB/9), gated on sample size — not official ratings.</div>`);
   H.push(`</body></html>`);
   return H.join('\n');
 }
