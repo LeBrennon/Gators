@@ -79,17 +79,28 @@ async function getBoxStats() {
   if (process.env.BOX_FIXTURE) { try { return parseBoxStats(fs.readFileSync(process.env.BOX_FIXTURE, 'utf8')); } catch (e) { return null; } }
   const id = String(game.id);
   if (!/^\d{8}_[a-z0-9]+$/i.test(id)) return null;
-  const base = process.env.BOX_BASE || `https://texasleaguestats.prestosports.com/sports/bsb/${id.slice(0, 4)}/boxscores`;
+  const year = id.slice(0, 4);
+  const base = process.env.BOX_BASE || `https://texasleaguestats.prestosports.com/sports/bsb/${year}/boxscores`;
   const url = `${base}/${id}.xml?view=plays`;
-  let html;
-  try {
-    const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 15000);
-    const r = await fetch(url, { headers: { 'user-agent': 'Mozilla/5.0', accept: 'text/html,application/xml' }, signal: ctl.signal });
-    clearTimeout(to);
-    if (!r.ok) return null;
-    html = await r.text();
-  } catch (e) { return null; }
-  return parseBoxStats(html);
+  // Mirror the app's box fetch: browser UA + referer, no restrictive Accept.
+  const headers = {
+    'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+    'accept-language': 'en-US,en;q=0.9', 'cache-control': 'no-cache',
+    referer: process.env.BOX_REFERER || `https://texasleaguestats.prestosports.com/sports/bsb/${year}/schedule`,
+  };
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 20000);
+      const r = await fetch(url, { headers, redirect: 'follow', signal: ctl.signal });
+      clearTimeout(to);
+      if (!r.ok) { console.error(`[report] box fetch ${r.status} for ${url} (try ${attempt}/3)`); if (attempt < 3) { await new Promise(s => setTimeout(s, 1500 * attempt)); continue; } return null; }
+      const html = await r.text();
+      const stats = parseBoxStats(html);
+      if (stats.firstPitchStrikePct == null && stats.shutdown == null) console.error(`[report] box fetched (${html.length} bytes) but no pitch sequences or line score parsed from ${url}`);
+      return stats;
+    } catch (e) { console.error(`[report] box fetch error for ${url}: ${e.message} (try ${attempt}/3)`); if (attempt < 3) { await new Promise(s => setTimeout(s, 1500 * attempt)); continue; } return null; }
+  }
+  return null;
 }
 
 function parseBoxStats(html) {
