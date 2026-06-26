@@ -485,21 +485,22 @@ async function main() {
   // Prefer the game's batting/pitching lines from the box (complete the moment
   // the box posts); fall back to the seed's per-player game logs (which lag).
   const lines = data ? gameLinesFromBox(data) : null;
-  let bat, pit, tb, tp;
+  let bat, pit, tb, tp, usedBox = false;
   if (lines && lines.tp.outs > 0 && lines.hitters.length) {
-    ({ tb, tp } = lines); bat = lines.hitters; pit = lines.pitchers;
+    ({ tb, tp } = lines); bat = lines.hitters; pit = lines.pitchers; usedBox = true;
   } else {
     if (lines) console.error('[report] box lines incomplete — using seed game logs');
     bat = S.gameBatting(game.id); pit = S.gamePitching(game.id);
     tb = bat.reduce((a, b) => ({ ab: a.ab + b.ab, h: a.h + b.h, hr: a.hr + b.hr, rbi: a.rbi + b.rbi, bb: a.bb + b.bb, k: a.k + b.k }), { ab: 0, h: 0, hr: 0, rbi: 0, bb: 0, k: 0 });
     tp = pit.reduce((a, p) => ({ outs: a.outs + p.outs, h: a.h + p.h, r: a.r + p.r, er: a.er + p.er, bb: a.bb + p.bb, k: a.k + p.k }), { outs: 0, h: 0, r: 0, er: 0, bb: 0, k: 0 });
   }
-  // Don't ship a half-empty report: if the box was rate-limited/unposted AND the
-  // seed game logs haven't caught up either, there's no pitching to report. Bail
-  // non-zero so the workflow's retry loop waits and rebuilds instead of emailing
-  // a "0.0 IP" report.
-  if (STRICT && tp.outs === 0) {
-    console.error(`[report] no pitching data yet for ${game.id} (box and seed both empty) — exiting non-zero so the workflow retries.`);
+  // Don't ship a partial report. Under --strict, wait for the actual box score:
+  // it carries the complete batting/pitching lines AND the command/defense stats.
+  // If the box was rate-limited/unposted we'd otherwise fall back to the seed's
+  // per-player logs, which lag a game (wrong totals, missing relievers, no command
+  // stats). Bail non-zero so the workflow's retry loop waits and refetches.
+  if (STRICT && !usedBox) {
+    console.error(`[report] box score not available yet for ${game.id} (would fall back to lagging seed logs) — exiting non-zero so the workflow retries.`);
     process.exit(2);
   }
   const content = buildGameContent(bat, pit, tb, tp, stats);
