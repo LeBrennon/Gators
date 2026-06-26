@@ -918,7 +918,11 @@ async function fetchLiveForGame(boxscoreId, wantRaw) {
     // his school/class + season AVG/RBI/(HR|SB|H) instead.
     if (out.live && out.live.batterInfo && out.live.batter) {
       out.live.batterInfo.prev = batterPriorPAs(out.plays, out.live.batter);
-      if (!out.live.batterInfo.prev.length) Object.assign(out.live.batterInfo, firstAbStats(out.live.batter));
+      if (!out.live.batterInfo.prev.length) {
+        Object.assign(out.live.batterInfo, firstAbStats(out.live.batter));
+        const pinch = pinchFor(out.plays, out.live.batter);
+        if (pinch) out.live.batterInfo.pinch = pinch;
+      }
     }
     // Make the current pitcher's pitch count climb pitch-by-pitch (the feed's
     // cumulative only updates at each at-bat's end).
@@ -1718,6 +1722,21 @@ function firstAbStats(name) {
   }
   const bioStr = bio ? [bio.school, bio.cls].filter(Boolean).join(' · ') : '';
   return { firstAB: true, bio: bioStr || null, seasonLine: line.length ? line : null };
+}
+// If the current batter entered as a pinch hitter/runner, find who he replaced
+// from the play-by-play substitution announcement (handles both the "X pinch hit
+// for Y" and "Pinch hitter X replaces Y" feed phrasings). Returns { for, type }.
+function pinchFor(plays, batterName) {
+  const nm = normPlayerName(batterName); if (!nm || !Array.isArray(plays)) return null;
+  const pats = [
+    [/^(.+?) pinch hit for (.+?)\.?$/i, 'ph'], [/pinch hitter\s+(.+?)\s+(?:replaces|for)\s+(.+?)\.?$/i, 'ph'],
+    [/^(.+?) pinch ran for (.+?)\.?$/i, 'pr'], [/pinch runner\s+(.+?)\s+(?:replaces|for)\s+(.+?)\.?$/i, 'pr'],
+  ];
+  for (let i = plays.length - 1; i >= 0; i--) {
+    const t = String(plays[i].text || '').trim();
+    for (const [re, type] of pats) { const m = t.match(re); if (m && normPlayerName(m[1]) === nm) return { for: m[2].trim(), type }; }
+  }
+  return null;
 }
 const playerCache = {};     // slug -> full { ...light, glBat, glPit, ts } for profiles
 let rosterUpdated = 0;
@@ -3044,6 +3063,7 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .mpa b{color:var(--bone);font-weight:600;font-family:'JetBrains Mono',monospace;font-size:10px;margin-right:3px;}
 .mfirst{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-top:4px;}
 .mfb{font-family:'Oswald',sans-serif;font-weight:700;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--bayou);background:var(--gold2);border-radius:5px;padding:1px 7px;}
+.mfb.pinch{background:var(--purple);color:#fff;}
 .mfbio{font-size:11px;color:var(--mute);}
 .mfk{color:var(--mute);font-size:9px;letter-spacing:.04em;margin-right:1px;}
 .mssn{font-family:'Oswald',sans-serif;font-weight:700;font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:var(--mute);margin-right:5px;}
@@ -3569,10 +3589,17 @@ function matchupCard(role,info){
   var meta=[];if(info.pos)meta.push(esc(info.pos));if(info.uni)meta.push('#'+esc(String(info.uni)));
   var head='<div class="mrole">'+role+'</div><div class="mname">'+esc(info.name)+(meta.length?'<span class="mmeta">'+meta.join(' ')+'</span>':'')+'</div>';
   // First plate appearance of the game: no game line yet, so show "1st AB" plus
-  // the batter's school/class and season AVG/RBI/(HR|SB|H). If we have no data on
-  // him at all, the card just states it's his first at-bat.
+  // the batter's school/class and season AVG/RBI/(HR|SB|H). A pinch hitter/runner
+  // gets a "PH/PR — pinch hitting for <player>" badge in place of "1st AB". If we
+  // have no data on him at all, the card just states it's his first at-bat.
   if(info.firstAB){
-    var fb='<div class="mfirst"><span class="mfb">1st AB</span>'+(info.bio?'<span class="mfbio">'+esc(info.bio)+'</span>':'')+'</div>';
+    var fb;
+    if(info.pinch){
+      var verb=info.pinch.type==='pr'?'Pinch running for ':'Pinch hitting for ';
+      fb='<div class="mfirst"><span class="mfb pinch">'+(info.pinch.type==='pr'?'PR':'PH')+'</span><span class="mfbio">'+verb+esc(info.pinch['for'])+(info.bio?' · '+esc(info.bio):'')+'</span></div>';
+    }else{
+      fb='<div class="mfirst"><span class="mfb">1st AB</span>'+(info.bio?'<span class="mfbio">'+esc(info.bio)+'</span>':'')+'</div>';
+    }
     // Lead the stat line with a "SEASON" label so these season-to-date numbers
     // aren't mistaken for the current game's line (they read 0-for-0 the same).
     var sl=(info.seasonLine&&info.seasonLine.length)?'<div class="mstat"><span class="mssn">SEASON</span> '+info.seasonLine.map(function(s){return '<span class="mfk">'+esc(s[0])+'</span> '+esc(s[1]);}).join('   ')+'</div>':'';
