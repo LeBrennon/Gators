@@ -2561,9 +2561,19 @@ app.get('/api/schedule', (_q, r) => { r.set('Cache-Control', 'no-store'); r.json
 app.get('/api/standings', (_q, r) => {
   r.set('Cache-Control', 'no-store');
   if (!standingsTable.length) pollStandings();
+  // Cancelled games per team, counted across the whole league schedule (every
+  // date), so the Standings tab can show how many games each team has had wiped.
+  const canc = {};
+  try {
+    for (const g of parseLeagueScoreboard(lastHtml, '')) {
+      if (g.state !== 'cancelled') continue;
+      if (g.away && g.away.id) canc[g.away.id] = (canc[g.away.id] || 0) + 1;
+      if (g.home && g.home.id) canc[g.home.id] = (canc[g.home.id] || 0) + 1;
+    }
+  } catch (e) { /* leave counts at 0 if the schedule can't be parsed */ }
   const rows = standingsTable.map(x => {
     const gp = x.w + x.l + x.t;
-    return Object.assign({}, x, { pct: gp ? (x.w + x.t * 0.5) / gp : 0, site: TEAM_SITE[x.id] || null });
+    return Object.assign({}, x, { pct: gp ? (x.w + x.t * 0.5) / gp : 0, site: TEAM_SITE[x.id] || null, canc: x.id ? (canc[x.id] || 0) : 0 });
   }).sort((a, b) => b.pct - a.pct || b.w - a.w || a.l - b.l);
   const lead = rows[0];
   for (const x of rows) x.gb = lead ? ((lead.w - x.w) + (x.l - lead.l)) / 2 : 0;
@@ -3674,7 +3684,7 @@ function renderStandings(d){
   var recById={};rows.forEach(function(x){if(x.id)recById[x.id]=x.w+'-'+x.l;});
   if(!rows.length){$('standingsBody').innerHTML='<div class="note">Standings aren’t available yet — check back shortly.</div>';$('stMeta').textContent='';}
   else{
-    var h='<div class="gltbl sttbl"><table><tr><th>#</th><th>Team</th><th>W</th><th>L</th><th>PCT</th><th>GB</th><th>STRK</th></tr>';
+    var h='<div class="gltbl sttbl"><table><tr><th>#</th><th>Team</th><th>W</th><th>L</th><th>PCT</th><th>GB</th><th>STRK</th><th title="Cancelled games">CXL</th></tr>';
     rows.forEach(function(x,i){
       var isG=x.id&&x.id===d.gatorsId;
       var lg=x.logo?'<img class="stlogo" src="'+esc(x.logo)+'" alt="">':'';
@@ -3683,7 +3693,7 @@ function renderStandings(d){
       var team=x.site?('<a class="stteam" href="'+esc(x.site)+'" target="_blank" rel="noopener">'+lg+'<span>'+nm+'</span></a>'):('<div class="stteam">'+lg+'<span>'+nm+'</span></div>');
       h+='<tr'+(isG?' class="stg"':'')+'><td>'+(i+1)+'</td>'
         +'<td>'+team+'</td>'
-        +'<td>'+x.w+'</td><td>'+x.l+'</td><td>'+fmtPct(x.pct)+'</td><td>'+fmtGb(x.gb)+'</td><td>'+sk+'</td></tr>';
+        +'<td>'+x.w+'</td><td>'+x.l+'</td><td>'+fmtPct(x.pct)+'</td><td>'+fmtGb(x.gb)+'</td><td>'+sk+'</td><td>'+(x.canc||0)+'</td></tr>';
     });
     $('standingsBody').innerHTML=h+'</table></div>';
     $('stMeta').textContent='';
