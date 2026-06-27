@@ -2415,7 +2415,7 @@ app.get('/debug/box-refresh', async (q, r) => {
   r.set('Cache-Control', 'no-store');
   r.json({ ok: true, id, evicted: had, refetched: true, teams: res.data.teams, counts: res.data.counts });
 });
-app.get('/api/game', (_q, r) => featured ? r.json(featured) : r.status(503).json({ status: 'waiting' }));
+app.get('/api/game', (_q, r) => { r.set('Cache-Control', 'no-store'); return featured ? r.json(featured) : r.status(503).json({ status: 'waiting' }); });
 app.get(['/gators-logo.png','/gators-logo.jpg'], (_q, r) => { r.set('Content-Type','image/png'); r.set('Cache-Control','public, max-age=86400'); r.send(Buffer.from(GATORS_LOGO_B64,'base64')); });
 app.get('/tcl-logo.png', (_q, r) => { r.set('Content-Type','image/png'); r.set('Cache-Control','public, max-age=86400'); r.send(Buffer.from(TCL_LOGO_B64,'base64')); });
 app.get(['/gg-logo.png','/gg-logo.jpg'], (_q, r) => { r.set('Content-Type','image/png'); r.set('Cache-Control','public, max-age=86400'); r.send(Buffer.from(GG_LOGO_B64,'base64')); });
@@ -2557,8 +2557,9 @@ app.get('/stats', (q, r) => {
   r.set('Cache-Control', 'no-store');
   r.type('html').send(reportPage('Site Visitors', body));
 });
-app.get('/api/schedule', (_q, r) => r.json({ games: games.map(decorateGame) }));
+app.get('/api/schedule', (_q, r) => { r.set('Cache-Control', 'no-store'); r.json({ games: games.map(decorateGame) }); });
 app.get('/api/standings', (_q, r) => {
+  r.set('Cache-Control', 'no-store');
   if (!standingsTable.length) pollStandings();
   const rows = standingsTable.map(x => {
     const gp = x.w + x.l + x.t;
@@ -3582,10 +3583,10 @@ function toast(e,t,s,cls){var el=document.createElement('div');el.className='toa
   requestAnimationFrame(function(){requestAnimationFrame(function(){el.classList.add('show');});});
   setTimeout(function(){el.classList.remove('show');setTimeout(function(){el.remove();},500);},4200);}
 function emo(tag){return tag==='lead'?'📣':tag==='final'?'🏁':tag==='run'?'🔥':tag==='start'?'⚾':'🐊';}
-function loadSched(){fetch('/api/schedule').then(function(r){return r.json();}).then(function(d){renderSched(d.games||[]);}).catch(function(){});}
+function loadSched(){fetch('/api/schedule',{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){renderSched(d.games||[]);}).catch(function(){});}
 function connect(){var lastData=0;
   function applyGame(g){if(g&&g.home){renderGame(g);lastData=Date.now();if($('viewStandings').style.display!=='none')silentStandings();}}
-  function pollGame(){fetch('/api/game').then(function(r){return r.ok?r.json():null;}).then(applyGame).catch(function(){});}
+  function pollGame(){fetch('/api/game',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).then(applyGame).catch(function(){});}
   pollGame();
   // Poll the live game often so the score/count/pitch-count stay fresh even when
   // the SSE push stalls (e.g. behind the non-www->www redirect). /api/game is
@@ -3661,7 +3662,7 @@ function setRmeta(d){
 }
 function loadStandings(){
   if(standingsReq)return;standingsReq=true;
-  fetch('/api/standings').then(function(r){return r.json();}).then(function(d){
+  fetch('/api/standings',{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){
     standingsReq=false;standingsData=d;renderStandings(d);
     if((!d.rows||!d.rows.length)&&standingsPolls<20){standingsPolls++;setTimeout(function(){standingsData=null;loadStandings();},4000);}
   }).catch(function(){standingsReq=false;$('standingsBody').innerHTML='<div class="spin">Could not load standings. Tap Standings again to retry.</div>';});
@@ -3722,7 +3723,7 @@ function renderScoreboard(sb,gatorsId,recById){
   $('scoreboardBody').innerHTML=h;
 }
 function silentStandings(){
-  fetch('/api/standings').then(function(r){return r.json();}).then(function(d){
+  fetch('/api/standings',{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){
     if(d&&d.rows){standingsData=d;renderStandings(d);}
   }).catch(function(){});
 }
