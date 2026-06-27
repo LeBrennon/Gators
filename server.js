@@ -964,6 +964,18 @@ function lineupsFromFeed(json) {
       if (p && p.name && String(p.name).trim()) return String(p.name).trim();
       return String(fallback || '').trim();
     };
+    // Abbreviate to ESPN-style "F. Last" on the SERVER so the display name arrives
+    // already formatted — the browser just prints it, which keeps a stale/cached
+    // page from showing the wrong thing. Handles "Last, First" and a trailing
+    // generational suffix; a single-token name is returned as-is.
+    const abbrev = nm => {
+      let s = String(nm || '').trim(); if (!s) return '';
+      if (s.indexOf(',') > -1) { const c = s.split(','); const l = (c[0] || '').trim(), f = (c[1] || '').trim(); s = (f ? f + ' ' : '') + l; }
+      const p = s.split(/\s+/); if (p.length < 2) return s;
+      let last = p[p.length - 1];
+      if (/^(jr|sr|ii|iii|iv|v)\.?$/i.test(last) && p.length > 2) last = p[p.length - 2];
+      return p[0].charAt(0).toUpperCase() + '. ' + last;
+    };
     const rows = order.map(o => {
       const p = byUni[String(o.uni)] || byName[String(o.name || '').trim()] || {};
       const h = p.hitting || {};
@@ -977,11 +989,15 @@ function lineupsFromFeed(json) {
       const firstPos = pos.split(/[-/ ]/)[0];
       let sub = firstPos === 'PH' || firstPos === 'PR';
       if (spot != null) { if (seenSpot.has(spot)) sub = true; else seenSpot.add(spot); }
+      const full = dispName(p, o.name);
       return {
         spot,
         pos,
         uni: o.uni != null ? String(o.uni) : (p.uni != null ? String(p.uni) : ''),
-        name: dispName(p, o.name),
+        // name = display ("F. Last", server-formatted); full = full name kept for
+        // profile-link matching and current-batter highlighting on the client.
+        name: abbrev(full),
+        full,
         bats: String(p.bats || '').toUpperCase(),
         today: ab == null ? '—' : (hits + ' for ' + ab),
         // ESPN-style box line (game). null for a batter who hasn't come up yet.
@@ -3393,18 +3409,6 @@ function buildLineScore(g){
   });
   return h+'</table></div>';
 }
-// ESPN-style short name: first initial + last name ("Bankston Lembcke" ->
-// "B. Lembcke"), so long names don't wrap to a second row. Handles "Last, First"
-// feed format, a trailing generational suffix (Jr/Sr/II/III), and names that are
-// already abbreviated ("L. Dunn" stays "L. Dunn").
-function abbrName(n){
-  var s=String(n||'').trim();if(!s)return '';
-  if(s.indexOf(',')>-1){var c=s.split(',');var l=(c[0]||'').trim(),f=(c[1]||'').trim();s=(f?f+' ':'')+l;}
-  var p=s.split(/\s+/);if(p.length<2)return s;
-  var last=p[p.length-1];
-  if(/^(jr|sr|ii|iii|iv|v)\.?$/i.test(last)&&p.length>2)last=p[p.length-2];
-  return p[0].charAt(0).toUpperCase()+'. '+last;
-}
 // "Due Up" strip under the line score: the next three hitters for the team at
 // bat (starting with whoever's up), each with his game line — like ESPN.
 function buildDueUp(g){
@@ -3419,7 +3423,7 @@ function buildDueUp(g){
   var spots=Object.keys(bySpot).map(Number).sort(function(a,b){return a-b;});
   if(spots.length<2)return '';
   var curBat=live.batter?String(live.batter).trim():'';
-  var curSpot=null;team.rows.forEach(function(r){if(r.name===curBat&&r.spot!=null)curSpot=r.spot;});
+  var curSpot=null;team.rows.forEach(function(r){if((r.full||r.name)===curBat&&r.spot!=null)curSpot=r.spot;});
   var ci=curSpot!=null?spots.indexOf(curSpot):0;if(ci<0)ci=0;
   // Show the batting line (H-AB) plus up to two more stats that have a value over
   // zero — capped at three groups total so it fits on one line without an ellipsis.
@@ -3431,7 +3435,7 @@ function buildDueUp(g){
   var items='';
   // Start at the on-deck batter (skip whoever is currently at the plate).
   for(var j=1;j<=3;j++){var r=bySpot[spots[(ci+j)%spots.length]];if(!r)continue;
-    items+='<div class="duitem"><div class="dunum">DUE UP ('+j+')</div><div class="dunm">'+esc(abbrName(r.name))+'</div><div class="duln">'+esc(line(r))+'</div></div>';}
+    items+='<div class="duitem"><div class="dunum">DUE UP ('+j+')</div><div class="dunm">'+esc(r.name)+'</div><div class="duln">'+esc(line(r))+'</div></div>';}
   if(!items)return '';
   return '<div class="dueup"><div class="duh">Due Up</div><div class="durow">'+items+'</div></div>';
 }
@@ -3482,10 +3486,12 @@ function buildLineup(g){
   function sc(v){return '<td class="lpn">'+(v==null?'':esc(String(v)))+'</td>';}
   var rows='';
   team.rows.forEach(function(r){
-    var cur=teamBatting&&curBat&&r.name===curBat;
-    // Gators names link to their profile (matched to the roster); others stay plain.
-    var slug=team.isGators?gatorSlug(r.name):null;
-    var nmeCell=esc(abbrName(r.name));
+    var full=r.full||r.name;
+    var cur=teamBatting&&curBat&&full===curBat;
+    // Gators names link to their profile (matched to the roster, by full name);
+    // others stay plain. The display name (r.name) is already "F. Last".
+    var slug=team.isGators?gatorSlug(full):null;
+    var nmeCell=esc(r.name);
     if(slug)nmeCell='<a class="bxp" data-slug="'+esc(slug)+'">'+nmeCell+'</a>';
     // Substitutes (pinch hitters/runners) sit under the player they replaced and
     // share his spot, so drop the number and indent the name, like the box score.
