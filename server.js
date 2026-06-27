@@ -1070,6 +1070,7 @@ function pitchersFromFeed(json) {
         er: num(pickv(pg, ['er', 'earned'])),
         bb: num(pickv(pg, ['bb', 'walks'])),
         k: num(pickv(pg, ['so', 'k', 'strikeouts'])),
+        hbp: num(pickv(pg, ['hbp', 'hb', 'hp'])),
         np: np,
         sp: sp,
         dec: String(pickv(pg, ['dec', 'decision', 'wls']) || '').trim(),
@@ -1114,14 +1115,14 @@ function applyLivePitchCount(gameId, live, pitchers) {
 // recomputed from each line's strikes (derived from its own S% and pitch count).
 function pitchingTotals(rows) {
   const num = x => Number(x) || 0;
-  let outs = 0, h = 0, r = 0, er = 0, bb = 0, k = 0, np = 0, strikes = 0, hasNp = false;
+  let outs = 0, h = 0, r = 0, er = 0, bb = 0, k = 0, hbp = 0, np = 0, strikes = 0, hasNp = false;
   for (const x of (rows || [])) {
     const m = String(x.ip == null ? '' : x.ip).match(/^(\d+)(?:\.(\d))?$/);
     if (m) outs += num(m[1]) * 3 + num(m[2]);
-    h += num(x.h); r += num(x.r); er += num(x.er); bb += num(x.bb); k += num(x.k);
+    h += num(x.h); r += num(x.r); er += num(x.er); bb += num(x.bb); k += num(x.k); hbp += num(x.hbp);
     if (x.np != null) { hasNp = true; np += num(x.np); if (x.sp != null) strikes += Math.round(num(x.sp) / 100 * num(x.np)); }
   }
-  return { ip: Math.floor(outs / 3) + '.' + (outs % 3), h, r, er, bb, k,
+  return { ip: Math.floor(outs / 3) + '.' + (outs % 3), h, r, er, bb, k, hbp,
     np: hasNp ? np : null, sp: (hasNp && np) ? Math.round(strikes / np * 100) : null };
 }
 
@@ -3370,7 +3371,7 @@ function buildPitching(g){
   var P=g.pitchers;if(!P||!P.length)return '';
   function nm(t){return t.vh==='H'?g.home.short:g.away.short;}
   var head='<tr><th class="luu">#</th><th class="lunm">Pitcher</th><th class="lpn">IP</th><th class="lpn">H</th><th class="lpn">R</th>'+
-    '<th class="lpn">ER</th><th class="lpn">BB</th><th class="lpn">K</th><th class="lpn">P</th><th class="lpn">S%</th></tr>';
+    '<th class="lpn">ER</th><th class="lpn">BB</th><th class="lpn">K</th><th class="lpn">HBP</th><th class="lpn">P</th><th class="lpn">S%</th></tr>';
   var blocks='';
   P.forEach(function(t){
     if(!t.rows||!t.rows.length)return;
@@ -3381,13 +3382,13 @@ function buildPitching(g){
       if(r.dec)nme+=' <span class="pdec">'+esc(r.dec)+'</span>';
       rows+='<tr><td class="luu">'+esc(String(r.uni||''))+'</td><td class="lunm">'+nme+'</td><td class="lpn">'+esc(String(r.ip))+'</td>'+
         '<td class="lpn">'+r.h+'</td><td class="lpn">'+r.r+'</td><td class="lpn">'+r.er+'</td>'+
-        '<td class="lpn">'+r.bb+'</td><td class="lpn">'+r.k+'</td><td class="lpn">'+(r.np==null?'·':r.np)+'</td>'+
+        '<td class="lpn">'+r.bb+'</td><td class="lpn">'+r.k+'</td><td class="lpn">'+(r.hbp||0)+'</td><td class="lpn">'+(r.np==null?'·':r.np)+'</td>'+
         '<td class="lpn">'+(r.sp==null?'·':r.sp)+'</td></tr>';
     });
     var T=t.totals;
     if(T)rows+='<tr class="pttot"><td class="luu"></td><td class="lunm">Totals</td><td class="lpn">'+esc(String(T.ip))+'</td>'+
       '<td class="lpn">'+T.h+'</td><td class="lpn">'+T.r+'</td><td class="lpn">'+T.er+'</td>'+
-      '<td class="lpn">'+T.bb+'</td><td class="lpn">'+T.k+'</td><td class="lpn">'+(T.np==null?'·':T.np)+'</td>'+
+      '<td class="lpn">'+T.bb+'</td><td class="lpn">'+T.k+'</td><td class="lpn">'+(T.hbp||0)+'</td><td class="lpn">'+(T.np==null?'·':T.np)+'</td>'+
       '<td class="lpn">'+(T.sp==null?'·':T.sp)+'</td></tr>';
     blocks+='<div class="pthead">'+esc(nm(t))+'</div><div class="lubox"><table class="lutbl ptbl">'+head+rows+'</table></div>';
   });
