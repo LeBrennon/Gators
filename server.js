@@ -3368,8 +3368,9 @@ function buildDueUp(g){
   var ci=curSpot!=null?spots.indexOf(curSpot):0;if(ci<0)ci=0;
   function line(r){if(r.ab==null)return '—';var s=r.hits+'-'+r.ab,x=[];if(r.runs)x.push(r.runs+' R');if(r.rbi)x.push(r.rbi+' RBI');if(r.k)x.push(r.k+' K');return s+(x.length?', '+x.join(', '):'');}
   var items='';
-  for(var j=0;j<3;j++){var r=bySpot[spots[(ci+j)%spots.length]];if(!r)continue;
-    items+='<div class="duitem"><div class="dunum">DUE UP ('+(j+1)+')</div><div class="dunm">'+esc(abbrName(r.name))+'</div><div class="duln">'+esc(line(r))+'</div></div>';}
+  // Start at the on-deck batter (skip whoever is currently at the plate).
+  for(var j=1;j<=3;j++){var r=bySpot[spots[(ci+j)%spots.length]];if(!r)continue;
+    items+='<div class="duitem"><div class="dunum">DUE UP ('+j+')</div><div class="dunm">'+esc(abbrName(r.name))+'</div><div class="duln">'+esc(line(r))+'</div></div>';}
   if(!items)return '';
   return '<div class="dueup"><div class="duh">Due Up</div><div class="durow">'+items+'</div></div>';
 }
