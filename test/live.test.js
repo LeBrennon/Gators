@@ -169,12 +169,12 @@ test('summarizePlays: no plays yields empty list', () => {
 // ---- pitchersFromFeed: per-team live pitching lines -----------------------
 const PITCHERS = { team: [
   { vh: 'V', name: 'Gators', teamId: GATORS, player: [
-    { name: 'Tanner Trout', uni: '19', pitching: [{ ip: '1.1', h: '3', r: '5', er: '4', bb: '2', so: '0', pitches: '38', strikes: '22', dec: 'L' }] },
+    { name: 'Tanner Trout', uni: '19', pitching: [{ ip: '1.1', h: '3', r: '5', er: '4', bb: '2', so: '0', hbp: '1', pitches: '38', strikes: '22', dec: 'L' }] },
     { name: 'Relief Guy', uni: '21', pitching: [{ ip: '0.0', h: '0', r: '0', er: '0', bb: '0', so: '0', pitches: '0' }] }, // not appeared -> dropped
     { name: 'A Hitter', uni: '7', hitting: { ab: 3, h: 1 } }, // no pitching -> skipped
   ] },
   { vh: 'H', name: 'Bison', teamId: 'ij0lwtvjsx2mi1nh', player: [
-    { name: 'Cole Carnes', uni: '30', pitching: [{ ip: '5.0', hits: '4', runs: '2', earned: '2', walks: '1', k: '6', np: '72', balls: '24' }] }, // alt field spellings; S% from balls
+    { name: 'Cole Carnes', uni: '30', pitching: [{ ip: '5.0', hits: '4', runs: '2', earned: '2', walks: '1', k: '6', hb: '2', np: '72', balls: '24' }] }, // alt field spellings; S% from balls
   ] },
 ] };
 
@@ -184,14 +184,14 @@ test('pitchersFromFeed: lists appeared pitchers with their game line', () => {
   assert.equal(p[0].isGators, true);
   assert.equal(p[0].rows.length, 1);                  // relief guy with no appearance dropped
   // S% = strikes/pitches = 22/38 = 58%
-  assert.deepEqual(p[0].rows[0], { name: 'Tanner Trout', uni: '19', ip: '1.1', h: 3, r: 5, er: 4, bb: 2, k: 0, np: 38, sp: 58, dec: 'L' });
+  assert.deepEqual(p[0].rows[0], { name: 'Tanner Trout', uni: '19', ip: '1.1', h: 3, r: 5, er: 4, bb: 2, k: 0, hbp: 1, np: 38, sp: 58, dec: 'L' });
 });
 
 test('pitchersFromFeed: matches alternate field spellings (hits/runs/earned/walks/k/np)', () => {
   const p = pitchersFromFeed(PITCHERS);
   const carnes = p[1].rows[0];
   // S% derived from balls: (72-24)/72 = 67%
-  assert.deepEqual(carnes, { name: 'Cole Carnes', uni: '30', ip: '5.0', h: 4, r: 2, er: 2, bb: 1, k: 6, np: 72, sp: 67, dec: '' });
+  assert.deepEqual(carnes, { name: 'Cole Carnes', uni: '30', ip: '5.0', h: 4, r: 2, er: 2, bb: 1, k: 6, hbp: 2, np: 72, sp: 67, dec: '' });
 });
 
 test('pitchersFromFeed: missing team array yields empty list', () => {
@@ -210,7 +210,7 @@ test('pitchersFromFeed: the just-entered current pitcher shows instantly, before
   const rows = pitchersFromFeed(json)[0].rows;
   assert.equal(rows.length, 2); // starter plus the reliever who just entered
   const fresh = rows.find(r => r.name === 'Fresh Arm');
-  assert.deepEqual(fresh, { name: 'Fresh Arm', uni: '28', ip: '0.0', h: 0, r: 0, er: 0, bb: 0, k: 0, np: null, sp: null, dec: '' });
+  assert.deepEqual(fresh, { name: 'Fresh Arm', uni: '28', ip: '0.0', h: 0, r: 0, er: 0, bb: 0, k: 0, hbp: 0, np: null, sp: null, dec: '' });
 });
 
 test('applyLivePitchCount: current pitcher count climbs with the in-progress at-bat', () => {
