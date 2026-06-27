@@ -63,6 +63,22 @@ test('parseLeagueScoreboard: no games on an empty day', () => {
   assert.deepEqual(parseLeagueScoreboard(HTML, '20260101'), []);
 });
 
+test('parseLeagueScoreboard: no date filter returns every game across all dates', () => {
+  // Standings "Cancellations" column counts cancelled games league-wide, which
+  // relies on passing a falsy date to get every game, not just one day.
+  const all = parseLeagueScoreboard(HTML, '');
+  assert.equal(all.length, 3);
+  assert.deepEqual(all.map(g => g.id).sort(), ['20260620_aaaa', '20260621_cccc', '20260621_zzzz']);
+});
+
+test('parseLeagueScoreboard: a cancelled game is flagged so it can be counted', () => {
+  const CANC = `<html><body>${row('20260623', 'xxxx', CANE, 'Acadiana Cane Cutters', 0, GATORS, 'Lake Charles Gumbeaux Gators', 0, 'Cancelled')}</body></html>`;
+  const g = parseLeagueScoreboard(CANC, '')[0];
+  assert.equal(g.state, 'cancelled');
+  assert.equal(g.away.id, CANE);
+  assert.equal(g.home.id, GATORS);
+});
+
 // applyLiveScores: overlay live scores onto in-progress games, keep finals.
 function game(id, state, aScore, hScore) {
   return { id, state, away: { id: 'a', short: 'A', score: aScore }, home: { id: 'h', short: 'H', score: hScore } };
