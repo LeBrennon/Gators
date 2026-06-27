@@ -951,6 +951,19 @@ function lineupsFromFeed(json) {
     // already appeared above him (the starter or an earlier sub holds it) or
     // he's flagged PH/PR.
     const seenSpot = new Set();
+    // The batting-order entry's name (o.name) is unreliable — some feeds send it
+    // garbled ("B. ton Lembcke") or as a bare initial ("G."). The player record's
+    // revname ("Lembcke, Bankston") is canonical (it's what the box-score notes
+    // use), so prefer it, rebuilt as "First Last"; fall back to p.name, then o.name.
+    const dispName = (p, fallback) => {
+      if (p && p.revname && String(p.revname).indexOf(',') !== -1) {
+        const c = String(p.revname).split(',');
+        const last = (c[0] || '').trim(), first = (c[1] || '').trim();
+        if (last) return (first ? first + ' ' : '') + last;
+      }
+      if (p && p.name && String(p.name).trim()) return String(p.name).trim();
+      return String(fallback || '').trim();
+    };
     const rows = order.map(o => {
       const p = byUni[String(o.uni)] || byName[String(o.name || '').trim()] || {};
       const h = p.hitting || {};
@@ -968,7 +981,7 @@ function lineupsFromFeed(json) {
         spot,
         pos,
         uni: o.uni != null ? String(o.uni) : (p.uni != null ? String(p.uni) : ''),
-        name: String(o.name || p.name || '').trim(),
+        name: dispName(p, o.name),
         bats: String(p.bats || '').toUpperCase(),
         today: ab == null ? '—' : (hits + ' for ' + ab),
         // ESPN-style box line (game). null for a batter who hasn't come up yet.
@@ -2873,7 +2886,7 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .duitem{flex:1;min-width:0;background:var(--bayou2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;}
 .dunum{font-family:'Oswald',sans-serif;font-size:9px;font-weight:700;letter-spacing:.08em;color:var(--mute);}
 .dunm{font-weight:600;font-size:12px;color:var(--bone);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.duln{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gold2);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.duln{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gold2);margin-top:3px;white-space:nowrap;overflow:hidden;}
 .finalcard{display:flex;flex-direction:column;align-items:center;gap:13px;padding:6px 0 2px;}
 .finalbtns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;}
 .fbtn{font-family:'Oswald',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:11px;padding:9px 16px;border-radius:999px;border:1px solid var(--purple);background:linear-gradient(180deg,var(--purple),var(--gator2));color:#fff;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;}
@@ -3348,8 +3361,17 @@ function buildLineScore(g){
   return h+'</table></div>';
 }
 // ESPN-style short name: first initial + last name ("Bankston Lembcke" ->
-// "B. Lembcke"), so long names don't wrap to a second row.
-function abbrName(n){var p=String(n||'').trim().split(/\s+/);return p.length<2?(n||''):(p[0].charAt(0)+'. '+p[p.length-1]);}
+// "B. Lembcke"), so long names don't wrap to a second row. Handles "Last, First"
+// feed format, a trailing generational suffix (Jr/Sr/II/III), and names that are
+// already abbreviated ("L. Dunn" stays "L. Dunn").
+function abbrName(n){
+  var s=String(n||'').trim();if(!s)return '';
+  if(s.indexOf(',')>-1){var c=s.split(',');var l=(c[0]||'').trim(),f=(c[1]||'').trim();s=(f?f+' ':'')+l;}
+  var p=s.split(/\s+/);if(p.length<2)return s;
+  var last=p[p.length-1];
+  if(/^(jr|sr|ii|iii|iv|v)\.?$/i.test(last)&&p.length>2)last=p[p.length-2];
+  return p[0].charAt(0).toUpperCase()+'. '+last;
+}
 // "Due Up" strip under the line score: the next three hitters for the team at
 // bat (starting with whoever's up), each with his game line — like ESPN.
 function buildDueUp(g){
@@ -3366,7 +3388,13 @@ function buildDueUp(g){
   var curBat=live.batter?String(live.batter).trim():'';
   var curSpot=null;team.rows.forEach(function(r){if(r.name===curBat&&r.spot!=null)curSpot=r.spot;});
   var ci=curSpot!=null?spots.indexOf(curSpot):0;if(ci<0)ci=0;
-  function line(r){if(r.ab==null)return '—';var s=r.hits+'-'+r.ab,x=[];if(r.runs)x.push(r.runs+' R');if(r.rbi)x.push(r.rbi+' RBI');if(r.k)x.push(r.k+' K');return s+(x.length?', '+x.join(', '):'');}
+  // Show the batting line (H-AB) plus up to two more stats that have a value over
+  // zero — capped at three groups total so it fits on one line without an ellipsis.
+  function line(r){if(r.ab==null)return '—';
+    var g=[r.hits+'-'+r.ab];
+    var cand=[[r.runs,'R'],[r.rbi,'RBI'],[r.k,'K'],[r.bb,'BB']];
+    for(var i=0;i<cand.length&&g.length<3;i++){if(cand[i][0])g.push(cand[i][0]+' '+cand[i][1]);}
+    return g.join(', ');}
   var items='';
   // Start at the on-deck batter (skip whoever is currently at the plate).
   for(var j=1;j<=3;j++){var r=bySpot[spots[(ci+j)%spots.length]];if(!r)continue;
