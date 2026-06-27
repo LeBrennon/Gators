@@ -2310,7 +2310,7 @@ app.use(express.json());
 // instead of being served stale from cache (ETag makes the revalidation a cheap
 // 304 when nothing changed). Without this the single-page UI freezes at whatever
 // version was first cached while live scores keep updating via the APIs.
-app.get('/', (q, r) => { recordVisit(q); r.set('Cache-Control', 'no-cache'); r.type('html').send(APP.replace('__BUILD_LABEL__', BUILD_LABEL)); });
+app.get('/', (q, r) => { recordVisit(q); r.set('Cache-Control', 'no-store, must-revalidate'); r.type('html').send(APP.replace('__BUILD_LABEL__', BUILD_LABEL).replace('__BUILD_COMMIT__', BUILD.commit)); });
 app.get('/sw.js', (_q, r) => r.type('application/javascript').send(SW));
 app.get('/manifest.json', (_q, r) => r.type('application/json').send(MANIFEST));
 app.get('/health', (_q, r) => r.json({ ok: true, build: BUILD, games: games.length, featured: featured && featured.id, push: pushReady }));
@@ -3940,5 +3940,21 @@ $('bxModal').addEventListener('click',function(e){if(e.target===this){this.class
     $('a2hsmsg').innerHTML='Tap <b style="color:var(--gold2)">Share</b>, then "Add to Home Screen".';
     setTimeout(show,1800);
   }
+})();
+// Auto-update: the live lineup, abbreviations, and Due Up all render client-side,
+// so a stale cached page can keep showing old/incorrect output even after a
+// deploy. Compare the running build to the server's; when it changes, reload with
+// a cache-busting param so no stale JS lingers. Check on foreground + periodically.
+(function(){
+  var BUILT='__BUILD_COMMIT__';var reloading=false;
+  function check(){
+    if(reloading||document.hidden)return;
+    fetch('/api/version',{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){
+      if(d&&d.commit&&BUILT&&d.commit!==BUILT){reloading=true;location.replace(location.pathname+'?b='+encodeURIComponent(d.commit));}
+    }).catch(function(){});
+  }
+  document.addEventListener('visibilitychange',function(){if(!document.hidden)check();});
+  setInterval(check,300000);
+  setTimeout(check,4000);
 })();
 connect();loadSched();loadRoster();</script></body></html>`;
