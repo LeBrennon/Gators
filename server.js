@@ -2311,7 +2311,7 @@ app.use(express.json());
 // 304 when nothing changed). Without this the single-page UI freezes at whatever
 // version was first cached while live scores keep updating via the APIs.
 app.get('/', (q, r) => { recordVisit(q); r.set('Cache-Control', 'no-store, must-revalidate'); r.type('html').send(APP.replace('__BUILD_LABEL__', BUILD_LABEL).replace('__BUILD_COMMIT__', BUILD.commit)); });
-app.get('/sw.js', (_q, r) => r.type('application/javascript').send(SW));
+app.get('/sw.js', (_q, r) => { r.set('Cache-Control', 'no-cache, no-store, must-revalidate'); r.type('application/javascript').send(SW); });
 app.get('/manifest.json', (_q, r) => r.type('application/json').send(MANIFEST));
 app.get('/health', (_q, r) => r.json({ ok: true, build: BUILD, games: games.length, featured: featured && featured.id, push: pushReady }));
 app.get('/api/version', (_q, r) => r.json(BUILD));
@@ -2781,9 +2781,15 @@ module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, s
 // ----- embedded service worker ---------------------------------------------
 const SW = [
 "self.addEventListener('install',function(){self.skipWaiting();});",
-"self.addEventListener('activate',function(e){e.waitUntil(self.clients.claim());});",
-// Pass-through fetch handler: present so Chrome considers the app installable.
-"self.addEventListener('fetch',function(e){});",
+// On activation, take control and force every open window to reload. Because the
+// fetch handler below serves navigations network-first (bypassing the HTTP cache),
+// that reload pulls the current page even when an installed PWA has a stale shell
+// pinned — which is otherwise unfixable from the server side.
+"self.addEventListener('activate',function(e){e.waitUntil(self.clients.claim().then(function(){return self.clients.matchAll({type:'window'}).then(function(cl){cl.forEach(function(c){if('navigate'in c){try{c.navigate(c.url);}catch(x){}}});});}));});",
+// Navigations: network-first with the HTTP cache bypassed, so a new deploy is
+// always picked up; fall back to a normal fetch if that fails. Everything else
+// passes through untouched.
+"self.addEventListener('fetch',function(e){var q=e.request;if(q.mode==='navigate'){e.respondWith(fetch(q,{cache:'reload'}).catch(function(){return fetch(q);}));}});",
 "self.addEventListener('push',function(e){var d={title:'Gators',body:''};try{d=e.data.json();}catch(x){}",
 "e.waitUntil(self.registration.showNotification(d.title||'Gators',{body:d.body||'',tag:d.tag||'g',renotify:true,icon:'icon.png',badge:'icon.png',vibrate:[80,40,80]}));});",
 "self.addEventListener('notificationclick',function(e){e.notification.close();e.waitUntil(clients.matchAll({type:'window',includeUncontrolled:true}).then(function(l){for(var i=0;i<l.length;i++){if('focus'in l[i])return l[i].focus();}if(clients.openWindow)return clients.openWindow('./');}));});"
