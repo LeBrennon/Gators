@@ -2867,6 +2867,13 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .mfbio{font-size:11px;color:var(--mute);}
 .mfk{color:var(--mute);font-size:9px;letter-spacing:.04em;margin-right:1px;}
 .mvs{text-align:center;font-family:'Oswald',sans-serif;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin:1px 0;}
+.dueup{margin-top:14px;}
+.duh{font-family:'Oswald',sans-serif;font-weight:600;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold2);margin-bottom:8px;}
+.durow{display:flex;gap:8px;}
+.duitem{flex:1;min-width:0;background:var(--bayou2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;}
+.dunum{font-family:'Oswald',sans-serif;font-size:9px;font-weight:700;letter-spacing:.08em;color:var(--mute);}
+.dunm{font-weight:600;font-size:12px;color:var(--bone);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.duln{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gold2);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .finalcard{display:flex;flex-direction:column;align-items:center;gap:13px;padding:6px 0 2px;}
 .finalbtns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;}
 .fbtn{font-family:'Oswald',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:11px;padding:9px 16px;border-radius:999px;border:1px solid var(--purple);background:linear-gradient(180deg,var(--purple),var(--gator2));color:#fff;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;}
@@ -2895,7 +2902,8 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .lutbl td.luu{font-family:'JetBrains Mono',monospace;color:var(--mute);}
 .lutbl td.lunm{font-weight:600;width:100%;white-space:normal;}
 .lutbl td.lut{font-family:'JetBrains Mono',monospace;color:var(--gold2);}
-.lutbl tr.cur td{background:linear-gradient(90deg,rgba(236,201,19,.12),transparent);}
+.lutbl tr.cur td{background:rgba(236,201,19,.10);}
+.lutbl tr.cur td:first-child{box-shadow:inset 3px 0 0 var(--gold2);}
 .lutbl tr.cur td.lunm{color:var(--gold2);}
 .lutbl tr.lusub td{border-top:0;}
 .lutbl tr.lusub td.lunm{padding-left:22px;}
@@ -3277,10 +3285,11 @@ function buildLive(g){
     var inHalf=!L||(lp.inning===(+L.inning)&&lp.half===(L.half==='Top'?'top':'bot'));
     if(lp&&lp.text&&inHalf)lastPlay='<div class="lastplay'+(lp.scored?' scored':'')+'" id="lastPlay"><span class="lplab">Last play</span><span class="lptx">'+esc(lp.text)+'</span></div>';}
   var line=buildLineScore(g);
+  var dueup=buildDueUp(g);
   var lineup=buildLineup(g);
   var pitching=buildPitching(g);
   var pbp=buildPbp(g);
-  return sit+lastPlay+(bp?'<div class="lbp">'+bp+'</div>':'')+line+pbp+lineup+pitching;
+  return sit+lastPlay+(bp?'<div class="lbp">'+bp+'</div>':'')+line+dueup+pbp+lineup+pitching;
 }
 // Live pitching box: each team's pitchers who have appeared, with their game
 // line (IP/H/R/ER/BB/K and pitch count). Gators names link to their profile.
@@ -3338,6 +3347,32 @@ function buildLineScore(g){
   });
   return h+'</table></div>';
 }
+// ESPN-style short name: first initial + last name ("Bankston Lembcke" ->
+// "B. Lembcke"), so long names don't wrap to a second row.
+function abbrName(n){var p=String(n||'').trim().split(/\s+/);return p.length<2?(n||''):(p[0].charAt(0)+'. '+p[p.length-1]);}
+// "Due Up" strip under the line score: the next three hitters for the team at
+// bat (starting with whoever's up), each with his game line — like ESPN.
+function buildDueUp(g){
+  if(g.status==='final')return '';
+  var L=g.lineups,live=g.live;
+  if(!L||!L.length||!live||!live.half)return '';
+  var battingV=live.half==='Top';                  // Top = visitor bats
+  var team=null;L.forEach(function(t){if((t.vh==='V')===battingV&&!team)team=t;});
+  if(!team||!team.rows||!team.rows.length)return '';
+  // Current occupant of each batting spot (a later sub overrides the starter).
+  var bySpot={};team.rows.forEach(function(r){if(r.spot!=null)bySpot[r.spot]=r;});
+  var spots=Object.keys(bySpot).map(Number).sort(function(a,b){return a-b;});
+  if(spots.length<2)return '';
+  var curBat=live.batter?String(live.batter).trim():'';
+  var curSpot=null;team.rows.forEach(function(r){if(r.name===curBat&&r.spot!=null)curSpot=r.spot;});
+  var ci=curSpot!=null?spots.indexOf(curSpot):0;if(ci<0)ci=0;
+  function line(r){if(r.ab==null)return '—';var s=r.hits+'-'+r.ab,x=[];if(r.runs)x.push(r.runs+' R');if(r.rbi)x.push(r.rbi+' RBI');if(r.k)x.push(r.k+' K');return s+(x.length?', '+x.join(', '):'');}
+  var items='';
+  for(var j=0;j<3;j++){var r=bySpot[spots[(ci+j)%spots.length]];if(!r)continue;
+    items+='<div class="duitem"><div class="dunum">DUE UP ('+(j+1)+')</div><div class="dunm">'+esc(abbrName(r.name))+'</div><div class="duln">'+esc(line(r))+'</div></div>';}
+  if(!items)return '';
+  return '<div class="dueup"><div class="duh">Due Up</div><div class="durow">'+items+'</div></div>';
+}
 function matchupCard(role,info){
   var meta=[];if(info.pos)meta.push(esc(info.pos));if(info.uni)meta.push('#'+esc(String(info.uni)));
   var head='<div class="mrole">'+role+'</div><div class="mname">'+esc(info.name)+(meta.length?'<span class="mmeta">'+meta.join(' ')+'</span>':'')+'</div>';
@@ -3388,7 +3423,7 @@ function buildLineup(g){
     var cur=teamBatting&&curBat&&r.name===curBat;
     // Gators names link to their profile (matched to the roster); others stay plain.
     var slug=team.isGators?gatorSlug(r.name):null;
-    var nmeCell=esc(r.name||'');
+    var nmeCell=esc(abbrName(r.name));
     if(slug)nmeCell='<a class="bxp" data-slug="'+esc(slug)+'">'+nmeCell+'</a>';
     // Substitutes (pinch hitters/runners) sit under the player they replaced and
     // share his spot, so drop the number and indent the name, like the box score.
