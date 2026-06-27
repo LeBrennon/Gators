@@ -37,6 +37,7 @@ const mailReady    = !!(nodemailer && MAIL_USER && MAIL_PASS);
 // (we never store raw IPs). Same-day dedupe stays stable across restarts.
 const STATS_TO     = (process.env.STATS_TO || 'brennonmoore11@gmail.com').split(',').map(s => s.trim()).filter(Boolean);
 const STATS_SALT   = process.env.STATS_SALT || 'gators-visits-v1';
+const STATS_KEY    = process.env.STATS_KEY || '';   // gate for the private /api/online viewer count
 const VAPID_PUB    = process.env.VAPID_PUBLIC_KEY || '';
 const VAPID_PRIV   = process.env.VAPID_PRIVATE_KEY || '';
 const VAPID_MAIL   = process.env.VAPID_CONTACT || 'mailto:you@example.com';
@@ -1856,13 +1857,16 @@ async function pollRoster() {
 // Player stats change about once a day, so we scrape them once daily at local
 // (Central) midnight and serve the cache the rest of the day. Recomputing the
 // delay to the next midnight each night keeps it correct across DST changes.
-function msUntilNextCentralMidnight() {
+function msUntilNextCentralMidnight() { return msUntilNextCentralHour(0); }
+// Milliseconds until the next time it's `target` o'clock (0-23) in Central time.
+function msUntilNextCentralHour(target) {
   const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', hour12: false,
     hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(new Date());
   const get = t => +(parts.find(p => p.type === t) || {}).value;
   let h = get('hour'); if (h === 24) h = 0; // some runtimes emit "24" at midnight
   const into = h * 3600 + get('minute') * 60 + get('second');
-  return Math.max(1000, (24 * 3600 - into) * 1000);
+  let diff = target * 3600 - into; if (diff <= 0) diff += 24 * 3600;
+  return Math.max(1000, diff * 1000);
 }
 function scheduleDailyRoster() {
   setTimeout(() => { pollRoster(); scheduleDailyRoster(); }, msUntilNextCentralMidnight());
@@ -2217,10 +2221,12 @@ function decorateGame(g) { return Object.assign({}, g, { location: gameLocation(
 const VISITS_FILE = (process.env.CACHE_DIR || '.') + '/visitors.json';
 const visitCounts = {};           // 'YYYYMMDD' -> unique count
 const visitDays = {};             // 'YYYYMMDD' -> Set(hashed ip)  (recent days only)
+const peakViewers = {};           // 'YYYYMMDD' -> max concurrent live (SSE) viewers
 (function loadVisits() {
   try {
     const d = JSON.parse(fs.readFileSync(VISITS_FILE, 'utf8'));
     Object.assign(visitCounts, d.counts || {});
+    Object.assign(peakViewers, d.peaks || {});
     for (const day of Object.keys(d.days || {})) visitDays[day] = new Set(d.days[day]);
   } catch (e) {}
 })();
@@ -2228,16 +2234,23 @@ let _visitsDirty = false;
 function saveVisits() {
   try {
     const days = {}; for (const day of Object.keys(visitDays)) days[day] = [...visitDays[day]];
-    fs.writeFileSync(VISITS_FILE, JSON.stringify({ counts: visitCounts, days }));
+    fs.writeFileSync(VISITS_FILE, JSON.stringify({ counts: visitCounts, days, peaks: peakViewers }));
   } catch (e) {}
+}
+// Record the live concurrent-viewer count, keeping the day's running maximum.
+function noteViewers(n) {
+  const day = todayCentralYmd();
+  if (n > (peakViewers[day] || 0)) { peakViewers[day] = n; _visitsDirty = true; }
 }
 function pruneVisits() {
   const today = todayCentralYmd();
   // Keep only today's hash set (same-day dedupe); yesterday's count is frozen.
   for (const day of Object.keys(visitDays)) if (day !== today) delete visitDays[day];
-  // Keep ~180 days of counts.
+  // Keep ~180 days of counts + peaks.
   const keep = Object.keys(visitCounts).sort().slice(-180);
   for (const day of Object.keys(visitCounts)) if (!keep.includes(day)) delete visitCounts[day];
+  const keepP = Object.keys(peakViewers).sort().slice(-180);
+  for (const day of Object.keys(peakViewers)) if (!keepP.includes(day)) delete peakViewers[day];
 }
 function clientIp(req) {
   const xff = req && req.headers && req.headers['x-forwarded-for'];
@@ -2269,14 +2282,16 @@ function emailVisitorDigest() {
   const yest = past[0];
   const week = past.slice(0, 7);
   const weekTotal = week.reduce((s, r) => s + r.n, 0);
+  const yestPeak = yest ? (peakViewers[yest.day] || 0) : 0;   // most concurrent live viewers yesterday
   const subject = 'Gators site — ' + (yest ? (yest.n + ' unique visitor' + (yest.n === 1 ? '' : 's') + ' on ' + yest.label) : 'daily traffic');
-  const line = r => r.label + ': ' + r.n;
+  const line = r => r.label + ': ' + r.n + ' visitors' + (peakViewers[r.day] != null ? ', ' + peakViewers[r.day] + ' peak watching' : '');
   const text = 'whatisthegatorscore.com — daily visitors\n\n'
-    + (yest ? ('Yesterday (' + yest.label + '): ' + yest.n + ' unique visitors\n') : '')
+    + (yest ? ('Yesterday (' + yest.label + '): ' + yest.n + ' unique visitors, ' + yestPeak + ' peak watching at once\n') : '')
     + 'Last 7 days: ' + weekTotal + ' total\n\n' + week.map(line).join('\n') + '\n';
   const html = '<div style="font-family:Arial,Helvetica,sans-serif;max-width:480px">'
     + '<h2 style="margin:0 0 2px;color:#16102b">whatisthegatorscore.com — Daily Visitors</h2>'
-    + (yest ? ('<p style="margin:0 0 10px;font-size:18px"><b>' + yest.n + '</b> unique visitor' + (yest.n === 1 ? '' : 's') + ' <span style="color:#777">on ' + repEsc(yest.label) + '</span></p>') : '')
+    + (yest ? ('<p style="margin:0 0 4px;font-size:18px"><b>' + yest.n + '</b> unique visitor' + (yest.n === 1 ? '' : 's') + ' <span style="color:#777">on ' + repEsc(yest.label) + '</span></p>') : '')
+    + (yest ? ('<p style="margin:0 0 10px;font-size:16px"><b>' + yestPeak + '</b> peak viewers watching at once</p>') : '')
     + '<p style="margin:0 0 6px;color:#555">Last 7 days: <b>' + weekTotal + '</b> total</p>'
     + '<table style="border-collapse:collapse;font-size:14px">' + week.map(r => '<tr><td style="padding:3px 14px 3px 0;color:#555">' + repEsc(r.label) + '</td><td style="padding:3px 0;text-align:right"><b>' + r.n + '</b></td></tr>').join('') + '</table></div>';
   return t.sendMail({ from: 'Gators Stats <' + MAIL_USER + '>', to: STATS_TO.join(', '), subject, text, html })
@@ -2284,7 +2299,7 @@ function emailVisitorDigest() {
     .catch(() => false);
 }
 function scheduleDailyStats() {
-  setTimeout(() => { if (mailReady) emailVisitorDigest(); scheduleDailyStats(); }, msUntilNextCentralMidnight());
+  setTimeout(() => { if (mailReady) emailVisitorDigest(); scheduleDailyStats(); }, msUntilNextCentralHour(8));
 }
 
 const app = express();
@@ -2727,7 +2742,15 @@ app.get('/api/stream', (q, r) => {
   r.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
   r.flushHeaders(); r.write(':ok\n\n'); if (featured) r.write('data: ' + JSON.stringify({ type: 'game', game: featured }) + '\n\n');
   const hb = setInterval(() => { try { r.write(':hb\n\n'); } catch (e) {} }, 20000);
-  sseClients.add(r); q.on('close', () => { clearInterval(hb); sseClients.delete(r); });
+  sseClients.add(r); noteViewers(sseClients.size); q.on('close', () => { clearInterval(hb); sseClients.delete(r); });
+});
+// Private live viewer count. Gated by STATS_KEY (set it in the env, then call
+// /api/online?key=...). 404 when no key is configured, so it's never public.
+app.get('/api/online', (q, r) => {
+  if (!STATS_KEY || q.query.key !== STATS_KEY) return r.status(404).json({ error: 'not found' });
+  const today = todayCentralYmd();
+  r.set('Cache-Control', 'no-store');
+  r.json({ now: sseClients.size, peakToday: peakViewers[today] || sseClients.size });
 });
 
 if (require.main === module) {
@@ -3283,7 +3306,13 @@ function buildLive(g){
   var lastPlay='';
   if((!L||!L.abPitches)&&g.plays&&g.plays.length){var lp=g.plays[g.plays.length-1];
     var inHalf=!L||(lp.inning===(+L.inning)&&lp.half===(L.half==='Top'?'top':'bot'));
-    if(lp&&lp.text&&inHalf)lastPlay='<div class="lastplay'+(lp.scored?' scored':'')+'" id="lastPlay"><span class="lplab">Last play</span><span class="lptx">'+esc(lp.text)+'</span></div>';}
+    if(lp&&lp.text&&inHalf){
+      // A pitching change ("X to p for Y") isn't a play — label it as such and
+      // reword the jargon instead of showing it under "Last play".
+      var pc=/\bto p for\b/i.test(lp.text);
+      var lab=pc?'Pitching change':'Last play';
+      var txt=pc?lp.text.replace(/\s+to p for\s+/i,' in to pitch for '):lp.text;
+      lastPlay='<div class="lastplay'+(lp.scored?' scored':'')+'" id="lastPlay"><span class="lplab">'+lab+'</span><span class="lptx">'+esc(txt)+'</span></div>';}}
   var line=buildLineScore(g);
   var dueup=buildDueUp(g);
   var lineup=buildLineup(g);
