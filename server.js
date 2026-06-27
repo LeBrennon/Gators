@@ -954,7 +954,10 @@ function lineupsFromFeed(json) {
     const rows = order.map(o => {
       const p = byUni[String(o.uni)] || byName[String(o.name || '').trim()] || {};
       const h = p.hitting || {};
-      const ab = h.ab != null ? Number(h.ab) || 0 : null;
+      const n0 = v => Number(v) || 0;
+      // Field names vary across feed versions; pick the first present spelling.
+      const pick = ks => { for (const k of ks) if (h[k] != null && h[k] !== '') return h[k]; return 0; };
+      const ab = h.ab != null && h.ab !== '' ? Number(h.ab) || 0 : null;
       const hits = h.h != null ? Number(h.h) || 0 : null;
       const spot = o.spot != null ? Number(o.spot) : null;
       const pos = String(o.pos || p.pos || '').toUpperCase();
@@ -968,6 +971,13 @@ function lineupsFromFeed(json) {
         name: String(o.name || p.name || '').trim(),
         bats: String(p.bats || '').toUpperCase(),
         today: ab == null ? '—' : (hits + ' for ' + ab),
+        // ESPN-style box line (game). null for a batter who hasn't come up yet.
+        ab,
+        runs: ab == null ? null : n0(pick(['r', 'runs'])),
+        hits: ab == null ? null : n0(h.h),
+        rbi: ab == null ? null : n0(pick(['rbi', 'rbis'])),
+        bb: ab == null ? null : n0(pick(['bb', 'walks'])),
+        k: ab == null ? null : n0(pick(['so', 'k', 'k_'])),
         sub,
       };
     });
@@ -983,7 +993,10 @@ function lineupsFromFeed(json) {
       const add = (k, v) => { const n = Number(v) || 0; if (n > 0) notes[k].push({ name: lastName(p), n }); };
       add('2B', h.double); add('3B', h.triple); add('HR', h.hr); add('SB', h.sb); add('E', fl.e);
     });
-    return { vh: t.vh, name: t.name, teamId: t.teamId, isGators: t.teamId === GATORS_ID, rows: battingRows, notes };
+    // Team batting totals (sum of every batter who came up, starters + subs).
+    const sum = k => battingRows.reduce((a, r) => a + (r[k] || 0), 0);
+    const totals = { ab: sum('ab'), runs: sum('runs'), hits: sum('hits'), rbi: sum('rbi'), bb: sum('bb'), k: sum('k') };
+    return { vh: t.vh, name: t.name, teamId: t.teamId, isGators: t.teamId === GATORS_ID, rows: battingRows, totals, notes };
   }).filter(t => t.rows.length);
 }
 
@@ -2886,10 +2899,10 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .lutbl tr.cur td.lunm{color:var(--gold2);}
 .lutbl tr.lusub td{border-top:0;}
 .lutbl tr.lusub td.lunm{padding-left:22px;}
-.ptbl td.lpn,.ptbl th.lpn{text-align:right;font-family:'JetBrains Mono',monospace;width:1%;white-space:nowrap;}
+.lutbl td.lpn,.lutbl th.lpn{text-align:right;font-family:'JetBrains Mono',monospace;width:1%;white-space:nowrap;}
 .lutbl tr.pttot td{border-top:2px solid var(--line);font-weight:700;color:var(--mute);}
 .lutbl tr.pttot td.lunm{color:var(--bone);text-transform:uppercase;font-size:10px;letter-spacing:.06em;}
-.ptbl td.lpn{color:var(--bone);}
+.lutbl td.lpn{color:var(--bone);}
 .pthead{margin-top:10px;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold2);font-weight:700;padding:0 7px 3px;}
 .pdec{color:var(--gold2);font-weight:700;font-size:10px;}
 .lunotes{margin-top:10px;display:flex;flex-direction:column;gap:5px;}
@@ -3369,6 +3382,7 @@ function buildLineup(g){
   var curBat=g.live&&g.live.batter?String(g.live.batter).trim():'';
   var battingV=g.live&&g.live.half==='Top';
   var teamBatting=(team.vh==='V')===battingV;
+  function sc(v){return '<td class="lpn">'+(v==null?'':esc(String(v)))+'</td>';}
   var rows='';
   team.rows.forEach(function(r){
     var cur=teamBatting&&curBat&&r.name===curBat;
@@ -3381,14 +3395,19 @@ function buildLineup(g){
     var cls=(cur?'cur':'')+(r.sub?(cur?' ':'')+'lusub':'');
     rows+='<tr'+(cls?' class="'+cls+'"':'')+'><td class="lus">'+esc(r.sub?'':String(r.spot||''))+'</td>'+
       '<td>'+esc(r.pos||'')+'</td><td class="luu">'+esc(String(r.uni||''))+'</td>'+
-      '<td class="lunm">'+nmeCell+'</td><td>'+esc(r.bats||'')+'</td>'+
-      '<td class="lut">'+esc(r.today||'')+'</td></tr>';
+      '<td class="lunm">'+nmeCell+'</td>'+
+      sc(r.ab)+sc(r.runs)+sc(r.hits)+sc(r.rbi)+sc(r.bb)+sc(r.k)+'</tr>';
   });
+  var T=team.totals;
+  if(T)rows+='<tr class="pttot"><td class="lus"></td><td></td><td class="luu"></td><td class="lunm">Totals</td>'+
+    '<td class="lpn">'+T.ab+'</td><td class="lpn">'+T.runs+'</td><td class="lpn">'+T.hits+'</td>'+
+    '<td class="lpn">'+T.rbi+'</td><td class="lpn">'+T.bb+'</td><td class="lpn">'+T.k+'</td></tr>';
   var tabs='<div class="lutabs">';
   if(gators)tabs+='<button class="lutab'+(showGators?' on':'')+'" data-lineup="gators">'+esc(nm(gators)||'Gators')+'</button>';
   if(opp)tabs+='<button class="lutab'+(!showGators?' on':'')+'" data-lineup="opp">'+esc(nm(opp)||'Opponent')+'</button>';
   tabs+='</div>';
-  var head='<tr><th class="lus">Spot</th><th>Pos</th><th>#</th><th class="lunm">Player</th><th>B</th><th>Today</th></tr>';
+  var head='<tr><th class="lus">Spot</th><th>Pos</th><th>#</th><th class="lunm">Player</th>'+
+    '<th class="lpn">AB</th><th class="lpn">R</th><th class="lpn">H</th><th class="lpn">RBI</th><th class="lpn">BB</th><th class="lpn">K</th></tr>';
   return '<div class="lineup"><div class="luh">Lineup</div>'+tabs+
     '<div class="lubox"><table class="lutbl">'+head+rows+'</table></div>'+lineupNotes(team)+'</div>';
 }
