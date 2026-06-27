@@ -1405,7 +1405,7 @@ const ROSTER = [
   { num: 2,  name: 'Jaxon Landreneau', slug: 'jaxonlandreneautqp8',  pos: 'Utility', cls: 'Junior',       ht: '5-10', wt: '190', b: 'R', t: 'R', bday: '10/20/2004', home: 'Lake Charles, LA', school: 'LSU-Eunice' },
   // Recently activated (6/25 sheet); placeholder slug until his Presto player page
   // exists, so the `note` shows on his profile instead of stats until his first game.
-  { num: 3,  name: 'Griffin Hebert',   slug: 'griffinhebert',        pos: 'Utility', cls: 'Sophomore',    ht: '6-1',  wt: '205', b: 'L', t: 'R', bday: '',            home: 'Moss Bluff, LA',   school: 'Louisiana Lafayette', note: 'Recently activated — season stats will appear after his first game.' },
+  { num: 3,  name: 'Griffin Hebert',   slug: 'griffinhebertqmlk',    pos: 'Utility', cls: 'Sophomore',    ht: '6-1',  wt: '205', b: 'L', t: 'R', bday: '',            home: 'Moss Bluff, LA',   school: 'Louisiana Lafayette', note: 'Recently activated — season stats will appear after his first game.' },
   { num: 4,  name: 'Jake Smith',       slug: 'jakesmith8yx5',        pos: 'IF',      cls: 'Junior',       ht: '5-10', wt: '170', b: 'R', t: 'R', bday: '01/24/2004', home: 'Rosepine, LA',     school: 'LSU-Eunice' },
   { num: 5,  name: 'Davis Duhon',      slug: 'davisduhons0vw',       pos: 'P',       cls: 'Junior',       ht: '6-0',  wt: '185', b: 'L', t: 'L', bday: '03/12/2005', home: 'Katy, TX',         school: 'Louisiana Christian' },
   { num: 6,  name: 'Nathan McDonald',  slug: 'nathanmcdonaldftgl',   pos: 'Utility', cls: 'Senior',       ht: '6-0',  wt: '175', b: 'R', t: 'R', bday: '07/17/2004', home: 'McComb, MS',       school: 'Loyola-New Orleans' },
