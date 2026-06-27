@@ -2344,6 +2344,33 @@ app.get('/debug/live', async (q, r) => {
   }
 });
 
+// Compact name diagnostic: for the live game, show each lineup player's raw feed
+// name fields (batting-order name, player name, revname, shortname) alongside the
+// name the lineup parser resolved. Lets us see which feed field is clean so the
+// live lineup picks the right one. Read-only, like the sibling /debug/* endpoints.
+app.get('/debug/names', async (q, r) => {
+  try {
+    const id = (q.query && q.query.id) || (featured && featured.id);
+    if (!id) return r.status(503).json({ error: 'no game id yet — pass ?id=YYYYMMDD_xxxx' });
+    const lf = await fetchLiveForGame(id, true);
+    const json = lf && lf.raw;
+    if (!json) return r.json({ id, note: 'no raw feed', auth: lf && lf.auth, feed: lf && lf.feed });
+    const teams = (json.team || []).map(t => {
+      const byUni = {}; (t.player || []).forEach(p => { if (p.uni != null) byUni[String(p.uni)] = p; });
+      const order = (t.batords && t.batords.batord) || (t.starters && t.starters.starter) || [];
+      return {
+        team: t.name, vh: t.vh,
+        rows: order.map(o => { const p = byUni[String(o.uni)] || {};
+          return { uni: o.uni, batord: o.name, player: p.name, revname: p.revname, shortname: p.shortname }; }),
+      };
+    });
+    const resolved = (lf.lineups || []).map(t => ({ vh: t.vh, names: (t.rows || []).map(x => x.name) }));
+    r.json({ id, teams, resolved });
+  } catch (err) {
+    r.status(500).json({ error: String(err && err.message || err) });
+  }
+});
+
 app.get('/debug/scan', async (q, r) => {
   try {
     const id = (q.query && q.query.id) || (featured && featured.id);
