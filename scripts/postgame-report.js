@@ -218,8 +218,8 @@ function lineGrid(html) {
       if (c.length < 5) continue;
       const name = c[0]; if (!name || /^final$/i.test(name)) continue;
       const innings = c.slice(1, c.length - 3).map(x => parseInt(x, 10) || 0);
-      const r = parseInt(c[c.length - 3], 10) || 0, hh = parseInt(c[c.length - 2], 10) || 0, e = parseInt(c[c.length - 1], 10) || 0;
-      teams.push({ name, innings, r, h: hh, e });
+      const rn = parseInt(c[c.length - 3], 10) || 0, hh = parseInt(c[c.length - 2], 10) || 0, e = parseInt(c[c.length - 1], 10) || 0;
+      teams.push({ name, innings, r: rn, h: hh, e });
     }
     if (teams.length >= 2) return teams;
   }
