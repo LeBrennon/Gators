@@ -2940,6 +2940,7 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .mfb{font-family:'Oswald',sans-serif;font-weight:700;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--bayou);background:var(--gold2);border-radius:5px;padding:1px 7px;}
 .mfbio{font-size:11px;color:var(--mute);}
 .mfk{color:var(--mute);font-size:9px;letter-spacing:.04em;margin-right:1px;}
+.mssn{font-family:'Oswald',sans-serif;font-weight:700;font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:var(--mute);margin-right:5px;}
 .mvs{text-align:center;font-family:'Oswald',sans-serif;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin:1px 0;}
 .dueup{margin-top:14px;}
 .duh{font-family:'Oswald',sans-serif;font-weight:600;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold2);margin-bottom:8px;}
@@ -3459,7 +3460,9 @@ function matchupCard(role,info){
   // him at all, the card just states it's his first at-bat.
   if(info.firstAB){
     var fb='<div class="mfirst"><span class="mfb">1st AB</span>'+(info.bio?'<span class="mfbio">'+esc(info.bio)+'</span>':'')+'</div>';
-    var sl=(info.seasonLine&&info.seasonLine.length)?'<div class="mstat">'+info.seasonLine.map(function(s){return '<span class="mfk">'+esc(s[0])+'</span> '+esc(s[1]);}).join('   ')+'</div>':'';
+    // Lead the stat line with a "SEASON" label so these season-to-date numbers
+    // aren't mistaken for the current game's line (they read 0-for-0 the same).
+    var sl=(info.seasonLine&&info.seasonLine.length)?'<div class="mstat"><span class="mssn">SEASON</span> '+info.seasonLine.map(function(s){return '<span class="mfk">'+esc(s[0])+'</span> '+esc(s[1]);}).join('   ')+'</div>':'';
     return '<div class="mcard">'+head+fb+sl+'</div>';
   }
   var stat=info.line?esc(info.line):'';
