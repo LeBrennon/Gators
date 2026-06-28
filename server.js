@@ -1981,6 +1981,58 @@ async function getPlayer(slug) {
   return playerCache[slug] || null;
 }
 
+// Season strike% for the Gators staff, aggregated from box-score play-by-play
+// (no season pitch/strike totals exist on the league stat pages). Filled by
+// pollStrikePct(); { pct: null } until the first aggregation completes.
+let seasonStrikePct = { pct: null, pitches: 0, strikes: 0, games: 0, at: 0 };
+
+// Count pitches in a chunk of play-by-play text by reading the per-at-bat pitch
+// strings the feed appends as "(balls-strikes LETTERS)", e.g. "(2-2 KBKBK)".
+// Each letter is one pitch: B (ball), H (hit-by-pitch) and P (pitchout) are
+// balls; everything else (K, called/swinging strikes, F fouls, X in play) is a
+// strike. A bare "(0-0)" with no letters is a first-pitch ball put in play — one
+// strike. The count is clamped to a real baseball count [0-3]-[0-2] so fielding
+// notations like "6-3" can't be mistaken for a count.
+function strikeCounts(text) {
+  const s = String(text || '').replace(/<[^>]+>/g, ' ');
+  const re = /\(\s*[0-3]-[0-2](?:\s+([A-Za-z]+))?\s*\)/g;
+  let m, pitches = 0, strikes = 0;
+  while ((m = re.exec(s)) !== null) {
+    const seq = m[1];
+    if (!seq) { pitches++; strikes++; continue; }   // first-pitch ball in play
+    for (const ch of seq.toUpperCase()) {
+      pitches++;
+      if (ch !== 'B' && ch !== 'H' && ch !== 'P') strikes++;
+    }
+  }
+  return { pitches, strikes };
+}
+
+// Team-level season aggregates for the roster tab: batting (AVG/OBP/SLG/HR) and
+// the pitching staff (ERA/WHIP/BB9/K9 + strike%), summed across every Gators
+// player's season line in rosterStats.
+function computeTeamStats() {
+  const N = v => { const n = Number(v); return isFinite(n) ? n : 0; };
+  const ipOuts = ip => { const m = String(ip == null ? '' : ip).match(/^(\d+)(?:\.(\d))?$/); return m ? N(m[1]) * 3 + N(m[2]) : 0; };
+  let ab = 0, h = 0, bb = 0, hbp = 0, sf = 0, tb = 0, hr = 0;       // batting
+  let outs = 0, pbb = 0, pk = 0, er = 0, ph = 0;                    // pitching
+  for (const slug in rosterStats) {
+    const s = rosterStats[slug]; if (!s) continue;
+    if (s.hit) { const x = s.hit; ab += N(x.ab); h += N(x.h); bb += N(x.bb); hbp += N(x.hbp); sf += N(x.sf); tb += N(x.tb); hr += N(x.hr); }
+    if (s.pit) { const x = s.pit; outs += ipOuts(x.ip); pbb += N(x.bb); pk += N(x.k); er += N(x.er); ph += N(x.h); }
+  }
+  const ip = outs / 3;
+  const f3 = x => x.toFixed(3).replace(/^0/, '');
+  const batting = ab ? { avg: f3(h / ab), obp: f3((h + bb + hbp) / ((ab + bb + hbp + sf) || 1)), slg: f3(tb / ab), hr, h, ab } : null;
+  const pitching = ip ? {
+    era: (er * 9 / ip).toFixed(2), whip: ((pbb + ph) / ip).toFixed(2),
+    bb9: (pbb * 9 / ip).toFixed(2), k9: (pk * 9 / ip).toFixed(2),
+    ip: Math.floor(outs / 3) + '.' + (outs % 3), bb: pbb, k: pk,
+    strikePct: seasonStrikePct.pct,
+  } : null;
+  return { batting, pitching };
+}
+
 function rosterPayload() {
   const players = ROSTER.map(p => {
     const s = rosterStats[p.slug] || { kind: null, hit: null, pit: null, hitRanks: {}, pitRanks: {} };
@@ -1995,7 +2047,8 @@ function rosterPayload() {
   const complete = ROSTER.every(p => { const s = rosterStats[p.slug]; return s && (s.hit != null || s.pit != null); });
   const coaches = COACHES.map(c => Object.assign({}, c, { photo: playerPhotos[c.slug] ? ('/api/photo?slug=' + c.slug) : null }));
   return { players, coaches, updated: rosterUpdated, loading: Object.keys(rosterStats).length === 0,
-           settled: rosterUpdated > 0 && !rosterPolling, complete, photos: photosLoadedAt > 0 };
+           settled: rosterUpdated > 0 && !rosterPolling, complete, photos: photosLoadedAt > 0,
+           teamStats: computeTeamStats() };
 }
 
 // ===== Game location label + TCL TV watch links + player headshots ==========
@@ -2195,6 +2248,32 @@ async function pollStandings() {
     const parsed = parseStandings(r.body);
     if (Object.keys(parsed.map).length) { standings = parsed.map; standingsTable = parsed.rows; standingsAt = Date.now(); }
   } catch (e) { /* keep previous standings */ }
+}
+// Season strike% for the Gators staff: walk every finished Gators game's box-score
+// play-by-play, count pitches only in the half-innings the Gators pitched (the
+// opponent bats — Top when the Gators are home, Bottom when away), and roll the
+// strike share up across the season. Final-game boxes are cached, so repeat runs
+// are cheap.
+async function pollStrikePct() {
+  try {
+    const finals = (games || []).filter(g => g.state === 'final');
+    let pitches = 0, strikes = 0, gms = 0;
+    for (const g of finals) {
+      const res = await fetchBoxPage(g.id);
+      const pbp = res && res.ok && res.data && res.data.pbp;
+      if (!pbp || !pbp.length) continue;
+      let any = false;
+      for (const half of pbp) {
+        const isTop = /top of/i.test(half.title || '');
+        if (isTop !== !!g.gatorsHome) continue;   // only halves the Gators pitched
+        const c = strikeCounts(half.html || '');
+        pitches += c.pitches; strikes += c.strikes; if (c.pitches) any = true;
+      }
+      if (any) gms++;
+      await sleep(250);
+    }
+    if (pitches > 0) seasonStrikePct = { pct: Math.round(strikes / pitches * 100), pitches, strikes, games: gms, at: Date.now() };
+  } catch (e) { /* keep previous strike% */ }
 }
 // team {name,short} -> "W-L" (or "W-L-T" when t>0); name match then loose fallback.
 function recordStr(team) {
@@ -2689,6 +2768,30 @@ app.get('/debug/standings-map', async (_q, r) => {
     r.json({ standingsAt, teams: Object.keys(standings).length, standings, featuredResolved: resolved });
   } catch (e) { r.status(502).json({ error: String(e && e.message || e) }); }
 });
+// Recompute season strike% on demand and show the per-game breakdown so the
+// box-score aggregation can be verified against the real play-by-play.
+app.get('/debug/strikepct', async (_q, r) => {
+  try {
+    const finals = (games || []).filter(g => g.state === 'final');
+    let pitches = 0, strikes = 0; const perGame = [];
+    for (const g of finals) {
+      const res = await fetchBoxPage(g.id);
+      const pbp = res && res.ok && res.data && res.data.pbp;
+      if (!pbp || !pbp.length) { perGame.push({ id: g.id, pbp: 0 }); continue; }
+      let gp = 0, gs = 0;
+      for (const half of pbp) {
+        const isTop = /top of/i.test(half.title || '');
+        if (isTop !== !!g.gatorsHome) continue;
+        const c = strikeCounts(half.html || ''); gp += c.pitches; gs += c.strikes;
+      }
+      pitches += gp; strikes += gs;
+      perGame.push({ id: g.id, opp: g.opponent && g.opponent.short, gatorsHome: g.gatorsHome, pitches: gp, strikes: gs, pct: gp ? Math.round(gs / gp * 100) : null });
+      await sleep(150);
+    }
+    await pollStrikePct();
+    r.json({ seasonPct: pitches ? Math.round(strikes / pitches * 100) : null, pitches, strikes, games: perGame.length, cached: seasonStrikePct, perGame });
+  } catch (e) { r.status(502).json({ error: String(e && e.message || e) }); }
+});
 app.get('/debug/roster', async (_q, r) => {
   try {
     const duhon = ROSTER.find(p => p.slug === 'davisduhons0vw');
@@ -2801,10 +2904,10 @@ app.get('/api/stream', (q, r) => {
 if (require.main === module) {
   loadCache(); // serve last-saved player stats instantly, then refresh below
   loadBoxCache(); // restore cached final box scores so we don't re-fetch them
-  app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleDailyRoster(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); scheduleDailyStats(); });
+  app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleDailyRoster(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); setTimeout(pollStrikePct, 15000); setInterval(pollStrikePct, 3 * 60 * 60 * 1000); scheduleDailyStats(); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, pitchersFromFeed, extractEventAuth,
-  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseGameLog, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, pitchingTotals };
+  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseGameLog, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, pitchingTotals, strikeCounts };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
@@ -3088,6 +3191,13 @@ body.noscroll{overflow:hidden;}
 .navb{flex:1;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.05em;font-size:12.5px;padding:11px;border-radius:12px;border:1px solid var(--line);color:var(--mute);background:var(--bayou2);cursor:pointer;}
 .navb.on{color:#fff;background:linear-gradient(180deg,var(--purple),var(--gator2));border-color:var(--purple);}
 .rmeta{font-size:10.5px;letter-spacing:.04em;color:var(--mute);margin:0 4px 12px;}
+.tscard{background:var(--bayou2);border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin:0 0 14px;display:flex;flex-wrap:wrap;gap:14px;}
+.tsgrp{flex:1;min-width:160px;}
+.tshd{font-family:'Oswald',sans-serif;font-weight:700;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold2);margin-bottom:7px;}
+.tsrow{display:flex;gap:14px;}
+.tscell{text-align:center;}
+.tsk{font-size:8.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--mute);margin-bottom:2px;}
+.tsv{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;color:var(--bone);}
 .sbsec{display:grid;grid-template-columns:1fr auto 1fr;align-items:baseline;gap:12px;}
 .sbdate{font-family:'Oswald',sans-serif;font-weight:700;font-size:17px;letter-spacing:.03em;text-transform:uppercase;color:var(--gold2);}
 .pcard{background:var(--bayou2);border:1px solid var(--line);border-radius:14px;padding:11px 13px;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;gap:12px;}
@@ -3816,9 +3926,22 @@ function cardStats(p){
   if(!bat&&!pit)return '<div class="pstat"><span class="plimited">—</span></div>';
   return '<div class="pstat">'+bat+pit+'</div>';
 }
+function teamStatsCard(ts){
+  if(!ts||(!ts.batting&&!ts.pitching))return '';
+  function cell(k,v){return '<div class="tscell"><div class="tsk">'+k+'</div><div class="tsv">'+esc(String(v))+'</div></div>';}
+  var h='<div class="tscard">';
+  if(ts.batting){var b=ts.batting;
+    h+='<div class="tsgrp"><div class="tshd">Team Batting</div><div class="tsrow">'+
+      cell('AVG',b.avg)+cell('OBP',b.obp)+cell('SLG',b.slg)+cell('HR',b.hr)+'</div></div>';}
+  if(ts.pitching){var p=ts.pitching;
+    var cells=cell('ERA',p.era)+cell('WHIP',p.whip)+cell('BB/9',p.bb9)+cell('K/9',p.k9)+
+      (p.strikePct!=null?cell('STR%',p.strikePct+'%'):'');
+    h+='<div class="tsgrp"><div class="tshd">Pitching Staff</div><div class="tsrow">'+cells+'</div></div>';}
+  return h+'</div>';
+}
 function renderRoster(d){
   var arr=rosterData.slice().sort(function(a,b){return a.num-b.num;});
-  var h='';
+  var h=teamStatsCard(d&&d.teamStats);
   for(var i=0;i<arr.length;i++){var p=arr[i];
     h+='<div class="pcard" data-slug="'+p.slug+'">'+
        '<div class="pnum">'+p.num+'</div>'+
