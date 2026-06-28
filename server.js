@@ -1986,6 +1986,28 @@ async function getPlayer(slug) {
 // pollStrikePct(); { pct: null } until the first aggregation completes.
 let seasonStrikePct = { pct: null, pitches: 0, strikes: 0, games: 0, at: 0 };
 
+// Count pitches in a chunk of play-by-play text by reading the per-at-bat pitch
+// strings the feed appends as "(balls-strikes LETTERS)", e.g. "(2-2 KBKBK)".
+// Each letter is one pitch: B (ball), H (hit-by-pitch) and P (pitchout) are
+// balls; everything else (K, called/swinging strikes, F fouls, X in play) is a
+// strike. A bare "(0-0)" with no letters is a first-pitch ball put in play — one
+// strike. The count is clamped to a real baseball count [0-3]-[0-2] so fielding
+// notations like "6-3" can't be mistaken for a count.
+function strikeCounts(text) {
+  const s = String(text || '').replace(/<[^>]+>/g, ' ');
+  const re = /\(\s*[0-3]-[0-2](?:\s+([A-Za-z]+))?\s*\)/g;
+  let m, pitches = 0, strikes = 0;
+  while ((m = re.exec(s)) !== null) {
+    const seq = m[1];
+    if (!seq) { pitches++; strikes++; continue; }   // first-pitch ball in play
+    for (const ch of seq.toUpperCase()) {
+      pitches++;
+      if (ch !== 'B' && ch !== 'H' && ch !== 'P') strikes++;
+    }
+  }
+  return { pitches, strikes };
+}
+
 // Team-level season aggregates for the roster tab: batting (AVG/OBP/SLG/HR) and
 // the pitching staff (ERA/WHIP/BB9/K9 + strike%), summed across every Gators
 // player's season line in rosterStats.
@@ -2226,6 +2248,32 @@ async function pollStandings() {
     const parsed = parseStandings(r.body);
     if (Object.keys(parsed.map).length) { standings = parsed.map; standingsTable = parsed.rows; standingsAt = Date.now(); }
   } catch (e) { /* keep previous standings */ }
+}
+// Season strike% for the Gators staff: walk every finished Gators game's box-score
+// play-by-play, count pitches only in the half-innings the Gators pitched (the
+// opponent bats — Top when the Gators are home, Bottom when away), and roll the
+// strike share up across the season. Final-game boxes are cached, so repeat runs
+// are cheap.
+async function pollStrikePct() {
+  try {
+    const finals = (games || []).filter(g => g.state === 'final');
+    let pitches = 0, strikes = 0, gms = 0;
+    for (const g of finals) {
+      const res = await fetchBoxPage(g.id);
+      const pbp = res && res.ok && res.data && res.data.pbp;
+      if (!pbp || !pbp.length) continue;
+      let any = false;
+      for (const half of pbp) {
+        const isTop = /top of/i.test(half.title || '');
+        if (isTop !== !!g.gatorsHome) continue;   // only halves the Gators pitched
+        const c = strikeCounts(half.html || '');
+        pitches += c.pitches; strikes += c.strikes; if (c.pitches) any = true;
+      }
+      if (any) gms++;
+      await sleep(250);
+    }
+    if (pitches > 0) seasonStrikePct = { pct: Math.round(strikes / pitches * 100), pitches, strikes, games: gms, at: Date.now() };
+  } catch (e) { /* keep previous strike% */ }
 }
 // team {name,short} -> "W-L" (or "W-L-T" when t>0); name match then loose fallback.
 function recordStr(team) {
@@ -2720,6 +2768,30 @@ app.get('/debug/standings-map', async (_q, r) => {
     r.json({ standingsAt, teams: Object.keys(standings).length, standings, featuredResolved: resolved });
   } catch (e) { r.status(502).json({ error: String(e && e.message || e) }); }
 });
+// Recompute season strike% on demand and show the per-game breakdown so the
+// box-score aggregation can be verified against the real play-by-play.
+app.get('/debug/strikepct', async (_q, r) => {
+  try {
+    const finals = (games || []).filter(g => g.state === 'final');
+    let pitches = 0, strikes = 0; const perGame = [];
+    for (const g of finals) {
+      const res = await fetchBoxPage(g.id);
+      const pbp = res && res.ok && res.data && res.data.pbp;
+      if (!pbp || !pbp.length) { perGame.push({ id: g.id, pbp: 0 }); continue; }
+      let gp = 0, gs = 0;
+      for (const half of pbp) {
+        const isTop = /top of/i.test(half.title || '');
+        if (isTop !== !!g.gatorsHome) continue;
+        const c = strikeCounts(half.html || ''); gp += c.pitches; gs += c.strikes;
+      }
+      pitches += gp; strikes += gs;
+      perGame.push({ id: g.id, opp: g.opponent && g.opponent.short, gatorsHome: g.gatorsHome, pitches: gp, strikes: gs, pct: gp ? Math.round(gs / gp * 100) : null });
+      await sleep(150);
+    }
+    await pollStrikePct();
+    r.json({ seasonPct: pitches ? Math.round(strikes / pitches * 100) : null, pitches, strikes, games: perGame.length, cached: seasonStrikePct, perGame });
+  } catch (e) { r.status(502).json({ error: String(e && e.message || e) }); }
+});
 app.get('/debug/roster', async (_q, r) => {
   try {
     const duhon = ROSTER.find(p => p.slug === 'davisduhons0vw');
@@ -2832,10 +2904,10 @@ app.get('/api/stream', (q, r) => {
 if (require.main === module) {
   loadCache(); // serve last-saved player stats instantly, then refresh below
   loadBoxCache(); // restore cached final box scores so we don't re-fetch them
-  app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleDailyRoster(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); scheduleDailyStats(); });
+  app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleDailyRoster(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); setTimeout(pollStrikePct, 15000); setInterval(pollStrikePct, 3 * 60 * 60 * 1000); scheduleDailyStats(); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, pitchersFromFeed, extractEventAuth,
-  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseGameLog, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, pitchingTotals };
+  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseGameLog, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, pitchingTotals, strikeCounts };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
