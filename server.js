@@ -1981,6 +1981,36 @@ async function getPlayer(slug) {
   return playerCache[slug] || null;
 }
 
+// Season strike% for the Gators staff, aggregated from box-score play-by-play
+// (no season pitch/strike totals exist on the league stat pages). Filled by
+// pollStrikePct(); { pct: null } until the first aggregation completes.
+let seasonStrikePct = { pct: null, pitches: 0, strikes: 0, games: 0, at: 0 };
+
+// Team-level season aggregates for the roster tab: batting (AVG/OBP/SLG/HR) and
+// the pitching staff (ERA/WHIP/BB9/K9 + strike%), summed across every Gators
+// player's season line in rosterStats.
+function computeTeamStats() {
+  const N = v => { const n = Number(v); return isFinite(n) ? n : 0; };
+  const ipOuts = ip => { const m = String(ip == null ? '' : ip).match(/^(\d+)(?:\.(\d))?$/); return m ? N(m[1]) * 3 + N(m[2]) : 0; };
+  let ab = 0, h = 0, bb = 0, hbp = 0, sf = 0, tb = 0, hr = 0;       // batting
+  let outs = 0, pbb = 0, pk = 0, er = 0, ph = 0;                    // pitching
+  for (const slug in rosterStats) {
+    const s = rosterStats[slug]; if (!s) continue;
+    if (s.hit) { const x = s.hit; ab += N(x.ab); h += N(x.h); bb += N(x.bb); hbp += N(x.hbp); sf += N(x.sf); tb += N(x.tb); hr += N(x.hr); }
+    if (s.pit) { const x = s.pit; outs += ipOuts(x.ip); pbb += N(x.bb); pk += N(x.k); er += N(x.er); ph += N(x.h); }
+  }
+  const ip = outs / 3;
+  const f3 = x => x.toFixed(3).replace(/^0/, '');
+  const batting = ab ? { avg: f3(h / ab), obp: f3((h + bb + hbp) / ((ab + bb + hbp + sf) || 1)), slg: f3(tb / ab), hr, h, ab } : null;
+  const pitching = ip ? {
+    era: (er * 9 / ip).toFixed(2), whip: ((pbb + ph) / ip).toFixed(2),
+    bb9: (pbb * 9 / ip).toFixed(2), k9: (pk * 9 / ip).toFixed(2),
+    ip: Math.floor(outs / 3) + '.' + (outs % 3), bb: pbb, k: pk,
+    strikePct: seasonStrikePct.pct,
+  } : null;
+  return { batting, pitching };
+}
+
 function rosterPayload() {
   const players = ROSTER.map(p => {
     const s = rosterStats[p.slug] || { kind: null, hit: null, pit: null, hitRanks: {}, pitRanks: {} };
@@ -1995,7 +2025,8 @@ function rosterPayload() {
   const complete = ROSTER.every(p => { const s = rosterStats[p.slug]; return s && (s.hit != null || s.pit != null); });
   const coaches = COACHES.map(c => Object.assign({}, c, { photo: playerPhotos[c.slug] ? ('/api/photo?slug=' + c.slug) : null }));
   return { players, coaches, updated: rosterUpdated, loading: Object.keys(rosterStats).length === 0,
-           settled: rosterUpdated > 0 && !rosterPolling, complete, photos: photosLoadedAt > 0 };
+           settled: rosterUpdated > 0 && !rosterPolling, complete, photos: photosLoadedAt > 0,
+           teamStats: computeTeamStats() };
 }
 
 // ===== Game location label + TCL TV watch links + player headshots ==========
@@ -3088,6 +3119,13 @@ body.noscroll{overflow:hidden;}
 .navb{flex:1;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.05em;font-size:12.5px;padding:11px;border-radius:12px;border:1px solid var(--line);color:var(--mute);background:var(--bayou2);cursor:pointer;}
 .navb.on{color:#fff;background:linear-gradient(180deg,var(--purple),var(--gator2));border-color:var(--purple);}
 .rmeta{font-size:10.5px;letter-spacing:.04em;color:var(--mute);margin:0 4px 12px;}
+.tscard{background:var(--bayou2);border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin:0 0 14px;display:flex;flex-wrap:wrap;gap:14px;}
+.tsgrp{flex:1;min-width:160px;}
+.tshd{font-family:'Oswald',sans-serif;font-weight:700;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold2);margin-bottom:7px;}
+.tsrow{display:flex;gap:14px;}
+.tscell{text-align:center;}
+.tsk{font-size:8.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--mute);margin-bottom:2px;}
+.tsv{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;color:var(--bone);}
 .sbsec{display:grid;grid-template-columns:1fr auto 1fr;align-items:baseline;gap:12px;}
 .sbdate{font-family:'Oswald',sans-serif;font-weight:700;font-size:17px;letter-spacing:.03em;text-transform:uppercase;color:var(--gold2);}
 .pcard{background:var(--bayou2);border:1px solid var(--line);border-radius:14px;padding:11px 13px;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;gap:12px;}
@@ -3816,9 +3854,22 @@ function cardStats(p){
   if(!bat&&!pit)return '<div class="pstat"><span class="plimited">—</span></div>';
   return '<div class="pstat">'+bat+pit+'</div>';
 }
+function teamStatsCard(ts){
+  if(!ts||(!ts.batting&&!ts.pitching))return '';
+  function cell(k,v){return '<div class="tscell"><div class="tsk">'+k+'</div><div class="tsv">'+esc(String(v))+'</div></div>';}
+  var h='<div class="tscard">';
+  if(ts.batting){var b=ts.batting;
+    h+='<div class="tsgrp"><div class="tshd">Team Batting</div><div class="tsrow">'+
+      cell('AVG',b.avg)+cell('OBP',b.obp)+cell('SLG',b.slg)+cell('HR',b.hr)+'</div></div>';}
+  if(ts.pitching){var p=ts.pitching;
+    var cells=cell('ERA',p.era)+cell('WHIP',p.whip)+cell('BB/9',p.bb9)+cell('K/9',p.k9)+
+      (p.strikePct!=null?cell('STR%',p.strikePct+'%'):'');
+    h+='<div class="tsgrp"><div class="tshd">Pitching Staff</div><div class="tsrow">'+cells+'</div></div>';}
+  return h+'</div>';
+}
 function renderRoster(d){
   var arr=rosterData.slice().sort(function(a,b){return a.num-b.num;});
-  var h='';
+  var h=teamStatsCard(d&&d.teamStats);
   for(var i=0;i<arr.length;i++){var p=arr[i];
     h+='<div class="pcard" data-slug="'+p.slug+'">'+
        '<div class="pnum">'+p.num+'</div>'+
