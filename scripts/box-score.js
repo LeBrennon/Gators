@@ -250,6 +250,7 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .band img{width:66px;height:66px;}
 .k{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#ffd633;font-weight:800;text-shadow:0 1px 2px rgba(0,0,0,.5);}
 .band h1{font-size:28px;font-weight:900;line-height:1.08;margin:3px 0;text-shadow:0 2px 4px rgba(0,0,0,.55);}
+.band h1 .hdate{display:block;font-size:15px;font-weight:700;letter-spacing:.01em;color:#efe7ff;margin-bottom:2px;}
 .band .sub{font-size:13px;font-weight:700;color:#efe7ff;text-shadow:0 1px 2px rgba(0,0,0,.5);}
 .badge{margin-left:auto;text-align:center;}
 .badge .r{display:inline-block;background:${resColor};color:#fff;font-weight:900;font-size:15px;letter-spacing:.04em;padding:5px 18px;border-radius:7px;}
@@ -294,7 +295,7 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .tbl table tr:nth-child(2n) th,.tbl table tr:nth-child(2n) td{background:#f0eafa;}
 .tbl tr:last-child th,.tbl tr:last-child td{background:#faf8ff;font-weight:800;border-bottom:none;}
 </style></head><body>`);
-  H.push(`<div class='band'><img src='${S.gatorsLogoDataUri()}'><div><div class='k'>Gumbeaux Gators · Official Box Score</div><h1>${esc(game.date)}, 2026 ${DASH} ${game.home ? 'vs' : 'at'} ${esc(opp)}</h1><div class='sub'>${game.home ? 'Home' : 'Road'}${T ? ` · Record ${T.w}${DASH}${T.l}` : ''}</div></div><div class='badge'><div class='r'>${resWord}</div><div class='sc'>${gs}<span class='dsh'>&ndash;</span>${os}</div></div></div>`);
+  H.push(`<div class='band'><img src='${S.gatorsLogoDataUri()}'><div><div class='k'>Gumbeaux Gators · Official Box Score</div><h1><span class='hdate'>${esc(game.date)}, 2026</span>${game.home ? 'vs' : 'at'} ${esc(opp)}</h1><div class='sub'>${game.home ? 'Home' : 'Road'}${T ? ` · Record ${T.w}${DASH}${T.l}` : ''}</div></div><div class='badge'><div class='r'>${resWord}</div><div class='sc'>${gs}<span class='dsh'>&ndash;</span>${os}</div></div></div>`);
   H.push(line);
   H.push(`<div class='cols'>${teams.map(teamBlock).join('')}</div>`);
   H.push(`</body></html>`);
