@@ -1378,7 +1378,10 @@ async function refreshLeagueLiveScores(board, featuredId) {
   const live = board.filter(g => g.state === 'live' && g.id !== featuredId);
   if (live.length > LEAGUE_LIVE_CAP)
     process.stdout.write('\r[league-live] ' + live.length + ' live games; refreshing first ' + LEAGUE_LIVE_CAP + '        ');
-  for (const g of live.slice(0, LEAGUE_LIVE_CAP)) {
+  // Fetch the capped set concurrently — each game writes its own cache key and is
+  // independent, so awaiting them in parallel cuts a multi-game refresh from the
+  // sum of the feed latencies to the slowest single one.
+  await Promise.all(live.slice(0, LEAGUE_LIVE_CAP).map(async g => {
     try {
       const lf = await fetchLiveForGame(g.id);
       if (lf && lf.teams && lf.teams.length) {
@@ -1392,7 +1395,7 @@ async function refreshLeagueLiveScores(board, featuredId) {
           outs: lf.live ? lf.live.outs : null, bases: lf.live ? lf.live.bases : null };
       }
     } catch (e) { logErr('refreshLeagueLiveScores', e); /* keep the last cached score for this game */ }
-  }
+  }));
 }
 // Overlay live scores onto in-progress games (the featured game's own live data,
 // or the league-live cache); finals keep their authoritative schedule score and
