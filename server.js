@@ -2623,7 +2623,34 @@ app.get('/debug/box-refresh', async (q, r) => {
   r.json({ ok: true, id, evicted: had, refetched: true, teams: res.data.teams, counts: res.data.counts });
 });
 app.get('/api/game', (_q, r) => { r.set('Cache-Control', 'no-store'); return featured ? r.json(featured) : r.status(503).json({ status: 'waiting' }); });
-app.get(['/gators-logo.png','/gators-logo.jpg'], (_q, r) => { r.set('Content-Type','image/png'); r.set('Cache-Control','public, max-age=86400'); r.send(Buffer.from(GATORS_LOGO_B64,'base64')); });
+// The Gators badge is sourced from the same PrestoSports CDN as every other
+// team so it renders at full resolution (the embedded GATORS_LOGO_B64 is only
+// 108px and blurs when shown large). The CDN image is fetched once and cached
+// in memory; if the CDN is ever unreachable we fall back to the embedded bytes
+// so the logo never breaks. Failed attempts retry at most once every 5 min.
+let gatorsCdnLogo = null;       // Buffer of the CDN badge once fetched
+let gatorsCdnType = 'image/png';
+let gatorsCdnAt = 0;            // last fetch attempt (ms), for throttling retries
+async function loadGatorsCdnLogo() {
+  if (gatorsCdnLogo) return;
+  gatorsCdnAt = Date.now();
+  try {
+    const res = await fetch('https://cdn.prestosports.com/action/cdn/logos/id/' + GATORS_ID + '.png', { headers: { 'user-agent': UA } });
+    if (!res.ok) return;
+    const type = res.headers.get('content-type') || '';
+    if (!/^image\//i.test(type)) return;
+    const buf = Buffer.from(await res.arrayBuffer());
+    const png = buf.length > 1000 && buf[0] === 0x89 && buf[1] === 0x50;   // \x89PNG
+    const jpg = buf.length > 1000 && buf[0] === 0xff && buf[1] === 0xd8;   // JPEG SOI
+    if (png || jpg) { gatorsCdnLogo = buf; gatorsCdnType = type; }
+  } catch (e) { /* keep the embedded fallback */ }
+}
+app.get(['/gators-logo.png','/gators-logo.jpg'], async (_q, r) => {
+  if (!gatorsCdnLogo && Date.now() - gatorsCdnAt > 5 * 60 * 1000) await loadGatorsCdnLogo();
+  r.set('Cache-Control','public, max-age=86400');
+  if (gatorsCdnLogo) { r.set('Content-Type', gatorsCdnType); return r.send(gatorsCdnLogo); }
+  r.set('Content-Type','image/png'); r.send(Buffer.from(GATORS_LOGO_B64,'base64'));
+});
 app.get('/tcl-logo.png', (_q, r) => { r.set('Content-Type','image/png'); r.set('Cache-Control','public, max-age=86400'); r.send(Buffer.from(TCL_LOGO_B64,'base64')); });
 app.get(['/gg-logo.png','/gg-logo.jpg'], (_q, r) => { r.set('Content-Type','image/png'); r.set('Cache-Control','public, max-age=86400'); r.send(Buffer.from(GG_LOGO_B64,'base64')); });
 // Social/link-preview image (Gumbeaux Gators logo, 1200x628) for iMessage etc.
@@ -3022,7 +3049,7 @@ app.get('/api/stream', (q, r) => {
 if (require.main === module) {
   loadCache(); // serve last-saved player stats instantly, then refresh below
   loadBoxCache(); // restore cached final box scores so we don't re-fetch them
-  app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleDailyRoster(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); setTimeout(pollStrikePct, 15000); setInterval(pollStrikePct, 3 * 60 * 60 * 1000); scheduleDailyStats(); });
+  app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleDailyRoster(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); loadGatorsCdnLogo(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); setTimeout(pollStrikePct, 15000); setInterval(pollStrikePct, 3 * 60 * 60 * 1000); scheduleDailyStats(); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, pitchersFromFeed, extractEventAuth,
   dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseGameLog, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, pitchingTotals, strikeCounts };
