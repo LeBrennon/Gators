@@ -3451,7 +3451,7 @@ body.noscroll{overflow:hidden;}
 .sttbl a.stteam:hover .stnm{text-decoration:underline;}
 .sttbl .stteam .stnm{white-space:normal;overflow-wrap:anywhere;line-height:1.15;}
 .sttbl .stlogo{width:22px;height:22px;border-radius:5px;object-fit:contain;background:transparent;flex:none;}
-.sttbl td:nth-child(5){color:var(--gold2);}
+.sttbl td:nth-child(4){color:var(--gold2);}
 .sttbl .stwl2{font-weight:700;}
 .sttbl .stwls{color:var(--mute);}
 .sttbl tr.stg td{background:rgba(113,74,210,.16);}
@@ -4023,7 +4023,7 @@ function renderStandings(d){
   if(!rows.length){$('standingsBody').innerHTML='<div class="note">Standings aren’t available yet — check back shortly.</div>';$('stMeta').textContent='';}
   else{
     var anyClinch=false;
-    var h='<div class="gltbl sttbl"><table><tr><th>#</th><th>Team</th><th title="Second-half W-L">2H</th><th title="Full-season W-L">Season</th><th>PCT</th><th>GB</th><th>STRK</th></tr>';
+    var h='<div class="gltbl sttbl"><table><tr><th>#</th><th>Team</th><th title="Second-half W-L">2H</th><th>PCT</th><th>GB</th><th>STRK</th><th title="Full-season W-L">Season</th></tr>';
     rows.forEach(function(x,i){
       var isG=x.id&&x.id===d.gatorsId;
       var lg=x.logo?'<img class="stlogo" src="'+esc(x.logo)+'" alt="">':'';
@@ -4037,7 +4037,7 @@ function renderStandings(d){
       var wl2=(x.w2|0)+'-'+(x.l2|0), wls=(x.ws|0)+'-'+(x.ls|0);
       h+='<tr'+(cls?' class="'+cls+'"':'')+'><td>'+(i+1)+'</td>'
         +'<td>'+team+'</td>'
-        +'<td class="stwl2">'+wl2+'</td><td class="stwls">'+wls+'</td><td>'+fmtPct(x.pct)+'</td><td>'+fmtGb(x.gb)+'</td><td>'+sk+'</td></tr>';
+        +'<td class="stwl2">'+wl2+'</td><td>'+fmtPct(x.pct)+'</td><td>'+fmtGb(x.gb)+'</td><td>'+sk+'</td><td class="stwls">'+wls+'</td></tr>';
     });
     h+='</table></div>';
     if(anyClinch)h+='<div class="stnote"><span class="clinch">🏆<small>1H</small></span> first-half champion — clinched a playoff spot</div>';
