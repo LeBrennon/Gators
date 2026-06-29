@@ -258,12 +258,12 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .band h1{font-size:28px;font-weight:900;line-height:1.08;margin:3px 0;text-shadow:0 2px 4px rgba(0,0,0,.55);}
 .band h1 .hdate{display:block;font-size:15px;font-weight:700;letter-spacing:.01em;color:#efe7ff;margin-bottom:2px;}
 .band .sub{font-size:13px;font-weight:700;color:#efe7ff;text-shadow:0 1px 2px rgba(0,0,0,.5);}
-.badge{margin-left:auto;}
+.badge{margin-left:auto;display:flex;align-items:center;gap:14px;}
 .badge .scr{display:flex;align-items:baseline;justify-content:flex-end;gap:16px;margin:3px 0;}
 .badge .snm{font-size:16px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5);}
 .badge .sval{font-size:28px;font-weight:900;color:#fff;min-width:30px;text-align:right;text-shadow:0 2px 4px rgba(0,0,0,.5);}
 .badge .scr.win .sval{color:#ffd633;}
-.badge .bstat{text-align:right;margin-top:5px;font-size:12px;font-weight:800;letter-spacing:.1em;color:#cdbff5;text-shadow:0 1px 2px rgba(0,0,0,.5);}
+.badge .bstat{font-size:13px;font-weight:800;letter-spacing:.1em;color:#cdbff5;text-shadow:0 1px 2px rgba(0,0,0,.5);}
 .linewrap{margin:18px 0 4px;}
 .linewrap table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;}
 .linewrap th,.linewrap td{border:1px solid #d9d2ec;padding:9px 10px;text-align:center;font-size:15px;}
@@ -303,7 +303,7 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .tbl table tr:nth-child(2n) th,.tbl table tr:nth-child(2n) td{background:#f0eafa;}
 .tbl tr:last-child th,.tbl tr:last-child td{background:#faf8ff;font-weight:800;border-bottom:none;}
 </style></head><body>`);
-  H.push(`<div class='band'><img src='${S.gatorsLogoDataUri()}'><div><div class='k'>Gumbeaux Gators · Official Box Score</div><h1><span class='hdate'>${esc(game.date)}, 2026</span>${game.home ? 'vs' : 'at'} ${esc(opp)}</h1>${T ? `<div class='sub'>Record ${T.w}${DASH}${T.l}</div>` : ''}</div><div class='badge'><div class='scr${gs > os ? ' win' : ''}'><span class='snm'>${esc(gShort)}</span><span class='sval'>${gs}</span></div><div class='scr${os > gs ? ' win' : ''}'><span class='snm'>${esc(oShort)}</span><span class='sval'>${os}</span></div><div class='bstat'>F/${innings}</div></div></div>`);
+  H.push(`<div class='band'><img src='${S.gatorsLogoDataUri()}'><div><div class='k'>Gumbeaux Gators · Official Box Score</div><h1><span class='hdate'>${esc(game.date)}, 2026</span>${game.home ? 'vs' : 'at'} ${esc(opp)}</h1>${T ? `<div class='sub'>Record ${T.w}${DASH}${T.l}</div>` : ''}</div><div class='badge'><div class='scores'><div class='scr${gs > os ? ' win' : ''}'><span class='snm'>${esc(gShort)}</span><span class='sval'>${gs}</span></div><div class='scr${os > gs ? ' win' : ''}'><span class='snm'>${esc(oShort)}</span><span class='sval'>${os}</span></div></div><div class='bstat'>F/${innings}</div></div></div>`);
   H.push(line);
   H.push(`<div class='cols'>${teams.map(teamBlock).join('')}</div>`);
   H.push(`</body></html>`);
