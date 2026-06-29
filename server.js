@@ -3309,11 +3309,12 @@ a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 .sbstat .sbtxt{text-align:right;font-family:'Oswald',sans-serif;font-weight:600;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--mute);}
 .sbstat.final .sbtxt{color:var(--bone);}
 .sbstat.live .sbtxt{color:var(--gator);}
-/* Live games show a divider at the inning split (card center); the status sits
+/* Live games show one divider between the two score rows; the status sits
    above it for the top of the inning, below it for the bottom. */
 .sbstat.sbtop{justify-content:flex-start;}
 .sbstat.sbbot{justify-content:flex-end;}
-.sbstat.sbtop::after,.sbstat.sbbot::after{content:'';position:absolute;left:-7px;right:0;top:50%;border-top:1px solid var(--line);}
+.sbteams.live{position:relative;}
+.sbteams.live::after{content:'';position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);border-top:1px solid var(--line);}
 </style></head><body>
 <div class="bgfx"></div>
 <canvas id="fx"></canvas>
@@ -3895,7 +3896,7 @@ function renderScoreboard(sb,gatorsId,recById){
     var showScore=g.state==='final'||g.state==='live';
     var tag=g.url?'a':'div',attr=g.url?(' href="'+esc(g.url)+'" target="_blank" rel="noopener"'):'';
     h+='<'+tag+' class="sbg'+(g.isGators?' g':'')+'"'+attr+'>'
-      +'<div class="sbteams">'+sbTeamRow(g.away,aw,g.away.id===gatorsId,showScore,recById)+sbTeamRow(g.home,hw,g.home.id===gatorsId,showScore,recById)+'</div>'
+      +'<div class="sbteams'+(g.state==='live'?' live':'')+'">'+sbTeamRow(g.away,aw,g.away.id===gatorsId,showScore,recById)+sbTeamRow(g.home,hw,g.home.id===gatorsId,showScore,recById)+'</div>'
       +'<div class="sbstat '+st+'"><span class="sbtxt">'+esc(sbStatus(g))+'</span></div></'+tag+'>';
   });
   $('scoreboardBody').innerHTML=h;
