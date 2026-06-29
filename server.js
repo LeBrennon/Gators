@@ -3541,7 +3541,7 @@ a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 </div></div>
 <script>
 var $=function(i){return document.getElementById(i);};
-var curId=null,pbpView='half',lineupTeam='gators',lastGame=null;
+var curId=null,pbpView='half',lineupTeam='gators',lastGame=null,schedList=null;
 function setPbpView(v){pbpView=v;if(lastGame)renderGame(lastGame);}
 function setLineupTeam(v){lineupTeam=v;if(lastGame)renderGame(lastGame);}
 function ord(n){n=+n;var s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}
@@ -3603,7 +3603,7 @@ function renderGame(g){
   var gPrev=g.gatorsHome?prev.h:prev.a,gNow=g.gatorsHome?g.home.runs:g.away.runs;
   if(g.id===curId&&g.status==='live'&&gPrev!=null&&gNow>gPrev)FX.show(gNow-gPrev);
   $('awaySc').textContent=g.away.runs;$('homeSc').textContent=g.home.runs;
-  prev={a:g.away.runs,h:g.home.runs};curId=g.id;
+  prev={a:g.away.runs,h:g.home.runs};var pc=curId;curId=g.id;if(schedList&&pc!==curId)renderSched(schedList);
   var sp=$('statpill');sp.textContent=g.inningLabel;sp.classList.toggle('live',g.status==='live');
   $('vs').textContent=g.dateLabel+(g.status==='pregame'?' · upcoming':'');
   var jl=$('jloc');if(jl)jl.textContent=g.location||'';
@@ -3908,10 +3908,13 @@ function buildPbp(g){
   return '<div class="pbp">'+tabs+body+'</div>';
 }
 function renderSched(list){
+  schedList=list;   // cache so the list can re-render when the hero (featured) game changes
   var done=list.filter(function(g){return g.state==='final'||g.state==='cancelled';}).reverse();
   var up=list.filter(function(g){return g.state==='scheduled';});
-  var restUp=up.slice(1);
-  var ord=done.concat(restUp).filter(function(g){return g.id!==curId;}),h='';
+  // Show every game except the one already in the hero (curId). Don't blind-drop
+  // the first upcoming game: when the hero is a live or sticky-final game it isn't
+  // curId, and slicing the first upcoming game would make it vanish entirely.
+  var ord=done.concat(up).filter(function(g){return g.id!==curId;}),h='';
   ord.forEach(function(g){
     var pill=g.state==='live'?'<span class="cpill live"><span class="dot"></span>'+g.status+'</span>':g.state==='final'?'<span class="cpill final">'+g.status+' \u203A</span>':'<span class="cpill">'+esc(g.status)+'</span>';
     var aw=g.state==='final'&&g.away.score>g.home.score,hw=g.state==='final'&&g.home.score>g.away.score;
