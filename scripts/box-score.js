@@ -30,26 +30,43 @@ const target = args[0] || 'latest';
 // box can't be fetched (offline / host not allowlisted) but the numbers are in
 // hand. Shape: { game:{id,date,home,opp,gs,os,win}, record:{w,l}, line, box }.
 const BOX_DATA = process.env.BOX_DATA ? JSON.parse(fs.readFileSync(process.env.BOX_DATA, 'utf8')) : null;
+// A bare PrestoSports box-score page can be passed directly as the target URL
+// (fetched + parsed locally) or as a saved file via BOX_FIXTURE. In both cases
+// the game header is derived from the parsed box itself (see deriveMeta).
+const isUrl = /^https?:\/\//i.test(target);
+const PARSE_SRC = isUrl ? target : (process.env.BOX_FIXTURE || null);
 
-let game, T;
+let game = null, T = null, oppName = '';
 if (BOX_DATA && BOX_DATA.game) {
-  game = BOX_DATA.game;
-  T = BOX_DATA.record || { w: 0, l: 0 };
-} else {
+  game = BOX_DATA.game; T = BOX_DATA.record || null; oppName = String(game.opp || '').replace(/^@ /, '');
+} else if (!PARSE_SRC) {
   game = S.resolveGame(target);
-  if (!game) { console.error(`No game found for "${target}". Try 'latest', a date like "Jun 27", or a box id.`); process.exit(1); }
+  if (!game) { console.error(`No game found for "${target}". Try 'latest', a date like "Jun 27", a box id, or a box-score URL.`); process.exit(1); }
   T = S.teamSummary(game.id);
+  oppName = S.oppShort(game.opp).replace(/^@ /, '');
 }
-const oppName = (BOX_DATA && BOX_DATA.game) ? String(game.opp || '').replace(/^@ /, '') : S.oppShort(game.opp).replace(/^@ /, '');
 const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 // ---- fetch the parsed box ---------------------------------------------------
 async function getBox() {
   if (BOX_DATA) return { line: BOX_DATA.line || '', box: BOX_DATA.box || [] };
-  if (process.env.BOX_FIXTURE) {
+  if (PARSE_SRC) {
     const { parseBoxscore } = require('../server');
-    const html = fs.readFileSync(process.env.BOX_FIXTURE, 'utf8');
-    return parseBoxscore(html);
+    let html;
+    if (isUrl) {
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 25000);
+          const r = await fetch(PARSE_SRC, { headers: { 'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36', accept: 'text/html,application/xhtml+xml' }, signal: ctl.signal });
+          clearTimeout(to);
+          if (!r.ok) { console.error(`[box] ${r.status} fetching ${PARSE_SRC} (try ${attempt}/3)`); if (attempt < 3) { await new Promise(s => setTimeout(s, 2000 * attempt)); continue; } return null; }
+          html = await r.text(); break;
+        } catch (e) { console.error(`[box] error fetching ${PARSE_SRC}: ${e.message} (try ${attempt}/3)`); if (attempt < 3) { await new Promise(s => setTimeout(s, 2000 * attempt)); continue; } return null; }
+      }
+    } else {
+      html = fs.readFileSync(PARSE_SRC, 'utf8');
+    }
+    return html ? parseBoxscore(html) : null;
   }
   const id = String(game.id);
   if (!/^\d{8}_[a-z0-9]+$/i.test(id)) return null;
@@ -176,7 +193,7 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .tbl td:first-child{color:#2a2150;font-weight:600;}
 .tbl tr:last-child td{background:#faf8ff;font-weight:800;}
 </style></head><body>`);
-  H.push(`<div class='band'><img src='${S.gatorsLogoDataUri()}'><div><div class='k'>Gumbeaux Gators · Official Box Score</div><h1>${esc(game.date)}, 2026 ${DASH} ${game.home ? 'vs' : 'at'} ${esc(opp)}</h1><div class='sub'>${game.home ? 'Home' : 'Road'} · Record ${T.w}${DASH}${T.l}</div></div><div class='badge'><div class='r'>${resWord}</div><div class='sc'>${gs}<span class='dsh'>&ndash;</span>${os}</div></div></div>`);
+  H.push(`<div class='band'><img src='${S.gatorsLogoDataUri()}'><div><div class='k'>Gumbeaux Gators · Official Box Score</div><h1>${esc(game.date)}, 2026 ${DASH} ${game.home ? 'vs' : 'at'} ${esc(opp)}</h1><div class='sub'>${game.home ? 'Home' : 'Road'}${T ? ` · Record ${T.w}${DASH}${T.l}` : ''}</div></div><div class='badge'><div class='r'>${resWord}</div><div class='sc'>${gs}<span class='dsh'>&ndash;</span>${os}</div></div></div>`);
   H.push(line);
   H.push(`<div class='cols'>${teams.map(teamBlock).join('')}</div>`);
   H.push(`</body></html>`);
@@ -219,9 +236,27 @@ function buildStem(data) {
   return `${[game.date, year].filter(Boolean).join(' ')} ${away} @ ${home}`.trim();
 }
 
+// When the box is parsed from a URL/file (no seed game), build the header meta
+// from the parsed line score: teams + runs, plus date/id from the source name.
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function deriveMeta(data) {
+  const lt = parseLineTeams(data.line) || [];
+  const gRow = lt.find(t => t.gators), oRow = lt.find(t => !t.gators);
+  const idm = String(PARSE_SRC || '').match(/(\d{8})_([a-z0-9]+)/i);
+  const id = idm ? (idm[1] + '_' + idm[2]) : '';
+  const ymd = id.slice(0, 8);
+  const date = /^\d{8}$/.test(ymd) ? `${MONTHS[+ymd.slice(4, 6) - 1] || ''} ${+ymd.slice(6, 8)}`.trim() : '';
+  const visitorGators = lt.length > 0 && lt[0].gators;   // line score lists the visitor first
+  game = { id, date, home: !visitorGators, opp: oRow ? oRow.name : 'Opponent',
+    gs: gRow ? gRow.r : 0, os: oRow ? oRow.r : 0, win: (gRow && oRow) ? (gRow.r > oRow.r ? true : gRow.r < oRow.r ? false : null) : null };
+  oppName = (oRow ? oRow.name : '').replace(/^(lake charles|the)\s+/i, '');
+  T = null;   // record isn't in the box score; omit it from the header
+}
+
 async function main() {
   const data = await getBox();
-  if (!data || !data.box || !data.box.length) { console.error(`[box] no box score available for ${game.id} (offline? game not final yet?).`); process.exit(2); }
+  if (!data || !data.box || !data.box.length) { console.error(`[box] no box score available${game ? ' for ' + game.id : ''} (offline? host not allowlisted? game not final yet?).`); process.exit(2); }
+  if (!game) deriveMeta(data);
   const stem = buildStem(data);
   const html = buildHtml(data);
   if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
