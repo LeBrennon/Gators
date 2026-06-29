@@ -2076,7 +2076,7 @@ function msUntilNextCentralMidnight() {
   return Math.max(1000, (24 * 3600 - into) * 1000);
 }
 function scheduleDailyRoster() {
-  setTimeout(() => { pollRoster(); scheduleDailyRoster(); }, msUntilNextCentralMidnight());
+  setTimeout(() => { try { pollRoster(); } catch (e) { logErr('scheduleDailyRoster', e); } scheduleDailyRoster(); }, msUntilNextCentralMidnight());
 }
 // ----- per-game pitching walks (BB) from box scores --------------------------
 // Presto's per-game pitching LOG omits BB, but each game's full box score lists
@@ -2574,7 +2574,7 @@ function emailVisitorDigest() {
     .catch(() => false);
 }
 function scheduleDailyStats() {
-  setTimeout(() => { if (mailReady) emailVisitorDigest(); scheduleDailyStats(); }, msUntilNextCentralMidnight());
+  setTimeout(() => { try { if (mailReady) emailVisitorDigest(); } catch (e) { logErr('scheduleDailyStats', e); } scheduleDailyStats(); }, msUntilNextCentralMidnight());
 }
 
 const app = express();
@@ -3596,7 +3596,7 @@ function renderGame(g){
   var th=$('themeTag');if(th){if(g.theme&&g.status==='pregame'){th.textContent='🎉 '+g.theme+' Night';th.style.display='';}else{th.style.display='none';}}
   var sn=$('specialName'),sd=$('specialDetail');
   if(sn&&sd){if(g.special&&g.status!=='final'&&g.status!=='cancelled'){sn.textContent=(g.special.emoji?g.special.emoji+' ':'')+g.special.name;sn.style.display='';if(g.special.detail){sd.textContent=g.special.detail;sd.style.display='';}else sd.style.display='none';}else{sn.style.display='none';sd.style.display='none';}}
-  var pr=$('promoTag');if(pr){if(g.promo&&g.status!=='final'&&g.status!=='cancelled'){pr.innerHTML=g.promo.emoji+' <b>'+esc(g.promo.name)+'</b> · '+esc(g.promo.detail);pr.style.display='';}else{pr.style.display='none';}}
+  var pr=$('promoTag');if(pr){if(g.promo&&g.status!=='final'&&g.status!=='cancelled'){pr.innerHTML=esc(g.promo.emoji)+' <b>'+esc(g.promo.name)+'</b> · '+esc(g.promo.detail);pr.style.display='';}else{pr.style.display='none';}}
   var wb=$('watchBtn');
   if(wb){
     // Live game: show the TCL stream pill. Upcoming games use the Buy Tickets
@@ -3901,13 +3901,13 @@ function renderSched(list){
   ord.forEach(function(g){
     var pill=g.state==='live'?'<span class="cpill live"><span class="dot"></span>'+g.status+'</span>':g.state==='final'?'<span class="cpill final">'+g.status+' \u203A</span>':'<span class="cpill">'+esc(g.status)+'</span>';
     var aw=g.state==='final'&&g.away.score>g.home.score,hw=g.state==='final'&&g.home.score>g.away.score;
-    function row(t,isG,won){var sc=(g.state==='live'||g.state==='final')&&t.score!=null?t.score:'';return '<div class="crow'+(isG?' g':'')+(won?' w':'')+'"><img src="'+t.logo+'"><span class="n">'+esc(t.short)+'</span><span class="s">'+sc+'</span></div>';}
+    function row(t,isG,won){var sc=(g.state==='live'||g.state==='final')&&t.score!=null?t.score:'';return '<div class="crow'+(isG?' g':'')+(won?' w':'')+'"><img src="'+t.logo+'" alt=""><span class="n">'+esc(t.short)+'</span><span class="s">'+sc+'</span></div>';}
     h+='<div class="card '+(g.state==='live'?'glive':g.state==='cancelled'?'gcancel':'')+(g.id===curId?' pinned':'')+'" data-state="'+g.state+'" data-id="'+g.id+'">'
       +'<div class="ctop"><span class="cdate">'+g.dateLabel+'</span>'+pill+'</div>'
       +row(g.away,g.away.id==='et1bt9sixrz5lnnl',aw)+row(g.home,g.home.id==='et1bt9sixrz5lnnl',hw)
       +(g.state==='scheduled'&&g.theme?('<div class="ctheme">🎉 '+esc(g.theme)+' Night</div>'):'')
       +(g.state==='scheduled'&&g.special?('<div class="ctheme">'+(g.special.emoji?esc(g.special.emoji)+' ':'')+esc(g.special.name)+'</div>'+(g.special.detail?('<div class="cpromo">'+esc(g.special.detail)+'</div>'):'')):'')
-      +(g.promo?('<div class="cpromo">'+g.promo.emoji+' <b>'+esc(g.promo.name)+'</b> · '+esc(g.promo.detail)+'</div>'):'')
+      +(g.promo?('<div class="cpromo">'+esc(g.promo.emoji)+' <b>'+esc(g.promo.name)+'</b> · '+esc(g.promo.detail)+'</div>'):'')
       +'<div class="cfoot"><span class="cloc">'+esc(g.location||'')+'</span>'
       +(g.state==='final'&&g.replayUrl?('<a class="watchmini replay" href="'+esc(g.replayUrl)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Replay</a>'):'')
       +(g.state==='scheduled'&&g.freeAdmission?('<span class="watchmini free">Free Admission</span>'):(g.state==='scheduled'&&g.ticketUrl?('<a class="watchmini tickets" href="'+esc(g.ticketUrl)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Tickets</a>'):''))
@@ -4284,10 +4284,10 @@ function glTable(rows,cols){
   var h='<div class="gltbl"><table><tr><th>Date</th><th>Opp</th>';
   for(var i=0;i<cols.length;i++)h+='<th>'+cols[i][1]+'</th>';
   h+='</tr>';
-  for(var j=0;j<rows.length;j++){var g=rows[j];
-    var dt=g.boxId?('<a class="gld" role="button" tabindex="0" data-glbox="'+esc(g.boxId)+'">'+esc(g.date)+'</a>'):esc(g.date);
-    h+='<tr><td>'+dt+'</td><td>'+esc(oppShort(g.opp))+'</td>';
-    for(var i2=0;i2<cols.length;i2++){var v=g[cols[i2][0]];h+='<td>'+((v==null||v===''||v==='-')?'·':esc(v))+'</td>';}
+  for(var j=0;j<rows.length;j++){var row=rows[j];
+    var dt=row.boxId?('<a class="gld" role="button" tabindex="0" data-glbox="'+esc(row.boxId)+'">'+esc(row.date)+'</a>'):esc(row.date);
+    h+='<tr><td>'+dt+'</td><td>'+esc(oppShort(row.opp))+'</td>';
+    for(var i2=0;i2<cols.length;i2++){var v=row[cols[i2][0]];h+='<td>'+((v==null||v===''||v==='-')?'·':esc(v))+'</td>';}
     h+='</tr>';
   }
   return h+'</table></div>';
