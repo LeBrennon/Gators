@@ -2204,6 +2204,8 @@ function strikeCounts(text) {
 // Team-level season aggregates for the roster tab: batting (AVG/OBP/SLG/HR) and
 // the pitching staff (ERA/WHIP/BB9/K9 + strike%), summed across every Gators
 // player's season line in rosterStats.
+// Dormant: kept for re-enabling the team batting/pitching card. Its result is
+// currently withheld from the public /api/roster payload (see rosterPayload).
 function computeTeamStats() {
   const N = v => { const n = Number(v); return isFinite(n) ? n : 0; };
   const ipOuts = ip => { const m = String(ip == null ? '' : ip).match(/^(\d+)(?:\.(\d))?$/); return m ? N(m[1]) * 3 + N(m[2]) : 0; };
@@ -2239,9 +2241,12 @@ function rosterPayload() {
   });
   const complete = ROSTER.every(p => { const s = rosterStats[p.slug]; return s && (s.hit != null || s.pit != null); });
   const coaches = COACHES.map(c => Object.assign({}, c, { photo: playerPhotos[c.slug] ? ('/api/photo?slug=' + c.slug) : null }));
+  // teamStats (team batting + pitching-staff aggregates) is intentionally withheld
+  // from the public /api/roster response — these weren't meant to be public. The
+  // computeTeamStats() helper and the client-side teamStatsCard() are kept intact;
+  // to re-enable, add `teamStats: computeTeamStats()` back to the object below.
   return { players, coaches, updated: rosterUpdated, loading: Object.keys(rosterStats).length === 0,
-           settled: rosterUpdated > 0 && !rosterPolling, complete, photos: photosLoadedAt > 0,
-           teamStats: computeTeamStats() };
+           settled: rosterUpdated > 0 && !rosterPolling, complete, photos: photosLoadedAt > 0 };
 }
 
 // ===== Game location label + TCL TV watch links + player headshots ==========
@@ -4193,6 +4198,8 @@ function cardStats(p){
   if(!bat&&!pit)return '<div class="pstat"><span class="plimited">—</span></div>';
   return '<div class="pstat">'+bat+pit+'</div>';
 }
+// Dormant: renders the team batting/pitching card. Currently no-ops because the
+// server withholds d.teamStats from /api/roster (kept for easy re-enable).
 function teamStatsCard(ts){
   if(!ts||(!ts.batting&&!ts.pitching))return '';
   function cell(k,v){return '<div class="tscell"><div class="tsk">'+k+'</div><div class="tsv">'+esc(String(v))+'</div></div>';}
