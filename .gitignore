@@ -9,3 +9,4 @@ box-cache.json
 
 # Generated post-game reports (reproducible from the daily seed)
 reports/postgame/
+reports/box/
