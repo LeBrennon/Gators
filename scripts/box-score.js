@@ -208,7 +208,7 @@ function buildHtml(data) {
   const lt = parseLineTeams(data.line);
   if (lt) { const G = lt.find(t => t.gators), O = lt.find(t => !t.gators); if (G && O) { gs = G.r; os = O.r; win = gs > os ? true : gs < os ? false : null; opp = O.name.replace(/^(lake charles|the)\s+/i, '').trim() || oppName; } }
   const resWord = win == null ? 'FINAL' : win ? 'WIN' : 'LOSS';
-  const resColor = win == null ? '#714ad2' : win ? '#1f9d57' : '#c0392b';
+  const resColor = win == null ? '#3a2480' : win ? '#1f9d57' : '#c0392b';
   const line = data.line ? `<div class='linewrap'>${cleanTable(data.line)}</div>` : '';
   // Adaptive row density: the tallest column (batting + pitching rows) sets the
   // vertical cell padding so a long lineup + a deep bullpen still fit one page
@@ -242,7 +242,7 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .linewrap td:nth-last-child(-n+3){font-weight:800;background:#faf8ff;}
 .cols{display:flex;gap:22px;margin-top:18px;flex:1;min-height:0;}
 .teamcol{flex:1;min-width:0;display:flex;flex-direction:column;}
-.tcap{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#fff;background:linear-gradient(180deg,#714ad2,#4e3191);padding:8px 11px;border-radius:6px 6px 0 0;}
+.tcap{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#fff;background:#3a2480;padding:8px 11px;border-radius:6px 6px 0 0;}
 .tcap.pit{margin-top:16px;}
 .tbl{border:1px solid #e6def7;border-top:none;border-radius:0 0 6px 6px;overflow:hidden;min-height:0;}
 .tbl table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;height:100%;}
@@ -254,7 +254,7 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .tbl.pit th:last-child,.tbl.pit td:last-child{padding-right:8px;}
 /* Column-header row only — PrestoSports also marks each per-row name cell as a <th>,
    so the header style must not leak onto those (it was shading + upper-casing names). */
-.tbl table tr:first-child th{background:#fff;color:#4e3191;font-weight:800;text-transform:uppercase;letter-spacing:.02em;font-size:10.5px;}
+.tbl table tr:first-child th{background:#fff;color:#3a2480;font-weight:800;text-transform:uppercase;letter-spacing:.02em;font-size:10.5px;}
 .tbl.pit table tr:first-child th{font-size:9px;letter-spacing:0;}
 .tbl th:first-child,.tbl td:first-child{text-align:left;white-space:nowrap;}
 .tbl tr:not(:first-child) th:first-child{color:#2a2150;font-weight:600;}
