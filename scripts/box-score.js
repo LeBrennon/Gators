@@ -236,6 +236,8 @@ function buildHtml(data) {
   let lineHtml = cleanTable(data.line);
   if (lineHtml && lt) { const oTeam = lt.find(t => !t.gators); if (oTeam) { const oc = teamColor(oTeam.name); const safe = oTeam.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); lineHtml = lineHtml.replace(new RegExp('<th>(\\s*' + safe + '\\s*)</th>', 'i'), `<th style="background:${oc}">$1</th>`); } }
   const line = data.line ? `<div class='linewrap'>${lineHtml}</div>` : '';
+  // Innings played = the line score's inning columns (a team row's <td>s minus R/H/E).
+  const innings = (() => { const rows = String(lineHtml || '').match(/<tr[\s\S]*?<\/tr>/gi) || []; for (const r of rows.slice(1)) { const n = (r.match(/<td[\s\S]*?<\/td>/gi) || []).length; if (n >= 4) return n - 3; } return 9; })();
   // Adaptive row density: the tallest column (batting + pitching rows) sets the
   // vertical cell padding so a long lineup + a deep bullpen still fit one page
   // without clipping the Totals row. Roomy for a normal box, tighter as rows grow.
@@ -261,6 +263,7 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .badge .snm{font-size:16px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5);}
 .badge .sval{font-size:28px;font-weight:900;color:#fff;min-width:30px;text-align:right;text-shadow:0 2px 4px rgba(0,0,0,.5);}
 .badge .scr.win .sval{color:#ffd633;}
+.badge .bstat{text-align:right;margin-top:5px;font-size:12px;font-weight:800;letter-spacing:.1em;color:#cdbff5;text-shadow:0 1px 2px rgba(0,0,0,.5);}
 .linewrap{margin:18px 0 4px;}
 .linewrap table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;}
 .linewrap th,.linewrap td{border:1px solid #d9d2ec;padding:9px 10px;text-align:center;font-size:15px;}
@@ -300,7 +303,7 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .tbl table tr:nth-child(2n) th,.tbl table tr:nth-child(2n) td{background:#f0eafa;}
 .tbl tr:last-child th,.tbl tr:last-child td{background:#faf8ff;font-weight:800;border-bottom:none;}
 </style></head><body>`);
-  H.push(`<div class='band'><img src='${S.gatorsLogoDataUri()}'><div><div class='k'>Gumbeaux Gators · Official Box Score</div><h1><span class='hdate'>${esc(game.date)}, 2026</span>${game.home ? 'vs' : 'at'} ${esc(opp)}</h1>${T ? `<div class='sub'>Record ${T.w}${DASH}${T.l}</div>` : ''}</div><div class='badge'><div class='scr${gs > os ? ' win' : ''}'><span class='snm'>${esc(gShort)}</span><span class='sval'>${gs}</span></div><div class='scr${os > gs ? ' win' : ''}'><span class='snm'>${esc(oShort)}</span><span class='sval'>${os}</span></div></div></div>`);
+  H.push(`<div class='band'><img src='${S.gatorsLogoDataUri()}'><div><div class='k'>Gumbeaux Gators · Official Box Score</div><h1><span class='hdate'>${esc(game.date)}, 2026</span>${game.home ? 'vs' : 'at'} ${esc(opp)}</h1>${T ? `<div class='sub'>Record ${T.w}${DASH}${T.l}</div>` : ''}</div><div class='badge'><div class='scr${gs > os ? ' win' : ''}'><span class='snm'>${esc(gShort)}</span><span class='sval'>${gs}</span></div><div class='scr${os > gs ? ' win' : ''}'><span class='snm'>${esc(oShort)}</span><span class='sval'>${os}</span></div><div class='bstat'>F/${innings}</div></div></div>`);
   H.push(line);
   H.push(`<div class='cols'>${teams.map(teamBlock).join('')}</div>`);
   H.push(`</body></html>`);
