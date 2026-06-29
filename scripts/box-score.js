@@ -245,7 +245,7 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .tcap{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#fff;background:#3a2480;padding:8px 11px;border-radius:6px 6px 0 0;}
 .tcap.pit{margin-top:16px;}
 .tbl{border:1px solid #e6def7;border-top:none;border-radius:0 0 6px 6px;overflow:hidden;min-height:0;}
-.tbl table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;height:100%;}
+.tbl table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;height:100%;table-layout:fixed;}
 .tbl th,.tbl td{padding:var(--padv,8px) 5px;text-align:right;font-size:12.5px;font-weight:400;border-bottom:1px solid #efeaf9;}
 /* Vertical column dividers. */
 .tbl table th:not(:last-child),.tbl table td:not(:last-child){border-right:1px solid #e6def7;}
@@ -258,7 +258,8 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
    so the header style must not leak onto those (it was shading + upper-casing names). */
 .tbl table tr:first-child th{background:#fff;color:#3a2480;font-weight:800;text-transform:uppercase;letter-spacing:.02em;font-size:10.5px;}
 .tbl.pit table tr:first-child th{font-size:9px;letter-spacing:0;}
-.tbl th:first-child,.tbl td:first-child{text-align:left;white-space:nowrap;}
+.tbl th:first-child,.tbl td:first-child{text-align:left;white-space:nowrap;width:44%;}
+.tbl.pit th:first-child,.tbl.pit td:first-child{width:33%;}
 .tbl tr:not(:first-child) th:first-child{color:#2a2150;font-weight:600;}
 .tbl th:first-child span{text-transform:uppercase;}  /* the position prefix (1b, rf, ...) */
 .tbl a{color:inherit;text-decoration:none;}
