@@ -247,6 +247,8 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .tbl{border:1px solid #e6def7;border-top:none;border-radius:0 0 6px 6px;overflow:hidden;min-height:0;}
 .tbl table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;height:100%;}
 .tbl th,.tbl td{padding:var(--padv,8px) 5px;text-align:right;font-size:12.5px;font-weight:400;border-bottom:1px solid #efeaf9;}
+/* Vertical column dividers. */
+.tbl table th:not(:last-child),.tbl table td:not(:last-child){border-right:1px solid #e6def7;}
 /* Pitching has more columns (IP..S%) than batting, so tighten it to fit the half-width column. */
 .tbl.pit th,.tbl.pit td{padding-left:3px;padding-right:3px;font-size:11px;}
 /* Keep the last stat column off the card's right edge. */
