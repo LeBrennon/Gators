@@ -172,9 +172,14 @@ function notesLine(notes) {
 // ---- render -----------------------------------------------------------------
 function teamBlock(t) {
   const cap = t.gators ? 'GATORS' : esc(t.team.toUpperCase());
+  // Split the column's vertical space between the two tables in proportion to
+  // their row counts, so rows stay roughly the same height in both — i.e. a long
+  // pitching list (many arms) gets more room instead of staying tiny while the
+  // batting table hogs the space.
+  const rc = html => (String(html || '').match(/<tr/gi) || []).length || 1;
   const sections = [];
-  if (t.batting) sections.push(`<div class='tcap bat'>${cap} — BATTING</div><div class='tbl bat'>${t.batting}</div>`);
-  if (t.pitching) sections.push(`<div class='tcap pit'>${cap} — PITCHING</div><div class='tbl pit'>${t.pitching}</div>`);
+  if (t.batting) sections.push(`<div class='tcap bat'>${cap} — BATTING</div><div class='tbl bat' style='flex:${rc(t.batting)} 1 0'>${t.batting}</div>`);
+  if (t.pitching) sections.push(`<div class='tcap pit'>${cap} — PITCHING</div><div class='tbl pit' style='flex:${rc(t.pitching)} 1 0'>${t.pitching}</div>`);
   return `<div class='teamcol'>${sections.join('')}</div>`;
 }
 
@@ -205,12 +210,18 @@ function buildHtml(data) {
   const resWord = win == null ? 'FINAL' : win ? 'WIN' : 'LOSS';
   const resColor = win == null ? '#714ad2' : win ? '#1f9d57' : '#c0392b';
   const line = data.line ? `<div class='linewrap'>${cleanTable(data.line)}</div>` : '';
+  // Adaptive row density: the tallest column (batting + pitching rows) sets the
+  // vertical cell padding so a long lineup + a deep bullpen still fit one page
+  // without clipping the Totals row. Roomy for a normal box, tighter as rows grow.
+  const rcount = html => (String(html || '').match(/<tr/gi) || []).length || 1;
+  const maxRows = Math.max(1, ...teams.map(t => rcount(t.batting) + rcount(t.pitching)));
+  const padV = Math.max(3, Math.min(9, Math.floor((620 / maxRows - 16) / 2)));
   const H = [];
   H.push(`<!doctype html><html><head><meta charset='utf-8'><style>
 @page{size:letter;margin:0;}
 *{box-sizing:border-box;margin:0;padding:0;}
 html{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-body{font-family:'Helvetica Neue',Arial,sans-serif;color:#1b1e27;font-size:12px;padding:32px 36px;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+body{font-family:'Helvetica Neue',Arial,sans-serif;color:#1b1e27;font-size:12px;padding:32px 36px;height:100vh;display:flex;flex-direction:column;overflow:hidden;--padv:${padV}px;}
 .band{display:flex;align-items:center;gap:18px;color:#fff;padding:18px 24px;border-radius:13px;border:2px solid #ecc913;
 background:linear-gradient(rgba(22,16,43,.02),rgba(22,16,43,.16))${croc ? `,url('${croc}') center center / cover no-repeat` : ''};
 background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1px rgba(255,255,255,.08);}
@@ -233,10 +244,9 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .teamcol{flex:1;min-width:0;display:flex;flex-direction:column;}
 .tcap{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#fff;background:linear-gradient(180deg,#714ad2,#4e3191);padding:8px 11px;border-radius:6px 6px 0 0;}
 .tcap.pit{margin-top:16px;}
-.tbl{border:1px solid #e6def7;border-top:none;border-radius:0 0 6px 6px;overflow:hidden;}
-.teamcol .tbl.bat{flex:1;min-height:0;}
+.tbl{border:1px solid #e6def7;border-top:none;border-radius:0 0 6px 6px;overflow:hidden;min-height:0;}
 .tbl table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;height:100%;}
-.tbl th,.tbl td{padding:8.5px 5px;text-align:right;font-size:12.5px;border-bottom:1px solid #efeaf9;}
+.tbl th,.tbl td{padding:var(--padv,8px) 5px;text-align:right;font-size:12.5px;border-bottom:1px solid #efeaf9;}
 .tbl th{background:#f0ebfb;color:#4e3191;font-weight:800;text-transform:uppercase;letter-spacing:.02em;font-size:10.5px;}
 /* Pitching has more columns (IP..S%) than batting, so tighten it to fit the half-width column. */
 .tbl.pit th,.tbl.pit td{padding-left:3px;padding-right:3px;font-size:11px;}
