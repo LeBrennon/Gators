@@ -11,8 +11,11 @@
     "report:pdf": "node scripts/postgame-report.js latest --pdf",
     "report:box": "node scripts/box-score.js latest --pdf"
   },
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
+    "compression": "^1.8.1",
     "cors": "^2.8.5",
     "express": "^4.19.2",
     "nodemailer": "^6.9.14",

@@ -8,6 +8,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const cors = require('cors');
+const compression = require('compression');
 const fs = require('fs');
 let webpush = null; try { webpush = require('web-push'); } catch (e) {}
 let nodemailer = null; try { nodemailer = require('nodemailer'); } catch (e) {}
@@ -2579,6 +2580,7 @@ function scheduleDailyStats() {
 
 const app = express();
 app.set('trust proxy', true);   // Render is behind a proxy — read the real client IP
+app.use(compression());         // gzip the HTML page and JSON APIs; Render doesn't compress for us
 app.use(cors());
 app.use(express.json());
 
