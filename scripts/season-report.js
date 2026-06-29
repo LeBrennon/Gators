@@ -6,6 +6,8 @@
 //
 //   node scripts/season-report.js            # write reports/season-reference-2026.md
 //   node scripts/season-report.js --stdout   # print to stdout instead
+//   node scripts/season-report.js --pdf      # branded multi-page PDF in reports/season/
+//   node scripts/season-report.js --html     # branded HTML alongside (debug)
 
 const fs = require('fs');
 const path = require('path');
@@ -116,9 +118,121 @@ function build() {
   return L.join('\n') + '\n';
 }
 
+// ---- branded HTML + PDF -----------------------------------------------------
+const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+// Inline span formatting for the subset of Markdown this report emits.
+const span = s => esc(s)
+  .replace(/`([^`]+)`/g, '<code>$1</code>')
+  .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+  .replace(/(^|[\s(])_([^_]+)_(?=[\s.,;:)]|$)/g, '$1<em>$2</em>');
+
+// Minimal Markdown -> HTML for headings, tables, lists, blockquotes and
+// paragraphs — enough for the season reference's structure.
+function mdToHtml(src) {
+  const lines = src.split('\n');
+  const out = [];
+  let i = 0;
+  const cell = c => c.replace(/^:?-+:?$/, ''); // ignore table separator dashes
+  while (i < lines.length) {
+    const line = lines[i];
+    if (/^\|/.test(line) && /^\|[\s:|-]+\|?\s*$/.test(lines[i + 1] || '')) {
+      const head = line.split('|').slice(1, -1).map(c => c.trim());
+      i += 2;
+      const body = [];
+      while (i < lines.length && /^\|/.test(lines[i])) { body.push(lines[i].split('|').slice(1, -1).map(c => c.trim())); i++; }
+      out.push('<table><thead><tr>' + head.map(c => `<th>${span(c)}</th>`).join('') + '</tr></thead><tbody>'
+        + body.map(r => '<tr>' + r.map(c => `<td>${span(cell(c))}</td>`).join('') + '</tr>').join('') + '</tbody></table>');
+      continue;
+    }
+    if (/^### /.test(line)) { out.push(`<h3>${span(line.slice(4))}</h3>`); i++; continue; }
+    if (/^## /.test(line)) { out.push(`<h2>${span(line.slice(3))}</h2>`); i++; continue; }
+    if (/^# /.test(line)) { i++; continue; } // page title comes from the band header
+    if (/^> /.test(line)) { out.push(`<blockquote>${span(line.slice(2))}</blockquote>`); i++; continue; }
+    if (/^- /.test(line)) {
+      const items = [];
+      while (i < lines.length && /^- /.test(lines[i])) { items.push(`<li>${span(lines[i].slice(2))}</li>`); i++; }
+      out.push('<ul>' + items.join('') + '</ul>');
+      continue;
+    }
+    if (line.trim() === '') { i++; continue; }
+    out.push(`<p>${span(line)}</p>`);
+    i++;
+  }
+  return out.join('\n');
+}
+
+function buildHtml(md) {
+  const T = S.teamSummary();
+  const updated = S.seed.rosterUpdated ? new Date(S.seed.rosterUpdated).toISOString().slice(0, 10) : '—';
+  const croc = S.crocSkinDataUri();
+  return `<!doctype html><html><head><meta charset='utf-8'><style>
+@page{size:letter;margin:0.5in;}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+body{font-family:Georgia,'Times New Roman',serif;color:#1b1e27;font-size:11px;line-height:1.5;}
+.band{display:flex;align-items:center;gap:16px;color:#fff;padding:16px 20px;border-radius:12px;border:2px solid #ecc913;
+background:linear-gradient(rgba(22,16,43,.02),rgba(22,16,43,.16))${croc ? `,url('${croc}') center center / cover no-repeat` : ''};
+background-color:#3a2480;box-shadow:0 4px 14px rgba(58,36,128,.3),inset 0 0 0 1px rgba(255,255,255,.08);}
+.band img{width:58px;height:58px;}
+.k{font-family:'Helvetica Neue',Arial,sans-serif;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#ffd633;font-weight:800;text-shadow:0 1px 2px rgba(0,0,0,.5);}
+.band h1{font-family:'Helvetica Neue',Arial,sans-serif;font-size:24px;font-weight:900;line-height:1.08;margin:2px 0;text-shadow:0 2px 4px rgba(0,0,0,.55);}
+.band .sub{font-family:Arial,sans-serif;font-size:11px;font-weight:700;color:#efe7ff;text-shadow:0 1px 2px rgba(0,0,0,.5);}
+.band .rec{margin-left:auto;text-align:center;font-family:'Helvetica Neue',Arial,sans-serif;}
+.band .rec b{display:block;font-size:22px;font-weight:900;}
+.band .rec span{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#efe7ff;}
+h2{font-family:'Helvetica Neue',Arial,sans-serif;font-size:12.5px;text-transform:uppercase;letter-spacing:.08em;color:#714ad2;font-weight:800;border-bottom:2px solid #714ad2;padding-bottom:4px;margin:18px 0 8px;break-after:avoid;}
+h3{font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;color:#3a2480;margin:10px 0 4px;}
+p{margin:6px 0;}
+ul{list-style:none;margin:6px 0;}
+li{position:relative;padding:4px 0 4px 15px;border-bottom:1px solid #eee;}
+li:last-child{border-bottom:none;}
+li:before{content:'';position:absolute;left:0;top:9px;width:6px;height:6px;border-radius:2px;background:#714ad2;}
+blockquote{background:#f7f4fd;border-left:3px solid #714ad2;color:#4a3b6e;padding:7px 11px;margin:8px 0;font-family:Arial,sans-serif;font-size:9.5px;}
+table{width:100%;border-collapse:collapse;margin:6px 0 12px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:9px;break-inside:auto;}
+th{background:linear-gradient(180deg,#714ad2,#4e3191);color:#fff;font-size:8.5px;letter-spacing:.04em;text-transform:uppercase;padding:5px 5px;text-align:left;}
+td{padding:4px 5px;border-bottom:1px solid #ece7f6;}
+tr:nth-child(even) td{background:#f7f4fd;}
+code{font-family:'SF Mono',Consolas,monospace;font-size:9px;background:#efeaf9;padding:1px 4px;border-radius:3px;color:#4e3191;}
+strong{color:#3a2480;}
+</style></head><body>
+<div class='band'><img src='${S.gatorsLogoDataUri()}'><div><div class='k'>Gumbeaux Gators · GM Season Reference</div><h1>Season Reference — 2026</h1><div class='sub'>Through ${esc(updated)} · ${T.gp} games</div></div><div class='rec'><b>${T.w}–${T.l}</b><span>Record</span></div></div>
+${mdToHtml(md)}
+</body></html>`;
+}
+
+function findChromium() {
+  const cands = [process.env.CHROMIUM_PATH, process.env.PUPPETEER_EXECUTABLE_PATH,
+    '/opt/pw-browsers/chromium', '/usr/bin/chromium', '/usr/bin/chromium-browser', '/usr/bin/google-chrome'].filter(Boolean);
+  for (const c of cands) { try { if (fs.existsSync(c)) return c; } catch (e) {} }
+  try { const base = process.env.PLAYWRIGHT_BROWSERS_PATH || '/opt/pw-browsers'; for (const d of fs.readdirSync(base)) { const pth = path.join(base, d, 'chrome-linux', 'chrome'); if (fs.existsSync(pth)) return pth; } } catch (e) {}
+  return null;
+}
+
+function renderPdf(html, outPath) {
+  const bin = findChromium();
+  const tmp = outPath.replace(/\.pdf$/, '') + '.tmp.html';
+  fs.writeFileSync(tmp, html);
+  if (!bin) { console.error('No Chromium found for --pdf. Set CHROMIUM_PATH. HTML left at ' + tmp); return false; }
+  try {
+    require('child_process').execFileSync(bin,
+      ['--headless=new', '--no-sandbox', '--disable-gpu', '--no-pdf-header-footer', `--print-to-pdf=${outPath}`, 'file://' + path.resolve(tmp)],
+      { stdio: 'ignore' });
+    fs.unlinkSync(tmp);
+    return true;
+  } catch (e) { console.error('Chromium PDF render failed:', e.message, '\nHTML left at ' + tmp); return false; }
+}
+
 const md = build();
+const PDF = process.argv.includes('--pdf');
+const HTML = process.argv.includes('--html');
 if (process.argv.includes('--stdout')) {
   process.stdout.write(md);
+} else if (PDF || HTML) {
+  const dir = path.join(__dirname, '..', 'reports', 'season');
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  const html = buildHtml(md);
+  if (HTML) { const hf = path.join(dir, 'season-reference-2026.html'); fs.writeFileSync(hf, html); console.error('wrote', path.relative(path.join(__dirname, '..'), hf)); }
+  if (PDF) { const out = path.join(dir, 'season-reference-2026.pdf'); if (renderPdf(html, out)) console.log('wrote', path.relative(path.join(__dirname, '..'), out)); }
 } else {
   const dir = path.join(__dirname, '..', 'reports');
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
