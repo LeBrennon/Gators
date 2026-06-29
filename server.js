@@ -4234,9 +4234,10 @@ function renderRoster(d){
     coachData=d.coaches;
     h+='<div class="csec">Coaching Staff</div>';
     for(var k=0;k<d.coaches.length;k++){var c=d.coaches[k];
+      var cbox=c.photo?('<img class="ppic" src="'+esc(c.photo)+'" alt="">'):('<span class="pinit">'+esc(pInitials(c.name))+'</span>');
       h+='<div class="pcard coach" data-coachnum="'+c.num+'">'+
-         '<div class="pnum coachico">'+c.num+'</div>'+
-         '<div class="pmain"><div class="pname">'+esc(c.name)+'</div>'+
+         '<div class="pnum coachico">'+cbox+'</div>'+
+         '<div class="pmain"><div class="pname"><span class="pnametext">'+esc(c.name)+'</span><span class="pjersey">#'+c.num+'</span></div>'+
          '<div class="pmeta"><b>'+esc(c.title)+'</b>'+(c.home?(' · '+esc(c.home)):'')+'</div></div>'+
          '<div class="pchev">›</div></div>';
     }
