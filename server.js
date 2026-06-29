@@ -1454,6 +1454,10 @@ const ROSTER = [
   { num: 4,  name: 'Jake Smith',       slug: 'jakesmith8yx5',        pos: 'IF',      cls: 'Junior',       ht: '5-10', wt: '170', b: 'R', t: 'R', bday: '01/24/2004', home: 'Rosepine, LA',     school: 'LSU-Eunice' },
   { num: 5,  name: 'Davis Duhon',      slug: 'davisduhons0vw',       pos: 'P',       cls: 'Junior',       ht: '6-0',  wt: '185', b: 'L', t: 'L', bday: '03/12/2005', home: 'Katy, TX',         school: 'Louisiana Christian' },
   { num: 6,  name: 'Nathan McDonald',  slug: 'nathanmcdonaldftgl',   pos: 'Utility', cls: 'Senior',       ht: '6-0',  wt: '175', b: 'R', t: 'R', bday: '07/17/2004', home: 'McComb, MS',       school: 'Loyola-New Orleans' },
+  // Added off the 6/28 gameday sheet. Placeholder slug + note until his Presto
+  // player page is matched by name off the league pages (findSlug), then his real
+  // slug is swapped in and stats flow automatically.
+  { num: 8,  name: 'Cade Robin',       slug: 'caderobin',            pos: 'P',       cls: 'Junior',       ht: '6-1',  wt: '205', b: 'R', t: 'R', bday: '',           home: 'Arnaudville, LA',  school: 'LSU-Shreveport', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
   { num: 9,  name: 'James Reina',      slug: 'jamesreinaluai',       pos: 'IF',      cls: 'Junior',       ht: '5-9',  wt: '180', b: 'R', t: 'R', bday: '10/07/2004', home: 'Lake Charles, LA', school: 'Stephen F. Austin' },
   { num: 11, name: 'Diego Corrales',   slug: 'diegocorrales91v5',    pos: 'P',       cls: 'Junior',       ht: '5-8',  wt: '185', b: 'L', t: 'L', bday: '08/01/2005', home: 'Lake Charles, LA', school: 'McNeese State' },
   { num: 14, name: 'Brandon Levy',     slug: 'brandonlevyejo5',      pos: 'Two-Way', cls: 'Junior',       ht: '5-10', wt: '180', b: 'R', t: 'R', bday: '05/25/2004', home: 'Bossier City, LA', school: 'New Orleans' },
@@ -1466,12 +1470,12 @@ const ROSTER = [
   { num: 22, name: 'Matthew McKinley', slug: 'matthewmckinleylgvq',  pos: 'Two-Way', cls: 'Sophomore',    ht: '5-11', wt: '205', b: 'L', t: 'L', bday: '12/14/2006', home: 'Brandon, MS',      school: 'Meridian CC' },
   { num: 24, name: 'John Munnerlyn',   slug: 'johnmunnerlynzovp',    pos: 'P',       cls: 'R-Freshman',   ht: '6-4',  wt: '205', b: 'R', t: 'R', bday: '11/20/2006', home: 'Loreauville, LA',  school: 'Bossier Parish CC' },
   { num: 25, name: 'Reid Snider',      slug: 'reidsnidern8g1',       pos: 'Utility', cls: 'Junior',       ht: '6-4',  wt: '210', b: 'R', t: 'R', bday: '08/30/2004', home: 'Lake Charles, LA', school: 'Louisiana Tech' },
-  { num: 26, name: 'Chance Fouts',     slug: 'chancefouts0mpc',      pos: 'P',       cls: 'Sophomore',    ht: '6-0',  wt: '210', b: 'R', t: 'R', bday: '11/04/2005', home: 'Spring Branch, TX', school: 'Vernon College' },
   { num: 27, name: 'Easton Culp',      slug: 'eastonculpilgr',       pos: 'C',       cls: 'Senior',       ht: '6-0',  wt: '200', b: 'R', t: 'R', bday: '07/20/2004', home: 'Salado, TX',       school: 'Lamar' },
   { num: 28, name: 'Andrew Ramos',     slug: 'andrewramos4y33',      pos: 'Utility', cls: 'Sophomore',    ht: '5-10', wt: '',    b: 'R', t: 'R', bday: '',           home: 'Deer Park, TX',    school: 'San Jacinto CC' },
   { num: 29, name: 'Sawyer Simmons',   slug: 'sawyersimmonss92p',    pos: 'P',       cls: 'Senior',       ht: '6-1',  wt: '193', b: 'R', t: 'L', bday: '03/30/2005', home: 'Bossier City, LA', school: 'Southeastern Louisiana' },
   { num: 30, name: 'Kasen Bellard',    slug: 'kasenbellard59c8',     pos: 'OF',      cls: 'Junior',       ht: '6-0',  wt: '180', b: 'R', t: 'R', bday: '10/07/2005', home: 'Lake Charles, LA', school: 'Nicholls State' },
-  { num: 35, name: 'Jeremiah Torres',  slug: 'jeremiahtorrescsuy',   pos: 'IF',      cls: 'Junior',       ht: '6-0',  wt: '210', b: 'R', t: 'R', bday: '05/10/2006', home: 'Klein, TX',        school: 'Southern Indiana' },
+  // Added off the 6/28 gameday sheet; real slug matched by name off the league pages (findSlug).
+  { num: 34, name: 'Brenyn Ebarb',     slug: 'brenynebarb',          pos: 'P',       cls: 'Graduate',     ht: '6-1',  wt: '195', b: 'R', t: 'R', bday: '05/04/2004', home: 'Zwolle, LA',       school: 'LSU-Alexandria', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
   { num: 36, name: 'Jake Rider',       slug: 'jakeridergyu4',        pos: 'P',       cls: 'Junior',       ht: '6-4',  wt: '220', b: 'R', t: 'R', bday: '10/11/2005', home: 'Lake Charles, LA', school: 'Nunez CC' },
   { num: 37, name: 'Landon Richards',  slug: 'landonrichards2fu3',   pos: 'P',       cls: 'Sophomore',    ht: '5-11', wt: '235', b: 'R', t: 'R', bday: '06/22/2007', home: 'Orange, TX',       school: 'Angelina College' },
   { num: 40, name: 'Chris Melvin',     slug: 'chrismelvinnddm',      pos: 'P',       cls: 'R-Sophomore',  ht: '6-4',  wt: '220', b: 'L', t: 'R', bday: '09/12/2005', home: 'Waterloo, Ontario',school: 'Paris JC' },
@@ -1648,6 +1652,28 @@ function parseLeagueStats(html, type) {
     const o = {};
     for (let k = 3; k < c.length && k < head.length; k++) { if (head[k]) o[head[k]] = bsText(c[k]); }
     out[slug] = o;
+  }
+  return out;
+}
+// Name -> Presto slug for Gators players on a league leaderboard page. Lets us
+// resolve the real slug of a roster entry added (findSlug) before its Presto
+// player page was known: once the player appears on the league hitting/pitching
+// page, we match them by name and swap their placeholder slug for the real one.
+function parseLeagueSlugs(html) {
+  const out = {};
+  const tables = (html || '').match(/<table\b[\s\S]*?<\/table>/gi) || [];
+  for (const t of tables) {
+    const rows = rowsOf(t); if (rows.length < 2) continue;
+    const hd = cellsOf(rows[0]).map(x => bsText(x).split(/\s+/)[0].toLowerCase());
+    if (hd.indexOf('team') === -1) continue;
+    for (let i = 1; i < rows.length; i++) {
+      const c = cellsOf(rows[i]); if (c.length < 3) continue;
+      const link = firstLink(c[1]);
+      const slug = slugFromHref(link.href);
+      if (!slug || teamIdFromHref(firstLink(c[2]).href) !== GATORS_ID) continue;
+      const k = normPlayerName(link.text); if (k && !out[k]) out[k] = slug;
+    }
+    break;
   }
   return out;
 }
@@ -1962,6 +1988,16 @@ async function pollRoster() {
       const lr = computeLeagueHitRanks(hRes.body); if (Object.keys(lr).length) leagueHitRanks = lr;
       const lh = parseAllLeagueHitters(hRes.body); if (Object.keys(lh).length) leagueHitterStats = lh; // opponents' season lines for the live 1st-AB card
       const lp = parseAllLeaguePitchers(pRes.body); if (Object.keys(lp).length) leaguePitcherStats = lp; // opponents' season lines for the live new-pitcher card
+      // Resolve real Presto slugs for players added before their player page was
+      // known (findSlug). Both league pages list each Gators player's name+slug,
+      // so a newly-active player is matched by name and their placeholder slug is
+      // swapped for the real one — stats then flow on the passes below.
+      const nameSlugs = Object.assign({}, parseLeagueSlugs(hRes.body), parseLeagueSlugs(pRes.body));
+      for (const pl of ROSTER) {
+        if (!pl.findSlug) continue;
+        const real = nameSlugs[normPlayerName(pl.name)];
+        if (real && real !== pl.slug) { delete ROSTER_BY_SLUG[pl.slug]; pl.slug = real; ROSTER_BY_SLUG[real] = pl; delete pl.findSlug; }
+      }
     } catch (e) {}
     // Fast seed: the league hitting + pitching pages cover most of the roster in
     // just two fetches, so cards show stats almost immediately. The per-player
@@ -3076,7 +3112,7 @@ if (require.main === module) {
   app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleDailyRoster(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); loadGatorsCdnLogo(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); setTimeout(pollStrikePct, 15000); setInterval(pollStrikePct, 3 * 60 * 60 * 1000); scheduleDailyStats(); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, pitchersFromFeed, extractEventAuth,
-  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseGameLog, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, pitchingTotals, strikeCounts };
+  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseGameLog, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, pitchingTotals, strikeCounts };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
