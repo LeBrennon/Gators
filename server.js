@@ -87,6 +87,16 @@ const TEAM_SITE = {
 };
 const HOME_VENUE = 'Joe Miller Ballpark';
 const GATORS_ID = 'et1bt9sixrz5lnnl';
+// Split-season tracking. The TCL plays two halves; each half's winner clinches a
+// playoff berth. Standings shown below reflect the current half, with clinched
+// teams tagged "x-" regardless of where their (reset) second-half record sits.
+const SEASON_HALF = 2;            // 1 = first half, 2 = second half
+// Team ids that have already clinched a playoff spot, with the reason shown in
+// the Standings legend. Victoria & Acadiana won the first half.
+const CLINCHED_PLAYOFF = {
+  jm9r4btii24hhtfp: '1st-half champion',   // Victoria Generals
+  cz8qei0rxijys6nm: '1st-half champion',   // Acadiana Cane Cutters
+};
 // 2026 home-game themed nights (promotions), keyed by game date (yyyymmdd).
 const THEMES = {
   '20260602': 'Mardi Party',
@@ -2760,11 +2770,12 @@ app.get('/api/standings', (_q, r) => {
   if (!standingsTable.length) pollStandings();
   const rows = standingsTable.map(x => {
     const gp = x.w + x.l + x.t;
-    return Object.assign({}, x, { pct: gp ? (x.w + x.t * 0.5) / gp : 0, site: TEAM_SITE[x.id] || null });
+    return Object.assign({}, x, { pct: gp ? (x.w + x.t * 0.5) / gp : 0, site: TEAM_SITE[x.id] || null,
+      clinched: (x.id && CLINCHED_PLAYOFF[x.id]) || null });
   }).sort((a, b) => b.pct - a.pct || b.w - a.w || a.l - b.l);
   const lead = rows[0];
   for (const x of rows) x.gb = lead ? ((lead.w - x.w) + (x.l - lead.l)) / 2 : 0;
-  r.json({ updatedAt: standingsAt, gatorsId: GATORS_ID, rows, scoreboard: buildLeagueBoard() });
+  r.json({ updatedAt: standingsAt, gatorsId: GATORS_ID, half: SEASON_HALF, rows, scoreboard: buildLeagueBoard() });
 });
 app.get('/debug/extras', (_q, r) => {
   const sample = games.filter(g => g.state === 'live' || g.state === 'scheduled').slice(0, 4)
@@ -3370,6 +3381,9 @@ body.noscroll{overflow:hidden;}
 .strk{font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:.02em;}
 .strk.win{color:#41a913;}
 .strk.loss{color:var(--away);}
+.clinch{display:inline-block;font-family:'Oswald',sans-serif;font-weight:700;font-size:9px;line-height:1;color:#0c1a08;background:#41a913;border-radius:3px;padding:2px 3px;margin-right:5px;vertical-align:1px;text-transform:lowercase;}
+.stnote{margin-top:8px;font-size:10px;color:var(--mute);display:flex;align-items:center;gap:6px;font-family:'Oswald',sans-serif;letter-spacing:.01em;}
+.stnote .clinch{margin-right:0;}
 .sbg{display:flex;align-items:center;gap:10px;background:var(--bayou2);border:1px solid var(--line);border-radius:12px;padding:10px 13px;margin-bottom:8px;color:inherit;text-decoration:none;cursor:pointer;transition:border-color .15s,background .15s;}
 a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 .sbg.g{border-color:var(--purple);background:rgba(113,74,210,.10);}
@@ -3937,19 +3951,25 @@ function renderStandings(d){
   var recById={};rows.forEach(function(x){if(x.id)recById[x.id]=x.w+'-'+x.l;});
   if(!rows.length){$('standingsBody').innerHTML='<div class="note">Standings aren’t available yet — check back shortly.</div>';$('stMeta').textContent='';}
   else{
+    var anyClinch=false;
     var h='<div class="gltbl sttbl"><table><tr><th>#</th><th>Team</th><th>W</th><th>L</th><th>PCT</th><th>GB</th><th>STRK</th></tr>';
     rows.forEach(function(x,i){
       var isG=x.id&&x.id===d.gatorsId;
       var lg=x.logo?'<img class="stlogo" src="'+esc(x.logo)+'" alt="">':'';
       var sk=x.streak?'<span class="strk '+(/^W/i.test(x.streak)?'win':'loss')+'">'+esc(x.streak)+'</span>':'—';
       var nm=esc(x.name||x.short);
-      var team=x.site?('<a class="stteam" href="'+esc(x.site)+'" target="_blank" rel="noopener">'+lg+'<span>'+nm+'</span></a>'):('<div class="stteam">'+lg+'<span>'+nm+'</span></div>');
-      h+='<tr'+(isG?' class="stg"':'')+'><td>'+(i+1)+'</td>'
+      var clin=x.clinched?('<span class="clinch" title="Clinched playoff spot — '+esc(x.clinched)+'">x</span>'):'';
+      if(x.clinched)anyClinch=true;
+      var team=x.site?('<a class="stteam" href="'+esc(x.site)+'" target="_blank" rel="noopener">'+lg+'<span>'+clin+nm+'</span></a>'):('<div class="stteam">'+lg+'<span>'+clin+nm+'</span></div>');
+      var cls=[isG?'stg':'',x.clinched?'stclinch':''].filter(Boolean).join(' ');
+      h+='<tr'+(cls?' class="'+cls+'"':'')+'><td>'+(i+1)+'</td>'
         +'<td>'+team+'</td>'
         +'<td>'+x.w+'</td><td>'+x.l+'</td><td>'+fmtPct(x.pct)+'</td><td>'+fmtGb(x.gb)+'</td><td>'+sk+'</td></tr>';
     });
-    $('standingsBody').innerHTML=h+'</table></div>';
-    $('stMeta').textContent='';
+    h+='</table></div>';
+    if(anyClinch)h+='<div class="stnote"><span class="clinch">x</span> clinched playoff spot (first-half champion)</div>';
+    $('standingsBody').innerHTML=h;
+    $('stMeta').textContent=d.half===2?'Second-half standings':d.half===1?'First-half standings':'';
   }
   renderScoreboard(d&&d.scoreboard,d&&d.gatorsId,recById);
 }
