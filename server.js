@@ -1754,26 +1754,14 @@ function parseAllLeaguePitchers(html) {
   }
   return out;
 }
-// Age in whole years from a "MM/DD/YYYY" birthday (Gators roster only); null if
-// absent or implausible. The league bio dataset carries no birthdays.
-function ageFromBday(bday) {
-  const m = String(bday || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (!m) return null;
-  const b = new Date(+m[3], +m[1] - 1, +m[2]); if (isNaN(b)) return null;
-  const now = new Date();
-  let a = now.getFullYear() - b.getFullYear();
-  if (now.getMonth() < b.getMonth() || (now.getMonth() === b.getMonth() && now.getDate() < b.getDate())) a--;
-  return (a > 0 && a < 60) ? a : null;
-}
-// A pitcher's school + age (or class) + summer line (ERA/IP/K) by name — Gators
-// from our roster cache, opponents from the league pitching leaderboard. Age is
-// shown when we have his birthday (Gators); otherwise his class is the fallback.
+// A pitcher's school + class + summer line (ERA/IP/K) by name — Gators from our
+// roster cache, opponents from the league pitching leaderboard.
 function pitcherSeason(name) {
   const key = normPlayerName(name);
   let bio = null, pit = null;
   const g = GATOR_BY_NORM[key];
-  if (g) { const age = ageFromBday(g.bday); bio = { school: g.school, sub: age != null ? ('Age ' + age) : g.cls }; const s = rosterStats[g.slug]; pit = (s && s.pit) || null; }
-  else { const b = LEAGUE_BIO[key]; if (b) bio = { school: b.s, sub: b.c }; pit = leaguePitcherStats[key] || null; }
+  if (g) { bio = { school: g.school, cls: g.cls }; const s = rosterStats[g.slug]; pit = (s && s.pit) || null; }
+  else { const b = LEAGUE_BIO[key]; if (b) bio = { school: b.s, cls: b.c }; pit = leaguePitcherStats[key] || null; }
   const has = v => v != null && v !== '' && v !== '-';
   const line = [];
   if (pit) {
@@ -1782,7 +1770,7 @@ function pitcherSeason(name) {
     const k = pit.so != null ? pit.so : pit.k;
     if (has(k)) line.push(['K', String(Number(k) || 0)]);
   }
-  const bioStr = bio ? [bio.school, bio.sub].filter(Boolean).join(' · ') : '';
+  const bioStr = bio ? [bio.school, bio.cls].filter(Boolean).join(' · ') : '';
   return { bio: bioStr || null, seasonLine: line.length ? line : null };
 }
 // Did the current pitcher just enter? Look for his pitching-change announcement
