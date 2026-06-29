@@ -52,7 +52,7 @@ const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g,
 // colors — adjust freely.
 const TEAM_COLORS = [
   [/gator|gumbeaux/i, '#3a2480'],
-  [/rougarou/i, '#9e1b32'],
+  [/rougarou/i, '#1f7a34'],
   [/cane ?cutter|acadiana/i, '#b3122e'],
   [/flying ?bison|abilene/i, '#6b4f1d'],
   [/bomber|brazos/i, '#14213d'],
