@@ -160,6 +160,12 @@ const SPECIALS = {
 const GATORS_LOGO_BUF = fs.readFileSync(__dirname + '/gators-logo.png');
 const TCL_LOGO_BUF = fs.readFileSync(__dirname + '/tcl-logo.png');
 const GG_LOGO_BUF = fs.readFileSync(__dirname + '/gg-logo.png');
+// Preload the on-disk social/PWA images once at boot rather than fs.readFileSync
+// on every request (icon-512 is ~200 KB; reading it sync per hit blocks the loop).
+const readAssetSafe = f => { try { return fs.readFileSync(__dirname + '/' + f); } catch (e) { return null; } };
+const OG_BUF = readAssetSafe('og.jpg');
+const ICON_512_BUF = readAssetSafe('icon-512.png');
+const ICON_192_BUF = readAssetSafe('icon-192.png');
 
 // ---- Finished-game box score + full play-by-play (parsed from the ?view=plays page) ----
 function bsClean(t) {
@@ -2589,7 +2595,7 @@ app.use(express.json());
 // instead of being served stale from cache (ETag makes the revalidation a cheap
 // 304 when nothing changed). Without this the single-page UI freezes at whatever
 // version was first cached while live scores keep updating via the APIs.
-app.get('/', (q, r) => { recordVisit(q); r.set('Cache-Control', 'no-store, must-revalidate'); r.type('html').send(APP.replace('__BUILD_LABEL__', BUILD_LABEL).replace('__BUILD_COMMIT__', BUILD.commit)); });
+app.get('/', (q, r) => { recordVisit(q); r.set('Cache-Control', 'no-store, must-revalidate'); r.type('html').send(APP_HTML); });
 app.get('/sw.js', (_q, r) => { r.set('Cache-Control', 'no-cache, no-store, must-revalidate'); r.type('application/javascript').send(SW); });
 app.get('/manifest.json', (_q, r) => r.type('application/json').send(MANIFEST));
 app.get('/health', (_q, r) => r.json({ ok: true, build: BUILD, games: games.length, featured: featured && featured.id, push: pushReady }));
@@ -2690,10 +2696,10 @@ app.get(['/gators-logo.png','/gators-logo.jpg'], (_q, r) => {
 app.get('/tcl-logo.png', (_q, r) => { r.set('Content-Type','image/png'); r.set('Cache-Control','public, max-age=86400'); r.send(TCL_LOGO_BUF); });
 app.get(['/gg-logo.png','/gg-logo.jpg'], (_q, r) => { r.set('Content-Type','image/png'); r.set('Cache-Control','public, max-age=86400'); r.send(GG_LOGO_BUF); });
 // Social/link-preview image (Gumbeaux Gators logo, 1200x628) for iMessage etc.
-app.get('/og.jpg', (_q, r) => { try { r.set('Content-Type','image/jpeg'); r.set('Cache-Control','public, max-age=86400'); r.send(fs.readFileSync(__dirname + '/og.jpg')); } catch (e) { r.status(404).end(); } });
+app.get('/og.jpg', (_q, r) => { if (!OG_BUF) return r.status(404).end(); r.set('Content-Type','image/jpeg'); r.set('Cache-Control','public, max-age=86400'); r.send(OG_BUF); });
 // PWA / home-screen icons (also the notification icon the service worker uses).
-app.get('/icon-512.png', (_q, r) => { try { r.set('Content-Type','image/png'); r.set('Cache-Control','public, max-age=604800'); r.send(fs.readFileSync(__dirname + '/icon-512.png')); } catch (e) { r.status(404).end(); } });
-app.get(['/icon-192.png', '/icon.png'], (_q, r) => { try { r.set('Content-Type','image/png'); r.set('Cache-Control','public, max-age=604800'); r.send(fs.readFileSync(__dirname + '/icon-192.png')); } catch (e) { r.status(404).end(); } });
+app.get('/icon-512.png', (_q, r) => { if (!ICON_512_BUF) return r.status(404).end(); r.set('Content-Type','image/png'); r.set('Cache-Control','public, max-age=604800'); r.send(ICON_512_BUF); });
+app.get(['/icon-192.png', '/icon.png'], (_q, r) => { if (!ICON_192_BUF) return r.status(404).end(); r.set('Content-Type','image/png'); r.set('Cache-Control','public, max-age=604800'); r.send(ICON_192_BUF); });
 app.get(BG_PATH, (_q, r) => { r.set('Content-Type','image/jpeg'); r.set('Cache-Control','public, max-age=31536000, immutable'); r.send(BG_BUF); });
 // Parsed box scores cached in memory and on disk. A finished game's box never
 // changes, so once fetched we keep serving it forever — this avoids re-hitting
@@ -4355,3 +4361,6 @@ $('bxModal').addEventListener('click',function(e){if(e.target===this){this.class
   setTimeout(check,4000);
 })();
 connect();loadSched();loadRoster();</script></body></html>`;
+// BUILD_LABEL and BUILD.commit are fixed at boot, so resolve the page once here
+// instead of running APP.replace() (allocating a fresh ~95 KB string) per request.
+const APP_HTML = APP.replace('__BUILD_LABEL__', BUILD_LABEL).replace('__BUILD_COMMIT__', BUILD.commit);
