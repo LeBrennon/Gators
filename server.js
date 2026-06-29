@@ -3407,9 +3407,12 @@ body.noscroll{overflow:hidden;}
 .sbsec{display:grid;grid-template-columns:1fr auto 1fr;align-items:baseline;gap:12px;}
 .sbdate{font-family:'Oswald',sans-serif;font-weight:700;font-size:17px;letter-spacing:.03em;text-transform:uppercase;color:var(--gold2);}
 .pcard{background:var(--bayou2);border:1px solid var(--line);border-radius:14px;padding:11px 13px;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;gap:12px;}
-.pnum{flex:none;width:40px;height:40px;border-radius:11px;background:linear-gradient(180deg,var(--panel),var(--bayou2));border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-weight:700;font-size:17px;color:var(--gator);}
+.pnum{flex:none;width:40px;height:40px;border-radius:11px;background:linear-gradient(180deg,var(--panel),var(--bayou2));border:1px solid var(--line);overflow:hidden;display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-weight:700;font-size:17px;color:var(--gator);}
+.ppic{width:100%;height:100%;object-fit:cover;object-position:top center;border-radius:inherit;display:block;}
 .pmain{flex:1;min-width:0;}
-.pname{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;font-size:14px;letter-spacing:.02em;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pname{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;font-size:14px;letter-spacing:.02em;line-height:1.1;display:flex;align-items:baseline;gap:6px;min-width:0;}
+.pnametext{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+.pjersey{flex:none;color:var(--gold2);font-weight:700;}
 .pmeta{font-size:10.5px;color:var(--mute);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .pmeta b{color:var(--bone);font-weight:600;}
 .pstat{flex:none;text-align:right;display:flex;flex-direction:column;gap:3px;align-items:flex-end;}
@@ -4213,13 +4216,17 @@ function teamStatsCard(ts){
     h+='<div class="tsgrp"><div class="tshd">Pitching Staff</div><div class="tsrow">'+cells+'</div></div>';}
   return h+'</div>';
 }
+function pInitials(name){var w=String(name||'').trim().split(/\s+/);return (((w[0]||'')[0]||'')+((w.length>1?(w[w.length-1][0]||''):''))).toUpperCase();}
 function renderRoster(d){
   var arr=rosterData.slice().sort(function(a,b){return a.num-b.num;});
   var h=teamStatsCard(d&&d.teamStats);
   for(var i=0;i<arr.length;i++){var p=arr[i];
+    // Profile photo fills the avatar box; falls back to the player's initials when
+    // we don't have a headshot yet. The jersey number moves beside the name (gold).
+    var box=p.photo?('<img class="ppic" src="'+esc(p.photo)+'" alt="">'):('<span class="pinit">'+esc(pInitials(p.name))+'</span>');
     h+='<div class="pcard" data-slug="'+p.slug+'">'+
-       '<div class="pnum">'+p.num+'</div>'+
-       '<div class="pmain"><div class="pname">'+esc(p.name)+'</div>'+
+       '<div class="pnum">'+box+'</div>'+
+       '<div class="pmain"><div class="pname"><span class="pnametext">'+esc(p.name)+'</span><span class="pjersey">#'+p.num+'</span></div>'+
        '<div class="pmeta"><b>'+esc(posLabel(p))+'</b> · '+esc(p.cls)+' · '+esc(p.school)+'</div></div>'+
        cardStats(p)+'<div class="pchev">›</div></div>';
   }
