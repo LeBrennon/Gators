@@ -251,7 +251,7 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .tbl.pit th,.tbl.pit td{padding-left:3px;padding-right:3px;font-size:11px;}
 /* Column-header row only — PrestoSports also marks each per-row name cell as a <th>,
    so the header style must not leak onto those (it was shading + upper-casing names). */
-.tbl table tr:first-child th{background:#f0ebfb;color:#4e3191;font-weight:800;text-transform:uppercase;letter-spacing:.02em;font-size:10.5px;}
+.tbl table tr:first-child th{background:#fff;color:#4e3191;font-weight:800;text-transform:uppercase;letter-spacing:.02em;font-size:10.5px;}
 .tbl.pit table tr:first-child th{font-size:9px;letter-spacing:0;}
 .tbl th:first-child,.tbl td:first-child{text-align:left;white-space:nowrap;}
 .tbl tr:not(:first-child) th:first-child{color:#2a2150;font-weight:600;}
