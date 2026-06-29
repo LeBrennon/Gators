@@ -3664,20 +3664,20 @@ function buildLineup(g){
     rows+='<tr'+(cls?' class="'+cls+'"':'')+'><td class="lus">'+esc(r.sub?'':String(r.spot||''))+'</td>'+
       '<td>'+esc(r.pos||'')+'</td><td class="luu">'+esc(String(r.uni||''))+'</td>'+
       '<td class="lunm">'+nmeCell+'</td>'+
-      '<td class="lpn lavg">'+esc(r.seasonAvg||'')+'</td>'+
-      sc(r.ab)+sc(r.runs)+sc(r.hits)+sc(r.rbi)+sc(r.bb)+sc(r.k)+'</tr>';
+      sc(r.ab)+sc(r.runs)+sc(r.hits)+sc(r.rbi)+sc(r.bb)+sc(r.k)+
+      '<td class="lpn lavg">'+esc(r.seasonAvg||'')+'</td></tr>';
   });
   var T=team.totals;
   if(T)rows+='<tr class="pttot"><td class="lus"></td><td></td><td class="luu"></td><td class="lunm">Totals</td>'+
-    '<td class="lpn"></td><td class="lpn">'+T.ab+'</td><td class="lpn">'+T.runs+'</td><td class="lpn">'+T.hits+'</td>'+
-    '<td class="lpn">'+T.rbi+'</td><td class="lpn">'+T.bb+'</td><td class="lpn">'+T.k+'</td></tr>';
+    '<td class="lpn">'+T.ab+'</td><td class="lpn">'+T.runs+'</td><td class="lpn">'+T.hits+'</td>'+
+    '<td class="lpn">'+T.rbi+'</td><td class="lpn">'+T.bb+'</td><td class="lpn">'+T.k+'</td><td class="lpn"></td></tr>';
   var tabs='<div class="lutabs">';
   if(gators)tabs+='<button class="lutab'+(showGators?' on':'')+'" data-lineup="gators">'+esc(nm(gators)||'Gators')+'</button>';
   if(opp)tabs+='<button class="lutab'+(!showGators?' on':'')+'" data-lineup="opp">'+esc(nm(opp)||'Opponent')+'</button>';
   tabs+='</div>';
   var head='<tr><th class="lus">Spot</th><th>Pos</th><th>#</th><th class="lunm">Player</th>'+
-    '<th class="lpn" title="Season batting average">AVG</th>'+
-    '<th class="lpn">AB</th><th class="lpn">R</th><th class="lpn">H</th><th class="lpn">RBI</th><th class="lpn">BB</th><th class="lpn">K</th></tr>';
+    '<th class="lpn">AB</th><th class="lpn">R</th><th class="lpn">H</th><th class="lpn">RBI</th><th class="lpn">BB</th><th class="lpn">K</th>'+
+    '<th class="lpn" title="Season batting average">AVG</th></tr>';
   return '<div class="lineup"><div class="luh">Lineup</div>'+tabs+
     '<div class="lubox"><table class="lutbl">'+head+rows+'</table></div>'+lineupNotes(team)+'</div>';
 }
