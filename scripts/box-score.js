@@ -50,18 +50,19 @@ const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g,
 // Primary team colors for the league, used to brand each side's tables (the
 // Gators stay purple; the opponent's tables take their color). Best-guess brand
 // colors — adjust freely.
-const TEAM_COLORS = [
-  [/gator|gumbeaux/i, '#3a2480'],
-  [/rougarou/i, '#1f7a34'],
-  [/cane ?cutter|acadiana/i, '#b3122e'],
-  [/flying ?bison|abilene/i, '#6b4f1d'],
-  [/bomber|brazos/i, '#14213d'],
-  [/river ?monster|san antonio/i, '#0e7c7b'],
-  [/shadowcat|sherman/i, '#2d2a4a'],
-  [/general|victoria/i, '#1d3461'],
+const TEAMS_INFO = [
+  [/gator|gumbeaux/i, '#3a2480', 'Gators'],
+  [/rougarou/i, '#1f7a34', 'Rougarou'],
+  [/cane ?cutter|acadiana/i, '#b3122e', 'Cane Cutters'],
+  [/flying ?bison|abilene/i, '#6b4f1d', 'Flying Bison'],
+  [/bomber|brazos/i, '#14213d', 'Bombers'],
+  [/river ?monster|san antonio/i, '#0e7c7b', 'River Monsters'],
+  [/shadowcat|sherman/i, '#2d2a4a', 'Shadowcats'],
+  [/general|victoria/i, '#1d3461', 'Generals'],
 ];
 const GATORS_PURPLE = '#3a2480';
-function teamColor(name) { for (const [re, c] of TEAM_COLORS) if (re.test(name || '')) return c; return GATORS_PURPLE; }
+function teamColor(name) { for (const [re, c] of TEAMS_INFO) if (re.test(name || '')) return c; return GATORS_PURPLE; }
+function teamShort(name) { for (const [re, , s] of TEAMS_INFO) if (re.test(name || '')) return s; return String(name || '').split(/\s+/).pop(); }
 
 // ---- fetch the parsed box ---------------------------------------------------
 async function getBox() {
@@ -225,8 +226,11 @@ function buildHtml(data) {
   let gs = game.gs, os = game.os, win = game.win, opp = oppName;
   const lt = parseLineTeams(data.line);
   if (lt) { const G = lt.find(t => t.gators), O = lt.find(t => !t.gators); if (G && O) { gs = G.r; os = O.r; win = gs > os ? true : gs < os ? false : null; opp = O.name.replace(/^(lake charles|the)\s+/i, '').trim() || oppName; } }
-  const resWord = win == null ? 'FINAL' : win ? 'WIN' : 'LOSS';
-  const resColor = win == null ? '#3a2480' : win ? '#1f9d57' : '#c0392b';
+  // Neutral scoreline for the badge (handed to both coaches): each team + its
+  // score, visitor on top. The leading team's score is gold (a fact, not "WIN").
+  const gName = (lt && lt.find(t => t.gators)) ? lt.find(t => t.gators).name : 'Lake Charles Gumbeaux Gators';
+  const oName = (lt && lt.find(t => !t.gators)) ? lt.find(t => !t.gators).name : (game.opp || opp);
+  const gShort = teamShort(gName), oShort = teamShort(oName);
   // Tint the opponent's name cell in the line score to their team color (the
   // Gators' stays purple), matching their table headers.
   let lineHtml = cleanTable(data.line);
@@ -252,10 +256,11 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .band h1{font-size:28px;font-weight:900;line-height:1.08;margin:3px 0;text-shadow:0 2px 4px rgba(0,0,0,.55);}
 .band h1 .hdate{display:block;font-size:15px;font-weight:700;letter-spacing:.01em;color:#efe7ff;margin-bottom:2px;}
 .band .sub{font-size:13px;font-weight:700;color:#efe7ff;text-shadow:0 1px 2px rgba(0,0,0,.5);}
-.badge{margin-left:auto;text-align:center;}
-.badge .r{display:inline-block;background:${resColor};color:#fff;font-weight:900;font-size:15px;letter-spacing:.04em;padding:5px 18px;border-radius:7px;}
-.badge .sc{font-size:30px;color:#fff;margin-top:5px;font-weight:900;}
-.badge .sc .dsh{font-weight:600;font-size:.62em;vertical-align:.18em;margin:0 6px;opacity:.9;}
+.badge{margin-left:auto;}
+.badge .scr{display:flex;align-items:baseline;justify-content:flex-end;gap:16px;margin:3px 0;}
+.badge .snm{font-size:16px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5);}
+.badge .sval{font-size:28px;font-weight:900;color:#fff;min-width:30px;text-align:right;text-shadow:0 2px 4px rgba(0,0,0,.5);}
+.badge .scr.win .sval{color:#ffd633;}
 .linewrap{margin:18px 0 4px;}
 .linewrap table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;}
 .linewrap th,.linewrap td{border:1px solid #d9d2ec;padding:9px 10px;text-align:center;font-size:15px;}
@@ -295,7 +300,7 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .tbl table tr:nth-child(2n) th,.tbl table tr:nth-child(2n) td{background:#f0eafa;}
 .tbl tr:last-child th,.tbl tr:last-child td{background:#faf8ff;font-weight:800;border-bottom:none;}
 </style></head><body>`);
-  H.push(`<div class='band'><img src='${S.gatorsLogoDataUri()}'><div><div class='k'>Gumbeaux Gators · Official Box Score</div><h1><span class='hdate'>${esc(game.date)}, 2026</span>${game.home ? 'vs' : 'at'} ${esc(opp)}</h1>${T ? `<div class='sub'>Record ${T.w}${DASH}${T.l}</div>` : ''}</div><div class='badge'><div class='r'>${resWord}</div><div class='sc'>${gs}<span class='dsh'>&ndash;</span>${os}</div></div></div>`);
+  H.push(`<div class='band'><img src='${S.gatorsLogoDataUri()}'><div><div class='k'>Gumbeaux Gators · Official Box Score</div><h1><span class='hdate'>${esc(game.date)}, 2026</span>${game.home ? 'vs' : 'at'} ${esc(opp)}</h1>${T ? `<div class='sub'>Record ${T.w}${DASH}${T.l}</div>` : ''}</div><div class='badge'><div class='scr${gs > os ? ' win' : ''}'><span class='snm'>${esc(gShort)}</span><span class='sval'>${gs}</span></div><div class='scr${os > gs ? ' win' : ''}'><span class='snm'>${esc(oShort)}</span><span class='sval'>${os}</span></div></div></div>`);
   H.push(line);
   H.push(`<div class='cols'>${teams.map(teamBlock).join('')}</div>`);
   H.push(`</body></html>`);
