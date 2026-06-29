@@ -1499,6 +1499,11 @@ const ROSTER = [
   { num: 42, name: 'Kale Cropper',     slug: 'kalecropperuden',      pos: 'P',       cls: 'Sophomore',    ht: '6-4',  wt: '210', b: 'R', t: 'R', bday: '08/25/2006', home: 'Port Neches, TX',  school: 'Hill College' },
   { num: 45, name: 'Cannon Faulk',     slug: 'cannonfaulk0l9x',      pos: 'P',       cls: 'R-Sophomore',  ht: '6-4',  wt: '225', b: 'L', t: 'L', bday: '12/02/2005', home: 'Port Neches, TX',  school: 'Angelina College' },
   { num: 50, name: 'Ty Dagley',        slug: 'tydagleywril',         pos: 'P',       cls: 'Junior',       ht: '5-11', wt: '175', b: 'L', t: 'L', bday: '',           home: 'Katy, TX',         school: 'Lamar' },
+  // New addition (from Mt. Hood CC). Jersey number not assigned yet — numTBD shows
+  // "TBD" instead of a number and sorts him last; set num and drop numTBD once known.
+  // Placeholder slug + findSlug until his Presto player page exists; headshot will
+  // populate once a photo is bundled (shows initials until then).
+  { num: 99, numTBD: true, name: 'Yuichiro Kumagami', slug: 'yuichirokumagami', pos: 'C', cls: 'Sophomore', ht: '5-11', wt: '', b: '', t: '', bday: '', home: 'Miyagi, Japan', school: 'Mt. Hood CC', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
 ];
 
 // Coaching staff (gumbeauxgators.com/coaches). Shown beneath the player roster;
@@ -4226,7 +4231,7 @@ function renderRoster(d){
     var box=p.photo?('<img class="ppic" src="'+esc(p.photo)+'" alt="">'):('<span class="pinit">'+esc(pInitials(p.name))+'</span>');
     h+='<div class="pcard" data-slug="'+p.slug+'">'+
        '<div class="pnum">'+box+'</div>'+
-       '<div class="pmain"><div class="pname"><span class="pnametext">'+esc(p.name)+'</span><span class="pjersey">#'+p.num+'</span></div>'+
+       '<div class="pmain"><div class="pname"><span class="pnametext">'+esc(p.name)+'</span><span class="pjersey">'+(p.numTBD?'TBD':'#'+p.num)+'</span></div>'+
        '<div class="pmeta"><b>'+esc(posLabel(p))+'</b> · '+esc(p.cls)+' · '+esc(p.school)+'</div></div>'+
        cardStats(p)+'<div class="pchev">›</div></div>';
   }
@@ -4289,13 +4294,13 @@ function openCoach(num){
 function openPlayer(slug){
   var p=null;for(var i=0;i<rosterData.length;i++)if(rosterData[i].slug===slug)p=rosterData[i];
   if(!p)return;plCur=slug;
-  var ph=$('plNum');ph.classList.remove('hasimg');ph.textContent=p.num;
+  var ph=$('plNum');ph.classList.remove('hasimg');ph.textContent=p.numTBD?'TBD':p.num;
   if(p.photo){var im=new Image();im.alt=p.name;
     im.onload=function(){ph.classList.add('hasimg');ph.innerHTML='';ph.appendChild(im);};
     im.src=p.photo;}
   $('plName').textContent=p.name;
   $('plSub').textContent=posLabel(p)+' · '+p.cls+' · '+p.school;
-  var bio='<div class="bio">'+bi('Bats / Throws',p.b+' / '+p.t)+
+  var bio='<div class="bio">'+bi('Bats / Throws',(p.b||'—')+' / '+(p.t||'—'))+
     bi('Ht / Wt',(p.ht||'—')+(p.wt?(' · '+p.wt):''))+
     bi('Hometown',p.home||'—')+bi('School',p.school||'—')+
     (p.bday?bi('Birthday',p.bday):'')+'</div>';
