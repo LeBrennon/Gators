@@ -787,6 +787,7 @@ function activePlayerLine(json, name, kind) {
     if (g.so != null) parts.push(n(g.so) + ' K');
     if (g.bb != null) parts.push(n(g.bb) + ' BB');
     info.line = parts.join(', ') || null;
+    info.outs = g.ip != null ? ipToOuts(String(g.ip)) : null; // outs recorded this game (0 == just entered)
     info.pitches = g.pitches != null ? n(g.pitches) : null;
     // The feed gives total pitches and strikes; balls is the remainder.
     info.strikes = (info.pitches != null && g.strikes != null) ? n(g.strikes) : null;
@@ -923,6 +924,12 @@ async function fetchLiveForGame(boxscoreId, wantRaw) {
         const pinch = pinchFor(out.plays, out.live.batter);
         if (pinch) out.live.batterInfo.pinch = pinch;
       }
+    }
+    // When a new pitcher has just entered, swap his card to a "New pitcher" badge
+    // with his school/class + summer line (ERA/IP/K), like the batter's 1st-AB card.
+    if (out.live && out.live.pitcherInfo && out.live.pitcher) {
+      const np = newPitcherInfo(out.live.pitcherInfo, out.plays, out.live.pitcher);
+      if (np) Object.assign(out.live.pitcherInfo, np);
     }
     // Make the current pitcher's pitch count climb pitch-by-pitch (the feed's
     // cumulative only updates at each at-bat's end).
@@ -1730,6 +1737,67 @@ function firstAbStats(name) {
   const bioStr = bio ? [bio.school, bio.cls].filter(Boolean).join(' · ') : '';
   return { firstAB: true, bio: bioStr || null, seasonLine: line.length ? line : null };
 }
+let leaguePitcherStats = {};  // normName -> { era, ip, so, w, l, sv } for every league pitcher
+// Like parseAllLeagueHitters but for the pitching leaderboard, so an opponent
+// reliever's summer line can be shown when he enters the game.
+function parseAllLeaguePitchers(html) {
+  const tables = (html || '').match(/<table\b[\s\S]*?<\/table>/gi) || [];
+  let tbl = null, head = null;
+  for (const t of tables) { const rows = rowsOf(t); if (rows.length < 2) continue; const hd = cellsOf(rows[0]).map(x => bsText(x).split(/\s+/)[0].toLowerCase()); if (hd.indexOf('team') === -1) continue; tbl = t; head = hd; break; }
+  if (!tbl || (head.indexOf('era') === -1 && head.indexOf('ip') === -1)) return {};
+  const rows = rowsOf(tbl); const out = {};
+  for (let i = 1; i < rows.length; i++) {
+    const c = cellsOf(rows[i]); if (c.length < 4) continue;
+    const name = firstLink(c[1]).text; if (!name) continue;
+    const o = {}; for (let k = 3; k < c.length && k < head.length; k++) { if (head[k]) o[head[k]] = bsText(c[k]); }
+    out[normPlayerName(name)] = { era: o.era, ip: o.ip, so: o.so != null ? o.so : o.k, w: o.w, l: o.l, sv: o.sv };
+  }
+  return out;
+}
+// A pitcher's school/class + summer line (ERA/IP/K) by name — Gators from our
+// roster cache, opponents from the league pitching leaderboard.
+function pitcherSeason(name) {
+  const key = normPlayerName(name);
+  let bio = null, pit = null;
+  const g = GATOR_BY_NORM[key];
+  if (g) { bio = { school: g.school, cls: g.cls }; const s = rosterStats[g.slug]; pit = (s && s.pit) || null; }
+  else { const b = LEAGUE_BIO[key]; if (b) bio = { school: b.s, cls: b.c }; pit = leaguePitcherStats[key] || null; }
+  const has = v => v != null && v !== '' && v !== '-';
+  const line = [];
+  if (pit) {
+    if (has(pit.era)) line.push(['ERA', String(pit.era)]);
+    if (has(pit.ip)) line.push(['IP', String(pit.ip)]);
+    const k = pit.so != null ? pit.so : pit.k;
+    if (has(k)) line.push(['K', String(Number(k) || 0)]);
+  }
+  const bioStr = bio ? [bio.school, bio.cls].filter(Boolean).join(' · ') : '';
+  return { bio: bioStr || null, seasonLine: line.length ? line : null };
+}
+// Did the current pitcher just enter? Look for his pitching-change announcement
+// in the play-by-play ("X to p for Y", "Pitching change: X for Y", "X relieved
+// Y"). Returns { replaced } when found, so a starter (no such line) isn't flagged.
+function pitchChangeFor(plays, pitcherName) {
+  const nm = normPlayerName(pitcherName); if (!nm || !Array.isArray(plays)) return null;
+  const pats = [
+    /^(.+?) to p for (.+?)\.?$/i,
+    /pitching change[:.]?\s*(.+?)\s+(?:replaces|for|relieved)\s+(.+?)\.?$/i,
+    /^(.+?)\s+(?:relieved|replaces)\s+(.+?)\.?$/i,
+  ];
+  for (let i = plays.length - 1; i >= 0; i--) {
+    const t = String(plays[i].text || '').trim();
+    for (const re of pats) { const m = t.match(re); if (m && normPlayerName(m[1]) === nm) return { replaced: m[2].trim() }; }
+  }
+  return null;
+}
+// Build the "new pitcher" enrichment for the live pitcher card: shown only while
+// he's freshly in (a pitching change with no out recorded yet), carrying his
+// school/class and summer line. Returns null once he's recorded an out.
+function newPitcherInfo(info, plays, name) {
+  if (info && info.outs != null && info.outs > 0) return null;
+  const chg = pitchChangeFor(plays, name); if (!chg) return null;
+  const s = pitcherSeason(name);
+  return { newPitcher: { replaced: chg.replaced || null }, bio: s.bio, seasonLine: s.seasonLine };
+}
 // If the current batter entered as a pinch hitter/runner, find who he replaced
 // from the play-by-play substitution announcement (handles both the "X pinch hit
 // for Y" and "Pinch hitter X replaces Y" feed phrasings). Returns { for, type }.
@@ -1858,6 +1926,7 @@ async function pollRoster() {
       batMap = parseLeagueStats(hRes.body, 'h'); pitMap = parseLeagueStats(pRes.body, 'p');
       const lr = computeLeagueHitRanks(hRes.body); if (Object.keys(lr).length) leagueHitRanks = lr;
       const lh = parseAllLeagueHitters(hRes.body); if (Object.keys(lh).length) leagueHitterStats = lh; // opponents' season lines for the live 1st-AB card
+      const lp = parseAllLeaguePitchers(pRes.body); if (Object.keys(lp).length) leaguePitcherStats = lp; // opponents' season lines for the live new-pitcher card
     } catch (e) {}
     // Fast seed: the league hitting + pitching pages cover most of the roster in
     // just two fetches, so cards show stats almost immediately. The per-player
@@ -3616,6 +3685,14 @@ function buildDueUp(g){
 function matchupCard(role,info){
   var meta=[];if(info.pos)meta.push(esc(info.pos));if(info.uni)meta.push('#'+esc(String(info.uni)));
   var head='<div class="mrole">'+role+'</div><div class="mname">'+esc(info.name)+(meta.length?'<span class="mmeta">'+meta.join(' ')+'</span>':'')+'</div>';
+  // A pitcher who just entered: state "New pitcher" with who he relieved plus his
+  // school/class and summer line (ERA/IP/K), the same shape as the 1st-AB card.
+  if(info.newPitcher){
+    var rep=info.newPitcher.replaced?('in for '+esc(info.newPitcher.replaced)+(info.bio?' · '+esc(info.bio):'')):(info.bio?esc(info.bio):'');
+    var nb='<div class="mfirst"><span class="mfb">New Pitcher</span>'+(rep?'<span class="mfbio">'+rep+'</span>':'')+'</div>';
+    var nsl=(info.seasonLine&&info.seasonLine.length)?'<div class="mstat"><span class="mssn">SEASON</span> '+info.seasonLine.map(function(s){return '<span class="mfk">'+esc(s[0])+'</span> '+esc(s[1]);}).join('   ')+'</div>':'';
+    return '<div class="mcard">'+head+nb+nsl+'</div>';
+  }
   // First plate appearance of the game: no game line yet, so show "1st AB" plus
   // the batter's school/class and season AVG/RBI/(HR|SB|H). A pinch hitter/runner
   // gets a "PH/PR — pinch hitting for <player>" badge in place of "1st AB". If we
