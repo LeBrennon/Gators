@@ -25,15 +25,27 @@ const PDF = FLAGS.has('--pdf') || !FLAGS.has('--html'); // PDF is the default ou
 const KEEP_HTML = FLAGS.has('--html');
 const target = args[0] || 'latest';
 
-const game = S.resolveGame(target);
-if (!game) { console.error(`No game found for "${target}". Try 'latest', a date like "Jun 27", or a box id.`); process.exit(1); }
+// Manual-data path: BOX_DATA points at a JSON file that fully specifies the game
+// (header meta, record, line score, and the box tables) — used when the parsed
+// box can't be fetched (offline / host not allowlisted) but the numbers are in
+// hand. Shape: { game:{id,date,home,opp,gs,os,win}, record:{w,l}, line, box }.
+const BOX_DATA = process.env.BOX_DATA ? JSON.parse(fs.readFileSync(process.env.BOX_DATA, 'utf8')) : null;
 
-const T = S.teamSummary(game.id);
-const oppName = S.oppShort(game.opp).replace(/^@ /, '');
+let game, T;
+if (BOX_DATA && BOX_DATA.game) {
+  game = BOX_DATA.game;
+  T = BOX_DATA.record || { w: 0, l: 0 };
+} else {
+  game = S.resolveGame(target);
+  if (!game) { console.error(`No game found for "${target}". Try 'latest', a date like "Jun 27", or a box id.`); process.exit(1); }
+  T = S.teamSummary(game.id);
+}
+const oppName = (BOX_DATA && BOX_DATA.game) ? String(game.opp || '').replace(/^@ /, '') : S.oppShort(game.opp).replace(/^@ /, '');
 const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 // ---- fetch the parsed box ---------------------------------------------------
 async function getBox() {
+  if (BOX_DATA) return { line: BOX_DATA.line || '', box: BOX_DATA.box || [] };
   if (process.env.BOX_FIXTURE) {
     const { parseBoxscore } = require('../server');
     const html = fs.readFileSync(process.env.BOX_FIXTURE, 'utf8');
