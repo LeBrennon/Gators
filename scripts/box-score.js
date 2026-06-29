@@ -47,6 +47,22 @@ if (BOX_DATA && BOX_DATA.game) {
 }
 const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+// Primary team colors for the league, used to brand each side's tables (the
+// Gators stay purple; the opponent's tables take their color). Best-guess brand
+// colors — adjust freely.
+const TEAM_COLORS = [
+  [/gator|gumbeaux/i, '#3a2480'],
+  [/rougarou/i, '#9e1b32'],
+  [/cane ?cutter|acadiana/i, '#b3122e'],
+  [/flying ?bison|abilene/i, '#6b4f1d'],
+  [/bomber|brazos/i, '#14213d'],
+  [/river ?monster|san antonio/i, '#0e7c7b'],
+  [/shadowcat|sherman/i, '#2d2a4a'],
+  [/general|victoria/i, '#1d3461'],
+];
+const GATORS_PURPLE = '#3a2480';
+function teamColor(name) { for (const [re, c] of TEAM_COLORS) if (re.test(name || '')) return c; return GATORS_PURPLE; }
+
 // ---- fetch the parsed box ---------------------------------------------------
 async function getBox() {
   if (BOX_DATA) return { line: BOX_DATA.line || '', box: BOX_DATA.box || [] };
@@ -180,7 +196,9 @@ function teamBlock(t) {
   const sections = [];
   if (t.batting) sections.push(`<div class='tcap bat'>${cap} — BATTING</div><div class='tbl bat' style='flex:${rc(t.batting)} 1 0'>${t.batting}</div>`);
   if (t.pitching) sections.push(`<div class='tcap pit'>${cap} — PITCHING</div><div class='tbl pit' style='flex:${rc(t.pitching)} 1 0'>${t.pitching}</div>`);
-  return `<div class='teamcol'>${sections.join('')}</div>`;
+  // Brand the column to the team's color (Gators purple by default).
+  const color = t.gators ? GATORS_PURPLE : teamColor(t.team);
+  return `<div class='teamcol' style='--teamc:${color}'>${sections.join('')}</div>`;
 }
 
 // Pull the teams + R/H/E from the line-score table so the header score/matchup
@@ -242,7 +260,7 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .linewrap td:nth-last-child(-n+3){font-weight:800;background:#faf8ff;}
 .cols{display:flex;gap:22px;margin-top:18px;flex:1;min-height:0;}
 .teamcol{flex:1;min-width:0;display:flex;flex-direction:column;}
-.tcap{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#fff;background:#3a2480;padding:8px 11px;border-radius:6px 6px 0 0;}
+.tcap{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#fff;background:var(--teamc,#3a2480);padding:8px 11px;border-radius:6px 6px 0 0;}
 .tcap.pit{margin-top:16px;}
 .tbl{border:1px solid #e6def7;border-top:none;border-radius:0 0 6px 6px;overflow:hidden;min-height:0;}
 .tbl table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;height:100%;table-layout:fixed;}
@@ -253,7 +271,7 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .tbl.pit th,.tbl.pit td{padding-left:2px;padding-right:2px;font-size:11px;}
 /* Column-header row only — PrestoSports also marks each per-row name cell as a <th>,
    so the header style must not leak onto those (it was shading + upper-casing names). */
-.tbl table tr:first-child th{background:#fff;color:#3a2480;font-weight:800;text-transform:uppercase;letter-spacing:.02em;font-size:10.5px;}
+.tbl table tr:first-child th{background:#fff;color:var(--teamc,#3a2480);font-weight:800;text-transform:uppercase;letter-spacing:.02em;font-size:10.5px;}
 .tbl.pit table tr:first-child th{font-size:9px;letter-spacing:0;}
 .tbl th:first-child,.tbl td:first-child{text-align:left;white-space:nowrap;width:44%;}
 .tbl.pit th:first-child,.tbl.pit td:first-child{width:30%;}
