@@ -262,7 +262,9 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .tbl.pit th:nth-child(2),.tbl.pit td:nth-child(2){width:7.5%;}   /* IP */
 .tbl.pit th:nth-child(9),.tbl.pit td:nth-child(9){width:11%;}    /* ERA */
 .tbl.pit th:nth-child(10),.tbl.pit td:nth-child(10){width:8%;}   /* #P */
-.tbl.pit th:nth-child(11),.tbl.pit td:nth-child(11){width:7.5%;} /* S% */
+.tbl.pit th:nth-child(11),.tbl.pit td:nth-child(11){width:9%;}   /* S% */
+/* A little extra room for the last column so its label isn't cramped at the edge. */
+.tbl.bat th:last-child,.tbl.bat td:last-child{width:11%;}
 .tbl tr:not(:first-child) th:first-child{color:#2a2150;font-weight:600;}
 .tbl th:first-child span{text-transform:uppercase;}  /* the position prefix (1b, rf, ...) */
 .tbl a{color:inherit;text-decoration:none;}
