@@ -3425,7 +3425,7 @@ body.noscroll{overflow:hidden;}
 .phead{display:flex;align-items:center;gap:13px;padding:16px 16px 8px;}
 .phnum{flex:none;width:48px;height:48px;border-radius:13px;background:linear-gradient(180deg,var(--panel),var(--bayou2));border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-weight:700;font-size:20px;color:var(--gator);}
 .phnum.hasimg{width:60px;height:60px;padding:0;overflow:hidden;background:#16102b;}
-.phnum.hasimg img{width:100%;height:100%;object-fit:cover;display:block;}
+.phnum.hasimg img{width:100%;height:100%;object-fit:cover;object-position:top;display:block;}
 .phname{font-family:'Oswald',sans-serif;font-weight:700;text-transform:uppercase;font-size:17px;line-height:1.1;}
 .phsub{font-size:11px;color:var(--mute);margin-top:3px;}
 .bio{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;padding:8px 16px 6px;}
