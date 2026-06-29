@@ -3514,10 +3514,13 @@ function buildLive(g){
 function buildPitching(g){
   var P=g.pitchers;if(!P||!P.length)return '';
   function nm(t){return t.vh==='H'?g.home.short:g.away.short;}
+  // Show only the team picked by the lineup tab (Gators vs opponent), not both.
+  var showGators=lineupTeam!=='opp';
   var head='<tr><th class="luu">#</th><th class="lunm">Pitcher</th><th class="lpn">IP</th><th class="lpn">H</th><th class="lpn">R</th>'+
     '<th class="lpn">ER</th><th class="lpn">BB</th><th class="lpn">K</th><th class="lpn">HBP</th><th class="lpn">P</th><th class="lpn">S%</th></tr>';
   var blocks='';
   P.forEach(function(t){
+    if(!!t.isGators!==showGators)return;
     if(!t.rows||!t.rows.length)return;
     var rows='';
     t.rows.forEach(function(r){
