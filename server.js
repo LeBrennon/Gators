@@ -1346,7 +1346,8 @@ async function refreshLeagueLiveScores(board, featuredId) {
         // The feed may show the game over before the schedule says "Final".
         const over = feedGameOver(lf.live, away, home);
         const inn = lf.live ? (parseInt(lf.live.inning, 10) || 0) : 0;
-        liveScoreCache[g.id] = { away, home, at: Date.now(), over, label: over ? (inn > 9 ? 'Final/' + inn : 'Final') : null };
+        liveScoreCache[g.id] = { away, home, at: Date.now(), over, label: over ? (inn > 9 ? 'Final/' + inn : 'Final') : null,
+          outs: lf.live ? lf.live.outs : null, bases: lf.live ? lf.live.bases : null };
       }
     } catch (e) { /* keep the last cached score for this game */ }
   }
@@ -1361,6 +1362,8 @@ function applyLiveScores(games, feat) {
     if (feat && g.id === feat.id) {
       if (feat.away && feat.away.runs != null) g.away.score = feat.away.runs;
       if (feat.home && feat.home.runs != null) g.home.score = feat.home.runs;
+      // Outs + base runners for the scoreboard diamond (from the featured feed).
+      if (feat.live) { g.outs = feat.live.outs; g.bases = feat.live.bases; }
       // Match the main screen: if we flipped the featured game to final
       // (feed game-over before the schedule says so), mark it here too.
       if (feat.status === 'final') { g.state = 'final'; g.status = feat.inningLabel || 'Final'; }
@@ -1369,6 +1372,9 @@ function applyLiveScores(games, feat) {
       if (c) {
         if (c.away != null) g.away.score = c.away;
         if (c.home != null) g.home.score = c.home;
+        // Outs + base runners for the scoreboard diamond (from the per-game feed).
+        if (c.outs != null) g.outs = c.outs;
+        if (c.bases) g.bases = c.bases;
         if (c.over) { g.state = 'final'; g.status = c.label || 'Final'; }
       }
     }
@@ -3303,18 +3309,20 @@ a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 .sbn{flex:1;min-width:0;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.02em;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .sbrec{margin-left:5px;font-weight:400;font-size:.82em;color:var(--mute);opacity:.85;}
 .sbs{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:16px;color:var(--mute);min-width:20px;text-align:right;}
-.sbrow.w .sbn{color:var(--bone);}
+.sbsc{display:flex;align-items:center;gap:6px;flex:none;}
+.sbtri{width:0;height:0;border-top:5px solid transparent;border-bottom:5px solid transparent;border-right:6px solid var(--gold2);}
+.sbrow.w .sbn{color:var(--bone);font-weight:700;}
 .sbrow.w .sbs{color:var(--gold2);}
-.sbstat{flex:none;align-self:stretch;position:relative;min-width:62px;display:flex;flex-direction:column;justify-content:center;}
-.sbstat .sbtxt{text-align:right;font-family:'Oswald',sans-serif;font-weight:600;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--mute);}
-.sbstat.final .sbtxt{color:var(--bone);}
-.sbstat.live .sbtxt{color:var(--gator);}
-/* Live games show one divider between the two score rows; the status sits
-   above it for the top of the inning, below it for the bottom. */
-.sbstat.sbtop{justify-content:flex-start;}
-.sbstat.sbbot{justify-content:flex-end;}
-.sbteams.live{position:relative;}
-.sbteams.live::after{content:'';position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);border-top:1px solid var(--line);}
+/* Status block: inning over outs over the bases diamond, top-aligned for live
+   games (like a standard scoreboard card); centered for finals/scheduled. */
+.sbstat{flex:none;align-self:stretch;min-width:72px;display:flex;flex-direction:column;justify-content:center;align-items:flex-end;gap:3px;}
+.sbstat.live{justify-content:flex-start;}
+.sbinn{font-family:'Oswald',sans-serif;font-weight:600;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--gator);text-align:right;}
+.sbstat.final .sbinn{color:var(--bone);}
+.sbouts{font-family:'Oswald',sans-serif;font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--mute);}
+.sbdia{display:block;margin-top:2px;}
+.sbdia rect{fill:rgba(154,140,196,.18);stroke:var(--gator);stroke-width:1.3;}
+.sbdia rect.on{fill:var(--gold2);stroke:var(--gold2);}
 </style></head><body>
 <div class="bgfx"></div>
 <canvas id="fx"></canvas>
@@ -3867,17 +3875,31 @@ function renderStandings(d){
   renderScoreboard(d&&d.scoreboard,d&&d.gatorsId,recById);
 }
 function sbScore(v){return (v==null||v==='')?'':v;}
+// Compact the inning label for the card: drop "of" and shorten the half word
+// ("Bottom of 7th" -> "Bot 7th", "Middle of 3rd" -> "Mid 3rd").
+function sbCompactInn(s){
+  return String(s||'').replace(/\bof\s+/i,'').replace(/^Bottom/i,'Bot').replace(/^Middle/i,'Mid').replace(/^End/i,'End');
+}
+// Bases diamond: 2nd at top, 1st at right, 3rd at left (catcher's view); a base
+// fills gold when occupied. b is {first,second,third} booleans.
+function sbDiamond(b){
+  if(!b)return '';
+  function sq(cx,cy,on){return '<rect x="'+(cx-3.6)+'" y="'+(cy-3.6)+'" width="7.2" height="7.2" rx="1.2" transform="rotate(45 '+cx+' '+cy+')"'+(on?' class="on"':'')+'/>';}
+  return '<svg class="sbdia" width="30" height="26" viewBox="0 0 30 26" aria-hidden="true">'+sq(15,7,b.second)+sq(23,15,b.first)+sq(7,15,b.third)+'</svg>';
+}
 function sbStatus(g){
   if(g.state==='final')return g.status||'Final';
   if(g.state==='live')return g.status||'Live';
   if(g.state==='postponed'||g.state==='cancelled'||g.state==='suspended')return g.status;
   return g.status||'Scheduled';
 }
-function sbTeamRow(t,win,isGt,showScore,recById){
+function sbTeamRow(t,win,isGt,showScore,recById,fin){
   var lg=t.logo?'<img class="sbl" src="'+esc(t.logo)+'" alt="">':'<span class="sbl"></span>';
   var sc=showScore?esc(String(sbScore(t.score))):'';
   var rec=(recById&&t.id&&recById[t.id])?('<span class="sbrec">('+esc(recById[t.id])+')</span>'):'';
-  return '<div class="sbrow'+(win?' w':'')+(isGt?' gt':'')+'">'+lg+'<span class="sbn">'+esc(t.short||'')+rec+'</span><span class="sbs">'+sc+'</span></div>';
+  // Winner triangle only on finals (a live leader is shown bold, no arrow).
+  var tri=(fin&&win)?'<span class="sbtri"></span>':'';
+  return '<div class="sbrow'+(win?' w':'')+(isGt?' gt':'')+'">'+lg+'<span class="sbn">'+esc(t.short||'')+rec+'</span><span class="sbsc">'+tri+'<span class="sbs">'+sc+'</span></span></div>';
 }
 function renderScoreboard(sb,gatorsId,recById){
   var games=(sb&&sb.games)||[];
@@ -3886,18 +3908,25 @@ function renderScoreboard(sb,gatorsId,recById){
   if(!games.length){$('scoreboardBody').innerHTML='<div class="note">No league games scheduled for this day.</div>';return;}
   var h='';
   games.forEach(function(g){
-    var fin=g.state==='final';
-    var aw=fin&&g.away.score!=null&&g.home.score!=null&&g.away.score>g.home.score;
-    var hw=fin&&g.away.score!=null&&g.home.score!=null&&g.home.score>g.away.score;
-    var st=g.state==='live'?'live':g.state==='final'?'final':'';
-    // Align the live status to the batting team's row: top of the inning -> top
-    // (away) row, bottom -> bottom (home) row. Non-live stays centered.
-    if(g.state==='live'){var sv=g.status||'';st+=/^top/i.test(sv)?' sbtop':/^bot/i.test(sv)?' sbbot':'';}
-    var showScore=g.state==='final'||g.state==='live';
+    var fin=g.state==='final',live=g.state==='live';
+    var haveScores=g.away.score!=null&&g.home.score!=null;
+    // Bold the winner (final) or the current leader (live); plain on ties.
+    var aw=haveScores&&(fin||live)&&g.away.score>g.home.score;
+    var hw=haveScores&&(fin||live)&&g.home.score>g.away.score;
+    var st=live?'live':fin?'final':'';
+    var showScore=fin||live;
+    // Status block: compact inning, then outs + bases diamond for live games
+    // (shown for any live game we have feed data for, not just the Gators').
+    var stat='<div class="sbinn">'+esc(live?sbCompactInn(g.status):sbStatus(g))+'</div>';
+    if(live){
+      var topOrBot=/^(top|bot)/i.test(g.status||'');
+      if(topOrBot&&g.outs!=null)stat+='<div class="sbouts">'+g.outs+' Out'+(g.outs===1?'':'s')+'</div>';
+      if(topOrBot&&g.bases)stat+=sbDiamond(g.bases);
+    }
     var tag=g.url?'a':'div',attr=g.url?(' href="'+esc(g.url)+'" target="_blank" rel="noopener"'):'';
     h+='<'+tag+' class="sbg'+(g.isGators?' g':'')+'"'+attr+'>'
-      +'<div class="sbteams'+(g.state==='live'?' live':'')+'">'+sbTeamRow(g.away,aw,g.away.id===gatorsId,showScore,recById)+sbTeamRow(g.home,hw,g.home.id===gatorsId,showScore,recById)+'</div>'
-      +'<div class="sbstat '+st+'"><span class="sbtxt">'+esc(sbStatus(g))+'</span></div></'+tag+'>';
+      +'<div class="sbteams">'+sbTeamRow(g.away,aw,g.away.id===gatorsId,showScore,recById,fin)+sbTeamRow(g.home,hw,g.home.id===gatorsId,showScore,recById,fin)+'</div>'
+      +'<div class="sbstat '+st+'">'+stat+'</div></'+tag+'>';
   });
   $('scoreboardBody').innerHTML=h;
 }
