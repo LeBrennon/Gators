@@ -1006,6 +1006,7 @@ function lineupsFromFeed(json) {
         name: abbrev(full),
         full,
         bats: String(p.bats || '').toUpperCase(),
+        seasonAvg: seasonAvgFor(full),   // season-to-date AVG for the lineup
         today: ab == null ? '—' : (hits + ' for ' + ab),
         // ESPN-style box line (game). null for a batter who hasn't come up yet.
         ab,
@@ -1737,6 +1738,14 @@ function pinchFor(plays, batterName) {
     for (const [re, type] of pats) { const m = t.match(re); if (m && normPlayerName(m[1]) === nm) return { for: m[2].trim(), type }; }
   }
   return null;
+}
+// A batter's season batting average by name — Gators from our roster cache, every
+// other league hitter from the league hitting leaderboard. Shown on the lineup.
+function seasonAvgFor(name) {
+  const key = normPlayerName(name); if (!key) return null;
+  const g = GATOR_BY_NORM[key];
+  const hit = g ? ((rosterStats[g.slug] || {}).hit) : leagueHitterStats[key];
+  return (hit && hit.avg != null && hit.avg !== '' && hit.avg !== '-') ? String(hit.avg) : null;
 }
 const playerCache = {};     // slug -> full { ...light, glBat, glPit, ts } for profiles
 let rosterUpdated = 0;
@@ -3112,6 +3121,7 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .lutbl tr.pttot td{border-top:2px solid var(--line);font-weight:700;color:var(--mute);}
 .lutbl tr.pttot td.lunm{color:var(--bone);text-transform:uppercase;font-size:10px;letter-spacing:.06em;}
 .lutbl td.lpn{color:var(--bone);}
+.lutbl td.lavg{color:var(--gold2);}
 .pthead{margin-top:10px;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold2);font-weight:700;padding:0 7px 3px;}
 .pdec{color:var(--gold2);font-weight:700;font-size:10px;}
 .lunotes{margin-top:10px;display:flex;flex-direction:column;gap:5px;}
@@ -3654,17 +3664,19 @@ function buildLineup(g){
     rows+='<tr'+(cls?' class="'+cls+'"':'')+'><td class="lus">'+esc(r.sub?'':String(r.spot||''))+'</td>'+
       '<td>'+esc(r.pos||'')+'</td><td class="luu">'+esc(String(r.uni||''))+'</td>'+
       '<td class="lunm">'+nmeCell+'</td>'+
+      '<td class="lpn lavg">'+esc(r.seasonAvg||'')+'</td>'+
       sc(r.ab)+sc(r.runs)+sc(r.hits)+sc(r.rbi)+sc(r.bb)+sc(r.k)+'</tr>';
   });
   var T=team.totals;
   if(T)rows+='<tr class="pttot"><td class="lus"></td><td></td><td class="luu"></td><td class="lunm">Totals</td>'+
-    '<td class="lpn">'+T.ab+'</td><td class="lpn">'+T.runs+'</td><td class="lpn">'+T.hits+'</td>'+
+    '<td class="lpn"></td><td class="lpn">'+T.ab+'</td><td class="lpn">'+T.runs+'</td><td class="lpn">'+T.hits+'</td>'+
     '<td class="lpn">'+T.rbi+'</td><td class="lpn">'+T.bb+'</td><td class="lpn">'+T.k+'</td></tr>';
   var tabs='<div class="lutabs">';
   if(gators)tabs+='<button class="lutab'+(showGators?' on':'')+'" data-lineup="gators">'+esc(nm(gators)||'Gators')+'</button>';
   if(opp)tabs+='<button class="lutab'+(!showGators?' on':'')+'" data-lineup="opp">'+esc(nm(opp)||'Opponent')+'</button>';
   tabs+='</div>';
   var head='<tr><th class="lus">Spot</th><th>Pos</th><th>#</th><th class="lunm">Player</th>'+
+    '<th class="lpn" title="Season batting average">AVG</th>'+
     '<th class="lpn">AB</th><th class="lpn">R</th><th class="lpn">H</th><th class="lpn">RBI</th><th class="lpn">BB</th><th class="lpn">K</th></tr>';
   return '<div class="lineup"><div class="luh">Lineup</div>'+tabs+
     '<div class="lubox"><table class="lutbl">'+head+rows+'</table></div>'+lineupNotes(team)+'</div>';
