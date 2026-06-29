@@ -295,7 +295,7 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .tbl table tr:nth-child(2n) th,.tbl table tr:nth-child(2n) td{background:#f0eafa;}
 .tbl tr:last-child th,.tbl tr:last-child td{background:#faf8ff;font-weight:800;border-bottom:none;}
 </style></head><body>`);
-  H.push(`<div class='band'><img src='${S.gatorsLogoDataUri()}'><div><div class='k'>Gumbeaux Gators · Official Box Score</div><h1><span class='hdate'>${esc(game.date)}, 2026</span>${game.home ? 'vs' : 'at'} ${esc(opp)}</h1><div class='sub'>${game.home ? 'Home' : 'Road'}${T ? ` · Record ${T.w}${DASH}${T.l}` : ''}</div></div><div class='badge'><div class='r'>${resWord}</div><div class='sc'>${gs}<span class='dsh'>&ndash;</span>${os}</div></div></div>`);
+  H.push(`<div class='band'><img src='${S.gatorsLogoDataUri()}'><div><div class='k'>Gumbeaux Gators · Official Box Score</div><h1><span class='hdate'>${esc(game.date)}, 2026</span>${game.home ? 'vs' : 'at'} ${esc(opp)}</h1>${T ? `<div class='sub'>Record ${T.w}${DASH}${T.l}</div>` : ''}</div><div class='badge'><div class='r'>${resWord}</div><div class='sc'>${gs}<span class='dsh'>&ndash;</span>${os}</div></div></div>`);
   H.push(line);
   H.push(`<div class='cols'>${teams.map(teamBlock).join('')}</div>`);
   H.push(`</body></html>`);
