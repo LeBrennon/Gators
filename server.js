@@ -928,7 +928,7 @@ async function fetchLiveForGame(boxscoreId, wantRaw) {
     // When a new pitcher has just entered, swap his card to a "New pitcher" badge
     // with his school/class + summer line (ERA/IP/K), like the batter's 1st-AB card.
     if (out.live && out.live.pitcherInfo && out.live.pitcher) {
-      const np = newPitcherInfo(out.live.pitcherInfo, out.plays, out.live.pitcher);
+      const np = newPitcherInfo(out.live.pitcherInfo, out.plays, out.live.pitcher, out.pitchers);
       if (np) Object.assign(out.live.pitcherInfo, np);
     }
     // Make the current pitcher's pitch count climb pitch-by-pitch (the feed's
@@ -1754,14 +1754,26 @@ function parseAllLeaguePitchers(html) {
   }
   return out;
 }
-// A pitcher's school/class + summer line (ERA/IP/K) by name — Gators from our
-// roster cache, opponents from the league pitching leaderboard.
+// Age in whole years from a "MM/DD/YYYY" birthday (Gators roster only); null if
+// absent or implausible. The league bio dataset carries no birthdays.
+function ageFromBday(bday) {
+  const m = String(bday || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!m) return null;
+  const b = new Date(+m[3], +m[1] - 1, +m[2]); if (isNaN(b)) return null;
+  const now = new Date();
+  let a = now.getFullYear() - b.getFullYear();
+  if (now.getMonth() < b.getMonth() || (now.getMonth() === b.getMonth() && now.getDate() < b.getDate())) a--;
+  return (a > 0 && a < 60) ? a : null;
+}
+// A pitcher's school + age (or class) + summer line (ERA/IP/K) by name — Gators
+// from our roster cache, opponents from the league pitching leaderboard. Age is
+// shown when we have his birthday (Gators); otherwise his class is the fallback.
 function pitcherSeason(name) {
   const key = normPlayerName(name);
   let bio = null, pit = null;
   const g = GATOR_BY_NORM[key];
-  if (g) { bio = { school: g.school, cls: g.cls }; const s = rosterStats[g.slug]; pit = (s && s.pit) || null; }
-  else { const b = LEAGUE_BIO[key]; if (b) bio = { school: b.s, cls: b.c }; pit = leaguePitcherStats[key] || null; }
+  if (g) { const age = ageFromBday(g.bday); bio = { school: g.school, sub: age != null ? ('Age ' + age) : g.cls }; const s = rosterStats[g.slug]; pit = (s && s.pit) || null; }
+  else { const b = LEAGUE_BIO[key]; if (b) bio = { school: b.s, sub: b.c }; pit = leaguePitcherStats[key] || null; }
   const has = v => v != null && v !== '' && v !== '-';
   const line = [];
   if (pit) {
@@ -1770,7 +1782,7 @@ function pitcherSeason(name) {
     const k = pit.so != null ? pit.so : pit.k;
     if (has(k)) line.push(['K', String(Number(k) || 0)]);
   }
-  const bioStr = bio ? [bio.school, bio.cls].filter(Boolean).join(' · ') : '';
+  const bioStr = bio ? [bio.school, bio.sub].filter(Boolean).join(' · ') : '';
   return { bio: bioStr || null, seasonLine: line.length ? line : null };
 }
 // Did the current pitcher just enter? Look for his pitching-change announcement
@@ -1789,14 +1801,25 @@ function pitchChangeFor(plays, pitcherName) {
   }
   return null;
 }
-// Build the "new pitcher" enrichment for the live pitcher card: shown only while
-// he's freshly in (a pitching change with no out recorded yet), carrying his
-// school/class and summer line. Returns null once he's recorded an out.
-function newPitcherInfo(info, plays, name) {
+// Is this pitcher his team's starter? The feed lists pitchers in order of
+// appearance, so the first row per team is the starter.
+function isStarter(pitchers, name) {
+  const nm = normPlayerName(name);
+  if (!Array.isArray(pitchers)) return false;
+  for (const t of pitchers) { if (t.rows && t.rows.length && normPlayerName(t.rows[0].name) === nm) return true; }
+  return false;
+}
+// Build the "new pitcher" enrichment for the live pitcher card: shown while he's
+// freshly in and hasn't recorded an out — a reliever right after his pitching
+// change, or a starter on his first batter. Carries his school, age (or class),
+// and summer line. Returns null once he's recorded an out.
+function newPitcherInfo(info, plays, name, pitchers) {
   if (info && info.outs != null && info.outs > 0) return null;
-  const chg = pitchChangeFor(plays, name); if (!chg) return null;
+  const chg = pitchChangeFor(plays, name);
+  const starter = !chg && isStarter(pitchers, name);
+  if (!chg && !starter) return null;
   const s = pitcherSeason(name);
-  return { newPitcher: { replaced: chg.replaced || null }, bio: s.bio, seasonLine: s.seasonLine };
+  return { newPitcher: { replaced: chg ? chg.replaced : null, starter }, bio: s.bio, seasonLine: s.seasonLine };
 }
 // If the current batter entered as a pinch hitter/runner, find who he replaced
 // from the play-by-play substitution announcement (handles both the "X pinch hit
@@ -3688,8 +3711,9 @@ function matchupCard(role,info){
   // A pitcher who just entered: state "New pitcher" with who he relieved plus his
   // school/class and summer line (ERA/IP/K), the same shape as the 1st-AB card.
   if(info.newPitcher){
+    var npLab=info.newPitcher.starter?'Starting Pitcher':'New Pitcher';
     var rep=info.newPitcher.replaced?('in for '+esc(info.newPitcher.replaced)+(info.bio?' · '+esc(info.bio):'')):(info.bio?esc(info.bio):'');
-    var nb='<div class="mfirst"><span class="mfb">New Pitcher</span>'+(rep?'<span class="mfbio">'+rep+'</span>':'')+'</div>';
+    var nb='<div class="mfirst"><span class="mfb">'+npLab+'</span>'+(rep?'<span class="mfbio">'+rep+'</span>':'')+'</div>';
     var nsl=(info.seasonLine&&info.seasonLine.length)?'<div class="mstat"><span class="mssn">SEASON</span> '+info.seasonLine.map(function(s){return '<span class="mfk">'+esc(s[0])+'</span> '+esc(s[1]);}).join('   ')+'</div>':'';
     return '<div class="mcard">'+head+nb+nsl+'</div>';
   }
