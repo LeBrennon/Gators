@@ -5,6 +5,11 @@ schedule, roster, and league standings for the Texas Collegiate League. The back
 and the embedded frontend (HTML/CSS/client JS) all live in `server.js`. Deployed on
 Render, which auto-deploys from `main`.
 
+## PR workflow
+
+Open pull requests **ready for review, not as drafts** — the owner wants to say
+"merge" once, without first flipping the PR out of draft. Squash-merge to `main`.
+
 ## Agent skills
 
 ### Issue tracker
