@@ -92,18 +92,71 @@ async function getBox() {
 const DASH = '—';
 function teamOf(label) { return String(label || '').split(DASH)[0].trim(); }
 function kindOf(label) { return /pitching/i.test(label) ? 'pitching' : 'batting'; }
-const stripLinks = h => String(h || '').replace(/<a\b[^>]*>/gi, '').replace(/<\/a>/gi, '');
+// Strip inert player links and the table's own caption (we add our own section
+// headers), so the box tables render clean inside the PDF.
+const cleanTable = h => String(h || '').replace(/<caption>[\s\S]*?<\/caption>/gi, '').replace(/<a\b[^>]*>/gi, '').replace(/<\/a>/gi, '');
+const txtOf = s => String(s || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+const normName = n => String(n || '').toLowerCase().replace(/\s*\([^)]*\)\s*$/, '').replace(/[^a-z\s]/g, '').replace(/\s+/g, ' ').trim();
 
 function groupTeams(box) {
   const order = [], by = {};
   for (const e of box) {
     const tm = teamOf(e.label);
     if (!by[tm]) { by[tm] = { team: tm, gators: /gator|gumbeaux/i.test(tm), batting: null, pitching: null, legend: null, notes: null }; order.push(tm); }
-    by[tm][kindOf(e.label)] = stripLinks(e.html);
+    by[tm][kindOf(e.label)] = cleanTable(e.html);
     if (e.legend && e.legend.length) by[tm].legend = e.legend;
     if (e.notes) by[tm].notes = e.notes;
   }
   return order.map(tm => by[tm]).sort((a, b) => (b.gators ? 1 : 0) - (a.gators ? 1 : 0));
+}
+
+// HBP isn't a column in the PrestoSports pitching table, so derive it from the
+// play-by-play: walk the halves in order, track each side's current pitcher
+// (starter first, advanced on "X to p for Y" changes), and credit a hit-by-pitch
+// to whoever is on the mound. Then inject an HBP column into each pitching table.
+function pitcherRowNames(html) {
+  const rows = (String(html || '').match(/<tr[\s\S]*?<\/tr>/gi) || []).slice(1);
+  const out = [];
+  for (const r of rows) { const c = (r.match(/<t[dh][\s\S]*?<\/t[dh]>/gi) || []).map(txtOf); const nm = c[0]; if (!nm || /^totals?$/i.test(nm)) continue; out.push(nm.replace(/\s*\([^)]*\)\s*$/, '').trim()); }
+  return out;
+}
+function addHbpColumn(html, hbpMap) {
+  const rows = String(html || '').match(/<tr[\s\S]*?<\/tr>/gi) || []; if (!rows.length) return html;
+  const head = rows[0].match(/<t[dh][\s\S]*?<\/t[dh]>/gi) || [];
+  const kIdx = head.findIndex(c => txtOf(c).toUpperCase() === 'K'); if (kIdx < 0) return html;
+  const insAt = kIdx + 1;
+  const rebuilt = [];
+  const cell = (val, header) => `<${header ? 'th' : 'td'}>${val}</${header ? 'th' : 'td'}>`;
+  rebuilt.push((() => { const cs = head.slice(); cs.splice(insAt, 0, cell('HBP', true)); return '<tr>' + cs.join('') + '</tr>'; })());
+  let total = 0;
+  for (const r of rows.slice(1)) {
+    const cs = r.match(/<t[dh][\s\S]*?<\/t[dh]>/gi) || [];
+    const name = txtOf(cs[0]);
+    let v = 0;
+    if (/^totals?$/i.test(name)) v = total;
+    else { for (const k in hbpMap) { if (normName(k) === normName(name)) { v = hbpMap[k]; break; } } total += v; }
+    cs.splice(insAt, 0, cell(String(v), false));
+    rebuilt.push('<tr>' + cs.join('') + '</tr>');
+  }
+  return String(html).replace(/<tr[\s\S]*?<\/tr>/gi, () => rebuilt.shift());
+}
+function injectHBP(teams, pbp) {
+  teams.forEach(t => { t._pitchers = pitcherRowNames(t.pitching); t._hbp = {}; t._cur = 0; });
+  if (Array.isArray(pbp)) {
+    for (const pp of pbp) {
+      const title = txtOf(pp.title);
+      const bat = teams.find(t => t.team && title.includes(t.team));
+      const field = teams.find(t => t !== bat);
+      if (!field) continue;
+      for (const r of (String(pp.html || '').match(/<tr[\s\S]*?<\/tr>/gi) || [])) {
+        const tx = txtOf(r);
+        const ch = tx.match(/^(.+?) to p for /i);
+        if (ch) { const idx = field._pitchers.findIndex(p => normName(p) === normName(ch[1])); if (idx >= 0) field._cur = idx; }
+        if (/hit by pitch/i.test(tx)) { const cur = field._pitchers[field._cur]; if (cur) field._hbp[cur] = (field._hbp[cur] || 0) + 1; }
+      }
+    }
+  }
+  teams.forEach(t => { if (t.pitching) t.pitching = addHbpColumn(t.pitching, t._hbp); });
 }
 
 // Notes object -> compact "2B: ... · HR: ... · E: ..." string (skip empties).
@@ -143,6 +196,7 @@ function parseLineTeams(html) {
 
 function buildHtml(data) {
   const teams = groupTeams(data.box || []);
+  injectHBP(teams, data.pbp);   // derive + add the HBP pitching column from the play-by-play
   const croc = S.crocSkinDataUri();
   // Score/result/opponent from the line score when present; seed game otherwise.
   let gs = game.gs, os = game.os, win = game.win, opp = oppName;
@@ -150,7 +204,7 @@ function buildHtml(data) {
   if (lt) { const G = lt.find(t => t.gators), O = lt.find(t => !t.gators); if (G && O) { gs = G.r; os = O.r; win = gs > os ? true : gs < os ? false : null; opp = O.name.replace(/^(lake charles|the)\s+/i, '').trim() || oppName; } }
   const resWord = win == null ? 'FINAL' : win ? 'WIN' : 'LOSS';
   const resColor = win == null ? '#714ad2' : win ? '#1f9d57' : '#c0392b';
-  const line = data.line ? `<div class='linewrap'>${data.line}</div>` : '';
+  const line = data.line ? `<div class='linewrap'>${cleanTable(data.line)}</div>` : '';
   const H = [];
   H.push(`<!doctype html><html><head><meta charset='utf-8'><style>
 @page{size:letter;margin:0;}
