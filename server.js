@@ -12,6 +12,11 @@ const fs = require('fs');
 let webpush = null; try { webpush = require('web-push'); } catch (e) {}
 let nodemailer = null; try { nodemailer = require('nodemailer'); } catch (e) {}
 
+// One-line error logger for the background pollers. Their catch blocks keep the
+// last-good data on purpose, but used to swallow the cause silently — this leaves
+// a breadcrumb (function name + message) without dumping stacks on every blip.
+function logErr(where, e) { console.error('[' + where + '] ' + ((e && e.message) || e)); }
+
 const PORT         = process.env.PORT || 8787;
 const POLL_MS      = Number(process.env.POLL_MS || 15000);
 // Deployed-build identity so it's possible to tell at a glance which commit is
@@ -1253,7 +1258,7 @@ async function dispatchFinalReport() {
       });
       if (res.ok || res.status === 204) { reportDispatched.add(g.id); saveReportDispatched(); process.stdout.write('\n[report] triggered build for ' + g.id + '\n'); }
       else process.stdout.write('\n[report] trigger failed ' + res.status + ' for ' + g.id + '\n');
-    } catch (e) { /* retry next poll */ }
+    } catch (e) { logErr('dispatchFinalReport', e); /* retry next poll */ }
   }
 }
 // Detect a finished game straight from the live feed, before PrestoSports flips
@@ -1310,7 +1315,7 @@ async function pollSchedule() {
   try {
     const res = await fetch(SCHEDULE_URL, { headers: {
       'cache-control': 'no-cache',
-      'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+      'user-agent': UA,
       'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       'accept-language': 'en-US,en;q=0.9',
     } });
@@ -1326,7 +1331,7 @@ async function pollSchedule() {
     try {
       const date = (featured && featured.date) || todayCentralYmd();
       await refreshLeagueLiveScores(parseLeagueScoreboard(lastHtml, date), featured && featured.id);
-    } catch (e) { /* board still works from schedule scores */ }
+    } catch (e) { logErr('pollSchedule', e); /* board still works from schedule scores */ }
     try { await dispatchFinalReport(); } catch (e) { /* report trigger is best-effort */ }
   } catch (err) { process.stdout.write('\r[poll error] ' + err.message + '        '); }
 }
@@ -1355,7 +1360,7 @@ async function enrichLive(norm) {
       norm.inningLabel = inn > 9 ? ('Final/' + inn) : 'Final';
       if (finalSeenAt[norm.id] == null) finalSeenAt[norm.id] = Date.now();
     }
-  } catch (e) { /* keep score-only view if the feed is unavailable */ }
+  } catch (e) { logErr('enrichLive', e); /* keep score-only view if the feed is unavailable */ }
 }
 // Live scores for in-progress NON-featured league games, refreshed each scrape
 // so the around-the-league board shows real scores (the schedule reads 0-0
@@ -1379,7 +1384,7 @@ async function refreshLeagueLiveScores(board, featuredId) {
         liveScoreCache[g.id] = { away, home, at: Date.now(), over, label: over ? (inn > 9 ? 'Final/' + inn : 'Final') : null,
           outs: lf.live ? lf.live.outs : null, bases: lf.live ? lf.live.bases : null };
       }
-    } catch (e) { /* keep the last cached score for this game */ }
+    } catch (e) { logErr('refreshLeagueLiveScores', e); /* keep the last cached score for this game */ }
   }
 }
 // Overlay live scores onto in-progress games (the featured game's own live data,
@@ -1435,7 +1440,7 @@ async function refreshFeatured() {
 // is cached, so this is one lightweight JSON request) and re-broadcast.
 async function pollLive() {
   if (!featured || featured.status !== 'live') return;
-  try { await refreshFeatured(); } catch (e) {}
+  try { await refreshFeatured(); } catch (e) { logErr('pollLive', e); }
 }
 
 // ===== Roster + player season stats =========================================
@@ -2056,7 +2061,7 @@ async function pollRoster() {
     }
     rosterUpdated = Date.now();
     saveCache();
-  } catch (e) { /* keep previous */ }
+  } catch (e) { logErr('pollRoster', e); /* keep previous */ }
   finally { rosterPolling = false; }
 }
 // Player stats change about once a day, so we scrape them once daily at local
@@ -2271,7 +2276,7 @@ async function pollWatch() {
     if (!r.ok || !r.body) return;
     const idx = parseWatchList(r.body);
     if (Object.keys(idx).length) { watchIndex = idx; watchLoadedAt = Date.now(); }
-  } catch (e) { /* keep previous index */ }
+  } catch (e) { logErr('pollWatch', e); /* keep previous index */ }
 }
 // Live + upcoming only. Falls back to the Gators' TCL TV page when unmatched.
 function watchUrlFor(g) {
@@ -2352,7 +2357,7 @@ async function pollReplays() {
     if (!all.length) return;
     const idx = parseReplayList(all);
     if (Object.keys(idx).length) { replayIndex = idx; replayLoadedAt = Date.now(); }
-  } catch (e) { /* keep previous index */ }
+  } catch (e) { logErr('pollReplays', e); /* keep previous index */ }
 }
 // Finished games only. Returns the direct VOD for *this* game, or null when we
 // don't have that exact game's replay yet — so the Replay button only ever
@@ -2423,7 +2428,7 @@ async function pollStandings() {
     if (!r.ok || !r.body) return;
     const parsed = parseStandings(r.body);
     if (Object.keys(parsed.map).length) { standings = parsed.map; standingsTable = parsed.rows; standingsAt = Date.now(); }
-  } catch (e) { /* keep previous standings */ }
+  } catch (e) { logErr('pollStandings', e); /* keep previous standings */ }
 }
 // Season strike% for the Gators staff: walk every finished Gators game's box-score
 // play-by-play, count pitches only in the half-innings the Gators pitched (the
@@ -2449,7 +2454,7 @@ async function pollStrikePct() {
       await sleep(250);
     }
     if (pitches > 0) seasonStrikePct = { pct: Math.round(strikes / pitches * 100), pitches, strikes, games: gms, at: Date.now() };
-  } catch (e) { /* keep previous strike% */ }
+  } catch (e) { logErr('pollStrikePct', e); /* keep previous strike% */ }
 }
 // team {name,short} -> "W-L" (or "W-L-T" when t>0); name match then loose fallback.
 function recordStr(team) {
@@ -2489,7 +2494,7 @@ async function pollTickets() {
       }
     }
     ticketsCheckedAt = Date.now();
-  } catch (e) { /* keep previous */ }
+  } catch (e) { logErr('pollTickets', e); /* keep previous */ }
 }
 // Attaches the derived display fields a game needs on the client.
 function decorateGame(g) { return Object.assign({}, g, { location: gameLocation(g), watchUrl: watchUrlFor(g), replayUrl: replayUrlFor(g), ticketUrl: ticketIndex[g.id] || null, theme: THEMES[g.date] || null, freeAdmission: FREE_ADMISSION[g.date] || null, promo: promoFor(g), special: SPECIALS[g.date] || null }); }
