@@ -133,19 +133,3 @@ Facts, not prescriptions — the team-level trends worth tracking after the brea
 - **The close-game record is the season in miniature.** 12 of 23 inside two runs.
   Bullpen command and late-inning offense will decide whether a .522 first half
   becomes a winning season.
-
-## Glossary & data note
-
-- **AVG / OBP / SLG / OPS** — average · on-base% · slugging% · OBP+SLG (one-number
-  bat value; ~.750 solid, .900+ excellent).
-- **ERA / WHIP** — earned runs per 9 IP · baserunners (H+BB) per IP. **K/9, BB/9** —
-  strikeouts and walks per 9 IP (lower BB/9 = better command).
-- **Pythagorean record** — expected win% from runs for/against (RF² / (RF²+RA²)); a
-  team beating it is winning close games, lagging it is losing them.
-
-> **Data note:** game results and run totals come straight from the league
-> schedule and are authoritative. Team batting/pitching rate stats are summed from
-> per-player season lines (also from the league pages). Total bases are reconstructed
-> from hits/2B/3B/HR because the seed's raw TB field is incomplete, so team SLG/OPS
-> are close estimates, not exact. Regenerate the underlying numbers after each daily
-> seed refresh.
