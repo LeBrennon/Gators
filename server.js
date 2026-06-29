@@ -3308,6 +3308,8 @@ a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 .sbstat{flex:none;text-align:right;min-width:62px;font-family:'Oswald',sans-serif;font-weight:600;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--mute);}
 .sbstat.final{color:var(--bone);}
 .sbstat.live{color:var(--gator);}
+.sbstat.sbtop{align-self:flex-start;}
+.sbstat.sbbot{align-self:flex-end;}
 </style></head><body>
 <div class="bgfx"></div>
 <canvas id="fx"></canvas>
@@ -3880,6 +3882,9 @@ function renderScoreboard(sb,gatorsId,recById){
     var aw=fin&&g.away.score!=null&&g.home.score!=null&&g.away.score>g.home.score;
     var hw=fin&&g.away.score!=null&&g.home.score!=null&&g.home.score>g.away.score;
     var st=g.state==='live'?'live':g.state==='final'?'final':'';
+    // Align the live status to the batting team's row: top of the inning -> top
+    // (away) row, bottom -> bottom (home) row. Non-live stays centered.
+    if(g.state==='live'){var sv=g.status||'';st+=/^top/i.test(sv)?' sbtop':/^bot/i.test(sv)?' sbbot':'';}
     var showScore=g.state==='final'||g.state==='live';
     var tag=g.url?'a':'div',attr=g.url?(' href="'+esc(g.url)+'" target="_blank" rel="noopener"'):'';
     h+='<'+tag+' class="sbg'+(g.isGators?' g':'')+'"'+attr+'>'
