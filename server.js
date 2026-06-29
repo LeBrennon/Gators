@@ -3332,7 +3332,7 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .crow{display:flex;align-items:center;gap:9px;padding:3px 0;}
 .crow img{width:30px;height:30px;border-radius:6px;object-fit:contain;background:transparent;}
 .crow .n{flex:1;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.tcity{font-weight:400;font-size:.82em;opacity:.72;}
+.tcity{font-weight:400;opacity:.72;}
 .crow.g .n{color:var(--gator);}
 .crow .s{font-family:'Oswald',sans-serif;font-weight:700;font-size:18px;min-width:22px;text-align:right;}
 .crow.w .s{color:var(--gold2);}
