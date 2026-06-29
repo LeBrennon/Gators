@@ -1456,7 +1456,7 @@ const ROSTER = [
   { num: 6,  name: 'Nathan McDonald',  slug: 'nathanmcdonaldftgl',   pos: 'Utility', cls: 'Senior',       ht: '6-0',  wt: '175', b: 'R', t: 'R', bday: '07/17/2004', home: 'McComb, MS',       school: 'Loyola-New Orleans' },
   // Added off the 6/28 gameday sheet; placeholder slug until his Presto player
   // page exists, so the note shows on his profile instead of stats until his first game.
-  { num: 8,  name: 'Cade Robin',       slug: 'caderobin',            pos: 'P',       cls: 'Junior',       ht: '6-1',  wt: '200', b: 'R', t: 'R', bday: '',           home: 'Arnaudville, LA',  school: 'LSU-Shreveport', note: 'Recently added — season stats will appear after his first game.' },
+  { num: 8,  name: 'Cade Robin',       slug: 'caderobin',            pos: 'P',       cls: 'Junior',       ht: '6-1',  wt: '205', b: 'R', t: 'R', bday: '',           home: 'Arnaudville, LA',  school: 'LSU-Shreveport', note: 'Recently added — season stats will appear after his first game.' },
   { num: 9,  name: 'James Reina',      slug: 'jamesreinaluai',       pos: 'IF',      cls: 'Junior',       ht: '5-9',  wt: '180', b: 'R', t: 'R', bday: '10/07/2004', home: 'Lake Charles, LA', school: 'Stephen F. Austin' },
   { num: 11, name: 'Diego Corrales',   slug: 'diegocorrales91v5',    pos: 'P',       cls: 'Junior',       ht: '5-8',  wt: '185', b: 'L', t: 'L', bday: '08/01/2005', home: 'Lake Charles, LA', school: 'McNeese State' },
   { num: 14, name: 'Brandon Levy',     slug: 'brandonlevyejo5',      pos: 'Two-Way', cls: 'Junior',       ht: '5-10', wt: '180', b: 'R', t: 'R', bday: '05/25/2004', home: 'Bossier City, LA', school: 'New Orleans' },
