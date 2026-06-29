@@ -1,10 +1,5 @@
 # Gumbeaux Gators — First-Half Report (2026)
 
-_GM review of the first half. Team stats through **2026-06-28** (23 games) — the
-midpoint of the TCL slate. Numbers are from `roster-seed.json` (league/player
-pages, refreshed daily); game scores are authoritative, team rate stats are summed
-from season lines. The second half opens June 30._
-
 ## Headline
 
 The Gators reach the midpoint at **12-11 (.522)** with a **+10 run differential** —
