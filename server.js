@@ -3398,8 +3398,8 @@ body.noscroll{overflow:hidden;}
 /* Let the team name wrap so every column fits the phone width without scrolling. */
 .sttbl td:nth-child(2),.sttbl th:nth-child(2){white-space:normal;}
 .sttbl .stteam{display:flex;align-items:center;gap:6px;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.01em;color:var(--bone);min-width:0;text-decoration:none;}
-.sttbl a.stteam:hover .n,.sttbl a.stteam:hover span{text-decoration:underline;}
-.sttbl .stteam span{white-space:normal;overflow-wrap:anywhere;line-height:1.15;}
+.sttbl a.stteam:hover .stnm{text-decoration:underline;}
+.sttbl .stteam .stnm{white-space:normal;overflow-wrap:anywhere;line-height:1.15;}
 .sttbl .stlogo{width:22px;height:22px;border-radius:5px;object-fit:contain;background:transparent;flex:none;}
 .sttbl td:nth-child(5){color:var(--gold2);}
 .sttbl tr.stg td{background:rgba(113,74,210,.16);}
@@ -3408,9 +3408,10 @@ body.noscroll{overflow:hidden;}
 .strk{font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:.02em;}
 .strk.win{color:#41a913;}
 .strk.loss{color:var(--away);}
-.clinch{display:inline-block;font-family:'Oswald',sans-serif;font-weight:700;font-size:9px;line-height:1;color:#0c1a08;background:#41a913;border-radius:3px;padding:2px 3px;margin-right:5px;vertical-align:1px;text-transform:lowercase;}
+.clinch{margin-left:auto;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;flex:none;font-size:14px;font-family:'Oswald',sans-serif;font-weight:700;color:var(--gold2);}
+.clinch small{font-size:8px;letter-spacing:.06em;margin-top:1px;}
 .stnote{margin-top:8px;font-size:10px;color:var(--mute);display:flex;align-items:center;gap:6px;font-family:'Oswald',sans-serif;letter-spacing:.01em;}
-.stnote .clinch{margin-right:0;}
+.stnote .clinch{margin-left:0;}
 .sbg{display:flex;align-items:center;gap:10px;background:var(--bayou2);border:1px solid var(--line);border-radius:12px;padding:10px 13px;margin-bottom:8px;color:inherit;text-decoration:none;cursor:pointer;transition:border-color .15s,background .15s;}
 a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 .sbg.g{border-color:var(--purple);background:rgba(113,74,210,.10);}
@@ -3985,16 +3986,17 @@ function renderStandings(d){
       var lg=x.logo?'<img class="stlogo" src="'+esc(x.logo)+'" alt="">':'';
       var sk=x.streak?'<span class="strk '+(/^W/i.test(x.streak)?'win':'loss')+'">'+esc(x.streak)+'</span>':'—';
       var nm=esc(x.name||x.short);
-      var clin=x.clinched?('<span class="clinch" title="Clinched playoff spot — '+esc(x.clinched)+'">x</span>'):'';
+      var clin=x.clinched?('<span class="clinch" title="Won the first half — clinched a playoff spot">🏆<small>1H</small></span>'):'';
       if(x.clinched)anyClinch=true;
-      var team=x.site?('<a class="stteam" href="'+esc(x.site)+'" target="_blank" rel="noopener">'+lg+'<span>'+clin+nm+'</span></a>'):('<div class="stteam">'+lg+'<span>'+clin+nm+'</span></div>');
+      var inner=lg+'<span class="stnm">'+nm+'</span>'+clin;
+      var team=x.site?('<a class="stteam" href="'+esc(x.site)+'" target="_blank" rel="noopener">'+inner+'</a>'):('<div class="stteam">'+inner+'</div>');
       var cls=[isG?'stg':'',x.clinched?'stclinch':''].filter(Boolean).join(' ');
       h+='<tr'+(cls?' class="'+cls+'"':'')+'><td>'+(i+1)+'</td>'
         +'<td>'+team+'</td>'
         +'<td>'+x.w+'</td><td>'+x.l+'</td><td>'+fmtPct(x.pct)+'</td><td>'+fmtGb(x.gb)+'</td><td>'+sk+'</td></tr>';
     });
     h+='</table></div>';
-    if(anyClinch)h+='<div class="stnote"><span class="clinch">x</span> clinched playoff spot (first-half champion)</div>';
+    if(anyClinch)h+='<div class="stnote"><span class="clinch">🏆<small>1H</small></span> first-half champion — clinched a playoff spot</div>';
     $('standingsBody').innerHTML=h;
     $('stMeta').textContent=d.half===2?'Second-half standings':d.half===1?'First-half standings':'';
   }
