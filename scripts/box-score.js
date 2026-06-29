@@ -227,7 +227,11 @@ function buildHtml(data) {
   if (lt) { const G = lt.find(t => t.gators), O = lt.find(t => !t.gators); if (G && O) { gs = G.r; os = O.r; win = gs > os ? true : gs < os ? false : null; opp = O.name.replace(/^(lake charles|the)\s+/i, '').trim() || oppName; } }
   const resWord = win == null ? 'FINAL' : win ? 'WIN' : 'LOSS';
   const resColor = win == null ? '#3a2480' : win ? '#1f9d57' : '#c0392b';
-  const line = data.line ? `<div class='linewrap'>${cleanTable(data.line)}</div>` : '';
+  // Tint the opponent's name cell in the line score to their team color (the
+  // Gators' stays purple), matching their table headers.
+  let lineHtml = cleanTable(data.line);
+  if (lineHtml && lt) { const oTeam = lt.find(t => !t.gators); if (oTeam) { const oc = teamColor(oTeam.name); const safe = oTeam.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); lineHtml = lineHtml.replace(new RegExp('<th>(\\s*' + safe + '\\s*)</th>', 'i'), `<th style="background:${oc}">$1</th>`); } }
+  const line = data.line ? `<div class='linewrap'>${lineHtml}</div>` : '';
   // Adaptive row density: the tallest column (batting + pitching rows) sets the
   // vertical cell padding so a long lineup + a deep bullpen still fit one page
   // without clipping the Totals row. Roomy for a normal box, tighter as rows grow.
