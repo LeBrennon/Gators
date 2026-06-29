@@ -246,20 +246,23 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .tcap.pit{margin-top:16px;}
 .tbl{border:1px solid #e6def7;border-top:none;border-radius:0 0 6px 6px;overflow:hidden;min-height:0;}
 .tbl table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;height:100%;table-layout:fixed;}
-.tbl th,.tbl td{padding:var(--padv,8px) 5px;text-align:right;font-size:12.5px;font-weight:400;border-bottom:1px solid #efeaf9;}
+.tbl th,.tbl td{padding:var(--padv,8px) 5px;text-align:center;font-size:12.5px;font-weight:400;border-bottom:1px solid #efeaf9;}
 /* Vertical column dividers. */
 .tbl table th:not(:last-child),.tbl table td:not(:last-child){border-right:1px solid #e6def7;}
 /* Pitching has more columns (IP..S%) than batting, so tighten it to fit the half-width column. */
-.tbl.pit th,.tbl.pit td{padding-left:3px;padding-right:3px;font-size:11px;}
-/* Keep the last stat column off the card's right edge. */
-.tbl th:last-child,.tbl td:last-child{padding-right:13px;}
-.tbl.pit th:last-child,.tbl.pit td:last-child{padding-right:8px;}
+.tbl.pit th,.tbl.pit td{padding-left:2px;padding-right:2px;font-size:11px;}
 /* Column-header row only — PrestoSports also marks each per-row name cell as a <th>,
    so the header style must not leak onto those (it was shading + upper-casing names). */
 .tbl table tr:first-child th{background:#fff;color:#3a2480;font-weight:800;text-transform:uppercase;letter-spacing:.02em;font-size:10.5px;}
 .tbl.pit table tr:first-child th{font-size:9px;letter-spacing:0;}
 .tbl th:first-child,.tbl td:first-child{text-align:left;white-space:nowrap;width:44%;}
-.tbl.pit th:first-child,.tbl.pit td:first-child{width:33%;}
+.tbl.pit th:first-child,.tbl.pit td:first-child{width:30%;}
+/* Give the wider pitching columns (IP, ERA, #P, S%) room — a 4-digit ERA fits —
+   while the single-digit columns (H..HBP) share the remainder equally. */
+.tbl.pit th:nth-child(2),.tbl.pit td:nth-child(2){width:7.5%;}   /* IP */
+.tbl.pit th:nth-child(9),.tbl.pit td:nth-child(9){width:11%;}    /* ERA */
+.tbl.pit th:nth-child(10),.tbl.pit td:nth-child(10){width:8%;}   /* #P */
+.tbl.pit th:nth-child(11),.tbl.pit td:nth-child(11){width:7.5%;} /* S% */
 .tbl tr:not(:first-child) th:first-child{color:#2a2150;font-weight:600;}
 .tbl th:first-child span{text-transform:uppercase;}  /* the position prefix (1b, rf, ...) */
 .tbl a{color:inherit;text-decoration:none;}
