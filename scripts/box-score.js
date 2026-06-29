@@ -253,7 +253,7 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;color:#1b1e27;font-size:12px;
 .band{display:flex;align-items:center;gap:18px;color:#fff;padding:18px 24px;border-radius:13px;border:2px solid #ecc913;
 background:linear-gradient(rgba(22,16,43,.02),rgba(22,16,43,.16))${croc ? `,url('${croc}') center center / cover no-repeat` : ''};
 background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1px rgba(255,255,255,.08);}
-.band img{width:86px;height:86px;}
+.band img{width:112px;height:112px;}
 .k{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#ffd633;font-weight:800;text-shadow:0 1px 2px rgba(0,0,0,.5);}
 .band h1{font-size:28px;font-weight:900;line-height:1.08;margin:3px 0;text-shadow:0 2px 4px rgba(0,0,0,.55);}
 .band h1 .hdate{display:block;font-size:15px;font-weight:700;letter-spacing:.01em;color:#efe7ff;margin-bottom:2px;}
