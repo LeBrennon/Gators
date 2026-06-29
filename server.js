@@ -3157,16 +3157,11 @@ background:radial-gradient(1100px 550px at 50% -10%,rgba(111,79,212,.10),transpa
 .hdrlogo.tcl{width:60px;height:60px;background:#fff;padding:5px;box-shadow:0 3px 10px -3px rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.7);}
 .lead{font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:.06em;font-size:20px;text-transform:uppercase;background:linear-gradient(90deg,var(--gold2),var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent;}
 .sub{font-size:9.5px;letter-spacing:.28em;color:var(--mute);text-transform:uppercase;font-weight:600;margin-top:3px;}
-.chip{margin-left:auto;display:flex;align-items:center;gap:7px;font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);background:rgba(236,201,19,.1);border:1px solid rgba(236,201,19,.3);padding:6px 10px;border-radius:999px;}
 .trail{justify-self:end;display:flex;flex-direction:column;align-items:stretch;gap:6px;}
-.trail .chip{margin-left:0;}
 .ticketbtn{display:flex;align-items:center;justify-content:center;gap:5px;font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:.05em;text-transform:uppercase;font-size:10.5px;color:#1a1330;background:linear-gradient(180deg,var(--gold2),var(--gold));border:1px solid var(--gold);padding:7px 12px;border-radius:16px;text-decoration:none;white-space:nowrap;}
 .shopbtn{display:flex;align-items:center;gap:6px;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:10.5px;color:var(--gold2);background:rgba(236,201,19,.1);border:1px solid rgba(236,201,19,.3);padding:7px 12px;border-radius:16px;text-decoration:none;white-space:nowrap;}
 .shopbtn .shoptxt{display:inline-block;line-height:1.1;text-align:center;}
-.chip.live{color:var(--gator);background:rgba(113,74,210,.1);border-color:rgba(113,74,210,.3);}
-.chip.off{color:#ff7a70;background:rgba(212,56,47,.1);border-color:rgba(212,56,47,.3);}
 .dot{width:7px;height:7px;border-radius:50%;background:currentColor;}
-.chip.live .dot{animation:pulse 1.8s infinite;}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(113,74,210,.5)}70%{box-shadow:0 0 0 8px rgba(113,74,210,0)}100%{box-shadow:0 0 0 0 rgba(113,74,210,0)}}
 .jumbo{position:relative;border-radius:22px;overflow:hidden;border:1px solid var(--line);box-shadow:0 18px 40px -18px rgba(0,0,0,.8);padding:18px 16px;
 background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gradient(180deg,var(--panel),var(--bayou2));}
@@ -3626,7 +3621,6 @@ function renderGame(g){
     lastPlayGid=g.id;
   }
   lastGame=g;
-  setChip(g.status);
 }
 function baseDiamond(b){
   b=b||{};
@@ -3894,12 +3888,6 @@ function buildPbp(g){
   }
   return '<div class="pbp">'+tabs+body+'</div>';
 }
-function setChip(status){var c=$('chip'),t=$('chiptx');if(!c||!t)return;c.className='chip';
-  if(status==='live'){c.classList.add('live');t.textContent='Live';}
-  else if(status==='final'){t.textContent='Final';}
-  else if(status==='off'){c.classList.add('off');t.textContent='Reconnecting';}
-  else if(status==='cancelled'){c.classList.add('off');t.textContent='Cancelled';}
-  else{t.textContent='Next up';}}
 function renderSched(list){
   var done=list.filter(function(g){return g.state==='final'||g.state==='cancelled';}).reverse();
   var up=list.filter(function(g){return g.state==='scheduled';});
@@ -3929,8 +3917,8 @@ function toast(e,t,s,cls){var el=document.createElement('div');el.className='toa
   setTimeout(function(){el.classList.remove('show');setTimeout(function(){el.remove();},500);},4200);}
 function emo(tag){return tag==='lead'?'📣':tag==='final'?'🏁':tag==='run'?'🔥':tag==='start'?'⚾':'🐊';}
 function loadSched(){fetch('/api/schedule',{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){renderSched(d.games||[]);}).catch(function(){});}
-function connect(){var lastData=0;
-  function applyGame(g){if(g&&g.home){renderGame(g);lastData=Date.now();if($('viewStandings').style.display!=='none')silentStandings();}}
+function connect(){
+  function applyGame(g){if(g&&g.home){renderGame(g);if($('viewStandings').style.display!=='none')silentStandings();}}
   function pollGame(){fetch('/api/game',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).then(applyGame).catch(function(){});}
   pollGame();
   // Poll the live game often so the score/count/pitch-count stay fresh even when
@@ -3942,8 +3930,7 @@ function connect(){var lastData=0;
   function openSSE(){var es;try{es=new EventSource('/api/stream');}catch(e){return;}
     es.onmessage=function(ev){try{var m=JSON.parse(ev.data);if(m.type==='game')applyGame(m.game);else if(m.type==='alert')toast(emo(m.tag),m.title,m.body,(m.tag==='lead'||m.tag==='final')?'lead':'');}catch(x){}};
     es.onerror=function(){try{es.close();}catch(x){}setTimeout(openSSE,8000);};}
-  openSSE();
-  setInterval(function(){if(Date.now()-lastData>45000)setChip('off');},10000);}
+  openSSE();}
 var _box=null;
 function bsScoreFromLine(line){try{var rows=line.match(new RegExp('<tr[^]*?</tr>','gi'))||[];var rs=[];rows.forEach(function(r){var c=r.match(new RegExp('<t[dh][^]*?</t[dh]>','gi'))||[];if(c.length>3){var nm=c[0].replace(/<[^>]+>/g,'').trim();if(nm&&!/^final$/i.test(nm))rs.push(c[c.length-3].replace(/<[^>]+>/g,'').trim());}});return rs.length>=2?rs[0]+'\u2013'+rs[1]:'';}catch(e){return'';}}
 function openBox(id,tab){var m=$('bxModal');m.classList.add('show');m.style.zIndex=++modalZ;syncBg();
