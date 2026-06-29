@@ -97,6 +97,20 @@ const CLINCHED_PLAYOFF = {
   jm9r4btii24hhtfp: '1st-half champion',   // Victoria Generals
   cz8qei0rxijys6nm: '1st-half champion',   // Acadiana Cane Cutters
 };
+// First-half FINAL records (frozen). The live feed reports full-season W-L, so
+// the second-half record is derived as (season − first-half). Captured the day
+// the second half opened, when every team was 0-0 in the 2H — i.e. these equal
+// each team's full-season record at that moment.
+const FIRST_HALF_FINAL = {
+  jm9r4btii24hhtfp: { w: 17, l: 7 },    // Victoria Generals
+  cz8qei0rxijys6nm: { w: 13, l: 10 },   // Acadiana Cane Cutters
+  do9ibktaduhyld7f: { w: 11, l: 10 },   // San Antonio River Monsters
+  et1bt9sixrz5lnnl: { w: 12, l: 11 },   // Lake Charles Gumbeaux Gators
+  z10kgms3gvy1eszs: { w: 10, l: 12 },   // Baton Rouge Rougarou
+  ij0lwtvjsx2mi1nh: { w: 9,  l: 11 },   // Abilene Flying Bison
+  z7w5th537gur3z15: { w: 10, l: 13 },   // Brazos Valley Bombers
+  w43rx8i07fn44cyl: { w: 6,  l: 14 },   // Sherman Shadowcats
+};
 // 2026 home-game themed nights (promotions), keyed by game date (yyyymmdd).
 const THEMES = {
   '20260602': 'Mardi Party',
@@ -2796,12 +2810,22 @@ app.get('/api/standings', (_q, r) => {
   r.set('Cache-Control', 'no-store');
   if (!standingsTable.length) pollStandings();
   const rows = standingsTable.map(x => {
-    const gp = x.w + x.l + x.t;
-    return Object.assign({}, x, { pct: gp ? (x.w + x.t * 0.5) / gp : 0, site: TEAM_SITE[x.id] || null,
-      clinched: (x.id && CLINCHED_PLAYOFF[x.id]) || null });
-  }).sort((a, b) => b.pct - a.pct || b.w - a.w || a.l - b.l);
+    // The feed reports full-season W-L; the second half = season − first-half
+    // final (clamped at 0). Ranking, PCT and GB run off the second-half race.
+    const base = (x.id && FIRST_HALF_FINAL[x.id]) || { w: 0, l: 0 };
+    const sw = x.w, sl = x.l;
+    const w2 = Math.max(0, sw - base.w), l2 = Math.max(0, sl - base.l);
+    const g2 = w2 + l2, gs = sw + sl;
+    return Object.assign({}, x, {
+      w2, l2, ws: sw, ls: sl,
+      pct: g2 ? w2 / g2 : 0,                       // second-half pct (drives sort/GB)
+      pctSeason: gs ? (sw + x.t * 0.5) / gs : 0,   // full-season pct (tiebreak)
+      site: TEAM_SITE[x.id] || null,
+      clinched: (x.id && CLINCHED_PLAYOFF[x.id]) || null,
+    });
+  }).sort((a, b) => b.pct - a.pct || b.pctSeason - a.pctSeason || b.ws - a.ws || a.ls - b.ls);
   const lead = rows[0];
-  for (const x of rows) x.gb = lead ? ((lead.w - x.w) + (x.l - lead.l)) / 2 : 0;
+  for (const x of rows) x.gb = lead ? ((lead.w2 - x.w2) + (x.l2 - lead.l2)) / 2 : 0;
   r.json({ updatedAt: standingsAt, gatorsId: GATORS_ID, half: SEASON_HALF, rows, scoreboard: buildLeagueBoard() });
 });
 app.get('/debug/extras', (_q, r) => {
@@ -3402,6 +3426,8 @@ body.noscroll{overflow:hidden;}
 .sttbl .stteam .stnm{white-space:normal;overflow-wrap:anywhere;line-height:1.15;}
 .sttbl .stlogo{width:22px;height:22px;border-radius:5px;object-fit:contain;background:transparent;flex:none;}
 .sttbl td:nth-child(5){color:var(--gold2);}
+.sttbl .stwl2{font-weight:700;}
+.sttbl .stwls{color:var(--mute);}
 .sttbl tr.stg td{background:rgba(113,74,210,.16);}
 .sttbl tr.stg .stteam{color:var(--gator);font-weight:700;}
 .sttbl tr.stg td:first-child{color:var(--gator);}
@@ -3979,7 +4005,7 @@ function renderStandings(d){
   if(!rows.length){$('standingsBody').innerHTML='<div class="note">Standings aren’t available yet — check back shortly.</div>';$('stMeta').textContent='';}
   else{
     var anyClinch=false;
-    var h='<div class="gltbl sttbl"><table><tr><th>#</th><th>Team</th><th>W</th><th>L</th><th>PCT</th><th>GB</th><th>STRK</th></tr>';
+    var h='<div class="gltbl sttbl"><table><tr><th>#</th><th>Team</th><th title="Second-half W-L">2H</th><th title="Full-season W-L">Season</th><th>PCT</th><th>GB</th><th>STRK</th></tr>';
     rows.forEach(function(x,i){
       var isG=x.id&&x.id===d.gatorsId;
       var lg=x.logo?'<img class="stlogo" src="'+esc(x.logo)+'" alt="">':'';
@@ -3990,9 +4016,10 @@ function renderStandings(d){
       var inner=lg+'<span class="stnm">'+nm+'</span>'+clin;
       var team=x.site?('<a class="stteam" href="'+esc(x.site)+'" target="_blank" rel="noopener">'+inner+'</a>'):('<div class="stteam">'+inner+'</div>');
       var cls=[isG?'stg':'',x.clinched?'stclinch':''].filter(Boolean).join(' ');
+      var wl2=(x.w2|0)+'-'+(x.l2|0), wls=(x.ws|0)+'-'+(x.ls|0);
       h+='<tr'+(cls?' class="'+cls+'"':'')+'><td>'+(i+1)+'</td>'
         +'<td>'+team+'</td>'
-        +'<td>'+x.w+'</td><td>'+x.l+'</td><td>'+fmtPct(x.pct)+'</td><td>'+fmtGb(x.gb)+'</td><td>'+sk+'</td></tr>';
+        +'<td class="stwl2">'+wl2+'</td><td class="stwls">'+wls+'</td><td>'+fmtPct(x.pct)+'</td><td>'+fmtGb(x.gb)+'</td><td>'+sk+'</td></tr>';
     });
     h+='</table></div>';
     if(anyClinch)h+='<div class="stnote"><span class="clinch">🏆<small>1H</small></span> first-half champion — clinched a playoff spot</div>';
