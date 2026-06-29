@@ -787,6 +787,7 @@ function activePlayerLine(json, name, kind) {
     if (g.so != null) parts.push(n(g.so) + ' K');
     if (g.bb != null) parts.push(n(g.bb) + ' BB');
     info.line = parts.join(', ') || null;
+    info.outs = g.ip != null ? ipToOuts(String(g.ip)) : null; // outs recorded this game (0 == just entered)
     info.pitches = g.pitches != null ? n(g.pitches) : null;
     // The feed gives total pitches and strikes; balls is the remainder.
     info.strikes = (info.pitches != null && g.strikes != null) ? n(g.strikes) : null;
@@ -923,6 +924,12 @@ async function fetchLiveForGame(boxscoreId, wantRaw) {
         const pinch = pinchFor(out.plays, out.live.batter);
         if (pinch) out.live.batterInfo.pinch = pinch;
       }
+    }
+    // When a new pitcher has just entered, swap his card to a "New pitcher" badge
+    // with his school/class + summer line (ERA/IP/K), like the batter's 1st-AB card.
+    if (out.live && out.live.pitcherInfo && out.live.pitcher) {
+      const np = newPitcherInfo(out.live.pitcherInfo, out.plays, out.live.pitcher, out.pitchers);
+      if (np) Object.assign(out.live.pitcherInfo, np);
     }
     // Make the current pitcher's pitch count climb pitch-by-pitch (the feed's
     // cumulative only updates at each at-bat's end).
@@ -1346,7 +1353,8 @@ async function refreshLeagueLiveScores(board, featuredId) {
         // The feed may show the game over before the schedule says "Final".
         const over = feedGameOver(lf.live, away, home);
         const inn = lf.live ? (parseInt(lf.live.inning, 10) || 0) : 0;
-        liveScoreCache[g.id] = { away, home, at: Date.now(), over, label: over ? (inn > 9 ? 'Final/' + inn : 'Final') : null };
+        liveScoreCache[g.id] = { away, home, at: Date.now(), over, label: over ? (inn > 9 ? 'Final/' + inn : 'Final') : null,
+          outs: lf.live ? lf.live.outs : null, bases: lf.live ? lf.live.bases : null };
       }
     } catch (e) { /* keep the last cached score for this game */ }
   }
@@ -1361,6 +1369,8 @@ function applyLiveScores(games, feat) {
     if (feat && g.id === feat.id) {
       if (feat.away && feat.away.runs != null) g.away.score = feat.away.runs;
       if (feat.home && feat.home.runs != null) g.home.score = feat.home.runs;
+      // Outs + base runners for the scoreboard diamond (from the featured feed).
+      if (feat.live) { g.outs = feat.live.outs; g.bases = feat.live.bases; }
       // Match the main screen: if we flipped the featured game to final
       // (feed game-over before the schedule says so), mark it here too.
       if (feat.status === 'final') { g.state = 'final'; g.status = feat.inningLabel || 'Final'; }
@@ -1369,6 +1379,9 @@ function applyLiveScores(games, feat) {
       if (c) {
         if (c.away != null) g.away.score = c.away;
         if (c.home != null) g.home.score = c.home;
+        // Outs + base runners for the scoreboard diamond (from the per-game feed).
+        if (c.outs != null) g.outs = c.outs;
+        if (c.bases) g.bases = c.bases;
         if (c.over) { g.state = 'final'; g.status = c.label || 'Final'; }
       }
     }
@@ -1724,6 +1737,78 @@ function firstAbStats(name) {
   const bioStr = bio ? [bio.school, bio.cls].filter(Boolean).join(' · ') : '';
   return { firstAB: true, bio: bioStr || null, seasonLine: line.length ? line : null };
 }
+let leaguePitcherStats = {};  // normName -> { era, ip, so, w, l, sv } for every league pitcher
+// Like parseAllLeagueHitters but for the pitching leaderboard, so an opponent
+// reliever's summer line can be shown when he enters the game.
+function parseAllLeaguePitchers(html) {
+  const tables = (html || '').match(/<table\b[\s\S]*?<\/table>/gi) || [];
+  let tbl = null, head = null;
+  for (const t of tables) { const rows = rowsOf(t); if (rows.length < 2) continue; const hd = cellsOf(rows[0]).map(x => bsText(x).split(/\s+/)[0].toLowerCase()); if (hd.indexOf('team') === -1) continue; tbl = t; head = hd; break; }
+  if (!tbl || (head.indexOf('era') === -1 && head.indexOf('ip') === -1)) return {};
+  const rows = rowsOf(tbl); const out = {};
+  for (let i = 1; i < rows.length; i++) {
+    const c = cellsOf(rows[i]); if (c.length < 4) continue;
+    const name = firstLink(c[1]).text; if (!name) continue;
+    const o = {}; for (let k = 3; k < c.length && k < head.length; k++) { if (head[k]) o[head[k]] = bsText(c[k]); }
+    out[normPlayerName(name)] = { era: o.era, ip: o.ip, so: o.so != null ? o.so : o.k, w: o.w, l: o.l, sv: o.sv };
+  }
+  return out;
+}
+// A pitcher's school + class + summer line (ERA/IP/K) by name — Gators from our
+// roster cache, opponents from the league pitching leaderboard.
+function pitcherSeason(name) {
+  const key = normPlayerName(name);
+  let bio = null, pit = null;
+  const g = GATOR_BY_NORM[key];
+  if (g) { bio = { school: g.school, cls: g.cls }; const s = rosterStats[g.slug]; pit = (s && s.pit) || null; }
+  else { const b = LEAGUE_BIO[key]; if (b) bio = { school: b.s, cls: b.c }; pit = leaguePitcherStats[key] || null; }
+  const has = v => v != null && v !== '' && v !== '-';
+  const line = [];
+  if (pit) {
+    if (has(pit.era)) line.push(['ERA', String(pit.era)]);
+    if (has(pit.ip)) line.push(['IP', String(pit.ip)]);
+    const k = pit.so != null ? pit.so : pit.k;
+    if (has(k)) line.push(['K', String(Number(k) || 0)]);
+  }
+  const bioStr = bio ? [bio.school, bio.cls].filter(Boolean).join(' · ') : '';
+  return { bio: bioStr || null, seasonLine: line.length ? line : null };
+}
+// Did the current pitcher just enter? Look for his pitching-change announcement
+// in the play-by-play ("X to p for Y", "Pitching change: X for Y", "X relieved
+// Y"). Returns { replaced } when found, so a starter (no such line) isn't flagged.
+function pitchChangeFor(plays, pitcherName) {
+  const nm = normPlayerName(pitcherName); if (!nm || !Array.isArray(plays)) return null;
+  const pats = [
+    /^(.+?) to p for (.+?)\.?$/i,
+    /pitching change[:.]?\s*(.+?)\s+(?:replaces|for|relieved)\s+(.+?)\.?$/i,
+    /^(.+?)\s+(?:relieved|replaces)\s+(.+?)\.?$/i,
+  ];
+  for (let i = plays.length - 1; i >= 0; i--) {
+    const t = String(plays[i].text || '').trim();
+    for (const re of pats) { const m = t.match(re); if (m && normPlayerName(m[1]) === nm) return { replaced: m[2].trim() }; }
+  }
+  return null;
+}
+// Is this pitcher his team's starter? The feed lists pitchers in order of
+// appearance, so the first row per team is the starter.
+function isStarter(pitchers, name) {
+  const nm = normPlayerName(name);
+  if (!Array.isArray(pitchers)) return false;
+  for (const t of pitchers) { if (t.rows && t.rows.length && normPlayerName(t.rows[0].name) === nm) return true; }
+  return false;
+}
+// Build the "new pitcher" enrichment for the live pitcher card: shown while he's
+// freshly in and hasn't recorded an out — a reliever right after his pitching
+// change, or a starter on his first batter. Carries his school, age (or class),
+// and summer line. Returns null once he's recorded an out.
+function newPitcherInfo(info, plays, name, pitchers) {
+  if (info && info.outs != null && info.outs > 0) return null;
+  const chg = pitchChangeFor(plays, name);
+  const starter = !chg && isStarter(pitchers, name);
+  if (!chg && !starter) return null;
+  const s = pitcherSeason(name);
+  return { newPitcher: { replaced: chg ? chg.replaced : null, starter }, bio: s.bio, seasonLine: s.seasonLine };
+}
 // If the current batter entered as a pinch hitter/runner, find who he replaced
 // from the play-by-play substitution announcement (handles both the "X pinch hit
 // for Y" and "Pinch hitter X replaces Y" feed phrasings). Returns { for, type }.
@@ -1852,6 +1937,7 @@ async function pollRoster() {
       batMap = parseLeagueStats(hRes.body, 'h'); pitMap = parseLeagueStats(pRes.body, 'p');
       const lr = computeLeagueHitRanks(hRes.body); if (Object.keys(lr).length) leagueHitRanks = lr;
       const lh = parseAllLeagueHitters(hRes.body); if (Object.keys(lh).length) leagueHitterStats = lh; // opponents' season lines for the live 1st-AB card
+      const lp = parseAllLeaguePitchers(pRes.body); if (Object.keys(lp).length) leaguePitcherStats = lp; // opponents' season lines for the live new-pitcher card
     } catch (e) {}
     // Fast seed: the league hitting + pitching pages cover most of the roster in
     // just two fetches, so cards show stats almost immediately. The per-player
@@ -3303,17 +3389,20 @@ a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 .sbn{flex:1;min-width:0;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.02em;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .sbrec{margin-left:5px;font-weight:400;font-size:.82em;color:var(--mute);opacity:.85;}
 .sbs{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:16px;color:var(--mute);min-width:20px;text-align:right;}
-.sbrow.w .sbn{color:var(--bone);}
+.sbsc{display:flex;align-items:center;gap:6px;flex:none;}
+.sbtri{width:0;height:0;border-top:5px solid transparent;border-bottom:5px solid transparent;border-right:6px solid var(--gold2);}
+.sbrow.w .sbn{color:var(--bone);font-weight:700;}
 .sbrow.w .sbs{color:var(--gold2);}
-.sbstat{flex:none;align-self:stretch;position:relative;min-width:62px;display:flex;flex-direction:column;justify-content:center;}
-.sbstat .sbtxt{text-align:right;font-family:'Oswald',sans-serif;font-weight:600;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--mute);}
-.sbstat.final .sbtxt{color:var(--bone);}
-.sbstat.live .sbtxt{color:var(--gator);}
-/* Live games show a divider at the inning split (card center); the status sits
-   above it for the top of the inning, below it for the bottom. */
-.sbstat.sbtop{justify-content:flex-start;}
-.sbstat.sbbot{justify-content:flex-end;}
-.sbstat.sbtop::after,.sbstat.sbbot::after{content:'';position:absolute;left:-7px;right:0;top:50%;border-top:1px solid var(--line);}
+/* Status block: inning over outs over the bases diamond, top-aligned for live
+   games (like a standard scoreboard card); centered for finals/scheduled. */
+.sbstat{flex:none;align-self:stretch;min-width:72px;display:flex;flex-direction:column;justify-content:center;align-items:flex-end;gap:3px;}
+.sbstat.live{justify-content:flex-start;}
+.sbinn{font-family:'Oswald',sans-serif;font-weight:600;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--gator);text-align:right;}
+.sbstat.final .sbinn{color:var(--bone);}
+.sbouts{font-family:'Oswald',sans-serif;font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--mute);}
+.sbdia{display:block;margin-top:2px;}
+.sbdia rect{fill:rgba(154,140,196,.18);stroke:var(--gator);stroke-width:1.3;}
+.sbdia rect.on{fill:var(--gold2);stroke:var(--gold2);}
 </style></head><body>
 <div class="bgfx"></div>
 <canvas id="fx"></canvas>
@@ -3607,6 +3696,15 @@ function buildDueUp(g){
 function matchupCard(role,info){
   var meta=[];if(info.pos)meta.push(esc(info.pos));if(info.uni)meta.push('#'+esc(String(info.uni)));
   var head='<div class="mrole">'+role+'</div><div class="mname">'+esc(info.name)+(meta.length?'<span class="mmeta">'+meta.join(' ')+'</span>':'')+'</div>';
+  // A pitcher who just entered: state "New pitcher" with who he relieved plus his
+  // school/class and summer line (ERA/IP/K), the same shape as the 1st-AB card.
+  if(info.newPitcher){
+    var npLab=info.newPitcher.starter?'Starting Pitcher':'New Pitcher';
+    var rep=info.newPitcher.replaced?('in for '+esc(info.newPitcher.replaced)+(info.bio?' · '+esc(info.bio):'')):(info.bio?esc(info.bio):'');
+    var nb='<div class="mfirst"><span class="mfb">'+npLab+'</span>'+(rep?'<span class="mfbio">'+rep+'</span>':'')+'</div>';
+    var nsl=(info.seasonLine&&info.seasonLine.length)?'<div class="mstat"><span class="mssn">SEASON</span> '+info.seasonLine.map(function(s){return '<span class="mfk">'+esc(s[0])+'</span> '+esc(s[1]);}).join('   ')+'</div>':'';
+    return '<div class="mcard">'+head+nb+nsl+'</div>';
+  }
   // First plate appearance of the game: no game line yet, so show "1st AB" plus
   // the batter's school/class and season AVG/RBI/(HR|SB|H). A pinch hitter/runner
   // gets a "PH/PR — pinch hitting for <player>" badge in place of "1st AB". If we
@@ -3866,17 +3964,31 @@ function renderStandings(d){
   renderScoreboard(d&&d.scoreboard,d&&d.gatorsId,recById);
 }
 function sbScore(v){return (v==null||v==='')?'':v;}
+// Compact the inning label for the card: drop "of" and shorten the half word
+// ("Bottom of 7th" -> "Bot 7th", "Middle of 3rd" -> "Mid 3rd").
+function sbCompactInn(s){
+  return String(s||'').replace(/\bof\s+/i,'').replace(/^Bottom/i,'Bot').replace(/^Middle/i,'Mid').replace(/^End/i,'End');
+}
+// Bases diamond: 2nd at top, 1st at right, 3rd at left (catcher's view); a base
+// fills gold when occupied. b is {first,second,third} booleans.
+function sbDiamond(b){
+  if(!b)return '';
+  function sq(cx,cy,on){return '<rect x="'+(cx-3.6)+'" y="'+(cy-3.6)+'" width="7.2" height="7.2" rx="1.2" transform="rotate(45 '+cx+' '+cy+')"'+(on?' class="on"':'')+'/>';}
+  return '<svg class="sbdia" width="30" height="26" viewBox="0 0 30 26" aria-hidden="true">'+sq(15,7,b.second)+sq(23,15,b.first)+sq(7,15,b.third)+'</svg>';
+}
 function sbStatus(g){
   if(g.state==='final')return g.status||'Final';
   if(g.state==='live')return g.status||'Live';
   if(g.state==='postponed'||g.state==='cancelled'||g.state==='suspended')return g.status;
   return g.status||'Scheduled';
 }
-function sbTeamRow(t,win,isGt,showScore,recById){
+function sbTeamRow(t,win,isGt,showScore,recById,fin){
   var lg=t.logo?'<img class="sbl" src="'+esc(t.logo)+'" alt="">':'<span class="sbl"></span>';
   var sc=showScore?esc(String(sbScore(t.score))):'';
   var rec=(recById&&t.id&&recById[t.id])?('<span class="sbrec">('+esc(recById[t.id])+')</span>'):'';
-  return '<div class="sbrow'+(win?' w':'')+(isGt?' gt':'')+'">'+lg+'<span class="sbn">'+esc(t.short||'')+rec+'</span><span class="sbs">'+sc+'</span></div>';
+  // Winner triangle only on finals (a live leader is shown bold, no arrow).
+  var tri=(fin&&win)?'<span class="sbtri"></span>':'';
+  return '<div class="sbrow'+(win?' w':'')+(isGt?' gt':'')+'">'+lg+'<span class="sbn">'+esc(t.short||'')+rec+'</span><span class="sbsc">'+tri+'<span class="sbs">'+sc+'</span></span></div>';
 }
 function renderScoreboard(sb,gatorsId,recById){
   var games=(sb&&sb.games)||[];
@@ -3885,18 +3997,25 @@ function renderScoreboard(sb,gatorsId,recById){
   if(!games.length){$('scoreboardBody').innerHTML='<div class="note">No league games scheduled for this day.</div>';return;}
   var h='';
   games.forEach(function(g){
-    var fin=g.state==='final';
-    var aw=fin&&g.away.score!=null&&g.home.score!=null&&g.away.score>g.home.score;
-    var hw=fin&&g.away.score!=null&&g.home.score!=null&&g.home.score>g.away.score;
-    var st=g.state==='live'?'live':g.state==='final'?'final':'';
-    // Align the live status to the batting team's row: top of the inning -> top
-    // (away) row, bottom -> bottom (home) row. Non-live stays centered.
-    if(g.state==='live'){var sv=g.status||'';st+=/^top/i.test(sv)?' sbtop':/^bot/i.test(sv)?' sbbot':'';}
-    var showScore=g.state==='final'||g.state==='live';
+    var fin=g.state==='final',live=g.state==='live';
+    var haveScores=g.away.score!=null&&g.home.score!=null;
+    // Bold the winner (final) or the current leader (live); plain on ties.
+    var aw=haveScores&&(fin||live)&&g.away.score>g.home.score;
+    var hw=haveScores&&(fin||live)&&g.home.score>g.away.score;
+    var st=live?'live':fin?'final':'';
+    var showScore=fin||live;
+    // Status block: compact inning, then outs + bases diamond for live games
+    // (shown for any live game we have feed data for, not just the Gators').
+    var stat='<div class="sbinn">'+esc(live?sbCompactInn(g.status):sbStatus(g))+'</div>';
+    if(live){
+      var topOrBot=/^(top|bot)/i.test(g.status||'');
+      if(topOrBot&&g.outs!=null)stat+='<div class="sbouts">'+g.outs+' Out'+(g.outs===1?'':'s')+'</div>';
+      if(topOrBot&&g.bases)stat+=sbDiamond(g.bases);
+    }
     var tag=g.url?'a':'div',attr=g.url?(' href="'+esc(g.url)+'" target="_blank" rel="noopener"'):'';
     h+='<'+tag+' class="sbg'+(g.isGators?' g':'')+'"'+attr+'>'
-      +'<div class="sbteams">'+sbTeamRow(g.away,aw,g.away.id===gatorsId,showScore,recById)+sbTeamRow(g.home,hw,g.home.id===gatorsId,showScore,recById)+'</div>'
-      +'<div class="sbstat '+st+'"><span class="sbtxt">'+esc(sbStatus(g))+'</span></div></'+tag+'>';
+      +'<div class="sbteams">'+sbTeamRow(g.away,aw,g.away.id===gatorsId,showScore,recById,fin)+sbTeamRow(g.home,hw,g.home.id===gatorsId,showScore,recById,fin)+'</div>'
+      +'<div class="sbstat '+st+'">'+stat+'</div></'+tag+'>';
   });
   $('scoreboardBody').innerHTML=h;
 }
