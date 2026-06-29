@@ -103,12 +103,8 @@ function notesLine(notes) {
 function teamBlock(t) {
   const cap = t.gators ? 'GATORS' : esc(t.team.toUpperCase());
   const sections = [];
-  if (t.batting) sections.push(`<div class='tcap'>${cap} — BATTING</div><div class='tbl bat'>${t.batting}</div>`);
-  if (t.pitching) sections.push(`<div class='tcap'>${cap} — PITCHING</div><div class='tbl pit'>${t.pitching}</div>`);
-  const nl = notesLine(t.notes);
-  const lg = (t.legend && t.legend.length) ? t.legend.map(esc).join(' &nbsp;·&nbsp; ') : '';
-  const foot = [nl, lg].filter(Boolean).join('<br>');
-  if (foot) sections.push(`<div class='notes'>${foot}</div>`);
+  if (t.batting) sections.push(`<div class='tcap bat'>${cap} — BATTING</div><div class='tbl bat'>${t.batting}</div>`);
+  if (t.pitching) sections.push(`<div class='tcap pit'>${cap} — PITCHING</div><div class='tbl pit'>${t.pitching}</div>`);
   return `<div class='teamcol'>${sections.join('')}</div>`;
 }
 
@@ -143,44 +139,45 @@ function buildHtml(data) {
 @page{size:letter;margin:0;}
 *{box-sizing:border-box;margin:0;padding:0;}
 html{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-body{font-family:'Helvetica Neue',Arial,sans-serif;color:#1b1e27;font-size:10px;padding:26px 30px;}
-.band{display:flex;align-items:center;gap:14px;color:#fff;padding:13px 18px;border-radius:11px;border:2px solid #ecc913;
+body{font-family:'Helvetica Neue',Arial,sans-serif;color:#1b1e27;font-size:12px;padding:32px 36px;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+.band{display:flex;align-items:center;gap:18px;color:#fff;padding:18px 24px;border-radius:13px;border:2px solid #ecc913;
 background:linear-gradient(rgba(22,16,43,.02),rgba(22,16,43,.16))${croc ? `,url('${croc}') center center / cover no-repeat` : ''};
 background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1px rgba(255,255,255,.08);}
-.band img{width:50px;height:50px;}
-.k{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:#ffd633;font-weight:800;text-shadow:0 1px 2px rgba(0,0,0,.5);}
-.band h1{font-size:21px;font-weight:900;line-height:1.08;margin:2px 0;text-shadow:0 2px 4px rgba(0,0,0,.55);}
-.band .sub{font-size:10.5px;font-weight:700;color:#efe7ff;text-shadow:0 1px 2px rgba(0,0,0,.5);}
+.band img{width:66px;height:66px;}
+.k{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#ffd633;font-weight:800;text-shadow:0 1px 2px rgba(0,0,0,.5);}
+.band h1{font-size:28px;font-weight:900;line-height:1.08;margin:3px 0;text-shadow:0 2px 4px rgba(0,0,0,.55);}
+.band .sub{font-size:13px;font-weight:700;color:#efe7ff;text-shadow:0 1px 2px rgba(0,0,0,.5);}
 .badge{margin-left:auto;text-align:center;}
-.badge .r{display:inline-block;background:${resColor};color:#fff;font-weight:900;font-size:12px;letter-spacing:.04em;padding:4px 14px;border-radius:6px;}
-.badge .sc{font-size:22px;color:#fff;margin-top:3px;font-weight:900;}
-.linewrap{margin:14px 0 4px;}
+.badge .r{display:inline-block;background:${resColor};color:#fff;font-weight:900;font-size:15px;letter-spacing:.04em;padding:5px 18px;border-radius:7px;}
+.badge .sc{font-size:30px;color:#fff;margin-top:5px;font-weight:900;}
+.linewrap{margin:18px 0 4px;}
 .linewrap table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;}
-.linewrap th,.linewrap td{border:1px solid #d9d2ec;padding:5px 7px;text-align:center;font-size:11px;}
+.linewrap th,.linewrap td{border:1px solid #d9d2ec;padding:9px 10px;text-align:center;font-size:15px;}
 .linewrap th{background:#3a2480;color:#fff;font-weight:800;text-transform:uppercase;letter-spacing:.03em;}
 .linewrap th:first-child,.linewrap td:first-child{text-align:left;font-weight:800;white-space:nowrap;}
 .linewrap td:first-child{background:#f3f0fb;}
 .linewrap td:nth-last-child(-n+3){font-weight:800;background:#faf8ff;}
-.cols{display:flex;gap:18px;margin-top:12px;}
-.teamcol{flex:1;min-width:0;}
-.tcap{font-size:9.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#fff;background:linear-gradient(180deg,#714ad2,#4e3191);padding:5px 9px;border-radius:6px 6px 0 0;margin-top:11px;}
-.teamcol .tcap:first-child{margin-top:0;}
+.cols{display:flex;gap:22px;margin-top:18px;flex:1;min-height:0;}
+.teamcol{flex:1;min-width:0;display:flex;flex-direction:column;}
+.tcap{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#fff;background:linear-gradient(180deg,#714ad2,#4e3191);padding:8px 11px;border-radius:6px 6px 0 0;}
+.tcap.pit{margin-top:16px;}
 .tbl{border:1px solid #e6def7;border-top:none;border-radius:0 0 6px 6px;overflow:hidden;}
-.tbl table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;}
-.tbl th,.tbl td{padding:3px 5px;text-align:right;font-size:9.5px;border-bottom:1px solid #efeaf9;}
-.tbl th{background:#f0ebfb;color:#4e3191;font-weight:800;text-transform:uppercase;letter-spacing:.02em;font-size:8.5px;}
+.teamcol .tbl.bat{flex:1;min-height:0;}
+.tbl table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;height:100%;}
+.tbl th,.tbl td{padding:8.5px 5px;text-align:right;font-size:12.5px;border-bottom:1px solid #efeaf9;}
+.tbl th{background:#f0ebfb;color:#4e3191;font-weight:800;text-transform:uppercase;letter-spacing:.02em;font-size:10.5px;}
+/* Pitching has more columns (IP..S%) than batting, so tighten it to fit the half-width column. */
+.tbl.pit th,.tbl.pit td{padding-left:3px;padding-right:3px;font-size:11px;}
+.tbl.pit th{font-size:9px;letter-spacing:0;}
 .tbl th:first-child,.tbl td:first-child{text-align:left;white-space:nowrap;}
 .tbl a{color:inherit;text-decoration:none;}
 .tbl tr:last-child td{border-bottom:none;}
 .tbl td:first-child{color:#2a2150;font-weight:600;}
 .tbl tr:last-child td{background:#faf8ff;font-weight:800;}
-.notes{font-size:8px;color:#5b5470;line-height:1.5;padding:6px 4px 0;}
-.foot{margin-top:14px;text-align:center;font-size:8px;color:#8a83a0;letter-spacing:.04em;}
 </style></head><body>`);
   H.push(`<div class='band'><img src='${S.gatorsLogoDataUri()}'><div><div class='k'>Gumbeaux Gators · Official Box Score</div><h1>${esc(game.date)}, 2026 ${DASH} ${game.home ? 'vs' : 'at'} ${esc(opp)}</h1><div class='sub'>${game.home ? 'Home' : 'Road'} · Record ${T.w}${DASH}${T.l}</div></div><div class='badge'><div class='r'>${resWord}</div><div class='sc'>${gs}${DASH}${os}</div></div></div>`);
   H.push(line);
   H.push(`<div class='cols'>${teams.map(teamBlock).join('')}</div>`);
-  H.push(`<div class='foot'>Box score via Texas Collegiate League / PrestoSports. Generated for review ${DASH} verify against the official scorebook.</div>`);
   H.push(`</body></html>`);
   return H.join('\n');
 }
@@ -207,11 +204,24 @@ function renderPdf(html, outPath) {
 }
 
 const outDir = path.join(__dirname, '..', 'reports', 'box');
-const stem = `${game.id.slice(0, 8)}-${S.oppShort(game.opp).replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-box`;
+// File name: "<date> <away initials> @ <home initials>" (e.g. "Jun 28 2026 LCGG @ BRR").
+// Initials are the first letter of each word in the team name; away/home order
+// follows the game (Gators away -> LCGG first).
+const teamInitials = name => String(name || '').trim().split(/\s+/).map(w => w[0] || '').join('').toUpperCase().replace(/[^A-Z]/g, '');
+function buildStem(data) {
+  const lt = parseLineTeams(data.line) || [];
+  const gName = (lt.find(t => t.gators) || {}).name || 'Lake Charles Gumbeaux Gators';
+  const oName = (lt.find(t => !t.gators) || {}).name || String(game.opp || 'Opponent');
+  const gi = teamInitials(gName) || 'LCGG', oi = teamInitials(oName) || 'OPP';
+  const away = game.home ? oi : gi, home = game.home ? gi : oi;
+  const year = String(game.id || '').slice(0, 4) || '';
+  return `${[game.date, year].filter(Boolean).join(' ')} ${away} @ ${home}`.trim();
+}
 
 async function main() {
   const data = await getBox();
   if (!data || !data.box || !data.box.length) { console.error(`[box] no box score available for ${game.id} (offline? game not final yet?).`); process.exit(2); }
+  const stem = buildStem(data);
   const html = buildHtml(data);
   if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
   if (KEEP_HTML) { const hf = path.join(outDir, `${stem}.html`); fs.writeFileSync(hf, html); console.error('wrote', path.relative(path.join(__dirname, '..'), hf)); }
