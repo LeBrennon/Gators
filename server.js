@@ -3365,6 +3365,7 @@ body.noscroll{overflow:hidden;}
 .tabb{flex:1;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.05em;font-size:12px;padding:10px;border-radius:11px 11px 0 0;border:1px solid var(--line);border-bottom:none;color:var(--mute);background:transparent;cursor:pointer;}
 .tabb.on{color:var(--bone);background:var(--panel);}
 .sbody{padding:14px;overflow:auto;border-top:1px solid var(--line);}
+.bxdate{font-family:'Oswald',sans-serif;font-size:13px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gold2);text-align:center;padding:0 0 12px;border-bottom:1px solid var(--line);margin-bottom:14px;}
 .bx{margin-bottom:16px;}
 .bx h4{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;font-size:11px;letter-spacing:.1em;color:var(--gator);margin:0 0 6px;}
 .bxwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
@@ -3953,7 +3954,7 @@ function connect(){
     es.onmessage=function(ev){try{var m=JSON.parse(ev.data);if(m.type==='game')applyGame(m.game);else if(m.type==='alert')toast(emo(m.tag),m.title,m.body,(m.tag==='lead'||m.tag==='final')?'lead':'');}catch(x){}};
     es.onerror=function(){try{es.close();}catch(x){}setTimeout(openSSE,8000);};}
   openSSE();}
-var _box=null;
+var _box=null,_boxDate='';
 function bsScoreFromLine(line){try{var rows=line.match(new RegExp('<tr[^]*?</tr>','gi'))||[];var rs=[];rows.forEach(function(r){var c=r.match(new RegExp('<t[dh][^]*?</t[dh]>','gi'))||[];if(c.length>3){var nm=c[0].replace(/<[^>]+>/g,'').trim();if(nm&&!/^final$/i.test(nm))rs.push(c[c.length-3].replace(/<[^>]+>/g,'').trim());}});return rs.length>=2?rs[0]+'\u2013'+rs[1]:'';}catch(e){return'';}}
 function openBox(id,tab){var m=$('bxModal');m.classList.add('show');m.style.zIndex=++modalZ;syncBg();
   if(!rosterData)loadRoster(); // so tapping a Gators name in the box can open their profile
@@ -3962,7 +3963,7 @@ function openBox(id,tab){var m=$('bxModal');m.classList.add('show');m.style.zInd
   $('bxTtl').textContent='Box Score';$('bxScore').textContent='';
   // The box id is YYYYMMDD_xxxx, so the game date is known up front \u2014 show it in the
   // header so it's clear which game opened (e.g. from a profile game-log date tap).
-  $('bxDate').textContent=boxDate(id);
+  _boxDate=boxDate(id);$('bxDate').textContent=_boxDate;
   $('bxBody').innerHTML='<div class="spin">Loading\u2026</div>';
   fetch('/api/boxscore?id='+encodeURIComponent(id)).then(function(r){return r.json();}).then(function(d){
     if(d.error){$('bxBody').innerHTML='<div class="spin">'+esc(d.error)+'</div>';return;}
@@ -3983,7 +3984,10 @@ function showTab(which){$('tabBox').classList.toggle('on',which==='box');$('tabP
     if((d.pbp||[]).length){h='<div class="pbp">';d.pbp.forEach(function(p){h+=p.html;});h+='</div>';}
     else h='<div class="spin">No play-by-play available for this game.</div>';
   }
-  $('bxBody').innerHTML=h;$('bxBody').scrollTop=0;}
+  // Date heading on the box content itself (the pinned modal header is easy to lose
+  // track of once you're scrolling the tables), so the open box always shows its date.
+  var top=_boxDate?'<div class="bxdate">'+esc(_boxDate)+'</div>':'';
+  $('bxBody').innerHTML=top+h;$('bxBody').scrollTop=0;}
 $('tabBox').addEventListener('click',function(){showTab('box');});
 $('tabPbp').addEventListener('click',function(){showTab('pbp');});
 // ---- roster + player profiles ----
