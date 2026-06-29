@@ -249,6 +249,9 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .tbl th,.tbl td{padding:var(--padv,8px) 5px;text-align:right;font-size:12.5px;font-weight:400;border-bottom:1px solid #efeaf9;}
 /* Pitching has more columns (IP..S%) than batting, so tighten it to fit the half-width column. */
 .tbl.pit th,.tbl.pit td{padding-left:3px;padding-right:3px;font-size:11px;}
+/* Keep the last stat column off the card's right edge. */
+.tbl th:last-child,.tbl td:last-child{padding-right:13px;}
+.tbl.pit th:last-child,.tbl.pit td:last-child{padding-right:8px;}
 /* Column-header row only — PrestoSports also marks each per-row name cell as a <th>,
    so the header style must not leak onto those (it was shading + upper-casing names). */
 .tbl table tr:first-child th{background:#fff;color:#4e3191;font-weight:800;text-transform:uppercase;letter-spacing:.02em;font-size:10.5px;}
