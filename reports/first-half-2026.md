@@ -1,8 +1,8 @@
-# Gumbeaux Gators — First-Half Report (2026)
+# Gumbeaux Gators - First-Half Report (2026)
 
 ## Headline
 
-The Gators reach the midpoint at **12-11 (.522)** with a **+10 run differential** —
+The Gators reach the midpoint at **12-11 (.522)** with a **+10 run differential** -
 a team playing right at its level. Half of the schedule (12 of 23) was decided by
 two runs or fewer, and the club went **5-4 in one-run games**: this has been a
 margins team, not a blowout team. The offense gets on base in bulk (.407 OBP) but
@@ -23,13 +23,13 @@ them right back in walks (7.0 BB/9). They enter the break on a **2-game win stre
 | Runs per game | 7.0 scored · 6.5 allowed |
 | One-run games | 5-4 |
 | Two-runs-or-fewer games | 12 of 23 |
-| Pythagorean record | ~12-11 (.532 expected) — playing to differential |
+| Pythagorean record | ~12-11 (.532 expected) - playing to differential |
 
 ## The story of the first half
 
 - **A coin-flip team that lives in close games.** Twelve of 23 games were one- or
   two-run decisions; only six were blowouts (5+ runs either way). The 5-4 one-run
-  record and the +10 differential both say the same thing — this is a roughly
+  record and the +10 differential both say the same thing - this is a roughly
   .500 club whose half could have tilted either way on a few late innings.
 - **The losing streak was the low point, the response was the answer.** A five-game
   skid (Jun 13-18, all to Victoria and Acadiana) dropped the team under water; they
@@ -41,37 +41,37 @@ them right back in walks (7.0 BB/9). They enter the break on a **2-game win stre
 - **Road-heavy and holding even.** Thirteen of 23 games were away from home; the
   club went 6-7 on the road and 6-4 at home, so travel hasn't sunk the record.
 
-## Offense — team batting line
+## Offense - team batting line
 
 | Split | AVG | OBP | SLG | OPS | HR | BB | K | SB |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|
 | Team (23 G) | .277 | **.407** | .381 | .788 | 8 | 120 | 170 | 28 |
 
 - **On-base machine, slap-hitting bat.** A .407 OBP on a .277 average is the
-  signature — the gap is walks (120) and hit-by-pitches. But .381 SLG and just 8
+  signature - the gap is walks (120) and hit-by-pitches. But .381 SLG and just 8
   home runs in 23 games means the offense manufactures runs (28 steals, 30 doubles)
   rather than driving them in with one swing.
 - **Run production is league-average-plus.** 160 runs / 7.0 per game keeps pace,
   but it leans on traffic and small ball; in the games where the walks dried up,
   the lineup went quiet (five games held to 3 runs or fewer).
 - **Contact is fine, not elite.** A 19.1% strikeout rate against a 13.5% walk rate
-  is a healthy ratio — the at-bats are competitive, the thump just isn't there yet.
+  is a healthy ratio - the at-bats are competitive, the thump just isn't there yet.
 
-## Pitching & run prevention — team staff line
+## Pitching & run prevention - team staff line
 
 | IP | ERA | WHIP | K/9 | BB/9 | K | BB | SV |
 |--:|--:|--:|--:|--:|--:|--:|--:|
 | 186.0 | 5.90 | 1.67 | 9.4 | **7.0** | 195 | 144 | 5 |
 
-- **Swing-and-miss stuff, control problems.** 9.4 K/9 is a genuine strength — the
+- **Swing-and-miss stuff, control problems.** 9.4 K/9 is a genuine strength - the
   arms miss bats. But 7.0 BB/9 and a 1.67 WHIP put too many runners on for free,
   and that's the through-line of every rough night.
 - **Earned vs. unearned tells a defense story too.** The staff allowed 150 runs but
-  only 122 were earned — **28 unearned runs**, more than a run a game beyond the
+  only 122 were earned - **28 unearned runs**, more than a run a game beyond the
   ERA. Free baserunners plus defensive miscues compound; the 5.90 ERA actually
   flatters the run prevention.
 - **Bullpen has been serviceable in save spots.** 5 saves, and the close-game record
-  (5-4) suggests the back end has held more leads than it's coughed up — but the
+  (5-4) suggests the back end has held more leads than it's coughed up - but the
   walk rate keeps those innings on a knife's edge.
 
 ## Record by opponent
@@ -85,9 +85,9 @@ them right back in walks (7.0 BB/9). They enter the break on a **2-game win stre
 | Brazos Valley Bombers | 1-1 | 15 | 10 |
 | Abilene Flying Bison | 1-0 | 11 | 1 |
 
-- **Baton Rouge is the rivalry of the half** — eight meetings, a 5-3 edge, and the
+- **Baton Rouge is the rivalry of the half** - eight meetings, a 5-3 edge, and the
   two most recent both Gators wins (Jun 27-28).
-- **Victoria and Acadiana are the problem matchups** — a combined 3-7 with a
+- **Victoria and Acadiana are the problem matchups** - a combined 3-7 with a
   negative run margin against both. The losing streak ran straight through them.
 
 ## Game-by-game
@@ -120,12 +120,12 @@ them right back in walks (7.0 BB/9). They enter the break on a **2-game win stre
 
 ## What the numbers say for the second half
 
-Facts, not prescriptions — the team-level trends worth tracking after the break:
+Facts, not prescriptions - the team-level trends worth tracking after the break:
 
 - **Walks are the single biggest swing factor.** The team out-walks itself at the
   plate (an asset) but the staff's 7.0 BB/9 is the recurring run-prevention story.
   Team strike% is the number to watch each game.
-- **Unearned runs are quietly costing games.** 28 unearned runs over 23 games — clean
+- **Unearned runs are quietly costing games.** 28 unearned runs over 23 games - clean
   defense behind a strikeout staff would shave more than a run off the nightly total.
 - **Power is the offense's missing gear.** 8 HR / .381 SLG means the lineup needs
   traffic to score; in the half's quiet games the on-base engine stalled. Slugging
