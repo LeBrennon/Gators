@@ -58,13 +58,14 @@ them right back in walks (7.0 BB/9). They enter the break on a **2-game win stre
 
 ## Pitching & run prevention - team staff line
 
-| IP | ERA | WHIP | K/9 | BB/9 | K | BB | SV |
-|--:|--:|--:|--:|--:|--:|--:|--:|
-| 186.0 | 5.90 | 1.67 | 9.4 | **7.0** | 195 | 144 | 5 |
+| IP | ERA | WHIP | K/9 | BB/9 | Strike% | K | BB | SV |
+|--:|--:|--:|--:|--:|--:|--:|--:|--:|
+| 186.0 | 5.90 | 1.67 | 9.4 | **7.0** | **56%** | 195 | 144 | 5 |
 
 - **Swing-and-miss stuff, control problems.** 9.4 K/9 is a genuine strength - the
-  arms miss bats. But 7.0 BB/9 and a 1.67 WHIP put too many runners on for free,
-  and that's the through-line of every rough night.
+  arms miss bats. But just 56% of pitches went for strikes (only 46% on the first
+  pitch), so 7.0 BB/9 and a 1.67 WHIP put too many runners on for free - the
+  through-line of every rough night.
 - **Earned vs. unearned tells a defense story too.** The staff allowed 150 runs but
   only 122 were earned - **28 unearned runs**, more than a run a game beyond the
   ERA. Free baserunners plus defensive miscues compound; the 5.90 ERA actually
@@ -123,7 +124,7 @@ The team-level trends worth tracking as the second half opens:
 
 - **Walks are the single biggest swing factor.** The team out-walks itself at the
   plate (an asset) but the staff's 7.0 BB/9 is the recurring run-prevention story.
-  Team strike% is the number to watch each game.
+  Team strike% (56% in the first half) is the number to watch each game.
 - **Unearned runs are quietly costing games.** 28 unearned runs over 23 games - clean
   defense behind a strikeout staff would shave more than a run off the nightly total.
 - **Power is the offense's missing gear.** 8 HR / .381 SLG means the lineup needs
