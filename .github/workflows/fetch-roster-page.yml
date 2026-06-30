@@ -1,0 +1,33 @@
+name: Fetch official roster page
+
+# Manual one-off: fetch gumbeauxgators.com/roster/ with a browser user-agent (the
+# site 403s bots, and the dev sandbox can't reach the host at all) and print the
+# page as cleaned text so player bios can be copied into server.js. Read-only.
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'Roster page URL'
+        required: false
+        default: 'https://gumbeauxgators.com/roster/'
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch and dump as text
+        run: |
+          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+          curl -sSL --compressed -A "$UA" -H "Accept: text/html,application/xhtml+xml" "${{ github.event.inputs.url }}" -o page.html -w "HTTP %{http_code} bytes %{size_download}\n"
+          echo "----- CLEANED TEXT BEGIN -----"
+          node -e '
+            const fs=require("fs");
+            let h=fs.readFileSync("page.html","utf8");
+            h=h.replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<style[\s\S]*?<\/style>/gi," ")
+               .replace(/<\/(p|div|li|tr|h[1-6]|section|article)>/gi,"\n").replace(/<br\s*\/?>/gi,"\n")
+               .replace(/<[^>]+>/g," ").replace(/&nbsp;/g," ").replace(/&amp;/g,"&").replace(/&#?[a-z0-9]+;/gi," ")
+               .replace(/[ \t]+/g," ").replace(/\n[ \t]+/g,"\n").replace(/\n{2,}/g,"\n").trim();
+            console.log(h.slice(0,30000));
+          '
+          echo "----- CLEANED TEXT END -----"
