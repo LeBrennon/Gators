@@ -1500,7 +1500,7 @@ const ROSTER = [
   { num: 39, name: 'Yuichiro Kumagami', slug: 'yuichirokumagami', pos: 'C', cls: 'Sophomore', ht: '5-11', wt: '', b: '', t: '', bday: '', home: 'Miyagi, Japan', school: 'Mt. Hood CC', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
   // Added off the 6/30 second-half roster; placeholder slug + findSlug until their Presto pages exist.
   { num: 12, name: 'Taylor Hollier',  slug: 'taylorhollier',  pos: 'P', cls: 'Freshman', ht: '6-0', wt: '155', b: 'L', t: 'L', bday: '', home: 'Opelousas, LA', school: 'Belhaven', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
-  { num: 43, name: 'Hunter Degeyter', slug: 'hunterdegeyter', pos: 'P', cls: '', ht: '', wt: '', b: '', t: '', bday: '', home: '', school: '', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
+  { num: 43, name: 'Hunter Degeyter', slug: 'hunterdegeyter', pos: 'P', cls: 'HS Senior', ht: '6-1', wt: '170', b: 'R', t: 'R', bday: '', home: 'Lafayette, LA', school: 'Lafayette HS', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
 ];
 
 // Coaching staff (gumbeauxgators.com/coaches). Shown beneath the player roster;
