@@ -1,0 +1,27 @@
+name: Season strike%
+
+# Manual one-off: compute the season team strike% by fetching every game's box
+# through the live app (the GitHub runner can reach gators.onrender.com; the raw
+# stats site 403's it). Strike% is not in roster-seed.json, so this is the only
+# way to get an accurate season figure. Prints the result to the log.
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_base:
+        description: 'App base URL that proxies box scores'
+        required: false
+        default: 'https://gators.onrender.com'
+
+jobs:
+  strikepct:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Aggregate season strike%
+        env:
+          REPORT_APP_BASE: ${{ github.event.inputs.app_base }}
+        run: node scripts/season-strikepct.js --json
