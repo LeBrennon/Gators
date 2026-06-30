@@ -120,7 +120,7 @@ them right back in walks (7.0 BB/9). They enter the break on a **2-game win stre
 
 ## What the numbers say for the second half
 
-Facts, not prescriptions - the team-level trends worth tracking after the break:
+The team-level trends worth tracking as the second half opens:
 
 - **Walks are the single biggest swing factor.** The team out-walks itself at the
   plate (an asset) but the staff's 7.0 BB/9 is the recurring run-prevention story.
