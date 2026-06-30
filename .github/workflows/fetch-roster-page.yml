@@ -1,8 +1,10 @@
 name: Fetch official roster page
 
-# Manual one-off: fetch gumbeauxgators.com/roster/ with a browser user-agent (the
-# site 403s bots, and the dev sandbox can't reach the host at all) and print the
-# page as cleaned text so player bios can be copied into server.js. Read-only.
+# Manual one-off: fetch gumbeauxgators.com/roster/ and print it as text so new
+# players' bios can be copied into server.js. The site is behind a JS/bot gate
+# (a plain curl gets HTTP 202 + a challenge stub), so this drives a real headless
+# Chromium via Playwright to execute the challenge and dump the rendered text.
+# Read-only.
 
 on:
   workflow_dispatch:
@@ -16,18 +18,40 @@ jobs:
   fetch:
     runs-on: ubuntu-latest
     steps:
-      - name: Fetch and dump as text
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Playwright Chromium
         run: |
-          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-          curl -sSL --compressed -A "$UA" -H "Accept: text/html,application/xhtml+xml" "${{ github.event.inputs.url }}" -o page.html -w "HTTP %{http_code} bytes %{size_download}\n"
-          echo "----- CLEANED TEXT BEGIN -----"
+          npm init -y >/dev/null 2>&1
+          npm i playwright@1.49.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium
+      - name: Render and dump as text
+        env:
+          URL: ${{ github.event.inputs.url }}
+        run: |
           node -e '
-            const fs=require("fs");
-            let h=fs.readFileSync("page.html","utf8");
-            h=h.replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<style[\s\S]*?<\/style>/gi," ")
-               .replace(/<\/(p|div|li|tr|h[1-6]|section|article)>/gi,"\n").replace(/<br\s*\/?>/gi,"\n")
-               .replace(/<[^>]+>/g," ").replace(/&nbsp;/g," ").replace(/&amp;/g,"&").replace(/&#?[a-z0-9]+;/gi," ")
-               .replace(/[ \t]+/g," ").replace(/\n[ \t]+/g,"\n").replace(/\n{2,}/g,"\n").trim();
-            console.log(h.slice(0,30000));
+            const { chromium } = require("playwright");
+            (async () => {
+              const b = await chromium.launch();
+              const ctx = await b.newContext({ userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", locale: "en-US" });
+              const p = await ctx.newPage();
+              let status = null;
+              try {
+                const resp = await p.goto(process.env.URL, { waitUntil: "networkidle", timeout: 60000 });
+                status = resp && resp.status();
+              } catch (e) { console.log("goto error:", e.message); }
+              await p.waitForTimeout(6000); // let any JS challenge resolve
+              console.log("HTTP", status);
+              console.log("TITLE", await p.title());
+              const text = await p.evaluate(() => document.body ? document.body.innerText : "");
+              console.log("----- TEXT BEGIN -----");
+              console.log(text.slice(0, 30000));
+              console.log("----- TEXT END -----");
+              // also list image srcs (headshots) for reference
+              const imgs = await p.evaluate(() => Array.from(document.images).map(i => i.src).filter(s => /player|roster|head|photo|wp-content/i.test(s)));
+              console.log("----- IMAGES -----");
+              console.log([...new Set(imgs)].slice(0, 60).join("\n"));
+              await b.close();
+            })().catch(e => { console.error("fatal:", e.message); process.exit(1); });
           '
-          echo "----- CLEANED TEXT END -----"
