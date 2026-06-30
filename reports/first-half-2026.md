@@ -58,13 +58,14 @@ them right back in walks (7.0 BB/9). They enter the break on a **2-game win stre
 
 ## Pitching & run prevention - team staff line
 
-| IP | ERA | WHIP | K/9 | BB/9 | Strike% | K | BB | SV |
-|--:|--:|--:|--:|--:|--:|--:|--:|--:|
-| 186.0 | 5.90 | 1.67 | 9.4 | **7.0** | **56%** | 195 | 144 | 5 |
+| IP | ERA | WHIP | K/9 | BB/9 | Strike% | 1st-Pitch Str% | K | BB | SV |
+|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
+| 186.0 | 5.90 | 1.67 | 9.4 | **7.0** | **56%** | **46%** | 195 | 144 | 5 |
 
 - **Swing-and-miss stuff, control problems.** 9.4 K/9 is a genuine strength - the
-  arms miss bats. But just 56% of pitches went for strikes (only 46% on the first
-  pitch), so 7.0 BB/9 and a 1.67 WHIP put too many runners on for free - the
+  arms miss bats. But just 56% of pitches went for strikes, and a first-pitch
+  strike on only 46% of batters (well under the ~60% that keeps hitters on the
+  defensive), so 7.0 BB/9 and a 1.67 WHIP put too many runners on for free - the
   through-line of every rough night.
 - **Earned vs. unearned tells a defense story too.** The staff allowed 150 runs but
   only 122 were earned - **28 unearned runs**, more than a run a game beyond the
