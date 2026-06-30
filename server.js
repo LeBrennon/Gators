@@ -1498,10 +1498,9 @@ const ROSTER = [
   // Assigned #39 on the 6/30 second-half roster. Placeholder slug + findSlug until
   // his Presto player page exists; headshot populates once a photo is bundled.
   { num: 39, name: 'Yuichiro Kumagami', slug: 'yuichirokumagami', pos: 'C', cls: 'Sophomore', ht: '5-11', wt: '', b: '', t: '', bday: '', home: 'Miyagi, Japan', school: 'Mt. Hood CC', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
-  // Added off the 6/30 second-half roster; jersey numbers not assigned yet (numTBD
-  // shows "TBD" and sorts last). Placeholder slug + findSlug until their Presto pages exist.
-  { num: 98, numTBD: true, name: 'Taylor Hollier',  slug: 'taylorhollier',  pos: 'P', cls: '', ht: '', wt: '', b: '', t: '', bday: '', home: '', school: '', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
-  { num: 99, numTBD: true, name: 'Hunter Degeyter', slug: 'hunterdegeyter', pos: 'P', cls: '', ht: '', wt: '', b: '', t: '', bday: '', home: '', school: '', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
+  // Added off the 6/30 second-half roster; placeholder slug + findSlug until their Presto pages exist.
+  { num: 12, name: 'Taylor Hollier',  slug: 'taylorhollier',  pos: 'P', cls: '', ht: '', wt: '', b: '', t: '', bday: '', home: '', school: '', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
+  { num: 43, name: 'Hunter Degeyter', slug: 'hunterdegeyter', pos: 'P', cls: '', ht: '', wt: '', b: '', t: '', bday: '', home: '', school: '', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
 ];
 
 // Coaching staff (gumbeauxgators.com/coaches). Shown beneath the player roster;
