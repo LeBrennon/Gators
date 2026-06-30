@@ -64,9 +64,8 @@ them right back in walks (7.0 BB/9). They enter the break on a **2-game win stre
 
 - **Swing-and-miss stuff, control problems.** 9.4 K/9 is a genuine strength - the
   arms miss bats. But just 56% of pitches went for strikes, and a first-pitch
-  strike on only 46% of batters (well under the ~60% that keeps hitters on the
-  defensive), so 7.0 BB/9 and a 1.67 WHIP put too many runners on for free - the
-  through-line of every rough night.
+  strike on only 46% of batters, so 7.0 BB/9 and a 1.67 WHIP put too many runners
+  on for free - the through-line of every rough night.
 - **Earned vs. unearned tells a defense story too.** The staff allowed 150 runs but
   only 122 were earned - **28 unearned runs**, more than a run a game beyond the
   ERA. Free baserunners plus defensive miscues compound; the 5.90 ERA actually
