@@ -3343,6 +3343,9 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .crow.g .n{color:var(--gator);}
 .crow .s{font-family:'Oswald',sans-serif;font-weight:700;font-size:18px;min-width:22px;text-align:right;}
 .crow.w .s{color:var(--gold2);}
+/* Winner arrow points at the winning score; an equal-width empty slot on the
+   losing row keeps the score column aligned. */
+.crow .warrow{flex:none;width:11px;text-align:center;color:var(--gold2);font-size:11px;line-height:1;}
 .toasts{position:fixed;top:14px;left:0;right:0;z-index:60;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;padding:0 14px;}
 .a2hs{position:fixed;left:12px;right:12px;bottom:14px;max-width:520px;margin:0 auto;z-index:70;display:none;align-items:center;gap:11px;background:var(--bayou2);border:1px solid var(--line);border-radius:16px;padding:10px 12px;box-shadow:0 18px 44px -16px rgba(0,0,0,.85);}
 .a2hs.show{display:flex;}
@@ -3929,7 +3932,7 @@ function renderSched(list){
   ord.forEach(function(g){
     var pill=g.state==='live'?'<span class="cpill live"><span class="dot"></span>'+g.status+'</span>':g.state==='final'?'<span class="cpill final">'+g.status+' \u203A</span>':'<span class="cpill">'+esc(g.status)+'</span>';
     var aw=g.state==='final'&&g.away.score>g.home.score,hw=g.state==='final'&&g.home.score>g.away.score;
-    function row(t,isG,won){var sc=(g.state==='live'||g.state==='final')&&t.score!=null?t.score:'';var ct=t.city?'<span class="tcity">'+esc(t.city)+'</span> ':'';return '<div class="crow'+(isG?' g':'')+(won?' w':'')+'"><img src="'+t.logo+'" alt=""><span class="n">'+ct+esc(t.short)+'</span><span class="s">'+sc+'</span></div>';}
+    function row(t,isG,won){var sc=(g.state==='live'||g.state==='final')&&t.score!=null?t.score:'';var ct=t.city?'<span class="tcity">'+esc(t.city)+'</span> ':'';return '<div class="crow'+(isG?' g':'')+(won?' w':'')+'"><img src="'+t.logo+'" alt=""><span class="n">'+ct+esc(t.short)+'</span><span class="s">'+sc+'</span><span class="warrow" aria-label="'+(won?'Winner':'')+'">'+(won?'◀':'')+'</span></div>';}
     h+='<div class="card '+(g.state==='live'?'glive':g.state==='cancelled'?'gcancel':'')+(g.id===curId?' pinned':'')+'" data-state="'+g.state+'" data-id="'+g.id+'">'
       +'<div class="ctop"><span class="cdate">'+g.dateLabel+'</span>'+pill+'</div>'
       +row(g.away,g.away.id==='et1bt9sixrz5lnnl',aw)+row(g.home,g.home.id==='et1bt9sixrz5lnnl',hw)
