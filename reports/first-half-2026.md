@@ -23,7 +23,6 @@ them right back in walks (7.0 BB/9). They enter the break on a **2-game win stre
 | Runs per game | 7.0 scored · 6.5 allowed |
 | One-run games | 5-4 |
 | Two-runs-or-fewer games | 12 of 23 |
-| Pythagorean record | ~12-11 (.532 expected) - playing to differential |
 
 ## The story of the first half
 
