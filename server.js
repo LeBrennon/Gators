@@ -1414,6 +1414,15 @@ async function enrichLive(norm) {
   try {
     const lf = await fetchLiveForGame(norm.id);
     if (lf && lf.live) norm.live = lf.live;
+    // The schedule page can lag the live feed by up to a half-inning. Since the
+    // feed already drives the at-bat, count, and play-by-play, derive the header
+    // inning/half from it too so the whole card shows one inning, not two.
+    if (lf && lf.live && parseInt(lf.live.inning, 10)) {
+      const inn = parseInt(lf.live.inning, 10);
+      norm.inning = inn;
+      norm.half = lf.live.half === 'Bottom' ? 'bottom' : 'top';
+      norm.inningLabel = lf.live.half + ' of ' + ordinal(inn);
+    }
     if (lf && lf.teams && lf.teams.length) {
       norm.lineScore = lf.teams;
       const v = lf.teams.find(t => t.vh === 'V'), h = lf.teams.find(t => t.vh === 'H');
