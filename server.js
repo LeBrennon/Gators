@@ -470,10 +470,10 @@ function bsPitchDecision(html) {
 function bsNotesClean(spanHtml) {
   return bsText(spanHtml).split(',').map(s => s.trim()).filter(Boolean).join(', ');
 }
-// The box score lists 2B/3B/HR (Batting), SB (Baserunning) and E (Fielding) as
+// The box score lists 2B/3B/HR (Batting), SB/CS (Baserunning) and E (Fielding) as
 // per-team note blocks rather than table columns. Parse them, one entry per
 // team in the same order as the batting tables.
-const BOX_NOTE_LABELS = ['2B', '3B', 'HR', 'SB', 'E'];
+const BOX_NOTE_LABELS = ['2B', '3B', 'HR', 'SB', 'CS', 'E'];
 function parseBoxNotes(html) {
   const teams = []; let cur = null;
   const capRe = /<div class="caption">\s*([^<]*?)\s*<\/div>([\s\S]*?)(?=<div class="caption">|<table|<caption|$)/gi;
@@ -1062,15 +1062,15 @@ function lineupsFromFeed(json) {
     });
     // Every TCL game uses a DH, so the pitcher never bats — leave them out.
     const battingRows = rows.filter(r => r.pos !== 'P');
-    // Box-score note lines (2B/3B/HR/SB/E): scan every player on the team
+    // Box-score note lines (2B/3B/HR/SB/CS/E): scan every player on the team
     // so defensive subs and pinch runners are counted, not just starters.
     const lastName = p => p.revname ? String(p.revname).split(',')[0].trim()
       : String(p.name || '').trim().split(/\s+/).slice(-1)[0] || '';
-    const notes = { '2B': [], '3B': [], 'HR': [], 'SB': [], 'E': [] };
+    const notes = { '2B': [], '3B': [], 'HR': [], 'SB': [], 'CS': [], 'E': [] };
     players.forEach(p => {
       const h = p.hitting || {}, fl = p.fielding || {};
       const add = (k, v) => { const n = Number(v) || 0; if (n > 0) notes[k].push({ name: lastName(p), n }); };
-      add('2B', h.double); add('3B', h.triple); add('HR', h.hr); add('SB', h.sb); add('E', fl.e);
+      add('2B', h.double); add('3B', h.triple); add('HR', h.hr); add('SB', h.sb); add('CS', h.cs); add('E', fl.e);
     });
     // Team batting totals (sum of every batter who came up, starters + subs).
     const sum = k => battingRows.reduce((a, r) => a + (r[k] || 0), 0);
@@ -3897,7 +3897,7 @@ function buildLineup(g){
 }
 function lineupNotes(team){
   var n=team&&team.notes;if(!n)return '';
-  var keys=['2B','3B','HR','SB','E'];var lines='';
+  var keys=['2B','3B','HR','SB','CS','E'];var lines='';
   keys.forEach(function(k){
     var arr=n[k];if(!arr||!arr.length)return;
     var txt=arr.map(function(x){return esc(x.name)+(x.n>1?' '+x.n:'');}).join('; ');
@@ -3993,7 +3993,7 @@ function openBox(id,tab){var m=$('bxModal');m.classList.add('show');m.style.zInd
     if(d.line){var sc=bsScoreFromLine(d.line);if(sc)$('bxScore').textContent=sc;}
     showTab(tab);
   }).catch(function(){$('bxBody').innerHTML='<div class="spin">Could not load box score.</div>';});}
-function boxNotes(n){if(!n)return '';var order=['2B','3B','HR','SB','E'],p=[];for(var i=0;i<order.length;i++){var k=order[i];if(n[k])p.push('<span class="bxn"><b>'+k+'</b> '+esc(n[k])+'</span>');}return p.length?'<div class="bxnotes">'+p.join('')+'</div>':'';}
+function boxNotes(n){if(!n)return '';var order=['2B','3B','HR','SB','CS','E'],p=[];for(var i=0;i<order.length;i++){var k=order[i];if(n[k])p.push('<span class="bxn"><b>'+k+'</b> '+esc(n[k])+'</span>');}return p.length?'<div class="bxnotes">'+p.join('')+'</div>':'';}
 function subLegend(L){if(!L||!L.length)return '';var p=L.map(function(s){return '<span class="bxl"><b>'+esc(s.letter)+'-</b>'+esc(s.text||'')+'</span>';});return '<div class="bxleg">'+p.join('')+'</div>';}
 function showTab(which){$('tabBox').classList.toggle('on',which==='box');$('tabPbp').classList.toggle('on',which==='pbp');
   var d=_box;if(!d)return;var h='';
