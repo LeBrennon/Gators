@@ -3944,7 +3944,7 @@ function buildLineup(g){
   if(gators)tabs+='<button class="lutab'+(showGators?' on':'')+'" data-lineup="gators">'+esc(nm(gators)||'Gators')+'</button>';
   if(opp)tabs+='<button class="lutab'+(!showGators?' on':'')+'" data-lineup="opp">'+esc(nm(opp)||'Opponent')+'</button>';
   tabs+='</div>';
-  var head='<tr><th class="lus">Spot</th><th>Pos</th><th>#</th><th class="lunm">Player</th>'+
+  var head='<tr><th class="lus"></th><th>Pos</th><th>#</th><th class="lunm">Player</th>'+
     '<th class="lpn">AB</th><th class="lpn">R</th><th class="lpn">H</th><th class="lpn">RBI</th><th class="lpn">BB</th><th class="lpn">K</th>'+
     '<th class="lpn" title="Season batting average">AVG</th></tr>';
   return '<div class="lineup"><div class="luh">Lineup</div>'+tabs+
