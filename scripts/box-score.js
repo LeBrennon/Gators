@@ -281,10 +281,10 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .band .sub{font-size:13px;font-weight:700;color:#efe7ff;text-shadow:0 1px 2px rgba(0,0,0,.5);}
 .badge{margin-left:auto;display:flex;align-items:center;gap:14px;}
 .badge .scr{display:flex;align-items:baseline;justify-content:flex-end;gap:16px;margin:3px 0;}
-.badge .snm{font-size:16px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5);}
-.badge .sval{font-size:28px;font-weight:900;color:#fff;min-width:30px;text-align:right;text-shadow:0 2px 4px rgba(0,0,0,.5);}
-.badge .scr.win .sval{color:#ffd633;}
-.badge .bstat{font-size:20px;font-weight:800;letter-spacing:.06em;color:#cdbff5;text-shadow:0 1px 2px rgba(0,0,0,.5);}
+.badge .snm{font-size:16px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#fff;}
+.badge .sval{font-size:28px;font-weight:900;color:#fff;min-width:30px;text-align:right;}
+.badge .scr.win .sval{color:#fff;}
+.badge .bstat{font-size:20px;font-weight:800;letter-spacing:.06em;color:#fff;}
 .linewrap{margin:18px 0 4px;}
 .linewrap table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;}
 .linewrap th,.linewrap td{border:1px solid #d9d2ec;padding:9px 10px;text-align:center;font-size:15px;}
