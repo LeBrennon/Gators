@@ -52,6 +52,7 @@ const DATA = {
   ],
   stoodOut: [
     `<b>On base in bulk, no payoff.</b> 10 walks and only 4 hits — the Gators put 14 men on, left 9 stranded, and scored 3. The first-half on-base-without-power signature in one night. Griffin Hebert alone walked 4 times.`,
+    `<b>Ran into outs on the bases.</b> Three Gators were caught stealing — Ayden Sunday in the 2nd, then James Reina and Griffin Hebert in the same 3rd — wiping out baserunners a 10-walk night could least afford.`,
     `<b>The 5th decided it.</b> Tied 2–2 through four, Landon Richards gave up a five-spot — back-to-back RBI singles and a three-run Atkins double. That one inning was the game.`,
     `<b>Command wobbled.</b> The staff walked 6; Corrales issued 4 in four innings and Richards allowed 7 hits over his four.`,
     `<b>Atkins was the difference.</b> 3-for-3, 5 RBI (sac fly, RBI single, 3-run double). With Donnato's 2-run homer, two hitters drove in 7 of Brazos' 9.`,
@@ -155,7 +156,7 @@ function computerHtml() {
 @page{size:letter;margin:0;}
 *{box-sizing:border-box;margin:0;padding:0;}
 html{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-body{font-family:Georgia,'Times New Roman',serif;color:#1b1e27;font-size:13px;line-height:1.6;padding:34px 40px;min-height:100vh;display:flex;flex-direction:column;}
+body{font-family:Georgia,'Times New Roman',serif;color:#1b1e27;font-size:13px;line-height:1.55;padding:24px 40px;min-height:100vh;display:flex;flex-direction:column;}
 .band{display:flex;align-items:center;gap:16px;color:#fff;padding:18px 22px;border-radius:12px;border:2px solid #ecc913;background:linear-gradient(rgba(22,16,43,.02),rgba(22,16,43,.16)),url('${croc}') center center / cover no-repeat;background-color:#4e3191;box-shadow:0 4px 14px rgba(78,49,145,.3),inset 0 0 0 1px rgba(255,255,255,.08);}
 .band img{width:62px;height:62px;}
 .k{font-family:'Helvetica Neue',Arial,sans-serif;font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:#ffd633;font-weight:800;text-shadow:0 1px 2px rgba(0,0,0,.5);}
@@ -164,7 +165,7 @@ body{font-family:Georgia,'Times New Roman',serif;color:#1b1e27;font-size:13px;li
 .badge{margin-left:auto;text-align:center;font-family:'Helvetica Neue',Arial,sans-serif;}
 .badge .r{display:inline-block;background:${badgeColor};color:#fff;font-weight:900;font-size:15px;letter-spacing:.04em;padding:5px 17px;border-radius:6px;}
 .badge .sc{font-size:26px;color:#fff;margin-top:4px;font-weight:900;}
-.ls{margin-top:14px;border:1px solid #e6def7;border-radius:8px;overflow:hidden;}
+.ls{margin-top:10px;border:1px solid #e6def7;border-radius:8px;overflow:hidden;}
 .ls table{width:100%;border-collapse:collapse;font-family:'Helvetica Neue',Arial,sans-serif;font-size:13px;font-weight:700;}
 .ls th,.ls td{padding:7px 0;text-align:center;background:#f7f4fd;}
 .ls .hd th{background:#efeafb;color:#6b5ba0;font-size:11px;font-weight:800;}
@@ -172,7 +173,7 @@ body{font-family:Georgia,'Times New Roman',serif;color:#1b1e27;font-size:13px;li
 .ls .sep{border-left:2px solid #cdbff0;}
 .ls .tot{color:#4e3191;font-weight:900;}
 .ls tr+tr th,.ls tr+tr td{border-top:1px solid #eceaf6;}
-.strips{display:flex;gap:12px;margin-top:14px;}
+.strips{display:flex;gap:12px;margin-top:10px;}
 .strip{flex:1;}
 .slab{font-family:'Helvetica Neue',Arial,sans-serif;font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#fff;padding:6px 12px;border-radius:7px 7px 0 0;background:linear-gradient(rgba(22,16,43,.02),rgba(22,16,43,.16)),url('${croc}') center/cover no-repeat;background-color:#4e3191;}
 .tiles{display:flex;border:1px solid #e6def7;border-top:none;border-radius:0 0 7px 7px;overflow:hidden;}
@@ -180,8 +181,8 @@ body{font-family:Georgia,'Times New Roman',serif;color:#1b1e27;font-size:13px;li
 .st:last-child{border-right:none;}
 .st b{display:block;font-family:'Helvetica Neue',Arial,sans-serif;font-size:21px;color:#4e3191;}
 .st span{display:block;font-family:Arial,sans-serif;font-size:8.5px;text-transform:uppercase;letter-spacing:.02em;color:#6b5ba0;font-weight:700;margin-top:2px;}
-.cols{column-count:2;column-gap:26px;margin-top:16px;flex:1 0 auto;}
-.blk{break-inside:avoid;margin-bottom:16px;}
+.cols{column-count:2;column-gap:26px;margin-top:12px;flex:1 0 auto;}
+.blk{break-inside:avoid;margin-bottom:13px;}
 h2{font-family:'Helvetica Neue',Arial,sans-serif;font-size:12.5px;text-transform:uppercase;letter-spacing:.1em;color:#714ad2;font-weight:800;border-bottom:2px solid #714ad2;padding-bottom:4px;margin-bottom:8px;}
 p{margin:6px 0;}
 ul{list-style:none;}
