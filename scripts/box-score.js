@@ -186,6 +186,21 @@ function notesLine(notes) {
   return parts.join(' &nbsp;·&nbsp; ');
 }
 
+// The alphabet substitution legend: PrestoSports marks each pinch hitter/runner
+// with a letter (a-, b-, ...) in the batting table and explains it below — who
+// they batted/ran for and in which inning. Render those lines under the batting
+// table so the coach can see exactly when each sub entered the game.
+function subsLine(legend) {
+  if (!Array.isArray(legend) || !legend.length) return '';
+  const rows = legend.map(s => {
+    const pos = s.pos ? ` <span class='spos'>${esc(s.pos)}</span>` : '';
+    const who = esc(s.name || '');
+    const txt = esc(s.text || (s.forName ? `for ${s.forName}` : ''));
+    return `<div class='subrow'><b>${esc(s.letter)}-</b> ${who}${pos} ${txt}</div>`;
+  }).join('');
+  return `<div class='subs'>${rows}</div>`;
+}
+
 // ---- render -----------------------------------------------------------------
 function teamBlock(t) {
   const cap = t.gators ? 'GATORS' : esc(t.team.toUpperCase());
@@ -195,7 +210,7 @@ function teamBlock(t) {
   // batting table hogs the space.
   const rc = html => (String(html || '').match(/<tr/gi) || []).length || 1;
   const sections = [];
-  if (t.batting) sections.push(`<div class='tcap bat'>${cap} — BATTING</div><div class='tbl bat' style='flex:${rc(t.batting)} 1 0'>${t.batting}</div>`);
+  if (t.batting) sections.push(`<div class='tcap bat'>${cap} — BATTING</div><div class='tbl bat' style='flex:${rc(t.batting)} 1 0'>${t.batting}</div>${subsLine(t.legend)}`);
   if (t.pitching) sections.push(`<div class='tcap pit'>${cap} — PITCHING</div><div class='tbl pit' style='flex:${rc(t.pitching)} 1 0'>${t.pitching}</div>`);
   // Brand the column to the team's color (Gators purple by default).
   const color = t.gators ? GATORS_PURPLE : teamColor(t.team);
@@ -301,6 +316,11 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .tbl tr:not(:first-child) th:first-child{color:#2a2150;font-weight:600;}
 .tbl th:first-child span{text-transform:uppercase;}  /* the position prefix (1b, rf, ...) */
 .tbl a{color:inherit;text-decoration:none;}
+/* Alphabet pinch-hitter/runner legend under the batting table. */
+.subs{font-size:9.5px;color:#4a3d78;padding:6px 4px 2px;line-height:1.45;}
+.subs .subrow{margin:1px 0;}
+.subs b{color:#3a2480;font-weight:800;}
+.subs .spos{text-transform:uppercase;font-size:8.5px;font-weight:800;color:#8577b8;letter-spacing:.03em;}
 /* Zebra striping for readability (every other data row), like the league box. */
 .tbl table tr:nth-child(2n) th,.tbl table tr:nth-child(2n) td{background:#f0eafa;}
 .tbl tr:last-child th,.tbl tr:last-child td{background:#faf8ff;font-weight:800;border-bottom:none;}
