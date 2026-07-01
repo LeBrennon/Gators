@@ -3678,12 +3678,12 @@ function buildLive(g){
       '<div class="lcell"><div class="lv">'+outsDots(L.outs)+'</div><div class="ll">'+((L.outs||0)===1?'Out':'Outs')+'</div></div>'+
       '</div>';
     if(L.pitcherInfo||L.batterInfo){
-      if(L.pitcherInfo)bp+=matchupCard('Pitching',L.pitcherInfo);
-      if(L.pitcherInfo&&L.batterInfo)bp+='<div class="mvs">— pitching to —</div>';
       if(L.batterInfo)bp+=matchupCard('At bat',L.batterInfo);
+      if(L.pitcherInfo&&L.batterInfo)bp+='<div class="mvs">— facing —</div>';
+      if(L.pitcherInfo)bp+=matchupCard('Pitching',L.pitcherInfo);
     }else{
-      if(L.pitcher)bp+='<div class="bprow"><span class="bpk">Pitching</span><span class="bpn">'+esc(L.pitcher)+'</span></div>';
       if(L.batter)bp+='<div class="bprow"><span class="bpk">At bat</span><span class="bpn">'+esc(L.batter)+'</span></div>';
+      if(L.pitcher)bp+='<div class="bprow"><span class="bpk">Pitching</span><span class="bpn">'+esc(L.pitcher)+'</span></div>';
     }
   }
   // Surface the most recent play right under the count/bases/outs so you see the
