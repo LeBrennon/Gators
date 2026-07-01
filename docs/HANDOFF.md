@@ -24,6 +24,9 @@ breaks paths).
 Usage: fill the `DATA` block from the box score, then
 `node scripts/gm-report-cards.js "reports/postgame/<stem>"` (needs Chromium).
 
+**Timing (owner preference):** generate both cards **right after the game goes
+final**, straight from the live box — don't wait for the next-day seed refresh.
+
 Why hand-fed: the daily seed lags a game, so on game night
 `postgame-report.js` can't resolve the just-finished game yet. Pull the line
 score + box from **`/api/boxscore?id=<id>`** on the live site (reachable from the
