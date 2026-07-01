@@ -3283,7 +3283,7 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .lutbl td{padding:7px 7px;border-top:1px solid var(--line);color:var(--bone);white-space:nowrap;}
 .lutbl td.lus,.lutbl th.lus{color:var(--mute);text-align:center;}
 .lutbl td.luu{font-family:'JetBrains Mono',monospace;color:var(--mute);}
-.lutbl td.lunm{font-weight:600;width:100%;white-space:normal;}
+.lutbl td.lunm{font-weight:600;width:100%;white-space:nowrap;}
 .lutbl td.lut{font-family:'JetBrains Mono',monospace;color:var(--gold2);}
 .lutbl tr.cur td{background:rgba(236,201,19,.10);}
 .lutbl tr.cur td:first-child{box-shadow:inset 3px 0 0 var(--gold2);}
