@@ -3562,6 +3562,13 @@ function setPbpView(v){pbpView=v;if(lastGame)renderGame(lastGame);}
 function setLineupTeam(v){lineupTeam=v;if(lastGame)renderGame(lastGame);}
 function ord(n){n=+n;var s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}
 function esc(s){return (s||'').replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+// iOS Safari's Data Detectors auto-link a name that contains a street-suffix word
+// (e.g. "Lane Schulz") as a Maps address. Opposing players render as plain text
+// with no profile link, so there's nothing for the user to tap on purpose. Break
+// the address pattern by putting an invisible word-joiner (U+2060) on each side of
+// every space: it interrupts the phrase the detector matches without changing how
+// the name looks, wraps, or reads to a screen reader. Use for any plain-text name.
+function noAddr(s){return esc(s).replace(/ /g,'\u2060 \u2060');}
 function flash(el){el.classList.remove('flash');void el.offsetWidth;el.classList.add('flash');}
 // Gators-scored fireworks: a short canvas burst in the brand gold/purple,
 // fired when the Gators' run total ticks up during a live game. Pointer-events
@@ -3684,8 +3691,8 @@ function buildLive(g){
       if(L.pitcherInfo&&L.batterInfo)bp+='<div class="mvs">— facing —</div>';
       if(L.pitcherInfo)bp+=matchupCard('Pitching',L.pitcherInfo);
     }else{
-      if(L.batter)bp+='<div class="bprow"><span class="bpk">At bat</span><span class="bpn">'+esc(L.batter)+'</span></div>';
-      if(L.pitcher)bp+='<div class="bprow"><span class="bpk">Pitching</span><span class="bpn">'+esc(L.pitcher)+'</span></div>';
+      if(L.batter)bp+='<div class="bprow"><span class="bpk">At bat</span><span class="bpn">'+noAddr(L.batter)+'</span></div>';
+      if(L.pitcher)bp+='<div class="bprow"><span class="bpk">Pitching</span><span class="bpn">'+noAddr(L.pitcher)+'</span></div>';
     }
   }
   // Surface the most recent play right under the count/bases/outs so you see the
@@ -3721,7 +3728,7 @@ function buildPitching(g){
     var rows='';
     t.rows.forEach(function(r){
       var slug=t.isGators?gatorSlug(r.name):null;
-      var nme=esc(r.name||'');if(slug)nme='<a class="bxp" data-slug="'+esc(slug)+'">'+nme+'</a>';
+      var nme=slug?('<a class="bxp" data-slug="'+esc(slug)+'">'+esc(r.name||'')+'</a>'):noAddr(r.name||'');
       if(r.dec)nme+=' <span class="pdec">'+esc(r.dec)+'</span>';
       rows+='<tr><td class="luu">'+esc(String(r.uni||''))+'</td><td class="lunm">'+nme+'</td><td class="lpn">'+esc(String(r.ip))+'</td>'+
         '<td class="lpn">'+r.h+'</td><td class="lpn">'+r.r+'</td><td class="lpn">'+r.er+'</td>'+
@@ -3796,12 +3803,12 @@ function buildDueUp(g){
 }
 function matchupCard(role,info){
   var meta=[];if(info.pos)meta.push(esc(info.pos));if(info.uni)meta.push('#'+esc(String(info.uni)));
-  var head='<div class="mrole">'+role+'</div><div class="mname">'+esc(info.name)+(meta.length?'<span class="mmeta">'+meta.join(' ')+'</span>':'')+'</div>';
+  var head='<div class="mrole">'+role+'</div><div class="mname">'+noAddr(info.name)+(meta.length?'<span class="mmeta">'+meta.join(' ')+'</span>':'')+'</div>';
   // A pitcher who just entered: state "New pitcher" with who he relieved plus his
   // school/class and summer line (ERA/IP/K), the same shape as the 1st-AB card.
   if(info.newPitcher){
     var npLab=info.newPitcher.starter?'Starting Pitcher':'New Pitcher';
-    var rep=info.newPitcher.replaced?('in for '+esc(info.newPitcher.replaced)+(info.bio?' · '+esc(info.bio):'')):(info.bio?esc(info.bio):'');
+    var rep=info.newPitcher.replaced?('in for '+noAddr(info.newPitcher.replaced)+(info.bio?' · '+esc(info.bio):'')):(info.bio?esc(info.bio):'');
     var nb='<div class="mfirst"><span class="mfb">'+npLab+'</span>'+(rep?'<span class="mfbio">'+rep+'</span>':'')+'</div>';
     var nsl=(info.seasonLine&&info.seasonLine.length)?'<div class="mstat"><span class="mssn">SEASON</span> '+info.seasonLine.map(function(s){return '<span class="mfk">'+esc(s[0])+'</span> '+esc(s[1]);}).join('   ')+'</div>':'';
     return '<div class="mcard">'+head+nb+nsl+'</div>';
@@ -3864,8 +3871,7 @@ function buildLineup(g){
     // Gators names link to their profile (matched to the roster, by full name);
     // others stay plain. The display name (r.name) is already "F. Last".
     var slug=team.isGators?gatorSlug(full):null;
-    var nmeCell=esc(r.name);
-    if(slug)nmeCell='<a class="bxp" data-slug="'+esc(slug)+'">'+nmeCell+'</a>';
+    var nmeCell=slug?('<a class="bxp" data-slug="'+esc(slug)+'">'+esc(r.name)+'</a>'):noAddr(r.name);
     // Substitutes (pinch hitters/runners) sit under the player they replaced and
     // share his spot, so drop the number and indent the name, like the box score.
     var cls=(cur?'cur':'')+(r.sub?(cur?' ':'')+'lusub':'');
