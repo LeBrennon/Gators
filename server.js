@@ -2499,7 +2499,9 @@ async function pollStrikePct() {
     if (pitches > 0) seasonStrikePct = { pct: Math.round(strikes / pitches * 100), pitches, strikes, games: gms, at: Date.now() };
   } catch (e) { logErr('pollStrikePct', e); /* keep previous strike% */ }
 }
-// team {name,short} -> "W-L" (or "W-L-T" when t>0); name match then loose fallback.
+// team {id,name,short} -> current-half "W-L"; name match then loose fallback.
+// The feed reports full-season W-L, so the second-half record is derived as
+// (season − first-half final, clamped at 0) — matching the reset Standings tab.
 function recordStr(team) {
   if (!team) return null;
   const keys = Object.keys(standings); if (!keys.length) return null;
@@ -2507,7 +2509,9 @@ function recordStr(team) {
   if (!rec) { const s = normName(team.short || ''); if (s.length >= 4) { const h = keys.find(k => k.indexOf(s) !== -1); if (h) rec = standings[h]; } }
   if (!rec) { const f = normName(team.name || ''); if (f.length >= 5) { const h = keys.find(k => k.indexOf(f) !== -1 || f.indexOf(k) !== -1); if (h) rec = standings[h]; } }
   if (!rec) return null;
-  return rec.t > 0 ? (rec.w + '-' + rec.l + '-' + rec.t) : (rec.w + '-' + rec.l);
+  const base = (team.id && FIRST_HALF_FINAL[team.id]) || { w: 0, l: 0 };
+  const w = Math.max(0, rec.w - base.w), l = Math.max(0, rec.l - base.l);
+  return w + '-' + l;
 }
 // ----- single-game tickets (Gators home games on TicketSpice) ----------------
 // Home-game ticket pages follow lake-charles-gumbeaux-gators-vs-<opp>-<M><DD><YY>
@@ -4105,7 +4109,8 @@ function fmtPct(p){if(p==null)return '';var s=p.toFixed(3);return p<1?s.replace(
 function fmtGb(g){if(g==null||g===0)return '—';return (g%1)?g.toFixed(1):String(g);}
 function renderStandings(d){
   var rows=(d&&d.rows)||[];
-  var recById={};rows.forEach(function(x){if(x.id)recById[x.id]=x.w+'-'+x.l;});
+  // Scoreboard cards show the reset current-half (2H) W-L, not the full season.
+  var recById={};rows.forEach(function(x){if(x.id)recById[x.id]=(x.w2|0)+'-'+(x.l2|0);});
   if(!rows.length){$('standingsBody').innerHTML='<div class="note">Standings aren’t available yet — check back shortly.</div>';$('stMeta').textContent='';}
   else{
     var anyClinch=false;
