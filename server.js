@@ -10,6 +10,7 @@ const crypto = require('crypto');
 const cors = require('cors');
 const compression = require('compression');
 const fs = require('fs');
+const zlib = require('zlib');
 let webpush = null; try { webpush = require('web-push'); } catch (e) {}
 let nodemailer = null; try { nodemailer = require('nodemailer'); } catch (e) {}
 
@@ -1342,7 +1343,9 @@ function pick(list, nowMs) {
   if (finals.length) return finals[finals.length - 1];
   return list[0] || null;
 }
-function broadcast(o) { const line = 'data: ' + JSON.stringify(o) + '\n\n'; sseClients.forEach(r => { try { r.write(line); } catch (e) {} }); }
+let lastBroadcastGame = null;   // JSON of the last game frame pushed, to suppress no-op re-sends
+function broadcastRaw(json) { const line = 'data: ' + json + '\n\n'; sseClients.forEach(r => { try { r.write(line); } catch (e) {} }); }
+function broadcast(o) { broadcastRaw(JSON.stringify(o)); }
 function notify(title, body, tag) {
   broadcast({ type: 'alert', title, body, tag });
   if (!pushReady) return;
@@ -1496,7 +1499,11 @@ async function refreshFeatured() {
   await enrichLive(norm);
   prevFeatured = featured; featured = norm;
   diffAlert(norm);
-  broadcast({ type: 'game', game: norm });
+  // Only push to SSE clients when the game actually changed. During a slow
+  // half-inning the 4s live poll would otherwise fan out ~15 identical frames a
+  // minute to every open tab. New clients still get the current state on connect.
+  const line = JSON.stringify({ type: 'game', game: norm });
+  if (line !== lastBroadcastGame) { lastBroadcastGame = line; broadcastRaw(line); }
   process.stdout.write('\r[' + new Date().toLocaleTimeString() + '] ' + norm.away.short + ' ' + norm.away.runs + '-' + norm.home.runs + ' ' + norm.home.short + '  (' + norm.inningLabel + ')        ');
 }
 // Tighter refresh while a game is live: re-pull just the live feed (event auth
@@ -2444,6 +2451,7 @@ function replayUrlFor(g) {
 // photos/ (slug -> filename in photos/manifest.json), served from our origin.
 let playerPhotos = {};      // roster slug -> bundled filename
 let photosLoadedAt = 0;
+const photoBuffers = {};    // filename -> { buf, type } preloaded at boot (headshots never change mid-run)
 const normName = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z]/g, '');
 const PHOTO_DIR = __dirname + '/photos';
 const PHOTO_TYPES = { webp: 'image/webp', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', avif: 'image/avif', gif: 'image/gif' };
@@ -2452,6 +2460,16 @@ function loadLocalPhotos() {
     const man = JSON.parse(fs.readFileSync(PHOTO_DIR + '/manifest.json', 'utf8'));
     if (man && Object.keys(man).length) { playerPhotos = man; photosLoadedAt = Date.now(); }
   } catch (e) { /* no bundled photos */ }
+  // Preload every bundled headshot into memory so /api/photo never hits the disk
+  // (and never blocks the event loop with a sync read) on the hot request path.
+  for (const file of new Set(Object.values(playerPhotos))) {
+    if (!file || /[\\/]/.test(file)) continue;
+    try {
+      const buf = fs.readFileSync(PHOTO_DIR + '/' + file);
+      const ext = String(file).split('.').pop().toLowerCase();
+      photoBuffers[file] = { buf, type: PHOTO_TYPES[ext] || 'image/jpeg' };
+    } catch (e) { /* skip a missing file */ }
+  }
 }
 // ----- league standings (both teams' records on the jumbo + Standings tab) ---
 let standings = {};         // normName(teamName) -> { w, l, t }  (jumbo records)
@@ -2660,9 +2678,23 @@ app.use(express.json());
 // instead of being served stale from cache (ETag makes the revalidation a cheap
 // 304 when nothing changed). Without this the single-page UI freezes at whatever
 // version was first cached while live scores keep updating via the APIs.
-app.get('/', (q, r) => { recordVisit(q); r.set('Cache-Control', 'no-store, must-revalidate'); r.type('html').send(APP_HTML); });
-app.get('/sw.js', (_q, r) => { r.set('Cache-Control', 'no-cache, no-store, must-revalidate'); r.type('application/javascript').send(SW); });
-app.get('/manifest.json', (_q, r) => r.type('application/json').send(MANIFEST));
+// These three responses are constant strings, so gzip each one exactly once
+// (memoized by name) instead of re-compressing on every request as the global
+// compression() middleware would. compression() skips a response that already
+// carries a Content-Encoding, so there's no double work.
+const _gzMemo = {};
+function sendStatic(r, name, body, type) {
+  r.type(type);
+  const enc = String((r.req && r.req.headers['accept-encoding']) || '');
+  if (/\bgzip\b/.test(enc)) {
+    r.set('Content-Encoding', 'gzip'); r.set('Vary', 'Accept-Encoding');
+    return r.send(_gzMemo[name] || (_gzMemo[name] = zlib.gzipSync(body)));
+  }
+  return r.send(body);
+}
+app.get('/', (q, r) => { recordVisit(q); r.set('Cache-Control', 'no-store, must-revalidate'); sendStatic(r, 'app', APP_HTML, 'html'); });
+app.get('/sw.js', (_q, r) => { r.set('Cache-Control', 'no-cache, no-store, must-revalidate'); sendStatic(r, 'sw', SW, 'application/javascript'); });
+app.get('/manifest.json', (_q, r) => sendStatic(r, 'manifest', MANIFEST, 'application/json'));
 app.get('/health', (_q, r) => r.json({ ok: true, build: BUILD, games: games.length, featured: featured && featured.id, push: pushReady }));
 app.get('/api/version', (_q, r) => r.json(BUILD));
 app.get('/debug', (_q, r) => {
@@ -2755,13 +2787,13 @@ app.get('/api/game', (_q, r) => { r.set('Cache-Control', 'no-store'); return fea
 // PrestoSports CDN logo for this id — the CDN version is a different, lower-
 // contrast design (purple ring, dark lettering) that looks wrong in the app.
 app.get(['/gators-logo.png','/gators-logo.jpg'], (_q, r) => {
-  r.set('Content-Type','image/png'); r.set('Cache-Control','public, max-age=86400');
+  r.set('Content-Type','image/png'); r.set('Cache-Control','public, max-age=604800');
   r.send(GATORS_LOGO_BUF);
 });
-app.get('/tcl-logo.png', (_q, r) => { r.set('Content-Type','image/png'); r.set('Cache-Control','public, max-age=86400'); r.send(TCL_LOGO_BUF); });
-app.get(['/gg-logo.png','/gg-logo.jpg'], (_q, r) => { r.set('Content-Type','image/png'); r.set('Cache-Control','public, max-age=86400'); r.send(GG_LOGO_BUF); });
+app.get('/tcl-logo.png', (_q, r) => { r.set('Content-Type','image/png'); r.set('Cache-Control','public, max-age=604800'); r.send(TCL_LOGO_BUF); });
+app.get(['/gg-logo.png','/gg-logo.jpg'], (_q, r) => { r.set('Content-Type','image/png'); r.set('Cache-Control','public, max-age=604800'); r.send(GG_LOGO_BUF); });
 // Social/link-preview image (Gumbeaux Gators logo, 1200x628) for iMessage etc.
-app.get('/og.jpg', (_q, r) => { if (!OG_BUF) return r.status(404).end(); r.set('Content-Type','image/jpeg'); r.set('Cache-Control','public, max-age=86400'); r.send(OG_BUF); });
+app.get('/og.jpg', (_q, r) => { if (!OG_BUF) return r.status(404).end(); r.set('Content-Type','image/jpeg'); r.set('Cache-Control','public, max-age=604800'); r.send(OG_BUF); });
 // PWA / home-screen icons (also the notification icon the service worker uses).
 app.get('/icon-512.png', (_q, r) => { if (!ICON_512_BUF) return r.status(404).end(); r.set('Content-Type','image/png'); r.set('Cache-Control','public, max-age=604800'); r.send(ICON_512_BUF); });
 app.get(['/icon-192.png', '/icon.png'], (_q, r) => { if (!ICON_192_BUF) return r.status(404).end(); r.set('Content-Type','image/png'); r.set('Cache-Control','public, max-age=604800'); r.send(ICON_192_BUF); });
@@ -2909,7 +2941,19 @@ app.get('/stats', (q, r) => {
   r.set('Cache-Control', 'no-store');
   r.type('html').send(reportPage('Site Visitors', body));
 });
-app.get('/api/schedule', (_q, r) => { r.set('Cache-Control', 'no-store'); r.json({ games: games.map(decorateGame) }); });
+// The Gators schedule only changes on pollSchedule (~15s); live scores ride on
+// /api/game, not here. So decorate+serialize at most once every few seconds and
+// let concurrent viewers (a full stadium during a game) share the one payload
+// instead of each triggering a fresh games.map(decorateGame) + JSON.stringify.
+let _schedCache = { at: 0, json: null };
+app.get('/api/schedule', (_q, r) => {
+  r.set('Cache-Control', 'no-store');
+  const now = Date.now();
+  if (!_schedCache.json || now - _schedCache.at > 8000) {
+    _schedCache = { at: now, json: JSON.stringify({ games: games.map(decorateGame) }) };
+  }
+  r.type('application/json').send(_schedCache.json);
+});
 app.get('/api/standings', (_q, r) => {
   r.set('Cache-Control', 'no-store');
   if (!standingsTable.length) pollStandings();
@@ -2948,13 +2992,19 @@ app.get('/api/photo', (q, r) => {
   const slug = String((q.query && q.query.slug) || '');
   const file = /^[a-z0-9_]+$/i.test(slug) ? playerPhotos[slug] : null;
   if (!file || /[\\/]/.test(file)) return r.status(404).end();
-  try {
-    const buf = fs.readFileSync(PHOTO_DIR + '/' + file);
-    const ext = String(file).split('.').pop().toLowerCase();
-    r.set('Content-Type', PHOTO_TYPES[ext] || 'image/jpeg');
-    r.set('Cache-Control', 'public, max-age=86400');
-    r.send(buf);
-  } catch (e) { r.status(404).end(); }
+  // Served from the boot-time in-memory cache; fall back to a disk read only if a
+  // photo was added to the manifest after startup.
+  let entry = photoBuffers[file];
+  if (!entry) {
+    try {
+      const buf = fs.readFileSync(PHOTO_DIR + '/' + file);
+      const ext = String(file).split('.').pop().toLowerCase();
+      entry = photoBuffers[file] = { buf, type: PHOTO_TYPES[ext] || 'image/jpeg' };
+    } catch (e) { return r.status(404).end(); }
+  }
+  r.set('Content-Type', entry.type);
+  r.set('Cache-Control', 'public, max-age=604800');
+  r.send(entry.buf);
 });
 app.get('/api/player', async (q, r) => {
   const slug = String((q.query && q.query.slug) || '');
@@ -3622,7 +3672,7 @@ a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 </div></div>
 <script>
 var $=function(i){return document.getElementById(i);};
-var curId=null,pbpView='half',lineupTeam='gators',lastGame=null,schedList=null;
+var curId=null,pbpView='half',lineupTeam='gators',lastGame=null,schedList=null,_schedHtml=null;
 function setPbpView(v){pbpView=v;if(lastGame)renderGame(lastGame);}
 function setLineupTeam(v){lineupTeam=v;if(lastGame)renderGame(lastGame);}
 function ord(n){n=+n;var s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}
@@ -4017,8 +4067,16 @@ function renderSched(list){
       +(g.state==='scheduled'&&g.freeAdmission?('<span class="watchmini free">Free Admission</span>'):(g.state==='scheduled'&&g.ticketUrl?('<a class="watchmini tickets" href="'+esc(g.ticketUrl)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Tickets</a>'):''))
       +'</div></div>';
   });
-  $('sched').innerHTML=h||'<div class="note">No Gators games found yet.</div>';
-  $('sched').querySelectorAll('.card[data-state="final"]').forEach(function(c){c.addEventListener('click',function(){openBox(c.dataset.id);});});
+  var html=h||'<div class="note">No Gators games found yet.</div>';
+  // The 15s schedule poll usually returns an unchanged list; skip the DOM churn
+  // (and listener re-binding) when the markup is identical to what's on screen.
+  if(html===_schedHtml)return;
+  _schedHtml=html;
+  var box=$('sched');
+  box.innerHTML=html;
+  // One delegated click handler on the container (bound once) instead of one per
+  // final card on every render.
+  if(!box._boxBound){box._boxBound=true;box.addEventListener('click',function(e){var c=e.target.closest&&e.target.closest('.card[data-state="final"]');if(c)openBox(c.dataset.id);});}
 }
 function toast(e,t,s,cls){var el=document.createElement('div');el.className='toast '+(cls||'');
   el.innerHTML='<div class="e">'+e+'</div><div><b>'+t+'</b><span>'+s+'</span></div>';$('toasts').appendChild(el);
@@ -4027,19 +4085,27 @@ function toast(e,t,s,cls){var el=document.createElement('div');el.className='toa
 function emo(tag){return tag==='lead'?'📣':tag==='final'?'🏁':tag==='run'?'🔥':tag==='start'?'⚾':'🐊';}
 function loadSched(){fetch('/api/schedule',{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){renderSched(d.games||[]);}).catch(function(){});}
 function connect(){
-  function applyGame(g){if(g&&g.home){renderGame(g);if($('viewStandings').style.display!=='none')silentStandings();}}
+  var sseOk=false,lastStatus='',pollTimer=null,schedTimer=null;
+  function applyGame(g){if(g&&g.home){lastStatus=g.status||'';renderGame(g);if($('viewStandings').style.display!=='none')silentStandings();}}
   function pollGame(){fetch('/api/game',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).then(applyGame).catch(function(){});}
+  // SSE carries live changes as they happen, so the /api/game poll is only a
+  // safety net for a stalled stream (e.g. a buffering proxy). Poll fast (5s) only
+  // when SSE is down during a live game; back off hard otherwise; and pause
+  // entirely while the tab is hidden — visibilitychange refreshes on return.
+  function gameDelay(){var live=lastStatus==='live';if(sseOk)return live?15000:60000;return live?5000:30000;}
+  function tickGame(){if(!document.hidden)pollGame();pollTimer=setTimeout(tickGame,gameDelay());}
+  function tickSched(){if(!document.hidden)loadSched();schedTimer=setTimeout(tickSched,15000);}
   pollGame();
-  // Poll the live game often so the score/count/pitch-count stay fresh even when
-  // the SSE push stalls (e.g. behind the non-www->www redirect). /api/game is
-  // served from cache, so this only hits our own server. Schedule changes
-  // rarely, so it stays on the slower cadence.
-  setInterval(pollGame,5000);
-  setInterval(loadSched,15000);
+  pollTimer=setTimeout(tickGame,gameDelay());
+  schedTimer=setTimeout(tickSched,15000);
   function openSSE(){var es;try{es=new EventSource('/api/stream');}catch(e){return;}
-    es.onmessage=function(ev){try{var m=JSON.parse(ev.data);if(m.type==='game')applyGame(m.game);else if(m.type==='alert')toast(emo(m.tag),m.title,m.body,(m.tag==='lead'||m.tag==='final')?'lead':'');}catch(x){}};
-    es.onerror=function(){try{es.close();}catch(x){}setTimeout(openSSE,8000);};}
-  openSSE();}
+    es.onopen=function(){sseOk=true;};
+    es.onmessage=function(ev){sseOk=true;try{var m=JSON.parse(ev.data);if(m.type==='game')applyGame(m.game);else if(m.type==='alert')toast(emo(m.tag),m.title,m.body,(m.tag==='lead'||m.tag==='final')?'lead':'');}catch(x){}};
+    es.onerror=function(){sseOk=false;try{es.close();}catch(x){}if(!document.hidden)pollGame();setTimeout(openSSE,8000);};}
+  openSSE();
+  // Coming back to the foreground: refresh at once instead of waiting out the
+  // paused interval.
+  document.addEventListener('visibilitychange',function(){if(!document.hidden){pollGame();loadSched();}});}
 var _box=null,_boxDate='';
 function bsScoreFromLine(line){try{var rows=line.match(new RegExp('<tr[^]*?</tr>','gi'))||[];var rs=[];rows.forEach(function(r){var c=r.match(new RegExp('<t[dh][^]*?</t[dh]>','gi'))||[];if(c.length>3){var nm=c[0].replace(/<[^>]+>/g,'').trim();if(nm&&!/^final$/i.test(nm))rs.push(c[c.length-3].replace(/<[^>]+>/g,'').trim());}});return rs.length>=2?rs[0]+'\u2013'+rs[1]:'';}catch(e){return'';}}
 function openBox(id,tab){var m=$('bxModal');m.classList.add('show');m.style.zIndex=++modalZ;syncBg();
