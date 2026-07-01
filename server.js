@@ -103,6 +103,9 @@ const TEAM_SITE = {
 };
 const HOME_VENUE = 'Joe Miller Ballpark';
 const GATORS_ID = 'et1bt9sixrz5lnnl';
+// Scoreboard/board city prefix. The Gators are "our" team — show just the bold
+// mascot ("Gumbeaux Gators"), no dim city. Every other team keeps its city.
+const boardCity = id => id === GATORS_ID ? '' : (CITY[id] || '');
 // Split-season tracking. The TCL plays two halves; each half's winner clinches a
 // playoff berth. Standings shown below reflect the current half, with clinched
 // teams tagged "x-" regardless of where their (reset) second-half record sits.
@@ -1493,8 +1496,8 @@ function buildLeagueBoard() {
   const date = (featured && featured.date) || todayCentralYmd();
   const raw = lastHtml ? sortBoard(applyLiveScores(parseLeagueScoreboard(lastHtml, date), featured)) : [];
   const games = raw.map(g => Object.assign({}, g, {
-    away: Object.assign({}, g.away, { city: CITY[g.away && g.away.id] || '', nick: NICK[g.away && g.away.id] || (g.away && g.away.short) || '' }),
-    home: Object.assign({}, g.home, { city: CITY[g.home && g.home.id] || '', nick: NICK[g.home && g.home.id] || (g.home && g.home.short) || '' }),
+    away: Object.assign({}, g.away, { city: boardCity(g.away && g.away.id), nick: NICK[g.away && g.away.id] || (g.away && g.away.short) || '' }),
+    home: Object.assign({}, g.home, { city: boardCity(g.home && g.home.id), nick: NICK[g.home && g.home.id] || (g.home && g.home.short) || '' }),
   }));
   return { date, dateLabel: dateFromId(date).label, updatedAt: lastFetchAt, games };
 }
@@ -2667,7 +2670,7 @@ async function pollTickets() {
   } catch (e) { logErr('pollTickets', e); /* keep previous */ }
 }
 // Attaches the derived display fields a game needs on the client.
-function decorateGame(g) { return Object.assign({}, g, { away: Object.assign({}, g.away, { city: CITY[g.away && g.away.id] || '', nick: NICK[g.away && g.away.id] || (g.away && g.away.short) || '' }), home: Object.assign({}, g.home, { city: CITY[g.home && g.home.id] || '', nick: NICK[g.home && g.home.id] || (g.home && g.home.short) || '' }), location: gameLocation(g), watchUrl: watchUrlFor(g), replayUrl: replayUrlFor(g), ticketUrl: ticketIndex[g.id] || null, theme: THEMES[g.date] || null, freeAdmission: FREE_ADMISSION[g.date] || null, promo: promoFor(g), special: SPECIALS[g.date] || null }); }
+function decorateGame(g) { return Object.assign({}, g, { away: Object.assign({}, g.away, { city: boardCity(g.away && g.away.id), nick: NICK[g.away && g.away.id] || (g.away && g.away.short) || '' }), home: Object.assign({}, g.home, { city: boardCity(g.home && g.home.id), nick: NICK[g.home && g.home.id] || (g.home && g.home.short) || '' }), location: gameLocation(g), watchUrl: watchUrlFor(g), replayUrl: replayUrlFor(g), ticketUrl: ticketIndex[g.id] || null, theme: THEMES[g.date] || null, freeAdmission: FREE_ADMISSION[g.date] || null, promo: promoFor(g), special: SPECIALS[g.date] || null }); }
 
 // ----- server ---------------------------------------------------------------
 // ---- daily unique-visitor analytics ----------------------------------------
@@ -3688,7 +3691,7 @@ a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 .sbrow{display:flex;align-items:center;gap:9px;}
 .sbl{width:30px;height:30px;border-radius:6px;object-fit:contain;background:transparent;flex:none;}
 .sbn{flex:1;min-width:0;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.02em;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.sbrec{margin-left:5px;font-weight:400;font-size:.82em;color:var(--mute);opacity:.85;}
+.sbrec{flex:none;margin-left:5px;font-weight:400;font-size:.82em;color:var(--mute);opacity:.85;white-space:nowrap;}
 .sbs{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:16px;color:var(--mute);min-width:20px;text-align:right;}
 .sbsc{display:flex;align-items:center;gap:6px;flex:none;}
 .sbtri{width:0;height:0;border-top:5px solid transparent;border-bottom:5px solid transparent;border-right:6px solid var(--gold2);}
@@ -4334,7 +4337,7 @@ function sbTeamRow(t,win,isGt,showScore,recById,fin){
   // Winner triangle only on finals (a live leader is shown bold, no arrow).
   var tri=(fin&&win)?'<span class="sbtri"></span>':'';
   var ct=t.city?'<span class="tcity">'+esc(t.city)+'</span> ':'';
-  return '<div class="sbrow'+(win?' w':'')+(isGt?' gt':'')+'">'+lg+'<span class="sbn">'+ct+esc(t.nick||t.short||'')+rec+'</span><span class="sbsc">'+tri+'<span class="sbs">'+sc+'</span></span></div>';
+  return '<div class="sbrow'+(win?' w':'')+(isGt?' gt':'')+'">'+lg+'<span class="sbn">'+ct+esc(t.nick||t.short||'')+'</span>'+rec+'<span class="sbsc">'+tri+'<span class="sbs">'+sc+'</span></span></div>';
 }
 function renderScoreboard(sb,gatorsId,recById){
   var games=(sb&&sb.games)||[];
