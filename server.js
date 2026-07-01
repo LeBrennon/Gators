@@ -3923,10 +3923,13 @@ function matchupCard(role,info){
   // school/class and summer line (ERA/IP/K), the same shape as the 1st-AB card.
   if(info.newPitcher){
     var npLab=info.newPitcher.starter?'Starting Pitcher':'New Pitcher';
+    // Put the "New pitcher" badge to the right of the name and number, inline in
+    // the name row, rather than on its own line below.
+    var npHead='<div class="mrole">'+role+'</div><div class="mname">'+noAddr(info.name)+(meta.length?'<span class="mmeta">'+meta.join(' ')+'</span>':'')+'<span class="mfb">'+npLab+'</span></div>';
     var rep=info.newPitcher.replaced?('in for '+noAddr(info.newPitcher.replaced)+(info.bio?' · '+esc(info.bio):'')):(info.bio?esc(info.bio):'');
-    var nb='<div class="mfirst"><span class="mfb">'+npLab+'</span>'+(rep?'<span class="mfbio">'+rep+'</span>':'')+'</div>';
+    var nb=rep?'<div class="mfirst"><span class="mfbio">'+rep+'</span></div>':'';
     var nsl=(info.seasonLine&&info.seasonLine.length)?'<div class="mstat"><span class="mssn">SEASON</span> '+info.seasonLine.map(function(s){return '<span class="mfk">'+esc(s[0])+'</span> '+esc(s[1]);}).join('   ')+'</div>':'';
-    return '<div class="mcard">'+head+nb+nsl+'</div>';
+    return '<div class="mcard">'+npHead+nb+nsl+'</div>';
   }
   // First plate appearance of the game: no game line yet, so show "1st AB" plus
   // the batter's school/class and season AVG/RBI/(HR|SB|H). A pinch hitter/runner
