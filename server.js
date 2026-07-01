@@ -1784,6 +1784,26 @@ function parseAllLeagueHitters(html) {
   }
   return out;
 }
+// Every league hitter's full season line, grouped by team id, so any team's
+// hitters can be shown "just like ours" (the Roster tab) from the Standings tab.
+// Same leaderboard as parseAllLeagueHitters, but keyed by team and keeping the
+// whole stat line (avg/obp/slg/hr/rbi/…) instead of just four card fields.
+let leagueTeamHitters = {};  // teamId -> [ { name, stats:{col:val} } ], leaderboard order
+function parseLeagueTeamHitters(html) {
+  const tables = (html || '').match(/<table\b[\s\S]*?<\/table>/gi) || [];
+  let tbl = null, head = null;
+  for (const t of tables) { const rows = rowsOf(t); if (rows.length < 2) continue; const hd = cellsOf(rows[0]).map(x => bsText(x).split(/\s+/)[0].toLowerCase()); if (hd.indexOf('team') === -1) continue; tbl = t; head = hd; break; }
+  if (!tbl || head.indexOf('avg') === -1) return {};
+  const rows = rowsOf(tbl); const byTeam = {};
+  for (let i = 1; i < rows.length; i++) {
+    const c = cellsOf(rows[i]); if (c.length < 4) continue;
+    const name = firstLink(c[1]).text; if (!name) continue;
+    const teamId = teamIdFromHref(firstLink(c[2]).href); if (!teamId) continue;
+    const stats = {}; for (let k = 3; k < c.length && k < head.length; k++) { if (head[k]) stats[head[k]] = bsText(c[k]); }
+    (byTeam[teamId] || (byTeam[teamId] = [])).push({ name: name.trim(), stats });
+  }
+  return byTeam;
+}
 // Build the first-at-bat enrichment (bio + 3 season stats) for a batter by name.
 // Third stat is HR, else SB (Gators only — the league leaderboard omits SB), else
 // Hits. Returns { firstAB:true } with whatever data we have; absent -> just "1st AB".
@@ -2008,6 +2028,7 @@ async function pollRoster() {
       batMap = parseLeagueStats(hRes.body, 'h'); pitMap = parseLeagueStats(pRes.body, 'p');
       const lr = computeLeagueHitRanks(hRes.body); if (Object.keys(lr).length) leagueHitRanks = lr;
       const lh = parseAllLeagueHitters(hRes.body); if (Object.keys(lh).length) leagueHitterStats = lh; // opponents' season lines for the live 1st-AB card
+      const lth = parseLeagueTeamHitters(hRes.body); if (Object.keys(lth).length) leagueTeamHitters = lth; // every team's hitters for the Standings-tab team hitting view
       const lp = parseAllLeaguePitchers(pRes.body); if (Object.keys(lp).length) leaguePitcherStats = lp; // opponents' season lines for the live new-pitcher card
       // Resolve real Presto slugs for players added before their player page was
       // known (findSlug). Both league pages list each Gators player's name+slug,
@@ -2883,6 +2904,23 @@ app.get('/debug/extras', (_q, r) => {
   });
 });
 app.get('/api/roster', (_q, r) => { if (!rosterPolling && Object.keys(rosterStats).length === 0) pollRoster(); r.json(rosterPayload()); });
+// One opposing (or our own) team's hitters + season batting lines, for the
+// Standings-tab team hitting view. Data is the same league leaderboard that
+// seeds our roster; hitters are ordered most-active first (AB desc, AVG break).
+app.get('/api/team-hitting', (q, r) => {
+  r.set('Cache-Control', 'no-store');
+  const id = String((q.query && q.query.id) || '');
+  if (!/^[a-z0-9]+$/i.test(id) || !TEAMS[id]) return r.status(404).json({ error: 'unknown team' });
+  // Kick a roster poll if the league leaderboard hasn't been scraped yet, then
+  // let the client re-request while we report loading (same pattern as /api/roster).
+  if (!rosterPolling && !Object.keys(leagueTeamHitters).length) pollRoster();
+  const num = v => { const n = parseFloat(v); return isFinite(n) ? n : -1; };
+  const hitters = (leagueTeamHitters[id] || []).slice().sort((a, b) =>
+    num(b.stats.ab) - num(a.stats.ab) || num(b.stats.avg) - num(a.stats.avg));
+  const meta = TEAMS[id];
+  r.json({ id, name: meta.name, short: meta.short, logo: logo(id), site: TEAM_SITE[id] || null,
+    hitters, updated: rosterUpdated, loading: !Object.keys(leagueTeamHitters).length });
+});
 // Headshots are bundled in photos/ and served from our own origin.
 app.get('/api/photo', (q, r) => {
   const slug = String((q.query && q.query.slug) || '');
@@ -3120,7 +3158,7 @@ if (require.main === module) {
   app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleDailyRoster(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); setTimeout(pollStrikePct, 15000); setInterval(pollStrikePct, 3 * 60 * 60 * 1000); scheduleDailyStats(); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, pitchersFromFeed, extractEventAuth,
-  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseGameLog, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, pitchingTotals, strikeCounts };
+  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseLeagueTeamHitters, parseGameLog, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, pitchingTotals, strikeCounts };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
@@ -3472,7 +3510,17 @@ body.noscroll{overflow:hidden;}
 .sttbl .stteam{display:flex;align-items:center;gap:6px;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.01em;color:var(--bone);min-width:0;text-decoration:none;}
 .sttbl a.stteam:hover .stnm{text-decoration:underline;}
 .sttbl .stteam .stnm{white-space:normal;overflow-wrap:anywhere;line-height:1.15;}
+/* Tappable team cell: a full-width button that opens the team hitting view. */
+.sttbl button.stteam{width:100%;background:none;border:0;padding:0;margin:0;font:inherit;text-align:left;cursor:pointer;color:var(--bone);-webkit-tap-highlight-color:transparent;}
+.sttbl button.stteam:hover .stnm,.sttbl button.stteam:active .stnm{text-decoration:underline;}
+.sttbl .stchev{margin-left:auto;color:var(--mute);font-size:15px;line-height:1;flex:none;padding-left:4px;}
+.sttbl tr.stg button.stteam{color:var(--gator);}
 .sttbl .stlogo{width:22px;height:22px;border-radius:5px;object-fit:contain;background:transparent;flex:none;}
+#thLogo.hasimg{width:48px;height:48px;background:transparent;border:1px solid var(--line);}
+#thLogo.hasimg img{object-fit:contain;}
+.thsite{padding:12px 2px 2px;font-size:12px;}
+.thsite a{color:var(--gold2);text-decoration:none;font-weight:600;}
+.thsite a:hover{text-decoration:underline;}
 .sttbl td:nth-child(4){color:var(--gold2);}
 .sttbl .stwl2{font-weight:700;}
 .sttbl .stwls{color:var(--mute);}
@@ -3557,6 +3605,10 @@ a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 <div class="modal" id="plModal"><div class="sheet">
 <div class="phead"><div class="phnum" id="plNum">0</div><div style="flex:1;min-width:0"><div class="phname" id="plName">Player</div><div class="phsub" id="plSub"></div></div><button class="sclose" id="plClose" aria-label="Close">✕</button></div>
 <div class="sbody" id="plBody" style="border-top:none;padding-top:0"><div class="spin">Loading…</div></div>
+</div></div>
+<div class="modal" id="thModal"><div class="sheet">
+<div class="phead"><div class="phnum" id="thLogo">0</div><div style="flex:1;min-width:0"><div class="phname" id="thName">Team</div><div class="phsub" id="thSub"></div></div><button class="sclose" id="thClose" aria-label="Close">✕</button></div>
+<div class="sbody" id="thBody" style="border-top:none;padding-top:0"><div class="spin">Loading…</div></div>
 </div></div>
 <script>
 var $=function(i){return document.getElementById(i);};
@@ -4066,7 +4118,9 @@ function renderStandings(d){
       var clin=x.clinched?('<span class="clinch" title="Won the first half — clinched a playoff spot">🏆<small>1H</small></span>'):'';
       if(x.clinched)anyClinch=true;
       var inner=lg+'<span class="stnm">'+nm+'</span>'+clin;
-      var team=x.site?('<a class="stteam" href="'+esc(x.site)+'" target="_blank" rel="noopener">'+inner+'</a>'):('<div class="stteam">'+inner+'</div>');
+      // Tapping a team opens its hitters + batting lines (like tapping one of our
+      // roster cards). Only teams we can key to a Presto id have leaderboard stats.
+      var team=x.id?('<button type="button" class="stteam sttap" data-teamid="'+esc(x.id)+'" data-teamname="'+esc(x.name||x.short||'')+'">'+inner+'<span class="stchev">›</span></button>'):('<div class="stteam">'+inner+'</div>');
       var cls=[isG?'stg':'',x.clinched?'stclinch':''].filter(Boolean).join(' ');
       var wl2=(x.w2|0)+'-'+(x.l2|0), wls=(x.ws|0)+'-'+(x.ls|0);
       h+='<tr'+(cls?' class="'+cls+'"':'')+'><td>'+(i+1)+'</td>'
@@ -4077,6 +4131,8 @@ function renderStandings(d){
     if(anyClinch)h+='<div class="stnote"><span class="clinch">🏆<small>1H</small></span> first-half champion — clinched a playoff spot</div>';
     $('standingsBody').innerHTML=h;
     $('stMeta').textContent=d.half===2?'Second-half standings':d.half===1?'First-half standings':'';
+    var tcells=$('standingsBody').querySelectorAll('.sttap');
+    for(var t=0;t<tcells.length;t++)tcells[t].addEventListener('click',function(){openTeamHitting(this.getAttribute('data-teamid'),this.getAttribute('data-teamname'));});
   }
   renderScoreboard(d&&d.scoreboard,d&&d.gatorsId,recById);
 }
@@ -4141,6 +4197,49 @@ function silentStandings(){
   fetch('/api/standings',{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){
     if(d&&d.rows){standingsData=d;renderStandings(d);}
   }).catch(function(){});
+}
+// ----- team hitting (opponent batting lines, opened from the Standings tab) ---
+var thId=null,thPolls=0;
+function openTeamHitting(id,name){
+  if(!id)return;
+  thId=id;thPolls=0;
+  var lg=$('thLogo');lg.classList.remove('hasimg');lg.textContent='';
+  var im=new Image();im.alt='';
+  im.onload=function(){if(thId!==id)return;lg.classList.add('hasimg');lg.innerHTML='';lg.appendChild(im);};
+  im.src='https://cdn.prestosports.com/action/cdn/logos/id/'+id+'.png';
+  $('thName').textContent=name||'Team';
+  $('thSub').textContent='Team hitting';
+  $('thBody').innerHTML='<div class="spin" style="padding:16px">Loading hitting…</div>';
+  $('thModal').classList.add('show');$('thModal').style.zIndex=++modalZ;syncBg();
+  loadTeamHitting(id,name);
+}
+function loadTeamHitting(id,name){
+  fetch('/api/team-hitting?id='+encodeURIComponent(id),{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){
+    if(thId!==id)return; // a different team (or close) happened while we waited
+    // Stats are still being scraped on first load — keep the spinner and retry.
+    if((!d.hitters||!d.hitters.length)&&d.loading&&thPolls<15){thPolls++;setTimeout(function(){loadTeamHitting(id,name);},3000);return;}
+    renderTeamHitting(d);
+  }).catch(function(){if(thId===id)$('thBody').innerHTML='<div class="note" style="padding:12px">Could not load hitting. Tap the team again to retry.</div>';});
+}
+function thCell(o,k){return (o&&o[k]!=null&&o[k]!==''&&o[k]!=='-')?esc(String(o[k])):'';}
+function renderTeamHitting(d){
+  var hitters=(d&&d.hitters)||[];
+  var site=d&&d.site?'<div class="thsite"><a href="'+esc(d.site)+'" target="_blank" rel="noopener">Team site ↗</a></div>':'';
+  if(!hitters.length){$('thBody').innerHTML='<div class="note" style="padding:12px">Hitting stats aren’t available for this team yet.</div>'+site;return;}
+  var head='<tr><th class="lunm">Player</th><th class="lpn">AVG</th><th class="lpn">OBP</th><th class="lpn">SLG</th>'+
+    '<th class="lpn">HR</th><th class="lpn">RBI</th><th class="lpn">H</th><th class="lpn">AB</th></tr>';
+  var rows='';
+  hitters.forEach(function(p){var s=p.stats||{};
+    rows+='<tr><td class="lunm">'+esc(p.name)+'</td>'+
+      '<td class="lpn lavg">'+thCell(s,'avg')+'</td>'+
+      '<td class="lpn">'+thCell(s,'obp')+'</td>'+
+      '<td class="lpn">'+thCell(s,'slg')+'</td>'+
+      '<td class="lpn">'+thCell(s,'hr')+'</td>'+
+      '<td class="lpn">'+thCell(s,'rbi')+'</td>'+
+      '<td class="lpn">'+thCell(s,'h')+'</td>'+
+      '<td class="lpn">'+thCell(s,'ab')+'</td></tr>';
+  });
+  $('thBody').innerHTML='<div class="lubox"><table class="lutbl">'+head+rows+'</table></div>'+site;
 }
 function setView(v){
   $('viewScores').style.display=v==='scores'?'':'none';
@@ -4368,6 +4467,8 @@ $('plClose').addEventListener('click',function(){$('plModal').classList.remove('
 $('plModal').addEventListener('click',function(e){if(e.target===this){this.classList.remove('show');syncBg();}});
 $('bxClose').addEventListener('click',function(){$('bxModal').classList.remove('show');syncBg();});
 $('bxModal').addEventListener('click',function(e){if(e.target===this){this.classList.remove('show');syncBg();}});
+$('thClose').addEventListener('click',function(){thId=null;$('thModal').classList.remove('show');syncBg();});
+$('thModal').addEventListener('click',function(e){if(e.target===this){thId=null;this.classList.remove('show');syncBg();}});
 // ---- Add to Home Screen prompt (Android install prompt; iOS shows how-to) ----
 (function(){
   if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});
