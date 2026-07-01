@@ -3888,7 +3888,7 @@ function matchupCard(role,info){
   var stat=info.line?esc(info.line):'';
   if(info.pitches!=null){
     var pc=esc(String(info.pitches))+' P';
-    if(info.strikes!=null&&info.balls!=null)pc+=' ('+esc(String(info.strikes))+' S / '+esc(String(info.balls))+' B)';
+    if(info.strikes!=null)pc+=' ('+esc(String(info.strikes))+' S)';
     stat+=(stat?' · ':'')+pc;
   }
   var prev='';
