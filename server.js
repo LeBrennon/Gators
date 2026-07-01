@@ -282,7 +282,11 @@ function bsMarkSubs(tableHtml) {
 // Inning ordinal (1->1st, 2->2nd, 7->7th, 11->11th).
 function bsOrd(n) { const v = n % 100, s = ['th', 'st', 'nd', 'rd']; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
 // A play row's leading text is the batter; these verbs mark a plate appearance.
-const BS_PA_RE = /^(singled|doubled|tripled|homered|home run|walked|intentionally walked|struck out|grounded|flied|popped|lined|reached|hit by pitch|hit into|fouled|sacrific|infield fly|bunt|out at|grounded into)\b/i;
+// "out at first" is a plate appearance (batter thrown out at first on his
+// grounder); "out at second/third/home" is a baserunning out (the batter had
+// already reached base and was retired while running), so it's NOT listed as an
+// at-bat result.
+const BS_PA_RE = /^(singled|doubled|tripled|homered|home run|walked|intentionally walked|struck out|grounded|flied|popped|lined|reached|hit by pitch|hit into|fouled|sacrific|infield fly|bunt|out at first|grounded into)\b/i;
 // Tidy a play description toward MLB legend wording: drop the pitch-count
 // parenthetical and trailing clauses, spell out fielder abbreviations.
 function bsNormRes(s) {
@@ -902,7 +906,8 @@ function summarizePlays(json) {
 // ("Bankston Lembcke lined out to cf ..."), so a play belongs to this batter
 // when its text starts with their name AND the remainder opens with a plate-
 // appearance verb (BS_PA_RE) — which skips baserunning sub-rows ("stole second",
-// "advanced to third"). Powers the "what they've done today" line on the live
+// "advanced to third", "out at second" after reaching base). Powers the "what
+// they've done today" line on the live
 // at-bat card. Returns [{ inn: '2nd', res: 'Struck out' }, ...] in order.
 function batterPriorPAs(plays, batterName) {
   const nm = String(batterName || '').trim();
