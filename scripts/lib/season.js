@@ -157,8 +157,11 @@ function gatorsLogoDataUri() {
   try {
     const src = fs.readFileSync(path.join(ROOT, 'server.js'), 'utf8');
     const m = src.match(/GATORS_LOGO_B64\s*=\s*'([A-Za-z0-9+/=]+)'/);
-    return m ? 'data:image/png;base64,' + m[1] : '';
-  } catch (e) { return ''; }
+    if (m) return 'data:image/png;base64,' + m[1];
+  } catch (e) {}
+  // server.js now ships the logo as a file (gators-logo.png), not a base64
+  // constant, so fall back to embedding the actual image so PDFs stay branded.
+  try { return 'data:image/png;base64,' + fs.readFileSync(path.join(ROOT, 'gators-logo.png')).toString('base64'); } catch (e) { return ''; }
 }
 
 // The purple croc-skin background tile the website uses (server.js BG_TILE_B64).
@@ -166,8 +169,11 @@ function crocSkinDataUri() {
   try {
     const src = fs.readFileSync(path.join(ROOT, 'server.js'), 'utf8');
     const m = src.match(/BG_TILE_B64\s*=\s*'([A-Za-z0-9+/=]+)'/);
-    return m ? 'data:image/jpeg;base64,' + m[1] : '';
-  } catch (e) { return ''; }
+    if (m) return 'data:image/jpeg;base64,' + m[1];
+  } catch (e) {}
+  // bg-tile.jpg ships as a file now; embed it so the header band keeps its
+  // croc-skin texture in the PDF.
+  try { return 'data:image/jpeg;base64,' + fs.readFileSync(path.join(ROOT, 'bg-tile.jpg')).toString('base64'); } catch (e) { return ''; }
 }
 
 // ---- per-game team trend (sum player logs by game) -------------------------

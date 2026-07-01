@@ -66,7 +66,7 @@ function teamShort(name) { for (const [re, , s] of TEAMS_INFO) if (re.test(name 
 
 // ---- fetch the parsed box ---------------------------------------------------
 async function getBox() {
-  if (BOX_DATA) return { line: BOX_DATA.line || '', box: BOX_DATA.box || [] };
+  if (BOX_DATA) return { line: BOX_DATA.line || '', box: BOX_DATA.box || [], pbp: BOX_DATA.pbp || [], counts: BOX_DATA.counts || null };
   if (PARSE_SRC) {
     const { parseBoxscore } = require('../server');
     let html;
@@ -112,6 +112,10 @@ function kindOf(label) { return /pitching/i.test(label) ? 'pitching' : 'batting'
 // Strip inert player links and the table's own caption (we add our own section
 // headers), so the box tables render clean inside the PDF.
 const cleanTable = h => String(h || '').replace(/<caption>[\s\S]*?<\/caption>/gi, '').replace(/<a\b[^>]*>/gi, '').replace(/<\/a>/gi, '');
+// Drop the season batting-average column (the app tags it class="bxavg"). This
+// is a single-game stat sheet for the coach to verify what was entered, so the
+// season AVG is noise — strip its header and every row cell.
+const dropAvgCol = h => String(h || '').replace(/<t[dh]\b[^>]*class=["'][^"']*bxavg[^"']*["'][^>]*>[\s\S]*?<\/t[dh]>/gi, '');
 const txtOf = s => String(s || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
 const normName = n => String(n || '').toLowerCase().replace(/\s*\([^)]*\)\s*$/, '').replace(/[^a-z\s]/g, '').replace(/\s+/g, ' ').trim();
 
@@ -120,7 +124,7 @@ function groupTeams(box) {
   for (const e of box) {
     const tm = teamOf(e.label);
     if (!by[tm]) { by[tm] = { team: tm, gators: /gator|gumbeaux/i.test(tm), batting: null, pitching: null, legend: null, notes: null }; order.push(tm); }
-    by[tm][kindOf(e.label)] = cleanTable(e.html);
+    by[tm][kindOf(e.label)] = kindOf(e.label) === 'batting' ? dropAvgCol(cleanTable(e.html)) : cleanTable(e.html);
     if (e.legend && e.legend.length) by[tm].legend = e.legend;
     if (e.notes) by[tm].notes = e.notes;
   }
@@ -186,6 +190,21 @@ function notesLine(notes) {
   return parts.join(' &nbsp;·&nbsp; ');
 }
 
+// The alphabet substitution legend: PrestoSports marks each pinch hitter/runner
+// with a letter (a-, b-, ...) in the batting table and explains it below — who
+// they batted/ran for and in which inning. Render those lines under the batting
+// table so the coach can see exactly when each sub entered the game.
+function subsLine(legend) {
+  if (!Array.isArray(legend) || !legend.length) return '';
+  const rows = legend.map(s => {
+    const pos = s.pos ? ` <span class='spos'>${esc(s.pos)}</span>` : '';
+    const who = esc(s.name || '');
+    const txt = esc(s.text || (s.forName ? `for ${s.forName}` : ''));
+    return `<div class='subrow'><b>${esc(s.letter)}-</b> ${who}${pos} ${txt}</div>`;
+  }).join('');
+  return `<div class='subs'>${rows}</div>`;
+}
+
 // ---- render -----------------------------------------------------------------
 function teamBlock(t) {
   const cap = t.gators ? 'GATORS' : esc(t.team.toUpperCase());
@@ -195,7 +214,7 @@ function teamBlock(t) {
   // batting table hogs the space.
   const rc = html => (String(html || '').match(/<tr/gi) || []).length || 1;
   const sections = [];
-  if (t.batting) sections.push(`<div class='tcap bat'>${cap} — BATTING</div><div class='tbl bat' style='flex:${rc(t.batting)} 1 0'>${t.batting}</div>`);
+  if (t.batting) sections.push(`<div class='tcap bat'>${cap} — BATTING</div><div class='tbl bat' style='flex:${rc(t.batting)} 1 0'>${t.batting}</div>${subsLine(t.legend)}`);
   if (t.pitching) sections.push(`<div class='tcap pit'>${cap} — PITCHING</div><div class='tbl pit' style='flex:${rc(t.pitching)} 1 0'>${t.pitching}</div>`);
   // Brand the column to the team's color (Gators purple by default).
   const color = t.gators ? GATORS_PURPLE : teamColor(t.team);
@@ -262,10 +281,10 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .band .sub{font-size:13px;font-weight:700;color:#efe7ff;text-shadow:0 1px 2px rgba(0,0,0,.5);}
 .badge{margin-left:auto;display:flex;align-items:center;gap:14px;}
 .badge .scr{display:flex;align-items:baseline;justify-content:flex-end;gap:16px;margin:3px 0;}
-.badge .snm{font-size:16px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5);}
-.badge .sval{font-size:28px;font-weight:900;color:#fff;min-width:30px;text-align:right;text-shadow:0 2px 4px rgba(0,0,0,.5);}
+.badge .snm{font-size:16px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#fff;}
+.badge .sval{font-size:28px;font-weight:900;color:#fff;min-width:30px;text-align:right;}
 .badge .scr.win .sval{color:#ffd633;}
-.badge .bstat{font-size:20px;font-weight:800;letter-spacing:.06em;color:#cdbff5;text-shadow:0 1px 2px rgba(0,0,0,.5);}
+.badge .bstat{font-size:20px;font-weight:800;letter-spacing:.06em;color:#fff;}
 .linewrap{margin:18px 0 4px;}
 .linewrap table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;}
 .linewrap th,.linewrap td{border:1px solid #d9d2ec;padding:9px 10px;text-align:center;font-size:15px;}
@@ -301,6 +320,11 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .tbl tr:not(:first-child) th:first-child{color:#2a2150;font-weight:600;}
 .tbl th:first-child span{text-transform:uppercase;}  /* the position prefix (1b, rf, ...) */
 .tbl a{color:inherit;text-decoration:none;}
+/* Alphabet pinch-hitter/runner legend under the batting table. */
+.subs{font-size:9.5px;color:#4a3d78;padding:6px 4px 2px;line-height:1.45;}
+.subs .subrow{margin:1px 0;}
+.subs b{color:#3a2480;font-weight:800;}
+.subs .spos{text-transform:uppercase;font-size:8.5px;font-weight:800;color:#8577b8;letter-spacing:.03em;}
 /* Zebra striping for readability (every other data row), like the league box. */
 .tbl table tr:nth-child(2n) th,.tbl table tr:nth-child(2n) td{background:#f0eafa;}
 .tbl tr:last-child th,.tbl tr:last-child td{background:#faf8ff;font-weight:800;border-bottom:none;}
