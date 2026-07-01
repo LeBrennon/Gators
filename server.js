@@ -81,6 +81,15 @@ const CITY = {
   w43rx8i07fn44cyl: 'Sherman',
   jm9r4btii24hhtfp: 'Victoria',
 };
+// Team name as it reads after the city — the bold mascot part of the scoreboard
+// "<city> <mascot>" label. Equals `.short` for every team except the Gators,
+// whose mascot is two words ("Gumbeaux Gators") that `.short` trims to "Gators";
+// rendering `city + short` there would drop "Gumbeaux".
+const NICK = {};
+for (const id in TEAMS) {
+  const c = CITY[id], n = TEAMS[id].name;
+  NICK[id] = (c && n.toLowerCase().startsWith(c.toLowerCase() + ' ')) ? n.slice(c.length).trim() : TEAMS[id].short;
+}
 // Each team's official home website (TCL teams page).
 const TEAM_SITE = {
   et1bt9sixrz5lnnl: 'https://gumbeauxgators.com/',
@@ -1484,8 +1493,8 @@ function buildLeagueBoard() {
   const date = (featured && featured.date) || todayCentralYmd();
   const raw = lastHtml ? sortBoard(applyLiveScores(parseLeagueScoreboard(lastHtml, date), featured)) : [];
   const games = raw.map(g => Object.assign({}, g, {
-    away: Object.assign({}, g.away, { city: CITY[g.away && g.away.id] || '' }),
-    home: Object.assign({}, g.home, { city: CITY[g.home && g.home.id] || '' }),
+    away: Object.assign({}, g.away, { city: CITY[g.away && g.away.id] || '', nick: NICK[g.away && g.away.id] || (g.away && g.away.short) || '' }),
+    home: Object.assign({}, g.home, { city: CITY[g.home && g.home.id] || '', nick: NICK[g.home && g.home.id] || (g.home && g.home.short) || '' }),
   }));
   return { date, dateLabel: dateFromId(date).label, updatedAt: lastFetchAt, games };
 }
@@ -2658,7 +2667,7 @@ async function pollTickets() {
   } catch (e) { logErr('pollTickets', e); /* keep previous */ }
 }
 // Attaches the derived display fields a game needs on the client.
-function decorateGame(g) { return Object.assign({}, g, { away: Object.assign({}, g.away, { city: CITY[g.away && g.away.id] || '' }), home: Object.assign({}, g.home, { city: CITY[g.home && g.home.id] || '' }), location: gameLocation(g), watchUrl: watchUrlFor(g), replayUrl: replayUrlFor(g), ticketUrl: ticketIndex[g.id] || null, theme: THEMES[g.date] || null, freeAdmission: FREE_ADMISSION[g.date] || null, promo: promoFor(g), special: SPECIALS[g.date] || null }); }
+function decorateGame(g) { return Object.assign({}, g, { away: Object.assign({}, g.away, { city: CITY[g.away && g.away.id] || '', nick: NICK[g.away && g.away.id] || (g.away && g.away.short) || '' }), home: Object.assign({}, g.home, { city: CITY[g.home && g.home.id] || '', nick: NICK[g.home && g.home.id] || (g.home && g.home.short) || '' }), location: gameLocation(g), watchUrl: watchUrlFor(g), replayUrl: replayUrlFor(g), ticketUrl: ticketIndex[g.id] || null, theme: THEMES[g.date] || null, freeAdmission: FREE_ADMISSION[g.date] || null, promo: promoFor(g), special: SPECIALS[g.date] || null }); }
 
 // ----- server ---------------------------------------------------------------
 // ---- daily unique-visitor analytics ----------------------------------------
@@ -4145,7 +4154,7 @@ function renderSched(list){
   ord.forEach(function(g){
     var pill=g.state==='live'?'<span class="cpill live"><span class="dot"></span>'+g.status+'</span>':g.state==='final'?'<span class="cpill final">'+g.status+' \u203A</span>':'<span class="cpill">'+esc(g.status)+'</span>';
     var aw=g.state==='final'&&g.away.score>g.home.score,hw=g.state==='final'&&g.home.score>g.away.score;
-    function row(t,isG,won){var sc=(g.state==='live'||g.state==='final')&&t.score!=null?t.score:'';var ct=t.city?'<span class="tcity">'+esc(t.city)+'</span> ':'';return '<div class="crow'+(isG?' g':'')+(won?' w':'')+'"><img src="'+t.logo+'" alt=""><span class="n">'+ct+esc(t.short)+'</span><span class="s">'+sc+'</span><span class="warrow" aria-label="'+(won?'Winner':'')+'">'+(won?'◀':'')+'</span></div>';}
+    function row(t,isG,won){var sc=(g.state==='live'||g.state==='final')&&t.score!=null?t.score:'';var ct=t.city?'<span class="tcity">'+esc(t.city)+'</span> ':'';return '<div class="crow'+(isG?' g':'')+(won?' w':'')+'"><img src="'+t.logo+'" alt=""><span class="n">'+ct+esc(t.nick||t.short)+'</span><span class="s">'+sc+'</span><span class="warrow" aria-label="'+(won?'Winner':'')+'">'+(won?'◀':'')+'</span></div>';}
     h+='<div class="card '+(g.state==='live'?'glive':g.state==='cancelled'?'gcancel':'')+(g.id===curId?' pinned':'')+'" data-state="'+g.state+'" data-id="'+g.id+'">'
       +'<div class="ctop"><span class="cdate">'+g.dateLabel+'</span>'+pill+'</div>'
       +row(g.away,g.away.id==='et1bt9sixrz5lnnl',aw)+row(g.home,g.home.id==='et1bt9sixrz5lnnl',hw)
@@ -4325,7 +4334,7 @@ function sbTeamRow(t,win,isGt,showScore,recById,fin){
   // Winner triangle only on finals (a live leader is shown bold, no arrow).
   var tri=(fin&&win)?'<span class="sbtri"></span>':'';
   var ct=t.city?'<span class="tcity">'+esc(t.city)+'</span> ':'';
-  return '<div class="sbrow'+(win?' w':'')+(isGt?' gt':'')+'">'+lg+'<span class="sbn">'+ct+esc(t.short||'')+rec+'</span><span class="sbsc">'+tri+'<span class="sbs">'+sc+'</span></span></div>';
+  return '<div class="sbrow'+(win?' w':'')+(isGt?' gt':'')+'">'+lg+'<span class="sbn">'+ct+esc(t.nick||t.short||'')+rec+'</span><span class="sbsc">'+tri+'<span class="sbs">'+sc+'</span></span></div>';
 }
 function renderScoreboard(sb,gatorsId,recById){
   var games=(sb&&sb.games)||[];
