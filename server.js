@@ -3688,7 +3688,7 @@ a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 .sbrow{display:flex;align-items:center;gap:9px;}
 .sbl{width:30px;height:30px;border-radius:6px;object-fit:contain;background:transparent;flex:none;}
 .sbn{flex:1;min-width:0;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.02em;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.sbrec{margin-left:5px;font-weight:400;font-size:.82em;color:var(--mute);opacity:.85;}
+.sbrec{flex:none;margin-left:5px;font-weight:400;font-size:.82em;color:var(--mute);opacity:.85;white-space:nowrap;}
 .sbs{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:16px;color:var(--mute);min-width:20px;text-align:right;}
 .sbsc{display:flex;align-items:center;gap:6px;flex:none;}
 .sbtri{width:0;height:0;border-top:5px solid transparent;border-bottom:5px solid transparent;border-right:6px solid var(--gold2);}
@@ -4334,7 +4334,7 @@ function sbTeamRow(t,win,isGt,showScore,recById,fin){
   // Winner triangle only on finals (a live leader is shown bold, no arrow).
   var tri=(fin&&win)?'<span class="sbtri"></span>':'';
   var ct=t.city?'<span class="tcity">'+esc(t.city)+'</span> ':'';
-  return '<div class="sbrow'+(win?' w':'')+(isGt?' gt':'')+'">'+lg+'<span class="sbn">'+ct+esc(t.nick||t.short||'')+rec+'</span><span class="sbsc">'+tri+'<span class="sbs">'+sc+'</span></span></div>';
+  return '<div class="sbrow'+(win?' w':'')+(isGt?' gt':'')+'">'+lg+'<span class="sbn">'+ct+esc(t.nick||t.short||'')+'</span>'+rec+'<span class="sbsc">'+tri+'<span class="sbs">'+sc+'</span></span></div>';
 }
 function renderScoreboard(sb,gatorsId,recById){
   var games=(sb&&sb.games)||[];
