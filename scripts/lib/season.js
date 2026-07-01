@@ -157,16 +157,25 @@ function gatorsLogoDataUri() {
   try {
     const src = fs.readFileSync(path.join(ROOT, 'server.js'), 'utf8');
     const m = src.match(/GATORS_LOGO_B64\s*=\s*'([A-Za-z0-9+/=]+)'/);
-    return m ? 'data:image/png;base64,' + m[1] : '';
+    if (m) return 'data:image/png;base64,' + m[1];
+  } catch (e) {}
+  // server.js now serves the logo as a file rather than an inlined constant;
+  // fall back to the repo's PNG so branded PDFs still get the logo.
+  try {
+    return 'data:image/png;base64,' + fs.readFileSync(path.join(ROOT, 'gators-logo.png')).toString('base64');
   } catch (e) { return ''; }
 }
 
-// The purple croc-skin background tile the website uses (server.js BG_TILE_B64).
+// The purple croc-skin background tile the website uses (server.js BG_TILE_B64,
+// or the repo's bg-tile.jpg when the constant isn't inlined).
 function crocSkinDataUri() {
   try {
     const src = fs.readFileSync(path.join(ROOT, 'server.js'), 'utf8');
     const m = src.match(/BG_TILE_B64\s*=\s*'([A-Za-z0-9+/=]+)'/);
-    return m ? 'data:image/jpeg;base64,' + m[1] : '';
+    if (m) return 'data:image/jpeg;base64,' + m[1];
+  } catch (e) {}
+  try {
+    return 'data:image/jpeg;base64,' + fs.readFileSync(path.join(ROOT, 'bg-tile.jpg')).toString('base64');
   } catch (e) { return ''; }
 }
 

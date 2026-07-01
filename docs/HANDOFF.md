@@ -5,6 +5,36 @@ Single-file app (`server.js`, backend + embedded frontend) · `npm test`
 
 ---
 
+## GM report cards — computer + mobile (owner preference)
+
+Each game's shareable GM report ships in **two layouts with identical content**,
+rendered from one `DATA` block by **`scripts/gm-report-cards.js`**:
+
+- **Computer** — letter, two-column, branded → `<stem> (Computer).pdf`
+- **Mobile** — one column, large text, single continuous page (no page-break that
+  slices a card) → `<stem> (Mobile).png` + `<stem> (Mobile).pdf`
+
+Both carry the same sections: header + result badge, inning-by-inning **line
+score (R/H/E)**, Offense/Pitching stat strips, Recap, What Stood Out, Key
+Hitters, On the Mound, Season Context. Branding = croc-skin header band, gold
+border, purples **#4e3191** (dark) / **#714ad2** (accent), badge green WIN / red
+LOSS. No footer. Filename stem style: `MM-DD LCGG @ BVB - GM Report` (no `/` — it
+breaks paths).
+
+Usage: fill the `DATA` block from the box score, then
+`node scripts/gm-report-cards.js "reports/postgame/<stem>"` (needs Chromium).
+
+**Timing (owner preference):** generate both cards **right after the game goes
+final**, straight from the live box — don't wait for the next-day seed refresh.
+
+Why hand-fed: the daily seed lags a game, so on game night
+`postgame-report.js` can't resolve the just-finished game yet. Pull the line
+score + box from **`/api/boxscore?id=<id>`** on the live site (reachable from the
+sandbox) and paste the facts in; once the seed refreshes those numbers match
+`postgame-report.js`.
+
+---
+
 ## Shipped (merged to `main`, deployed)
 
 | PR  | Change |
