@@ -1900,18 +1900,53 @@ function pitcherSeason(name) {
 // Did the current pitcher just enter? Look for his pitching-change announcement
 // in the play-by-play ("X to p for Y", "Pitching change: X for Y", "X relieved
 // Y"). Returns { replaced } when found, so a starter (no such line) isn't flagged.
+const PITCH_CHANGE_PATS = [
+  /^(.+?) to p for (.+?)\.?$/i,
+  /pitching change[:.]?\s*(.+?)\s+(?:replaces|for|relieved)\s+(.+?)\.?$/i,
+  /^(.+?)\s+(?:relieved|replaces)\s+(.+?)\.?$/i,
+];
 function pitchChangeFor(plays, pitcherName) {
   const nm = normPlayerName(pitcherName); if (!nm || !Array.isArray(plays)) return null;
-  const pats = [
-    /^(.+?) to p for (.+?)\.?$/i,
-    /pitching change[:.]?\s*(.+?)\s+(?:replaces|for|relieved)\s+(.+?)\.?$/i,
-    /^(.+?)\s+(?:relieved|replaces)\s+(.+?)\.?$/i,
-  ];
   for (let i = plays.length - 1; i >= 0; i--) {
     const t = String(plays[i].text || '').trim();
-    for (const re of pats) { const m = t.match(re); if (m && normPlayerName(m[1]) === nm) return { replaced: m[2].trim() }; }
+    for (const re of PITCH_CHANGE_PATS) { const m = t.match(re); if (m && normPlayerName(m[1]) === nm) return { replaced: m[2].trim(), index: i }; }
   }
   return null;
+}
+// Is this play's narrative a completed plate appearance (any outcome — out, hit,
+// walk, HBP, reached on error, fielder's choice)? The narrative leads with the
+// batter's name, so strip up to four leading name tokens and test the rest with
+// the same plate-appearance verb list used elsewhere; baserunning sub-rows
+// ("stole second", "scored", "advanced to third") don't start with a PA verb.
+function isPaLine(text) {
+  const t = String(text || '').trim(); if (!t) return false;
+  const toks = t.split(/\s+/);
+  for (let k = 1; k <= 4 && k < toks.length; k++) if (BS_PA_RE.test(toks.slice(k).join(' '))) return true;
+  return false;
+}
+// The pitcher's home/visitor side, from whichever box team lists him.
+function pitcherTeamVh(pitchers, name) {
+  const nm = normPlayerName(name);
+  for (const t of (pitchers || [])) if ((t.rows || []).some(r => normPlayerName(r.name) === nm)) return t.vh;
+  return null;
+}
+// Has the pitcher already finished at least one batter since taking the mound?
+// Read from the play-by-play so it catches every way a batter can end an at-bat,
+// including reached-on-error and fielder's choice, which never appear as a hit,
+// walk, or HBP on his box line. A reliever's first faced batter is the first
+// completed PA after his pitching-change announcement; a starter's is the first
+// completed PA in the half-innings his team is on defense.
+function pitcherFacedBatter(plays, chg, starter, pitchers, name) {
+  if (!Array.isArray(plays) || !plays.length) return false;
+  if (chg) {
+    for (let i = chg.index + 1; i < plays.length; i++) if (isPaLine(plays[i].text)) return true;
+    return false;
+  }
+  if (!starter) return false;
+  const vh = pitcherTeamVh(pitchers, name); if (!vh) return false;
+  const fieldHalf = vh === 'H' ? 'top' : 'bot'; // home fields the top, visitor the bottom
+  for (const p of plays) if (p.half === fieldHalf && isPaLine(p.text)) return true;
+  return false;
 }
 // Is this pitcher his team's starter? The feed lists pitchers in order of
 // appearance, so the first row per team is the starter.
@@ -1921,15 +1956,26 @@ function isStarter(pitchers, name) {
   for (const t of pitchers) { if (t.rows && t.rows.length && normPlayerName(t.rows[0].name) === nm) return true; }
   return false;
 }
-// Build the "new pitcher" enrichment for the live pitcher card: shown while he's
-// freshly in and hasn't recorded an out — a reliever right after his pitching
-// change, or a starter on his first batter. Carries his school, age (or class),
-// and summer line. Returns null once he's recorded an out.
+// Build the "new pitcher" enrichment for the live pitcher card: shown only while
+// he's facing his very first batter — a reliever right after his pitching change,
+// or a starter on his first batter. Carries his school, age (or class), and
+// summer line. Returns null once he's finished a plate appearance, whether that
+// batter made an out or reached base (walk/hit/HBP) — otherwise the badge lingers
+// across several batters when he hasn't recorded an out yet.
 function newPitcherInfo(info, plays, name, pitchers) {
   if (info && info.outs != null && info.outs > 0) return null;
   const chg = pitchChangeFor(plays, name);
   const starter = !chg && isStarter(pitchers, name);
   if (!chg && !starter) return null;
+  // Clear the badge the moment his first batter is done. Two signals, so a thin
+  // or lagging feed still clears it: his box line (out or baserunner allowed),
+  // and the play-by-play (also covers reached-on-error / fielder's choice, which
+  // never show as a hit, walk, or HBP).
+  const nm = normPlayerName(name); const num = x => Number(x) || 0;
+  let row = null;
+  for (const t of (pitchers || [])) { const r = (t.rows || []).find(x => normPlayerName(x.name) === nm); if (r) { row = r; break; } }
+  if (row && (num(row.h) + num(row.bb) + num(row.hbp)) > 0) return null;
+  if (pitcherFacedBatter(plays, chg, starter, pitchers, name)) return null;
   const s = pitcherSeason(name);
   return { newPitcher: { replaced: chg ? chg.replaced : null, starter }, bio: s.bio, seasonLine: s.seasonLine };
 }
@@ -3948,10 +3994,13 @@ function matchupCard(role,info){
   // school/class and summer line (ERA/IP/K), the same shape as the 1st-AB card.
   if(info.newPitcher){
     var npLab=info.newPitcher.starter?'Starting Pitcher':'New Pitcher';
+    // Put the "New pitcher" badge to the right of the name and number, inline in
+    // the name row, rather than on its own line below.
+    var npHead='<div class="mrole">'+role+'</div><div class="mname">'+noAddr(info.name)+(meta.length?'<span class="mmeta">'+meta.join(' ')+'</span>':'')+'<span class="mfb">'+npLab+'</span></div>';
     var rep=info.newPitcher.replaced?('in for '+noAddr(info.newPitcher.replaced)+(info.bio?' · '+esc(info.bio):'')):(info.bio?esc(info.bio):'');
-    var nb='<div class="mfirst"><span class="mfb">'+npLab+'</span>'+(rep?'<span class="mfbio">'+rep+'</span>':'')+'</div>';
+    var nb=rep?'<div class="mfirst"><span class="mfbio">'+rep+'</span></div>':'';
     var nsl=(info.seasonLine&&info.seasonLine.length)?'<div class="mstat"><span class="mssn">SEASON</span> '+info.seasonLine.map(function(s){return '<span class="mfk">'+esc(s[0])+'</span> '+esc(s[1]);}).join('   ')+'</div>':'';
-    return '<div class="mcard">'+head+nb+nsl+'</div>';
+    return '<div class="mcard">'+npHead+nb+nsl+'</div>';
   }
   // First plate appearance of the game: no game line yet, so show "1st AB" plus
   // the batter's school/class and season AVG/RBI/(HR|SB|H). A pinch hitter/runner
