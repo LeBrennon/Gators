@@ -1240,8 +1240,8 @@ function normalizeFeatured(g) {
     inningLabel: status === 'live' ? g.status : status === 'final' ? 'Final' : status === 'cancelled' ? 'Cancelled' : g.status,
     gatorsHome: g.gatorsHome, opponent: g.opponent,
     location: gameLocation(g), watchUrl: watchUrlFor(g), ticketUrl: ticketIndex[g.id] || null, theme: THEMES[g.date] || null, freeAdmission: FREE_ADMISSION[g.date] || null, promo: promoFor(g), special: SPECIALS[g.date] || null,
-    away: { name: g.away.name, short: g.away.short, logo: g.away.logo, runs: g.away.score || 0, record: recordStr(g.away) },
-    home: { name: g.home.name, short: g.home.short, logo: g.home.logo, runs: g.home.score || 0, record: recordStr(g.home) },
+    away: { name: g.away.name, short: g.away.short, logo: g.away.logo, runs: g.away.score || 0, record: recordStr(g.away), site: TEAM_SITE[g.away.id] || null },
+    home: { name: g.home.name, short: g.home.short, logo: g.home.logo, runs: g.home.score || 0, record: recordStr(g.home), site: TEAM_SITE[g.home.id] || null },
   };
 }
 
@@ -3309,6 +3309,10 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .sl{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;}
 .tm{display:flex;flex-direction:column;align-items:center;gap:8px;min-width:0;}
 .tm img{width:54px;height:54px;border-radius:14px;object-fit:contain;background:transparent;}
+.tm .tlogo{display:block;line-height:0;border-radius:14px;}
+.tm a.tlogo[href]{cursor:pointer;transition:transform .12s ease,filter .12s ease;}
+.tm a.tlogo[href]:hover{transform:scale(1.06);filter:drop-shadow(0 2px 6px rgba(0,0,0,.35));}
+.tm a.tlogo[href]:focus-visible{outline:2px solid var(--gator);outline-offset:2px;}
 .tm .nm{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.03em;font-size:12px;text-align:center;line-height:1.05;}
 .tm .rec{font-family:'Inter',sans-serif;font-weight:600;font-size:11px;color:var(--mute);letter-spacing:.04em;margin-top:-4px;min-height:13px;}
 .tm.gators .nm{color:var(--gator);}
@@ -3630,9 +3634,9 @@ a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 <div id="viewScores">
 <div class="jumbo">
 <div class="sl">
-<div class="tm" id="awayTm"><img id="awayLogo" alt=""><div class="nm" id="awayNm">—</div><div class="rec" id="awayRec"></div><div class="sc" id="awaySc">0</div></div>
+<div class="tm" id="awayTm"><a class="tlogo" id="awayLogoLink" rel="noopener"><img id="awayLogo" alt=""></a><div class="nm" id="awayNm">—</div><div class="rec" id="awayRec"></div><div class="sc" id="awaySc">0</div></div>
 <div class="mid"><a class="watchpill" id="watchBtn" target="_blank" rel="noopener" style="display:none">Watch</a><div class="statpill" id="statpill">—</div><div class="vs" id="vs">vs</div><div class="jloc" id="jloc"></div><div class="jtheme" id="themeTag" style="display:none"></div><div class="jtheme" id="specialName" style="display:none"></div></div>
-<div class="tm" id="homeTm"><img id="homeLogo" alt=""><div class="nm" id="homeNm">—</div><div class="rec" id="homeRec"></div><div class="sc" id="homeSc">0</div></div>
+<div class="tm" id="homeTm"><a class="tlogo" id="homeLogoLink" rel="noopener"><img id="homeLogo" alt=""></a><div class="nm" id="homeNm">—</div><div class="rec" id="homeRec"></div><div class="sc" id="homeSc">0</div></div>
 </div>
 <div class="jpromos"><div class="jpromo" id="specialDetail" style="display:none"></div><div class="jpromo" id="promoTag" style="display:none"></div></div>
 <div class="live" id="livePanel" style="display:none"></div>
@@ -3725,10 +3729,20 @@ var FX=(function(){
 })();
 var prev={a:null,h:null};
 var lastPlayTx='',lastPlayGid=null; // track the live "Last play" text to flash only on change
+// Point a team's scoreboard logo at their official site. Only the opponent is
+// linked; the Gators' own logo (isGators=true) stays a plain, non-clickable image.
+function logoLink(id,t,isGators){
+  var a=$(id);if(!a)return;
+  if(!isGators&&t&&t.site){a.setAttribute('href',t.site);a.setAttribute('target','_blank');a.setAttribute('title',(t.name||t.short||'Opponent')+' — official site');}
+  else{a.removeAttribute('href');a.removeAttribute('target');a.removeAttribute('title');}
+}
 function renderGame(g){
   var ah=!g.gatorsHome, hh=g.gatorsHome;
   $('awayTm').classList.toggle('gators',ah);$('homeTm').classList.toggle('gators',hh);
   $('awayLogo').src=g.away.logo;$('homeLogo').src=g.home.logo;
+  // Hyperlink the opposing team's logo to their official site (the Gators' own
+  // logo stays a plain image — the header already links to gumbeauxgators.com).
+  logoLink('awayLogoLink',g.away,ah);logoLink('homeLogoLink',g.home,hh);
   $('awayNm').textContent=g.away.short;$('homeNm').textContent=g.home.short;
   var ar=$('awayRec'),hr=$('homeRec');
   if(ar)ar.textContent=g.away.record||'';if(hr)hr.textContent=g.home.record||'';
