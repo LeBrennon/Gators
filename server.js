@@ -1921,12 +1921,21 @@ function isStarter(pitchers, name) {
   for (const t of pitchers) { if (t.rows && t.rows.length && normPlayerName(t.rows[0].name) === nm) return true; }
   return false;
 }
-// Build the "new pitcher" enrichment for the live pitcher card: shown while he's
-// freshly in and hasn't recorded an out — a reliever right after his pitching
-// change, or a starter on his first batter. Carries his school, age (or class),
-// and summer line. Returns null once he's recorded an out.
+// Build the "new pitcher" enrichment for the live pitcher card: shown only while
+// he's facing his very first batter — a reliever right after his pitching change,
+// or a starter on his first batter. Carries his school, age (or class), and
+// summer line. Returns null once he's finished a plate appearance, whether that
+// batter made an out or reached base (walk/hit/HBP) — otherwise the badge lingers
+// across several batters when he hasn't recorded an out yet.
 function newPitcherInfo(info, plays, name, pitchers) {
   if (info && info.outs != null && info.outs > 0) return null;
+  // Completed plate appearances from his box line = outs + baserunners allowed.
+  // If any batter has finished, the one now up is at least his second, so he's
+  // no longer freshly in.
+  const nm = normPlayerName(name); const num = x => Number(x) || 0;
+  let row = null;
+  for (const t of (pitchers || [])) { const r = (t.rows || []).find(x => normPlayerName(x.name) === nm); if (r) { row = r; break; } }
+  if (row && (num(row.h) + num(row.bb) + num(row.hbp)) > 0) return null;
   const chg = pitchChangeFor(plays, name);
   const starter = !chg && isStarter(pitchers, name);
   if (!chg && !starter) return null;
