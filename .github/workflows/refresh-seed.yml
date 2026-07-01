@@ -2,15 +2,17 @@ name: Refresh seed + post-game report
 
 # Runs three ways:
 #   • schedule (daily 07:00 UTC ≈ 2am Central) — rebuild + commit the warm-boot
-#     seed (roster-seed.json) and upload a fresh report artifact. No email.
+#     seed (roster-seed.json) and upload fresh report artifacts. No email.
 #   • repository_dispatch (type: gators-final) — fired by the live server within
-#     seconds of the last out. Builds the branded PDF for the just-finished game
-#     and EMAILS it to the recipients. This is the "as soon as the last out" path.
+#     seconds of the last out. Builds the branded FULL BOX SCORE for the just-
+#     finished game (plus the narrative recap when it's ready) and EMAILS them to
+#     the recipients. This is the "as soon as the last out is made" path.
 #   • workflow_dispatch — manual run from the Actions tab (also emails), optionally
 #     for a specific box id.
 #
-# The report is a PERSONAL artifact — reports/postgame/ is gitignored, so it ships
-# as a build artifact and by email; it is never committed and never on the website.
+# The deliverables are PERSONAL artifacts — reports/box/ and reports/postgame/ are
+# gitignored, so they ship as build artifacts and by email; never committed, never
+# on the website.
 
 on:
   schedule:
@@ -77,37 +79,48 @@ jobs:
             git push
           fi
 
-      - name: Build the post-game report (waits for stats to post)
+      - name: Build the full box score + post-game report (waits for stats to post)
         id: build
         run: |
           export CHROMIUM_PATH="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
           TARGET="${{ steps.plan.outputs.game_id }}"; [ -z "$TARGET" ] && TARGET="latest"
           echo "target=$TARGET  chromium=${CHROMIUM_PATH:-<none, will fall back>}"
           for i in 1 2 3 4 5 6; do
-            if node scripts/postgame-report.js "$TARGET" --pdf --write --strict; then
+            # The FULL BOX SCORE is the priority deliverable — gate the email on it
+            # so it lands "as soon as the last out is made". It needs the box to be
+            # posted (same stats the recap does), so it doubles as the "ready?" probe.
+            if node scripts/box-score.js "$TARGET" --pdf; then
+              # Box is posted, so the stats are in — build the narrative recap too,
+              # best-effort: a flaky recap must never hold back the box-score email.
+              node scripts/postgame-report.js "$TARGET" --pdf --write --strict \
+                || echo "::warning::narrative post-game report not ready for '$TARGET' — sending the box score alone"
               echo "built=true" >> "$GITHUB_OUTPUT"; exit 0
             fi
-            echo "  '$TARGET' has no pitching data yet (unposted or rate-limited) — waiting 120s, then rebuilding ($i/6)"
+            echo "  box score for '$TARGET' not posted yet (unposted or rate-limited) — waiting 120s, then rebuilding ($i/6)"
             sleep 120
             node scripts/build-seed.js || true
           done
           echo "built=false" >> "$GITHUB_OUTPUT"
-          echo "::error::could not build a report for '$TARGET' (stats never posted in time)"
+          echo "::error::could not build a box score for '$TARGET' (stats never posted in time)"
           exit 1
 
       - name: Preview report in the log (dry run only)
         if: steps.build.outputs.built == 'true' && github.event.inputs.dry_run == 'true'
         run: |
+          echo "----- BOX SCORE FILES -----"
+          ls -la reports/box/ || echo "(no box files)"
           echo "----- REPORT MARKDOWN PREVIEW BEGIN -----"
-          cat reports/postgame/*.md
+          cat reports/postgame/*.md 2>/dev/null || echo "(no narrative report — box score only)"
           echo "----- REPORT MARKDOWN PREVIEW END -----"
 
-      - name: Upload the report artifact
+      - name: Upload the report artifacts
         if: steps.build.outputs.built == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: gators-postgame-report
-          path: reports/postgame/
+          path: |
+            reports/box/
+            reports/postgame/
           if-no-files-found: warn
           retention-days: 90
 
