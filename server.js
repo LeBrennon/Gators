@@ -103,6 +103,9 @@ const TEAM_SITE = {
 };
 const HOME_VENUE = 'Joe Miller Ballpark';
 const GATORS_ID = 'et1bt9sixrz5lnnl';
+// Scoreboard/board city prefix. The Gators are "our" team — show just the bold
+// mascot ("Gumbeaux Gators"), no dim city. Every other team keeps its city.
+const boardCity = id => id === GATORS_ID ? '' : (CITY[id] || '');
 // Split-season tracking. The TCL plays two halves; each half's winner clinches a
 // playoff berth. Standings shown below reflect the current half, with clinched
 // teams tagged "x-" regardless of where their (reset) second-half record sits.
@@ -1493,8 +1496,8 @@ function buildLeagueBoard() {
   const date = (featured && featured.date) || todayCentralYmd();
   const raw = lastHtml ? sortBoard(applyLiveScores(parseLeagueScoreboard(lastHtml, date), featured)) : [];
   const games = raw.map(g => Object.assign({}, g, {
-    away: Object.assign({}, g.away, { city: CITY[g.away && g.away.id] || '', nick: NICK[g.away && g.away.id] || (g.away && g.away.short) || '' }),
-    home: Object.assign({}, g.home, { city: CITY[g.home && g.home.id] || '', nick: NICK[g.home && g.home.id] || (g.home && g.home.short) || '' }),
+    away: Object.assign({}, g.away, { city: boardCity(g.away && g.away.id), nick: NICK[g.away && g.away.id] || (g.away && g.away.short) || '' }),
+    home: Object.assign({}, g.home, { city: boardCity(g.home && g.home.id), nick: NICK[g.home && g.home.id] || (g.home && g.home.short) || '' }),
   }));
   return { date, dateLabel: dateFromId(date).label, updatedAt: lastFetchAt, games };
 }
@@ -2667,7 +2670,7 @@ async function pollTickets() {
   } catch (e) { logErr('pollTickets', e); /* keep previous */ }
 }
 // Attaches the derived display fields a game needs on the client.
-function decorateGame(g) { return Object.assign({}, g, { away: Object.assign({}, g.away, { city: CITY[g.away && g.away.id] || '', nick: NICK[g.away && g.away.id] || (g.away && g.away.short) || '' }), home: Object.assign({}, g.home, { city: CITY[g.home && g.home.id] || '', nick: NICK[g.home && g.home.id] || (g.home && g.home.short) || '' }), location: gameLocation(g), watchUrl: watchUrlFor(g), replayUrl: replayUrlFor(g), ticketUrl: ticketIndex[g.id] || null, theme: THEMES[g.date] || null, freeAdmission: FREE_ADMISSION[g.date] || null, promo: promoFor(g), special: SPECIALS[g.date] || null }); }
+function decorateGame(g) { return Object.assign({}, g, { away: Object.assign({}, g.away, { city: boardCity(g.away && g.away.id), nick: NICK[g.away && g.away.id] || (g.away && g.away.short) || '' }), home: Object.assign({}, g.home, { city: boardCity(g.home && g.home.id), nick: NICK[g.home && g.home.id] || (g.home && g.home.short) || '' }), location: gameLocation(g), watchUrl: watchUrlFor(g), replayUrl: replayUrlFor(g), ticketUrl: ticketIndex[g.id] || null, theme: THEMES[g.date] || null, freeAdmission: FREE_ADMISSION[g.date] || null, promo: promoFor(g), special: SPECIALS[g.date] || null }); }
 
 // ----- server ---------------------------------------------------------------
 // ---- daily unique-visitor analytics ----------------------------------------
