@@ -66,7 +66,7 @@ function teamShort(name) { for (const [re, , s] of TEAMS_INFO) if (re.test(name 
 
 // ---- fetch the parsed box ---------------------------------------------------
 async function getBox() {
-  if (BOX_DATA) return { line: BOX_DATA.line || '', box: BOX_DATA.box || [] };
+  if (BOX_DATA) return { line: BOX_DATA.line || '', box: BOX_DATA.box || [], pbp: BOX_DATA.pbp || [], counts: BOX_DATA.counts || null };
   if (PARSE_SRC) {
     const { parseBoxscore } = require('../server');
     let html;
