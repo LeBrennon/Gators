@@ -3333,7 +3333,7 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .lutbl tr.cur td.lunm{color:var(--gold2);}
 .lutbl tr.lusub td{border-top:0;}
 .lutbl tr.lusub td.lunm{padding-left:22px;}
-.lutbl td.lpn,.lutbl th.lpn{text-align:right;font-family:'JetBrains Mono',monospace;width:1%;white-space:nowrap;}
+.lutbl td.lpn,.lutbl th.lpn{text-align:center;font-family:'JetBrains Mono',monospace;width:1%;white-space:nowrap;}
 .lutbl tr.pttot td{border-top:2px solid var(--line);font-weight:700;color:var(--mute);}
 .lutbl tr.pttot td.lunm{color:var(--bone);text-transform:uppercase;font-size:10px;letter-spacing:.06em;}
 .lutbl td.lpn{color:var(--bone);}
