@@ -3280,9 +3280,9 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .lutab{flex:1;text-align:center;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.05em;font-size:10px;padding:8px 12px;border-radius:999px;border:1px solid var(--line);color:var(--mute);background:var(--bayou2);cursor:pointer;}
 .lutab.on{color:#fff;background:linear-gradient(180deg,var(--purple),var(--gator2));border-color:var(--purple);}
 .lubox{overflow-x:auto;-webkit-overflow-scrolling:touch;}
-.lutbl{width:100%;border-collapse:collapse;font-size:12.5px;}
-.lutbl th{color:var(--mute);font-size:9px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;padding:5px 7px;text-align:left;white-space:nowrap;border-bottom:1px solid var(--line);}
-.lutbl td{padding:7px 7px;border-top:1px solid var(--line);color:var(--bone);white-space:nowrap;}
+.lutbl{width:100%;border-collapse:collapse;font-size:12px;}
+.lutbl th{color:var(--mute);font-size:9px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;padding:5px 4px;text-align:left;white-space:nowrap;border-bottom:1px solid var(--line);}
+.lutbl td{padding:7px 4px;border-top:1px solid var(--line);color:var(--bone);white-space:nowrap;}
 .lutbl td.lus,.lutbl th.lus{color:var(--mute);text-align:center;}
 .lutbl td.luu{font-family:'JetBrains Mono',monospace;color:var(--mute);}
 .lutbl td.lunm{font-weight:600;width:100%;white-space:nowrap;}
