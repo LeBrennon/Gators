@@ -4068,7 +4068,7 @@ function buildLineup(g){
       '<td>'+esc(r.pos||'')+'</td><td class="luu">'+esc(String(r.uni||''))+'</td>'+
       '<td class="lunm">'+nmeCell+'</td>'+
       sc(r.ab)+sc(r.runs)+sc(r.hits)+sc(r.rbi)+sc(r.bb)+sc(r.k)+
-      '<td class="lpn lavg">'+esc(r.seasonAvg||'')+'</td></tr>';
+      '<td class="lpn lavg">'+esc(r.seasonAvg||'N/A')+'</td></tr>';
   });
   var T=team.totals;
   if(T)rows+='<tr class="pttot"><td class="lus"></td><td></td><td class="luu"></td><td class="lunm">Totals</td>'+
