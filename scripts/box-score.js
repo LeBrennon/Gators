@@ -283,7 +283,7 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .badge .scr{display:flex;align-items:baseline;justify-content:flex-end;gap:16px;margin:3px 0;}
 .badge .snm{font-size:16px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#fff;}
 .badge .sval{font-size:28px;font-weight:900;color:#fff;min-width:30px;text-align:right;}
-.badge .scr.win .sval{color:#fff;}
+.badge .scr.win .sval{color:#ffd633;}
 .badge .bstat{font-size:20px;font-weight:800;letter-spacing:.06em;color:#fff;}
 .linewrap{margin:18px 0 4px;}
 .linewrap table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;}
