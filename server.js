@@ -2789,6 +2789,7 @@ function repEsc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){ret
 function reportPage(title,bodyHtml){
   return '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">'
     +'<meta name="viewport" content="width=device-width, initial-scale=1">'
+    +'<meta name="format-detection" content="telephone=no, date=no, address=no, email=no">'
     +'<title>'+repEsc(title)+'</title><style>'
     +':root{--bayou:#16102b;--bayou2:#1e1640;--line:#41327a;--gold:#ecc913;--gold2:#ffd633;--purple:#714ad2;--bone:#f0ede4;--mute:#9a8cc4;--win:#7BD88F;--loss:#e0524a;}'
     +'*{box-sizing:border-box;}body{margin:0;background:var(--bayou);color:var(--bone);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.45;padding:18px 14px 48px;}'
@@ -3145,6 +3146,7 @@ const MANIFEST = JSON.stringify({ name: 'Gators GameTracker', short_name: 'Gator
 const APP = `<!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
 <meta name="theme-color" content="#16102b"><link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="/icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Gators">
