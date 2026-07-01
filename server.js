@@ -287,6 +287,9 @@ const BS_PA_RE = /^(singled|doubled|tripled|homered|home run|walked|intentionall
 // parenthetical and trailing clauses, spell out fielder abbreviations.
 function bsNormRes(s) {
   s = s.replace(/\s*\([^)]*\)/g, '').split(/[;,]/)[0].replace(/\.\s*$/, '').trim();
+  // Double/triple plays: drop the fielder chain ("ss to second to first") — the
+  // MLB legend just says "grounded into double play".
+  s = s.replace(/\binto (?:a\s+)?(double|triple) play\b.*/i, 'into $1 play');
   s = s.replace(/\bto 1b\b/gi, 'to first').replace(/\bto 2b\b/gi, 'to second').replace(/\bto 3b\b/gi, 'to third')
        .replace(/\bto ss\b/gi, 'to short').replace(/\bto lf\b/gi, 'to left').replace(/\bto cf\b/gi, 'to center')
        .replace(/\bto rf\b/gi, 'to right').replace(/\bto p\b/gi, 'to pitcher').replace(/\bto c\b/gi, 'to catcher');
