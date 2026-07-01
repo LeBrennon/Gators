@@ -4066,6 +4066,8 @@ function buildLineup(g){
   var curBat=g.live&&g.live.batter?String(g.live.batter).trim():'';
   var battingV=g.live&&g.live.half==='Top';
   var teamBatting=(team.vh==='V')===battingV;
+  // Season AVG is shown only for the Gators — opponents' averages are withheld for now.
+  var showAvg=team.isGators;
   function sc(v){return '<td class="lpn">'+(v==null?'':esc(String(v)))+'</td>';}
   var rows='';
   team.rows.forEach(function(r){
@@ -4082,19 +4084,19 @@ function buildLineup(g){
       '<td>'+esc(r.pos||'')+'</td><td class="luu">'+esc(String(r.uni||''))+'</td>'+
       '<td class="lunm">'+nmeCell+'</td>'+
       sc(r.ab)+sc(r.runs)+sc(r.hits)+sc(r.rbi)+sc(r.bb)+sc(r.k)+
-      '<td class="lpn lavg">'+esc(r.seasonAvg||'N/A')+'</td></tr>';
+      (showAvg?'<td class="lpn lavg">'+esc(r.seasonAvg||'N/A')+'</td>':'')+'</tr>';
   });
   var T=team.totals;
   if(T)rows+='<tr class="pttot"><td class="lus"></td><td></td><td class="luu"></td><td class="lunm">Totals</td>'+
     '<td class="lpn">'+T.ab+'</td><td class="lpn">'+T.runs+'</td><td class="lpn">'+T.hits+'</td>'+
-    '<td class="lpn">'+T.rbi+'</td><td class="lpn">'+T.bb+'</td><td class="lpn">'+T.k+'</td><td class="lpn"></td></tr>';
+    '<td class="lpn">'+T.rbi+'</td><td class="lpn">'+T.bb+'</td><td class="lpn">'+T.k+'</td>'+(showAvg?'<td class="lpn"></td>':'')+'</tr>';
   var tabs='<div class="lutabs">';
   if(gators)tabs+='<button class="lutab'+(showGators?' on':'')+'" data-lineup="gators">'+esc(nm(gators)||'Gators')+'</button>';
   if(opp)tabs+='<button class="lutab'+(!showGators?' on':'')+'" data-lineup="opp">'+esc(nm(opp)||'Opponent')+'</button>';
   tabs+='</div>';
   var head='<tr><th class="lus"></th><th>Pos</th><th>#</th><th class="lunm">Player</th>'+
     '<th class="lpn">AB</th><th class="lpn">R</th><th class="lpn">H</th><th class="lpn">RBI</th><th class="lpn">BB</th><th class="lpn">K</th>'+
-    '<th class="lpn" title="Season batting average">AVG</th></tr>';
+    (showAvg?'<th class="lpn" title="Season batting average">AVG</th>':'')+'</tr>';
   return '<div class="lineup"><div class="luh">Lineup</div>'+tabs+
     '<div class="lubox"><table class="lutbl">'+head+rows+'</table></div>'+lineupNotes(team)+'</div>';
 }
