@@ -1950,11 +1950,36 @@ function pinchFor(plays, batterName) {
 }
 // A batter's season batting average by name — Gators from our roster cache, every
 // other league hitter from the league hitting leaderboard. Shown on the lineup.
+// A last-name + first-initial fallback (over the leaderboard) covers opponents the
+// live feed names differently than the stats site — a nickname ("Joey" vs the
+// leaderboard's "Joseph") or an extra middle name — which would otherwise leave
+// the lineup's AVG column blank even though the season line exists.
 function seasonAvgFor(name) {
   const key = normPlayerName(name); if (!key) return null;
   const g = GATOR_BY_NORM[key];
   const hit = g ? ((rosterStats[g.slug] || {}).hit) : leagueHitterStats[key];
-  return (hit && hit.avg != null && hit.avg !== '' && hit.avg !== '-') ? String(hit.avg) : null;
+  if (hit && hit.avg != null && hit.avg !== '' && hit.avg !== '-') return String(hit.avg);
+  if (g) return null;                       // Gators are matched by our own roster names
+  const p = key.split(' '); if (p.length < 2) return null;
+  return hitterAbbrIndex()[p[0][0] + '|' + p[p.length - 1]] || null;
+}
+// Abbreviated-name index (firstInitial|lastname -> AVG) over the league hitting
+// leaderboard, for seasonAvgFor's fallback. Rebuilt only when the leaderboard
+// object is replaced (once per roster poll), keyed on its identity so per-call
+// lookups stay cheap. First name wins on a collision, matching the box score.
+let _hitAbbrSrc = null, _hitAbbr = {};
+function hitterAbbrIndex() {
+  if (_hitAbbrSrc === leagueHitterStats) return _hitAbbr;
+  const idx = {};
+  for (const k in leagueHitterStats) {
+    const h = leagueHitterStats[k];
+    if (!h || h.avg == null || h.avg === '' || h.avg === '-') continue;
+    const p = k.split(' '); if (p.length < 2) continue;
+    const li = p[0][0] + '|' + p[p.length - 1];
+    if (!(li in idx)) idx[li] = String(h.avg);
+  }
+  _hitAbbrSrc = leagueHitterStats; _hitAbbr = idx;
+  return idx;
 }
 const playerCache = {};     // slug -> full { ...light, glBat, glPit, ts } for profiles
 let rosterUpdated = 0;
