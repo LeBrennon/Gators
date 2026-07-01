@@ -1124,6 +1124,46 @@ function lineupsFromFeed(json) {
     });
     // Every TCL game uses a DH, so the pitcher never bats — leave them out.
     const battingRows = rows.filter(r => r.pos !== 'P');
+    // Reference-letter legend for substitutes, mirroring the box score: each sub
+    // (pinch hitter/runner or defensive replacement) gets a letter (a, b, c…) and
+    // a note saying whom he replaced and — when the play-by-play announced it — in
+    // which inning. The replaced player defaults to whoever last held that batting
+    // spot above him; the substitution announcement refines the name + inning.
+    const plays = summarizePlays(json);
+    const nameLast = s => {
+      s = String(s || '').trim(); if (!s) return '';
+      if (s.indexOf(',') > -1) return s.split(',')[0].trim();
+      const w = s.split(/\s+/); let l = w[w.length - 1];
+      if (/^(jr|sr|ii|iii|iv|v)\.?$/i.test(l) && w.length > 1) l = w[w.length - 2];
+      return l;
+    };
+    const subAnn = full => {
+      const nm = normPlayerName(full); if (!nm) return null;
+      const pats = [
+        [/^(.+?) pinch hit for (.+?)\.?$/i, 'pinch-hit for'], [/pinch hitter\s+(.+?)\s+(?:replaces|for)\s+(.+?)\.?$/i, 'pinch-hit for'],
+        [/^(.+?) pinch ran for (.+?)\.?$/i, 'ran for'], [/pinch runner\s+(.+?)\s+(?:replaces|for)\s+(.+?)\.?$/i, 'ran for'],
+      ];
+      for (const p of plays) {
+        const t = String(p.text || '').trim();
+        for (const [re, verb] of pats) { const m = t.match(re); if (m && normPlayerName(m[1]) === nm) return { verb, repl: m[2].trim(), inn: p.inning }; }
+        const d = t.match(/^(.+?) to ([a-z0-9]+) for (.+?)\.?$/i);
+        if (d && normPlayerName(d[1]) === nm && /^[A-Z]/.test(d[3].trim())) return { verb: 'in for', repl: d[3].trim(), inn: p.inning };
+      }
+      return null;
+    };
+    let subN = 0; const heldBySpot = {};
+    for (const r of battingRows) {
+      if (r.sub) {
+        r.letter = subN < 26 ? String.fromCharCode(97 + subN) : '+'; subN++;
+        const ann = subAnn(r.full);
+        const fp = String(r.pos || '').split(/[-/ ]/)[0];
+        const verb = ann ? ann.verb : (fp === 'PR' ? 'ran for' : fp === 'PH' ? 'pinch-hit for' : 'in for');
+        const forName = nameLast(ann ? ann.repl : (r.spot != null ? heldBySpot[r.spot] : ''));
+        r.subFor = forName;
+        r.subText = (forName ? verb + ' ' + forName : verb) + (ann && ann.inn ? ' in the ' + bsOrd(ann.inn) : '');
+      }
+      if (r.spot != null) heldBySpot[r.spot] = r.full;
+    }
     // Box-score note lines (2B/3B/HR/SB/CS/E): scan every player on the team
     // so defensive subs and pinch runners are counted, not just starters.
     const lastName = p => p.revname ? String(p.revname).split(',')[0].trim()
@@ -3491,7 +3531,9 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .lutbl tr.cur td:first-child{box-shadow:inset 3px 0 0 var(--gold2);}
 .lutbl tr.cur td.lunm{color:var(--gold2);}
 .lutbl tr.lusub td{border-top:0;}
-.lutbl tr.lusub td.lunm{padding-left:22px;}
+.lutbl tr.lusub td.lunm{padding-left:14px;position:relative;}
+.lutbl tr.lusub td.lunm::before{content:"";position:absolute;left:3px;top:50%;width:6px;height:1px;background:var(--mute);opacity:.5;}
+.lutbl .lulet{font-style:italic;color:var(--mute);font-size:11px;}
 .lutbl td.lpn,.lutbl th.lpn{text-align:center;font-family:'JetBrains Mono',monospace;width:1%;white-space:nowrap;}
 .lutbl tr.pttot td{border-top:2px solid var(--line);font-weight:700;color:var(--mute);}
 .lutbl tr.pttot td.lunm{color:var(--bone);text-transform:uppercase;font-size:10px;letter-spacing:.06em;}
@@ -3502,6 +3544,8 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .lunotes{margin-top:10px;display:flex;flex-direction:column;gap:5px;}
 .lunote{font-size:11.5px;line-height:1.45;color:var(--bone);}
 .lunk{display:inline-block;min-width:22px;font-family:'Oswald',sans-serif;font-weight:700;font-size:10px;letter-spacing:.04em;color:var(--gold2);margin-right:5px;}
+.lusubleg{margin-top:8px;}
+.lulk{min-width:14px;font-style:italic;text-transform:none;}
 .pbp{margin-top:2px;}
 .pbptabs{display:flex;gap:6px;margin-bottom:10px;}
 .pbptab{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.05em;font-size:10px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);color:var(--mute);background:var(--bayou2);cursor:pointer;}
@@ -4092,7 +4136,10 @@ function buildLineup(g){
     // Substitutes (pinch hitters/runners) sit under the player they replaced and
     // share his spot, so drop the number and indent the name, like the box score.
     var cls=(cur?'cur':'')+(r.sub?(cur?' ':'')+'lusub':'');
-    rows+='<tr'+(cls?' class="'+cls+'"':'')+'><td class="lus">'+esc(r.sub?'':String(r.spot||''))+'</td>'+
+    // Subs drop the batting-order number; the leftmost cell instead carries the
+    // reference letter (a, b, c…) keyed to the legend below.
+    var lead=r.sub?'<span class="lulet">'+esc(r.letter||'')+'</span>':esc(String(r.spot||''));
+    rows+='<tr'+(cls?' class="'+cls+'"':'')+'><td class="lus">'+lead+'</td>'+
       '<td>'+esc(r.pos||'')+'</td><td class="luu">'+esc(String(r.uni||''))+'</td>'+
       '<td class="lunm">'+nmeCell+'</td>'+
       sc(r.ab)+sc(r.runs)+sc(r.hits)+sc(r.rbi)+sc(r.bb)+sc(r.k)+
@@ -4110,7 +4157,17 @@ function buildLineup(g){
     '<th class="lpn">AB</th><th class="lpn">R</th><th class="lpn">H</th><th class="lpn">RBI</th><th class="lpn">BB</th><th class="lpn">K</th>'+
     (showAvg?'<th class="lpn" title="Season batting average">AVG</th>':'')+'</tr>';
   return '<div class="lineup"><div class="luh">Lineup</div>'+tabs+
-    '<div class="lubox"><table class="lutbl">'+head+rows+'</table></div>'+lineupNotes(team)+'</div>';
+    '<div class="lubox"><table class="lutbl">'+head+rows+'</table></div>'+lineupSubs(team)+lineupNotes(team)+'</div>';
+}
+// Legend for the substitute reference letters shown in the lineup's leftmost
+// column: "a — pinch-hit for McDonald in the 7th".
+function lineupSubs(team){
+  var subs=(team&&team.rows||[]).filter(function(r){return r.sub&&r.letter;});
+  if(!subs.length)return '';
+  var lines=subs.map(function(r){
+    return '<div class="lunote"><span class="lunk lulk">'+esc(r.letter)+'</span>'+esc(r.subText||('for '+(r.subFor||'')))+'</div>';
+  }).join('');
+  return '<div class="lunotes lusubleg">'+lines+'</div>';
 }
 function lineupNotes(team){
   var n=team&&team.notes;if(!n)return '';
