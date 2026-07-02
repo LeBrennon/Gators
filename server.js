@@ -30,6 +30,9 @@ const BUILD = {
   bootedAt: new Date().toISOString(),
 };
 const BUILD_LABEL = 'build ' + BUILD.commit + (BUILD.branch ? ' · ' + BUILD.branch : '');
+// Manual incident banner shown atop the live tracker. Empty string hides it —
+// clear this out once Brazos confirms their scorekeeper/feed is caught up.
+const SITE_NOTICE = 'Brazos’ scorekeeper is behind tonight due to technical difficulties — this score may not update in real time. We’ll post the final as soon as we’re notified.';
 const LIVE_POLL_MS = Number(process.env.LIVE_POLL_MS || 4000); // tight enough that the live count/score/pitch-count track pitch-by-pitch
 const SCHEDULE_URL = process.env.SCHEDULE_URL || 'https://texasleaguestats.prestosports.com/sports/bsb/2026/schedule';
 const SITE_URL     = (process.env.SITE_URL || 'https://whatisthegatorscore.com').replace(/\/$/, '');
@@ -3718,6 +3721,8 @@ a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 .sbdia{display:block;margin-top:2px;}
 .sbdia rect{fill:rgba(154,140,196,.18);stroke:var(--gator);stroke-width:1.3;}
 .sbdia rect.on{fill:var(--gold2);stroke:var(--gold2);}
+.sitenotice{display:flex;align-items:flex-start;gap:9px;background:rgba(255,214,51,.1);border:1px solid var(--gold2);border-radius:12px;padding:11px 13px;margin-bottom:12px;font-family:'Oswald',sans-serif;font-size:12.5px;line-height:1.4;letter-spacing:.01em;color:var(--bone);}
+.sitenotice b{color:var(--gold2);}
 </style></head><body>
 <div class="bgfx"></div>
 <canvas id="fx"></canvas>
@@ -3726,6 +3731,7 @@ a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 <div class="topbar"><a class="tcllink" href="https://texascollegiateleague.com" target="_blank" rel="noopener" title="Texas Collegiate League"><img class="hdrlogo tcl" src="/tcl-logo.png" alt="Texas Collegiate League"></a><a class="gglink" href="https://gumbeauxgators.com" target="_blank" rel="noopener" title="Gumbeaux Gators official site"><img class="gglogo" src="/gg-logo.png" alt="Lake Charles Gumbeaux Gators"></a><div class="trail"><a class="ticketbtn" href="https://gumbeauxgators.com/tickets/" target="_blank" rel="noopener" title="Buy game tickets">Tickets</a><a class="shopbtn" id="shopBtn" href="https://gumbeauxgators.myshopify.com/collections/all" target="_blank" rel="noopener" title="Shop the Gators store"><span class="shoptxt">Gators<br>Team<br>Store</span></a></div></div>
 <div class="nav"><button class="navb on" id="navScores">Scores</button><button class="navb" id="navRoster">Roster</button><button class="navb" id="navStandings">Standings</button></div>
 <div id="viewScores">
+__SITE_NOTICE__
 <div class="jumbo">
 <div class="sl">
 <div class="tm" id="awayTm"><a class="tlogo" id="awayLogoLink" rel="noopener"><img id="awayLogo" alt=""></a><div class="nm" id="awayNm">—</div><div class="rec" id="awayRec"></div><div class="sc" id="awaySc">0</div></div>
@@ -4648,4 +4654,8 @@ $('bxModal').addEventListener('click',function(e){if(e.target===this){this.class
 connect();loadSched();loadRoster();</script></body></html>`;
 // BUILD_LABEL and BUILD.commit are fixed at boot, so resolve the page once here
 // instead of running APP.replace() (allocating a fresh ~95 KB string) per request.
-const APP_HTML = APP.replace('__BUILD_LABEL__', BUILD_LABEL).replace('__BUILD_COMMIT__', BUILD.commit);
+const SITE_NOTICE_HTML = SITE_NOTICE
+  ? '<div class="sitenotice">⚠️<span><b>Notice:</b> ' + SITE_NOTICE + '</span></div>'
+  : '';
+const APP_HTML = APP.replace('__BUILD_LABEL__', BUILD_LABEL).replace('__BUILD_COMMIT__', BUILD.commit)
+  .replace('__SITE_NOTICE__', SITE_NOTICE_HTML);
