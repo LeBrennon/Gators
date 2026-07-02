@@ -6,6 +6,8 @@ npm-debug.log*
 .claude/
 roster-cache.json
 box-cache.json
+report-dispatched.json
+visitors.json
 
 # Generated post-game reports (reproducible from the daily seed)
 reports/postgame/
