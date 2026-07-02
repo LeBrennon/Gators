@@ -2655,11 +2655,18 @@ async function pollStrikePct() {
     if (pitches > 0) seasonStrikePct = { pct: Math.round(strikes / pitches * 100), pitches, strikes, games: gms, at: Date.now() };
   } catch (e) { logErr('pollStrikePct', e); /* keep previous strike% */ }
 }
+// Manual second-half record override — used when the live standings feed lags
+// behind a confirmed result. Clear an entry once the feed catches up to it.
+const MANUAL_RECORD_OVERRIDE = {
+  et1bt9sixrz5lnnl: '1-1', // Lake Charles Gumbeaux Gators
+  z7w5th537gur3z15: '1-1', // Brazos Valley Bombers
+};
 // team {id,name,short} -> current-half "W-L"; name match then loose fallback.
 // The feed reports full-season W-L, so the second-half record is derived as
 // (season − first-half final, clamped at 0) — matching the reset Standings tab.
 function recordStr(team) {
   if (!team) return null;
+  if (team.id && MANUAL_RECORD_OVERRIDE[team.id]) return MANUAL_RECORD_OVERRIDE[team.id];
   const keys = Object.keys(standings); if (!keys.length) return null;
   let rec = standings[normName(team.name)];
   if (!rec) { const s = normName(team.short || ''); if (s.length >= 4) { const h = keys.find(k => k.indexOf(s) !== -1); if (h) rec = standings[h]; } }
