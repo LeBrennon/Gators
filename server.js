@@ -3775,13 +3775,11 @@ function setPbpView(v){pbpView=v;if(lastGame)renderGame(lastGame);}
 function setLineupTeam(v){lineupTeam=v;if(lastGame)renderGame(lastGame);}
 function ord(n){n=+n;var s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}
 function esc(s){return (s||'').replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
-// iOS Safari's Data Detectors auto-link a name that contains a street-suffix word
-// (e.g. "Lane Schulz") as a Maps address. Opposing players render as plain text
-// with no profile link, so there's nothing for the user to tap on purpose. Break
-// the address pattern by putting an invisible word-joiner (U+2060) on each side of
-// every space: it interrupts the phrase the detector matches without changing how
-// the name looks, wraps, or reads to a screen reader. Use for any plain-text name.
-function noAddr(s){return esc(s).replace(/ /g,'\u2060 \u2060');}
+// iOS Safari's Data Detectors would otherwise auto-link a name that contains a
+// street-suffix word (e.g. "Lane Schulz") as a Maps address; the page's
+// format-detection meta tag (address=no) already disables that site-wide, so
+// this just escapes plain-text names.
+function noAddr(s){return esc(s);}
 function flash(el){el.classList.remove('flash');void el.offsetWidth;el.classList.add('flash');}
 // Gators-scored fireworks: a short canvas burst in the brand gold/purple,
 // fired when the Gators' run total ticks up during a live game. Pointer-events
