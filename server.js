@@ -447,14 +447,34 @@ function bsBatterName(cell) {
   s = s.replace(/\s+(?:1b|2b|3b|ss|lf|cf|rf|dh|ph|pr|of|util|c|p)$/i, '');
   return s.trim();
 }
+// name -> Presto slug for every hitter in a RAW (pre-bsClean) Hitters table, read
+// straight from each row's <a href=".../players/slug"> — the same link every
+// player's own profile page lives at. Lets the box score pull opponents' season
+// AVG from their own Presto page (like Gators) instead of only the league
+// leaderboard, which is unreliable for players who aren't hitting leaders.
+function bsBattingSlugs(rawTableHtml) {
+  const map = {};
+  for (const row of (rawTableHtml.match(/<tr\b[\s\S]*?<\/tr>/gi) || [])) {
+    const cells = row.match(/<t[dh]\b[\s\S]*?<\/t[dh]>/gi) || [];
+    if (!cells.length) continue;
+    const a = cells[0].match(/<a\b[^>]*href="([^"]*)"[^>]*>/i);
+    if (!a) continue;
+    const slug = slugFromHref(a[1]); if (!slug) continue;
+    const key = normPlayerName(bsBatterName(cells[0])); if (!key) continue;
+    map[key] = slug;
+  }
+  return map;
+}
 // Append a season batting-average (AVG) column to one box-score batting table, so
 // every hitter's season-to-date average shows in the box for live and past games
-// — opponents "just like ours". AVG comes from the same source as the live
-// lineup's AVG: our roster cache for Gators, the league leaderboard for everyone
-// else (via seasonAvgFor). A last-name + first-initial fallback covers box pages
-// that abbreviate the first name ("Smith, J"). Injected fresh on each request
-// (never cached) so the figure tracks the current season, not first-view.
-function bsAddSeasonAvg(html) {
+// — opponents "just like ours". Each hitter's own Presto player page (via slugMap,
+// built from the box score's own player links — see bsBattingSlugs) is tried
+// first, since it's exact; that covers opponents the same way rosterStats covers
+// Gators. Falls back to the league leaderboard (via seasonAvgFor), then a
+// last-name + first-initial fallback for box pages that abbreviate the first name
+// ("Smith, J"). Injected fresh on each request (never cached) so the figure
+// tracks the current season, not first-view.
+function bsAddSeasonAvg(html, slugMap) {
   const idx = {};   // "firstInitial|lastname" -> avg, for the abbreviated-name fallback
   const add = (nm, avg) => { const k = normPlayerName(nm); if (!k) return; const p = k.split(' '); if (p.length < 2) return;
     const li = p[0][0] + '|' + p[p.length - 1]; if (!(li in idx)) idx[li] = avg; };
@@ -462,8 +482,12 @@ function bsAddSeasonAvg(html) {
   for (const k in leagueHitterStats) { const h = leagueHitterStats[k]; if (usable(h)) add(k, String(h.avg)); }
   for (const key in GATOR_BY_NORM) { const g = GATOR_BY_NORM[key]; const h = (rosterStats[g.slug] || {}).hit; if (usable(h)) add(key, String(h.avg)); }
   const resolve = raw => {
+    const key = normPlayerName(raw);
+    const slug = (slugMap && key) ? slugMap[key] : null;
+    const bySlug = slug ? (rosterStats[slug] || {}).hit : null;
+    if (usable(bySlug)) return String(bySlug.avg);
     const a = seasonAvgFor(raw); if (a != null) return a;
-    const k = normPlayerName(raw); if (!k) return null; const p = k.split(' '); if (p.length < 2) return null;
+    if (!key) return null; const p = key.split(' '); if (p.length < 2) return null;
     return idx[p[0][0] + '|' + p[p.length - 1]] || null;
   };
   let first = true;
@@ -582,7 +606,7 @@ function bsDropCols(tableHtml, drop) {
 }
 function parseBoxscore(html) {
   const tables = html.match(/<table\b[\s\S]*?<\/table>/gi) || [];
-  let line = null; const batting = [], pitching = [], pbp = [], types = [];
+  let line = null; const batting = [], battingSlugs = [], pitching = [], pbp = [], types = [];
   for (const t of tables) {
     const tx = bsText(t);
     let type = 'other';
@@ -590,7 +614,7 @@ function parseBoxscore(html) {
       type = 'pbp';
       const m = tx.match(/(.*?(?:Top|Bottom) of .*?Inning)/i);
       pbp.push({ title: m ? m[1].trim() : 'Inning', html: bsClean(t) });
-    } else if (/\bHitters\b/i.test(tx)) { type = 'batting'; batting.push(bsClean(t)); }
+    } else if (/\bHitters\b/i.test(tx)) { type = 'batting'; batting.push(bsClean(t)); battingSlugs.push(bsBattingSlugs(t)); }
     else if (/\bPitchers\b/i.test(tx)) { type = 'pitching'; pitching.push(bsDropCols(bsClean(t), ['WP', 'AB'])); }
     // The line score is a finished game's R/H/E table. PrestoSports now prefixes
     // it with an offscreen "Line Score" caption, so bsText reads "Line Score
@@ -617,7 +641,7 @@ function parseBoxscore(html) {
   // HR/BF are dropped from pitching after bsPitchERA, which needs HR to place ERA.
   order(battingClean.length).forEach(i => {
     const sub = bsMarkSubs(bsLinkGators(bsRenameK(bsShortenCaption(battingClean[i]))));
-    box.push({ label: lab(i) + ' \u2014 Batting', html: sub.html, legend: sub.legend, notes: notes[i] || null });
+    box.push({ label: lab(i) + ' \u2014 Batting', html: sub.html, legend: sub.legend, notes: notes[i] || null, slugs: battingSlugs[i] || {} });
     if (pitching[i] != null) box.push({ label: lab(i) + ' \u2014 Pitching', html: bsDropCols(bsPitchDecision(bsPitchERA(bsLinkGators(bsRenameK(bsShortenCaption(pitching[i]))))), ['HR', 'BF']) });
   });
   bsAttachSubLegend(box, pbp);
@@ -2969,14 +2993,39 @@ async function fetchBoxPage(id) {
 // Gmail transport, shared by the daily visitor-analytics digest.
 let _mailer = null;
 function getMailer() { if (!_mailer && mailReady) _mailer = nodemailer.createTransport({ service: 'gmail', auth: { user: MAIL_USER, pass: MAIL_PASS } }); return _mailer; }
+// On-demand fetch of one opposing batter's own Presto player page — the same
+// scrape fetchPlayer runs for Gators, just triggered by a box score sighting
+// instead of the roster poll. Concurrent callers (multiple viewers of the same
+// live box) share one in-flight fetch instead of each hitting Presto.
+const oppAvgInflight = {};
+function fetchOpponentAvg(slug) {
+  if (oppAvgInflight[slug]) return oppAvgInflight[slug];
+  const p = fetchPlayer(slug, null, null, 2)
+    .then(rec => { storePlayer(slug, rec); saveCache(); })
+    .catch(() => {})
+    .finally(() => { delete oppAvgInflight[slug]; });
+  oppAvgInflight[slug] = p;
+  return p;
+}
 // Return a copy of the cached box data with a live season-AVG column added to
 // each batting table. Done here (not in parseBoxscore) so the cached box — which
 // for a final game is kept forever — never freezes a stale average; the column
-// reflects the roster/leaderboard as of this request.
-function boxWithSeasonAvg(data) {
+// reflects the roster/leaderboard as of this request. Any batter (Gators or
+// opponent) never seen before is fetched and awaited so their AVG shows on this
+// very view; one already cached but stale (RECORD_TTL_MS) just refreshes quietly
+// in the background so a live box's frequent polling never stalls on a re-scrape.
+async function boxWithSeasonAvg(data) {
   if (!data || !Array.isArray(data.box)) return data;
+  const slugs = new Set();
+  for (const sec of data.box) {
+    if (!/\bBatting\b/i.test(sec.label || '') || !sec.slugs) continue;
+    for (const slug of Object.values(sec.slugs)) if (slug) slugs.add(slug);
+  }
+  const unseen = [...slugs].filter(s => !rosterStats[s]);
+  if (unseen.length) await Promise.all(unseen.map(fetchOpponentAvg));
+  for (const s of slugs) if (rosterStats[s] && !recFresh(playerCache[s])) fetchOpponentAvg(s);
   return Object.assign({}, data, { box: data.box.map(sec =>
-    /\bBatting\b/i.test(sec.label || '') ? Object.assign({}, sec, { html: bsAddSeasonAvg(sec.html) }) : sec) });
+    /\bBatting\b/i.test(sec.label || '') ? Object.assign({}, sec, { html: bsAddSeasonAvg(sec.html, sec.slugs) }) : sec) });
 }
 app.get('/api/boxscore', async (q, r) => {
   const id = q.query && q.query.id;
@@ -2986,15 +3035,15 @@ app.get('/api/boxscore', async (q, r) => {
     if (!res.ok) {
       // Source is rate-limiting: serve the last good copy rather than failing.
       const cached = boxCache.get(id);
-      if (cached) { r.set('Cache-Control', 'public, max-age=120'); return r.json(boxWithSeasonAvg(cached.data)); }
+      if (cached) { r.set('Cache-Control', 'public, max-age=120'); return r.json(await boxWithSeasonAvg(cached.data)); }
       return r.status(502).json({ error: 'box page ' + res.status });
     }
     r.set('Cache-Control', 'public, max-age=300');
-    const data = boxWithSeasonAvg(res.data);
+    const data = await boxWithSeasonAvg(res.data);
     r.json(q.query.debug && res.types ? Object.assign({}, data, { types: res.types }) : data);
   } catch (err) {
     const cached = boxCache.get(id);
-    if (cached) { r.set('Cache-Control', 'public, max-age=120'); return r.json(boxWithSeasonAvg(cached.data)); }
+    if (cached) { r.set('Cache-Control', 'public, max-age=120'); return r.json(await boxWithSeasonAvg(cached.data)); }
     r.status(500).json({ error: String(err && err.message || err) });
   }
 });
@@ -3350,7 +3399,7 @@ if (require.main === module) {
   app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleDailyRoster(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); setTimeout(pollStrikePct, 15000); setInterval(pollStrikePct, 3 * 60 * 60 * 1000); scheduleDailyStats(); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, pitchersFromFeed, extractEventAuth,
-  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseGameLog, bsAddSeasonAvg, bsBatterName, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, pitchingTotals, strikeCounts };
+  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseGameLog, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, pitchingTotals, strikeCounts };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [

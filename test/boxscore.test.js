@@ -240,3 +240,16 @@ test('parseBoxscore: detects the line score when PrestoSports prefixes it with a
   ]);
   assert.ok(box.some(b => /gator/i.test(b.label)), 'Gators side identifiable by label');
 });
+
+test('parseBoxscore: attaches each batting section\'s hitter-name -> Presto-slug map (for opponents\' box-score AVG)', () => {
+  const html = `
+    <table><caption><h2> Baton Rouge Rougarou <span>Batters</span></h2></caption>
+      <tr><th>Hitters</th><th>AB</th></tr>
+      <tr><th><div><span>cf</span> <a href="/sports/bsb/2026/players/joeyduran9x">Duran, Joey</a></div></th><td>4</td></tr>
+    </table>`;
+  const { box } = parseBoxscore(html);
+  const bat = box.find(b => /Batting/.test(b.label));
+  assert.deepEqual(bat.slugs, { 'joey duran': 'joeyduran9x' });
+  // The link itself is still stripped from the rendered table (bsClean runs as before).
+  assert.doesNotMatch(bat.html, /<a\b/i);
+});

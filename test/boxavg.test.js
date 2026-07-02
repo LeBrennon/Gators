@@ -7,7 +7,7 @@
 // placeholder dash rather than crashing.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { bsAddSeasonAvg, bsBatterName } = require('../server');
+const { bsAddSeasonAvg, bsBatterName, bsBattingSlugs } = require('../server');
 
 test('bsBatterName: strips the position span (First Last box format)', () => {
   assert.equal(bsBatterName('<th><div><span>cf</span> Ayden Sunday</div></th>'), 'Ayden Sunday');
@@ -61,4 +61,35 @@ test('bsAddSeasonAvg: leaves existing columns and player names intact', () => {
 
 test('bsAddSeasonAvg: a row with no cells is left untouched', () => {
   assert.equal(bsAddSeasonAvg('<table><tr></tr></table>'), '<table><tr></tr></table>');
+});
+
+// bsBattingSlugs(): reads each hitter's own Presto slug straight off the RAW
+// (pre-bsClean) Hitters table, from the same <a href=".../players/slug"> link
+// their own profile page lives at — so an opponent's AVG can come from their own
+// page instead of only the (unreliable) league leaderboard.
+const RAW_TABLE =
+  '<table>' +
+  '<tr><th>Bombers Hitters</th><th>AB</th></tr>' +
+  '<tr><th><div><span>cf</span> <a href="/sports/bsb/2026/players/joeyduran9x">Duran, Joey</a></div></th><td>4</td></tr>' +
+  '<tr><th><div><span>ss</span> <a href="/sports/bsb/2026/players/jbohacek3z">Bohacek, Jacob</a></div></th><td>3</td></tr>' +
+  '<tr><th>Totals</th><td>7</td></tr>' +
+  '</table>';
+
+test('bsBattingSlugs: maps each hitter\'s normalized name to their Presto slug', () => {
+  const map = bsBattingSlugs(RAW_TABLE);
+  assert.deepEqual(map, { 'joey duran': 'joeyduran9x', 'jacob bohacek': 'jbohacek3z' });
+});
+
+test('bsBattingSlugs: a Totals row (no link) and rows without a link are skipped', () => {
+  const map = bsBattingSlugs('<table><tr><th>Totals</th><td>7</td></tr></table>');
+  assert.deepEqual(map, {});
+});
+
+test('bsBattingSlugs: no rows at all yields an empty map, no crash', () => {
+  assert.deepEqual(bsBattingSlugs('<table></table>'), {});
+});
+
+test('bsAddSeasonAvg: accepts a slugMap without crashing (no roster/leaderboard state in a unit test, so still dashes)', () => {
+  const out = bsAddSeasonAvg(TABLE, { 'ayden sunday': 'aydensunday', 'smith john': 'jsmith' });
+  assert.match(out, /<td class="bxavg">-<\/td>/);
 });
