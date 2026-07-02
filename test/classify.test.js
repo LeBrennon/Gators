@@ -17,7 +17,8 @@ test('classify: forfeit counts as final', () => {
 });
 
 test('classify: final, with and without extra-innings annotation', () => {
-  assert.deepEqual(classify('Final'), { state: 'final', status: 'Final' });
+  // No annotation means a regulation 9-inning game.
+  assert.deepEqual(classify('Final'), { state: 'final', status: 'Final/9' });
   assert.deepEqual(classify('Final 10 innings'), { state: 'final', status: 'Final/10' });
 });
 
