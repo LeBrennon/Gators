@@ -32,7 +32,7 @@ const BUILD = {
 const BUILD_LABEL = 'build ' + BUILD.commit + (BUILD.branch ? ' · ' + BUILD.branch : '');
 // Manual incident banner shown atop the live tracker. Empty string hides it —
 // clear this out once Brazos confirms their scorekeeper/feed is caught up.
-const SITE_NOTICE = 'Brazos’ scorekeeper is behind tonight due to technical difficulties — this score may not update in real time. We’ll post the final as soon as we’re notified.';
+const SITE_NOTICE = '';
 const LIVE_POLL_MS = Number(process.env.LIVE_POLL_MS || 4000); // tight enough that the live count/score/pitch-count track pitch-by-pitch
 const SCHEDULE_URL = process.env.SCHEDULE_URL || 'https://texasleaguestats.prestosports.com/sports/bsb/2026/schedule';
 const SITE_URL     = (process.env.SITE_URL || 'https://whatisthegatorscore.com').replace(/\/$/, '');
