@@ -33,6 +33,15 @@ const BUILD_LABEL = 'build ' + BUILD.commit + (BUILD.branch ? ' · ' + BUILD.bra
 // Manual incident banner shown atop the live tracker. Empty string hides it —
 // clear this out once Brazos confirms their scorekeeper/feed is caught up.
 const SITE_NOTICE = '';
+// Manual score override for the featured game, used when the source feed lags
+// behind a confirmed final. Clear gameId to null once the feed catches up to
+// the same score to fall back to the scraped data.
+const MANUAL_OVERRIDE = {
+  gameId: '20260701_jzkh',
+  awayRuns: 10,
+  homeRuns: 8,
+  note: 'Box score will be fully updated soon. Final score is correct.',
+};
 const LIVE_POLL_MS = Number(process.env.LIVE_POLL_MS || 4000); // tight enough that the live count/score/pitch-count track pitch-by-pitch
 const SCHEDULE_URL = process.env.SCHEDULE_URL || 'https://texasleaguestats.prestosports.com/sports/bsb/2026/schedule';
 const SITE_URL     = (process.env.SITE_URL || 'https://whatisthegatorscore.com').replace(/\/$/, '');
@@ -1521,6 +1530,13 @@ async function refreshFeatured() {
   if (!chosen) return;
   const norm = normalizeFeatured(chosen);
   await enrichLive(norm);
+  if (MANUAL_OVERRIDE.gameId && norm.id === MANUAL_OVERRIDE.gameId) {
+    norm.away.runs = MANUAL_OVERRIDE.awayRuns;
+    norm.home.runs = MANUAL_OVERRIDE.homeRuns;
+    norm.status = 'final';
+    norm.inningLabel = 'Final';
+    norm.heroNote = MANUAL_OVERRIDE.note;
+  }
   prevFeatured = featured; featured = norm;
   diffAlert(norm);
   // Only push to SSE clients when the game actually changed. During a slow
@@ -3723,6 +3739,7 @@ a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 .sbdia rect.on{fill:var(--gold2);stroke:var(--gold2);}
 .sitenotice{display:flex;align-items:flex-start;gap:9px;background:rgba(255,214,51,.1);border:1px solid var(--gold2);border-radius:12px;padding:11px 13px;margin-bottom:12px;font-family:'Oswald',sans-serif;font-size:12.5px;line-height:1.4;letter-spacing:.01em;color:var(--bone);}
 .sitenotice b{color:var(--gold2);}
+.heronote{margin-bottom:10px;font-size:11px;font-style:italic;color:var(--gold2);font-family:'Oswald',sans-serif;letter-spacing:.01em;}
 </style></head><body>
 <div class="bgfx"></div>
 <canvas id="fx"></canvas>
@@ -3979,7 +3996,8 @@ function buildFinal(g){
   var btns='<button class="fbtn" data-final="box" data-id="'+esc(g.id)+'">Box Score</button>'
     +'<button class="fbtn" data-final="pbp" data-id="'+esc(g.id)+'">Play-by-Play</button>'
     +(g.replayUrl?('<a class="fbtn rep" href="'+esc(g.replayUrl)+'" target="_blank" rel="noopener">Watch Replay</a>'):'');
-  return '<div class="finalcard"><div class="finalbtns">'+btns+'</div></div>';
+  var note=g.heroNote?('<div class="heronote">* '+esc(g.heroNote)+'</div>'):'';
+  return '<div class="finalcard">'+note+'<div class="finalbtns">'+btns+'</div></div>';
 }
 function buildLineScore(g){
   var rows=g.lineScore;if(!rows||!rows.length)return '';
