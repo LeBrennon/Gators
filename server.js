@@ -697,8 +697,11 @@ function classify(text) {
   if (/Cancell?ed/i.test(text)) return { state: 'cancelled', status: 'Cancelled' };
   if (/Forfeit/i.test(text))    return { state: 'final',     status: 'Forfeit' };
   if (/\bFinal\b/i.test(text)) {
+    // Only annotate when the source explicitly calls out a non-regulation
+    // inning count (extra innings, or a mercy-rule/rain-shortened game); a
+    // plain "Final" with no annotation means a regulation 9-inning game.
     const ex = text.match(/Final[^<0-9]*?(\d+)\s*innings?/i);
-    return { state: 'final', status: 'Final/' + (ex ? ex[1] : '9') };
+    return { state: 'final', status: (ex && ex[1] !== '9') ? 'Final/' + ex[1] : 'Final' };
   }
   const live = text.match(/\b(Top|Bottom|Mid(?:dle)?|End)\b\s*(?:of\s*)?(\d{1,2})(?:st|nd|rd|th)?\b/i);
   if (live) {
@@ -1285,7 +1288,7 @@ function normalizeFeatured(g) {
   return {
     id: g.id, date: g.date, status, statusText: g.status, dateLabel: g.dateLabel,
     inning: ip.inning, half: ip.half,
-    inningLabel: status === 'live' ? g.status : status === 'final' ? (g.status || 'Final/9') : status === 'cancelled' ? 'Cancelled' : g.status,
+    inningLabel: status === 'live' ? g.status : status === 'final' ? (g.status || 'Final') : status === 'cancelled' ? 'Cancelled' : g.status,
     gatorsHome: g.gatorsHome, opponent: g.opponent,
     location: gameLocation(g), watchUrl: watchUrlFor(g), ticketUrl: ticketIndex[g.id] || null, theme: THEMES[g.date] || null, freeAdmission: FREE_ADMISSION[g.date] || null, promo: promoFor(g), special: SPECIALS[g.date] || null,
     away: { name: g.away.name, short: g.away.short, logo: g.away.logo, runs: g.away.score || 0, record: recordStr(g.away), site: TEAM_SITE[g.away.id] || null },
@@ -1473,7 +1476,7 @@ async function enrichLive(norm) {
     if (feedGameOver(norm.live, norm.away.runs, norm.home.runs)) {
       norm.status = 'final';
       const inn = parseInt(norm.live.inning, 10) || 0;
-      norm.inningLabel = inn > 0 ? ('Final/' + inn) : 'Final/9';
+      norm.inningLabel = (inn && inn !== 9) ? ('Final/' + inn) : 'Final';
       if (finalSeenAt[norm.id] == null) finalSeenAt[norm.id] = Date.now();
     }
   } catch (e) { logErr('enrichLive', e); /* keep score-only view if the feed is unavailable */ }
@@ -1500,7 +1503,7 @@ async function refreshLeagueLiveScores(board, featuredId) {
         // The feed may show the game over before the schedule says "Final".
         const over = feedGameOver(lf.live, away, home);
         const inn = lf.live ? (parseInt(lf.live.inning, 10) || 0) : 0;
-        liveScoreCache[g.id] = { away, home, at: Date.now(), over, label: over ? ('Final/' + (inn > 0 ? inn : 9)) : null,
+        liveScoreCache[g.id] = { away, home, at: Date.now(), over, label: over ? ((inn && inn !== 9) ? 'Final/' + inn : 'Final') : null,
           outs: lf.live ? lf.live.outs : null, bases: lf.live ? lf.live.bases : null };
       }
     } catch (e) { logErr('refreshLeagueLiveScores', e); /* keep the last cached score for this game */ }

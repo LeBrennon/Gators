@@ -16,10 +16,13 @@ test('classify: forfeit counts as final', () => {
   assert.deepEqual(classify('Forfeit'), { state: 'final', status: 'Forfeit' });
 });
 
-test('classify: final, with and without extra-innings annotation', () => {
-  // No annotation means a regulation 9-inning game.
-  assert.deepEqual(classify('Final'), { state: 'final', status: 'Final/9' });
+test('classify: final, with and without a non-regulation innings annotation', () => {
+  // No annotation, or an explicit 9, both mean a regulation 9-inning game.
+  assert.deepEqual(classify('Final'), { state: 'final', status: 'Final' });
+  assert.deepEqual(classify('Final 9 innings'), { state: 'final', status: 'Final' });
+  // Extra innings and a mercy-rule/rain-shortened game both get annotated.
   assert.deepEqual(classify('Final 10 innings'), { state: 'final', status: 'Final/10' });
+  assert.deepEqual(classify('Final 7 innings'), { state: 'final', status: 'Final/7' });
 });
 
 test('classify: live half-inning states', () => {
