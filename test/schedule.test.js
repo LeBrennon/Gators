@@ -60,7 +60,7 @@ test('parseSchedule: home game — Gators at home, scores and final status', () 
   const home = parseSchedule(HTML).find(g => g.id === '20260621_cccc');
   assert.equal(home.gatorsHome, true);
   assert.equal(home.state, 'final');
-  assert.equal(home.status, 'Final/9');
+  assert.equal(home.status, 'Final');
   assert.equal(home.opponent.name, 'Acadiana Cane Cutters');
   assert.equal(home.away.score, 3);
   assert.equal(home.home.score, 5);
