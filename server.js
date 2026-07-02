@@ -1551,8 +1551,10 @@ const ROSTER = [
   // Added off the 6/28 gameday sheet; real Presto slug now set directly (was findSlug-matched by name).
   { num: 8,  name: 'Cade Robin',       slug: 'caderobinnu4m',        pos: 'P',       cls: 'Junior',       ht: '6-1',  wt: '200', b: 'R', t: 'R', bday: '',           home: 'Arnaudville, LA',  school: 'LSU-Shreveport' },
   { num: 9,  name: 'James Reina',      slug: 'jamesreinaluai',       pos: 'IF',      cls: 'Junior',       ht: '5-9',  wt: '180', b: 'R', t: 'R', bday: '10/07/2004', home: 'Lake Charles, LA', school: 'Stephen F. Austin' },
-  // Added off the 6/30 second-half roster; placeholder slug + findSlug until his Presto player page exists.
-  { num: 10, name: 'Kash Martin',      slug: 'kashmartin',           pos: 'Utility', cls: 'Sophomore',    ht: '5-10', wt: '185', b: 'R', t: 'R', bday: '11/09/2006', home: 'Westlake, LA',     school: 'Bossier Parish CC', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
+  // Added off the 6/30 second-half roster; real Presto slug now set directly. He'd
+  // already played 9 games (.217 AVG), but findSlug never resolved him because the
+  // league leaderboard lists him as "K Martin", which doesn't match "Kash Martin" via normPlayerName.
+  { num: 10, name: 'Kash Martin',      slug: 'kashmartin44sc',       pos: 'Utility', cls: 'Sophomore',    ht: '5-10', wt: '185', b: 'R', t: 'R', bday: '11/09/2006', home: 'Westlake, LA',     school: 'Bossier Parish CC' },
   { num: 11, name: 'Diego Corrales',   slug: 'diegocorrales91v5',    pos: 'P',       cls: 'Junior',       ht: '5-8',  wt: '185', b: 'L', t: 'L', bday: '08/01/2005', home: 'Lake Charles, LA', school: 'McNeese State' },
   { num: 14, name: 'Brandon Levy',     slug: 'brandonlevyejo5',      pos: 'P',       cls: 'Junior',       ht: '5-10', wt: '180', b: 'R', t: 'R', bday: '05/25/2004', home: 'Bossier City, LA', school: 'New Orleans' },
   { num: 16, name: 'Daniel Midkiff',   slug: 'danielmidkifffqkb',    pos: 'P',       cls: 'Sophomore',    ht: '6-2',  wt: '208', b: 'R', t: 'R', bday: '05/20/2007', home: 'Buna, TX',         school: 'Lamar' },
