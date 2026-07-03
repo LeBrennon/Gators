@@ -272,7 +272,10 @@ function buildHtml(data) {
 @page{size:letter;margin:0;}
 *{box-sizing:border-box;margin:0;padding:0;}
 html{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-body{font-family:'Helvetica Neue',Arial,sans-serif;color:#1b1e27;font-size:12px;padding:32px 36px;height:100vh;display:flex;flex-direction:column;overflow:hidden;--padv:${padV}px;}
+/* Bottom padding is a print safe-margin: @page margin is 0, so without it the
+   last rows sit ~0.3in from the sheet edge and a physical printer's non-printable
+   bottom margin (~0.5in) clips them. 72px (~0.75in) keeps the box clear of it. */
+body{font-family:'Helvetica Neue',Arial,sans-serif;color:#1b1e27;font-size:12px;padding:32px 36px 72px;height:100vh;display:flex;flex-direction:column;overflow:hidden;--padv:${padV}px;}
 .band{position:relative;display:flex;align-items:center;gap:18px;color:#fff;padding:18px 24px 18px 150px;border-radius:13px;border:2px solid #ecc913;
 background:linear-gradient(rgba(22,16,43,.02),rgba(22,16,43,.16))${croc ? `,url('${croc}') center center / cover no-repeat` : ''};
 background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1px rgba(255,255,255,.08);}
