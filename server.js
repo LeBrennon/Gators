@@ -681,6 +681,33 @@ function deshout(name){
   return String(name || '').replace(/[A-Za-z][A-Za-z'’-]*/g, w =>
     /[a-z]/.test(w) ? w : w.replace(/[A-Za-z]+/g, s => cap(s)));
 }
+// The name spellings a play narrative might use for a player ("HUNTER HAM",
+// "HAM, HUNTER"), so a SHOUTING opponent name in the feed's free text can be
+// found and title-cased without touching the rest of the sentence.
+function nameForms(pl){
+  const out = [];
+  const push = v => { const s = String(v || '').trim(); if (s) out.push(s); };
+  push(pl.name); push(pl.shortname);
+  const rv = String(pl.revname || '');
+  if (rv.indexOf(',') !== -1) { const c = rv.split(','); const last = (c[0] || '').trim(), first = (c[1] || '').trim(); if (last) push((first ? first + ' ' : '') + last); }
+  return out;
+}
+// Every fully-uppercase multi-word player name across both teams, longest first
+// so "HUNTER HAM" is replaced before a bare "HAM" could match inside it. Only
+// multi-word forms are kept, so a lone last name never corrupts another word.
+function shoutingNames(json){
+  const set = new Set();
+  for (const t of ((json && json.team) || [])) for (const pl of (t.player || []))
+    for (const f of nameForms(pl)) if (f.indexOf(' ') !== -1 && /[A-Z]/.test(f) && f === f.toUpperCase()) set.add(f);
+  return [...set].sort((a, b) => b.length - a.length);
+}
+// Title-case the SHOUTING player names inside a play narrative, leaving position
+// codes ("rf"), pitch sequences ("BFBS"), and "RBI" untouched.
+function deshoutPlayText(text, names){
+  let s = String(text || '');
+  for (const n of names) if (s.indexOf(n) !== -1) s = s.split(n).join(deshout(n));
+  return s;
+}
 // Names/short labels prefer the known-team map, but fall back to the scraped
 // link text so an unrecognized opponent never blanks out a game.
 function fullName(id, name){ return (TEAMS[id] && TEAMS[id].name) || String(name||'').trim() || 'TBD'; }
@@ -920,7 +947,7 @@ function activePlayerLine(json, name, kind) {
   const players = [].concat(...((json.team || []).map(t => t.player || [])));
   const p = players.find(pl => pl && [pl.name, pl.shortname, pl.revname]
     .some(n => n && String(n).trim() === nm));
-  const info = { name: nm, uni: p && p.uni ? String(p.uni) : null,
+  const info = { name: deshout(nm), uni: p && p.uni ? String(p.uni) : null,
     pos: p && p.pos ? String(p.pos).toUpperCase() : null, line: null, pitches: null };
   if (!p) return info;
   const n = x => Number(x) || 0;
@@ -1082,6 +1109,13 @@ async function fetchLiveForGame(boxscoreId, wantRaw) {
     if (out.live && out.pitchers) applyLivePitchCount(boxscoreId, out.live, out.pitchers);
     // Per-team pitching totals row (after the live pitch-count adjustment above).
     if (out.pitchers) out.pitchers.forEach(t => { t.totals = pitchingTotals(t.rows); });
+    // Opponent names SHOUT in the play narratives too ("HUNTER HAM flied out
+    // ..."). Title-case just the known player names for display — done last, so
+    // every parser above that keys off the raw narrative text saw it verbatim.
+    if (out.plays && out.plays.length) {
+      const shout = shoutingNames(feed.json);
+      if (shout.length) out.plays.forEach(p => { p.text = deshoutPlayText(p.text, shout); });
+    }
     // Diagnostics only: when the situation block can't be parsed (live === null)
     // we can't tell from afar where the feed moved it. Surface the feed's
     // top-level keys, and the full payload on request, so /debug/live shows the
