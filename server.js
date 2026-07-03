@@ -1116,6 +1116,13 @@ async function fetchLiveForGame(boxscoreId, wantRaw) {
       const shout = shoutingNames(feed.json);
       if (shout.length) out.plays.forEach(p => { p.text = deshoutPlayText(p.text, shout); });
     }
+    // Pull the opponent lineup's season AVGs from their own player pages (via
+    // their team page) so non-leaderboard bats still show an average. Fire-and-
+    // forget: the values land in rosterStats and the next poll's lineup shows them.
+    if (out.lineups) {
+      const opp = out.lineups.find(t => t && !t.isGators && t.teamId && t.teamId !== GATORS_ID);
+      if (opp && opp.rows) loadOpponentLineupAvgs(opp.teamId, opp.rows.map(r => r.full || r.name));
+    }
     // Diagnostics only: when the situation block can't be parsed (live === null)
     // we can't tell from afar where the feed moved it. Surface the feed's
     // top-level keys, and the full payload on request, so /debug/live shows the
@@ -1193,7 +1200,7 @@ function lineupsFromFeed(json) {
         name: deshout(abbrev(full)),
         full,
         bats: String(p.bats || '').toUpperCase(),
-        seasonAvg: seasonAvgFor(full),   // season-to-date AVG for the lineup
+        seasonAvg: seasonAvgFor(full, t.teamId),   // season-to-date AVG for the lineup
         today: ab == null ? '—' : (hits + ' for ' + ab),
         // ESPN-style box line (game). null for a batter who hasn't come up yet.
         ab,
@@ -2114,12 +2121,20 @@ function pinchFor(plays, batterName) {
 // live feed names differently than the stats site — a nickname ("Joey" vs the
 // leaderboard's "Joseph") or an extra middle name — which would otherwise leave
 // the lineup's AVG column blank even though the season line exists.
-function seasonAvgFor(name) {
+function seasonAvgFor(name, teamId) {
   const key = normPlayerName(name); if (!key) return null;
+  const usable = h => h && h.avg != null && h.avg !== '' && h.avg !== '-';
   const g = GATOR_BY_NORM[key];
-  const hit = g ? ((rosterStats[g.slug] || {}).hit) : leagueHitterStats[key];
-  if (hit && hit.avg != null && hit.avg !== '' && hit.avg !== '-') return String(hit.avg);
-  if (g) return null;                       // Gators are matched by our own roster names
+  if (g) { const h = (rosterStats[g.slug] || {}).hit; return usable(h) ? String(h.avg) : null; } // Gators matched by our own roster names
+  // Opponent: prefer his own Presto player page (fetched via the team roster) —
+  // that covers bats the league leaderboard drops under its min-AB cutoff — then
+  // fall back to the leaderboard, then a first-initial + last-name match on it.
+  const rs = teamId && teamRosterSlugs[teamId];
+  const slug = rs && rs.byName[key];
+  const bySlug = slug ? (rosterStats[slug] || {}).hit : null;
+  if (usable(bySlug)) return String(bySlug.avg);
+  const hit = leagueHitterStats[key];
+  if (usable(hit)) return String(hit.avg);
   const p = key.split(' '); if (p.length < 2) return null;
   return hitterAbbrIndex()[p[0][0] + '|' + p[p.length - 1]] || null;
 }
@@ -3143,6 +3158,71 @@ async function boxWithSeasonAvg(data) {
   for (const s of slugs) if (rosterStats[s] && !recFresh(playerCache[s])) fetchOpponentAvg(s);
   return Object.assign({}, data, { box: data.box.map(sec =>
     /\bBatting\b/i.test(sec.label || '') ? Object.assign({}, sec, { html: bsAddSeasonAvg(sec.html, sec.slugs) }) : sec) });
+}
+// ---- opponent lineup AVGs from each team's own Presto page (like Gators) -----
+// The live gamecast lineup only gets names from the feed, and the league
+// leaderboard drops hitters under its min-AB cutoff — so an opponent bench bat
+// shows no average there. Pull opponents' season AVGs the same way the Gators'
+// (and the box score's) are: every team's Presto page lists its full roster with
+// a link to each player's own page (which carries his season line). We cache each
+// opponent team's name->slug map, then let seasonAvgFor read the player-page AVG
+// that fetchOpponentAvg parks in rosterStats. Scoped to teams we display; daily.
+let teamRosterSlugs = {};    // teamId -> { byName: {normName: slug}, ts }
+let teamRosterLoading = {};  // teamId -> Promise (dedupes concurrent loads)
+const TEAM_ROSTER_TTL_MS = 20 * 60 * 60 * 1000;
+// A Presto team page lives at /teams/<name with no spaces or punctuation>, e.g.
+// the San Antonio River Monsters at /teams/sanantoniorivermonsters.
+function teamPageSlug(teamId) {
+  const nm = TEAMS[teamId] && TEAMS[teamId].name;
+  return nm ? nm.toLowerCase().replace(/[^a-z0-9]/g, '') : null;
+}
+// name -> Presto slug for every player in a team page's roster table (the one
+// whose header has a "Name" column; each row links to the player's own page).
+function parseTeamRosterSlugs(html) {
+  const out = {};
+  for (const t of (html.match(/<table\b[\s\S]*?<\/table>/gi) || [])) {
+    const rows = rowsOf(t); if (rows.length < 2) continue;
+    const hd = cellsOf(rows[0]).map(x => bsText(x).toLowerCase());
+    const ni = hd.indexOf('name'); if (ni === -1) continue;
+    for (let i = 1; i < rows.length; i++) {
+      const c = cellsOf(rows[i]); if (c.length <= ni) continue;
+      const a = firstLink(c[ni]); const slug = slugFromHref(a.href); const key = normPlayerName(a.text);
+      if (slug && key) out[key] = slug;
+    }
+    if (Object.keys(out).length) break;
+  }
+  return out;
+}
+async function ensureTeamRoster(teamId) {
+  if (!teamId || teamId === GATORS_ID) return null;
+  const cur = teamRosterSlugs[teamId];
+  if (cur && Date.now() - cur.ts < TEAM_ROSTER_TTL_MS) return cur.byName;
+  if (teamRosterLoading[teamId]) return teamRosterLoading[teamId];
+  const tslug = teamPageSlug(teamId); if (!tslug) return cur ? cur.byName : null;
+  teamRosterLoading[teamId] = (async () => {
+    try {
+      const tp = await fetchText(SPORT_BASE + '/teams/' + tslug, SPORT_BASE + '/schedule');
+      const byName = tp.ok ? parseTeamRosterSlugs(tp.body) : {};
+      if (Object.keys(byName).length) teamRosterSlugs[teamId] = { byName, ts: Date.now() };
+    } catch (e) { logErr('ensureTeamRoster', e); }
+    finally { delete teamRosterLoading[teamId]; }
+    const now = teamRosterSlugs[teamId] || cur;
+    return now ? now.byName : null;
+  })();
+  return teamRosterLoading[teamId];
+}
+// Fire-and-forget: resolve the opponent lineup's slugs from their team page, then
+// fetch each hitter's own player page into rosterStats (the same scrape the box
+// score runs via fetchOpponentAvg). The averages land before the gamecast's next
+// poll, so its lineup shows every bat's season AVG — including leaderboard omits.
+async function loadOpponentLineupAvgs(teamId, names) {
+  try {
+    const byName = await ensureTeamRoster(teamId);
+    if (!byName) return;
+    const slugs = new Set();
+    for (const nm of (names || [])) { const s = byName[normPlayerName(nm)]; if (s) slugs.add(s); }
+    for (const s of slugs) if (!rosterStats[s] || !recFresh(playerCache[s])) fetchOpponentAvg(s);
+  } catch (e) { logErr('loadOpponentLineupAvgs', e); }
 }
 app.get('/api/boxscore', async (q, r) => {
   const id = q.query && q.query.id;
