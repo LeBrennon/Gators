@@ -3341,36 +3341,55 @@ app.get('/rest', async (q, r) => {
     const data = await getPitcherRest();
     const today = todayCentralYmd();
     const vs = g => (g ? 'vs ' : '@ ');
-    const restCell = d => {
-      const c = d <= 1 ? 'var(--loss)' : d >= 4 ? 'var(--win)' : 'var(--bone)';
-      return '<b style="color:' + c + '">' + d + '</b>';
-    };
-    let body = '<div class="rh"><div class="rt">Pitchers’ Rest</div></div>'
+    const mmdd = ymd => (+ymd.slice(4, 6)) + '/' + (+ymd.slice(6, 8));
+    const restClass = d => d <= 1 ? 'hot' : d >= 4 ? 'cool' : 'warm';
+    const showGames = !!(q.query && q.query.games);           // by-game detail is opt-in so the chart stays one screen
+    // Compact, mobile-first styling: a single-line-per-pitcher list that fits a
+    // phone width with no horizontal scroll. Injected here so the shared
+    // reportPage shell stays generic.
+    let body = '<style>'
+      + '.rl{list-style:none;margin:8px 0 0;padding:0;border:1px solid var(--line);border-radius:12px;background:var(--bayou2);overflow:hidden;}'
+      + '.rl li{display:flex;align-items:center;gap:9px;padding:6px 12px;border-top:1px solid var(--line);}'
+      + '.rl li:first-child{border-top:none;}'
+      + '.rn{flex:0 0 auto;min-width:20px;text-align:right;font-size:11px;font-weight:800;color:var(--gold2);font-variant-numeric:tabular-nums;}'
+      + '.rnm{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700;font-size:15px;}'
+      + '.rmeta{flex:0 0 auto;color:var(--mute);font-size:11.5px;font-variant-numeric:tabular-nums;text-align:right;}'
+      + '.rmeta b{color:var(--gold2);font-weight:700;}'
+      + '.rrd{flex:0 0 auto;min-width:36px;text-align:right;font-size:19px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;}'
+      + '.rrd i{font-size:10px;font-weight:700;color:var(--mute);font-style:normal;margin-left:1px;}'
+      + '.rrd.hot{color:var(--loss);}.rrd.warm{color:var(--bone);}.rrd.cool{color:var(--win);}'
+      + '.rlgd{color:var(--mute);font-size:11px;text-align:center;margin:7px 2px 0;line-height:1.4;}'
+      + '.rlgd .hot{color:var(--loss);font-weight:700;}.rlgd .cool{color:var(--win);font-weight:700;}'
+      + '</style>';
+    body += '<div class="rh"><div class="rt">Pitchers’ Rest</div></div>'
       + '<div class="rd">' + repEsc(ymdLabel(today)) + ' · ' + data.finals + ' games</div>';
     const pitchers = data.pitchers.map(p => Object.assign({}, p, { daysRest: daysBetweenYmd(p.lastDate, today) }))
       .sort((a, b) => b.lastDate.localeCompare(a.lastDate) || (b.lastNp || 0) - (a.lastNp || 0));
     if (!pitchers.length) {
       body += '<div class="empty">No finished games with Gators pitching yet.</div>';
     } else {
-      body += '<div class="sec">Days of rest</div>';
-      body += '<div class="rtw"><table><tr><th>Pitcher</th><th>Rest</th><th>Last outing</th><th>#P</th><th>App</th><th>Tot #P</th></tr>'
-        + pitchers.map(p => '<tr><td>' + (p.num != null ? '<span style="color:var(--mute)">#' + p.num + '</span> ' : '') + repEsc(p.name) + '</td>'
-          + '<td>' + restCell(p.daysRest) + '<span style="color:var(--mute);font-size:11px"> d</span></td>'
-          + '<td>' + repEsc(p.lastLabel) + ' <span style="color:var(--mute);font-size:11px">' + repEsc(vs(p.lastHome) + p.lastOpp) + '</span></td>'
-          + '<td><b>' + (p.lastNp || 0) + '</b></td>'
-          + '<td>' + p.appearances + '</td>'
-          + '<td>' + p.totalPitches + '</td></tr>').join('')
-        + '</table></div>';
-      body += '<div style="color:var(--mute);font-size:11px;margin:4px 2px 0">Rest = days since last appearance. #P = pitches in last outing. Tot #P = season pitches.</div>';
-      // Per-game breakdown, newest first — matches the coach's hand-written sheets.
-      body += '<div class="sec">By game</div>';
-      for (const g of data.byGame) {
-        body += '<div class="subh">' + repEsc(g.dateLabel + ' · ' + vs(g.gatorsHome) + g.oppShort) + '</div>';
-        body += '<ul class="plist">' + g.pitchers.map(pt =>
-          '<li><span class="pinn">' + (pt.np || 0) + ' #P</span> ' + repEsc(pt.name) + '</li>').join('') + '</ul>';
+      // One line per pitcher: number · name · last outing (pitches + date) · days rest.
+      body += '<ul class="rl">' + pitchers.map(p =>
+        '<li><span class="rn">' + (p.num != null ? p.num : '') + '</span>'
+        + '<span class="rnm">' + repEsc(p.name) + '</span>'
+        + '<span class="rmeta"><b>' + (p.lastNp || 0) + 'p</b> · ' + repEsc(mmdd(p.lastDate)) + '</span>'
+        + '<span class="rrd ' + restClass(p.daysRest) + '">' + p.daysRest + '<i>d</i></span></li>').join('') + '</ul>';
+      body += '<div class="rlgd">Big number = <b>days of rest</b>. <span class="hot">≤1 just threw</span> · <span class="cool">4+ rested</span> · <b style="color:var(--gold2)">Np</b> = pitches, last outing.</div>';
+      // Per-game pitch counts (for cross-checking hand-written sheets) are opt-in
+      // via ?games=1 so the default view stays a single mobile screen.
+      if (showGames) {
+        body += '<div class="sec">By game</div>';
+        for (const g of data.byGame) {
+          body += '<div class="subh">' + repEsc(g.dateLabel + ' · ' + vs(g.gatorsHome) + g.oppShort) + '</div>';
+          body += '<ul class="plist">' + g.pitchers.map(pt =>
+            '<li><span class="pinn">' + (pt.np || 0) + ' #P</span> ' + repEsc(pt.name) + '</li>').join('') + '</ul>';
+        }
+      } else {
+        const key = q.query && q.query.key ? '?key=' + encodeURIComponent(q.query.key) + '&games=1' : '?games=1';
+        body += '<div style="text-align:center;margin-top:9px"><a href="' + repEsc(key) + '" style="color:var(--purple);font-size:12px;text-decoration:none">View per-game pitch counts →</a></div>';
       }
     }
-    body += '<div class="foot">Pitch counts scraped from PrestoSports box scores. Cross-check against hand-written pitch counts.</div>';
+    body += '<div class="foot" style="margin-top:12px">Pitch counts scraped from PrestoSports box scores.</div>';
     r.set('Cache-Control', 'no-store');
     r.type('html').send(reportPage('Pitchers’ Rest', body));
   } catch (err) {
