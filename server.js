@@ -2396,7 +2396,7 @@ function pitcherLineFromRow(head, row){
   const key=nameKey(name); if(!key) return null;
   const g=k=>{ const j=head.indexOf(k); return (j>=0 && c[j]!=null) ? bsText(c[j]) : ''; };
   const npCol=head.indexOf('#p')>=0 ? '#p' : 'np';
-  return { key, name, np:NUM(g(npCol)), ip:g('ip'), h:g('h'), r:g('r'), er:g('er'), bb:g('bb'), k:g('k') };
+  return { key, name, np:NUM(g(npCol)), h:g('h'), r:g('r'), er:g('er'), bb:g('bb'), k:g('k') };
 }
 // Season pitcher-rest chart: for each Gators pitcher, every appearance (date,
 // opponent, pitch count) across all final games, plus a per-game breakdown that
@@ -2421,10 +2421,10 @@ async function computePitcherRest(){
       const line=pitcherLineFromRow(head, rows[i]); if(!line) continue;
       const rp=ROSTER_BY_NAMEKEY[line.key];
       const disp=rp ? rp.name : line.name;
-      const outing={ id:g.id, date:g.date, dateLabel:g.dateLabel, oppShort, gatorsHome:!!g.gatorsHome, np:line.np, ip:line.ip };
+      const outing={ id:g.id, date:g.date, dateLabel:g.dateLabel, oppShort, gatorsHome:!!g.gatorsHome, np:line.np };
       const a=acc[line.key] || (acc[line.key]={ key:line.key, name:disp, num:rp?rp.num:null, outings:[] });
       a.outings.push(outing);
-      gamePitchers.push({ name:disp, num:rp?rp.num:null, np:line.np, ip:line.ip });
+      gamePitchers.push({ name:disp, num:rp?rp.num:null, np:line.np });
     }
     if(gamePitchers.length) byGame.push({ id:g.id, date:g.date, dateLabel:g.dateLabel, oppShort, gatorsHome:!!g.gatorsHome, pitchers:gamePitchers });
   }
@@ -2432,7 +2432,7 @@ async function computePitcherRest(){
     p.outings.sort((x,y)=>x.date.localeCompare(y.date));
     for(let i=0;i<p.outings.length;i++) p.outings[i].restBefore = i>0 ? daysBetweenYmd(p.outings[i-1].date, p.outings[i].date) : null;
     const last=p.outings[p.outings.length-1];
-    p.lastDate=last.date; p.lastLabel=last.dateLabel; p.lastOpp=last.oppShort; p.lastHome=last.gatorsHome; p.lastNp=last.np; p.lastIp=last.ip;
+    p.lastDate=last.date; p.lastLabel=last.dateLabel; p.lastOpp=last.oppShort; p.lastHome=last.gatorsHome; p.lastNp=last.np;
     p.appearances=p.outings.length;
     p.totalPitches=p.outings.reduce((s,o)=>s+(o.np||0),0);
     return p;
@@ -3358,8 +3358,7 @@ app.get('/rest', async (q, r) => {
       for (const g of data.byGame) {
         body += '<div class="subh">' + repEsc(g.dateLabel + ' · ' + vs(g.gatorsHome) + g.oppShort) + '</div>';
         body += '<ul class="plist">' + g.pitchers.map(pt =>
-          '<li><span class="pinn">' + (pt.np || 0) + ' #P</span> ' + repEsc(pt.name)
-          + (pt.ip ? ' <span class="pteam">' + repEsc(pt.ip) + ' IP</span>' : '') + '</li>').join('') + '</ul>';
+          '<li><span class="pinn">' + (pt.np || 0) + ' #P</span> ' + repEsc(pt.name) + '</li>').join('') + '</ul>';
       }
     }
     body += '<div class="foot">Pitch counts scraped from PrestoSports box scores. Cross-check against hand-written pitch counts.</div>';
