@@ -1655,6 +1655,9 @@ const ROSTER = [
   { num: 10, name: 'Kash Martin',      slug: 'kashmartin44sc',       pos: 'Utility', cls: 'Sophomore',    ht: '5-10', wt: '185', b: 'R', t: 'R', bday: '11/09/2006', home: 'Westlake, LA',     school: 'Bossier Parish CC' },
   { num: 11, name: 'Diego Corrales',   slug: 'diegocorrales91v5',    pos: 'P',       cls: 'Junior',       ht: '5-8',  wt: '185', b: 'L', t: 'L', bday: '08/01/2005', home: 'Lake Charles, LA', school: 'McNeese State' },
   { num: 14, name: 'Brandon Levy',     slug: 'brandonlevyejo5',      pos: 'P',       cls: 'Junior',       ht: '5-10', wt: '180', b: 'R', t: 'R', bday: '05/25/2004', home: 'Bossier City, LA', school: 'New Orleans' },
+  // On the official roster but not yet in game action; findSlug resolves his real
+  // Presto page by name once it exists, and the note shows until his first game.
+  { num: 15, name: 'Reed Dupre',       slug: 'reeddupre',            pos: 'P',       cls: '',             ht: '',     wt: '',    b: '', t: '',  bday: '',           home: '',                 school: 'Southern Univ of New Orleans', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
   { num: 16, name: 'Daniel Midkiff',   slug: 'danielmidkifffqkb',    pos: 'P',       cls: 'Sophomore',    ht: '6-2',  wt: '208', b: 'R', t: 'R', bday: '05/20/2007', home: 'Buna, TX',         school: 'Lamar' },
   { num: 17, name: 'Ayden Sunday',     slug: 'aydensundayyp1j',      pos: 'OF',      cls: 'Sophomore',    ht: '6-0',  wt: '185', b: 'R', t: 'R', bday: '',           home: 'Nederland, TX',    school: 'Lamar' },
   { num: 19, name: 'Jack Garcille',    slug: 'jackgarcille9sq9',     pos: 'P',       cls: 'HS Senior',    ht: '6-6',  wt: '210', b: 'R', t: 'R', bday: '07/07/2008', home: 'Lake Charles, LA', school: 'McNeese State' },
@@ -1672,6 +1675,9 @@ const ROSTER = [
   { num: 41, name: 'Cole Flanagan',    slug: 'coleflanaganemnl',     pos: 'P',       cls: 'Freshman',     ht: '6-1',  wt: '230', b: 'L', t: 'L', bday: '',           home: 'Moss Bluff, LA',   school: 'Louisiana' },
   { num: 42, name: 'Kale Cropper',     slug: 'kalecropperuden',      pos: 'P',       cls: 'Sophomore',    ht: '6-4',  wt: '210', b: 'R', t: 'R', bday: '08/25/2006', home: 'Port Neches, TX',  school: 'Hill College' },
   { num: 45, name: 'Cannon Faulk',     slug: 'cannonfaulk0l9x',      pos: 'P',       cls: 'R-Sophomore',  ht: '6-4',  wt: '225', b: 'L', t: 'L', bday: '12/02/2005', home: 'Port Neches, TX',  school: 'Angelina College' },
+  // On the official roster and already pitching; findSlug resolves his real Presto
+  // page by name so his season stats flow in.
+  { num: 47, name: 'Brayden Guillory', slug: 'braydenguillory',      pos: 'P',       cls: '',             ht: '',     wt: '',    b: '', t: '',  bday: '',           home: '',                 school: 'Southern University', findSlug: true },
   // Assigned #39 on the 6/30 second-half roster; now playing, so his real Presto slug is
   // set directly and stats flow. Headshot populates once a photo is bundled.
   { num: 39, name: 'Yuichiro Kumagami', slug: 'yuichirokumagamisa54', pos: 'C', cls: 'Sophomore', ht: '5-11', wt: '', b: '', t: '', bday: '', home: 'Miyagi, Japan', school: 'Mt. Hood CC' },
@@ -2398,9 +2404,11 @@ function pitcherLineFromRow(head, row){
   const npCol=head.indexOf('#p')>=0 ? '#p' : 'np';
   return { key, name, np:NUM(g(npCol)), h:g('h'), r:g('r'), er:g('er'), bb:g('bb'), k:g('k') };
 }
-// Season pitcher-rest chart: for each Gators pitcher, every appearance (date,
-// opponent, pitch count) across all final games, plus a per-game breakdown that
-// mirrors the coach's hand-written pitch-count sheets for cross-checking. Final
+// Season pitcher-rest chart: for each current-roster Gators pitcher, every
+// appearance (date, opponent, pitch count) across all final games, plus a
+// per-game breakdown that mirrors the coach's hand-written pitch-count sheets for
+// cross-checking. Pitchers who've since left the roster are excluded (only names
+// that match ROSTER are kept). Final
 // boxes are cached/persisted, so this walks the season cheaply. daysRest is left
 // to the caller (it depends on "today"), so the result is date-independent and
 // safe to memoize across a request or two.
@@ -2420,11 +2428,12 @@ async function computePitcherRest(){
     for(let i=1;i<rows.length;i++){
       const line=pitcherLineFromRow(head, rows[i]); if(!line) continue;
       const rp=ROSTER_BY_NAMEKEY[line.key];
-      const disp=rp ? rp.name : line.name;
+      if(!rp) continue;        // only current-roster pitchers; skip players who've since left
+      const disp=rp.name;
       const outing={ id:g.id, date:g.date, dateLabel:g.dateLabel, oppShort, gatorsHome:!!g.gatorsHome, np:line.np };
-      const a=acc[line.key] || (acc[line.key]={ key:line.key, name:disp, num:rp?rp.num:null, outings:[] });
+      const a=acc[line.key] || (acc[line.key]={ key:line.key, name:disp, num:rp.num, outings:[] });
       a.outings.push(outing);
-      gamePitchers.push({ name:disp, num:rp?rp.num:null, np:line.np });
+      gamePitchers.push({ name:disp, num:rp.num, np:line.np });
     }
     if(gamePitchers.length) byGame.push({ id:g.id, date:g.date, dateLabel:g.dateLabel, oppShort, gatorsHome:!!g.gatorsHome, pitchers:gamePitchers });
   }
