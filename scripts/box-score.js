@@ -13,7 +13,9 @@
 //   node scripts/box-score.js 20260627_5hqn   # a specific box id
 //   BOX_FIXTURE=test/fixtures/boxscore.html node scripts/box-score.js --pdf   # offline
 //
-// Flags: --pdf (render PDF, default also prints the output path), --html (keep HTML).
+// Flags: --pdf (render PDF, default also prints the output path), --html (keep HTML),
+//   --avg (add each batter's season AVG column; omitted by default so the box shows
+//   only stats from the game itself).
 
 const fs = require('fs');
 const path = require('path');
@@ -23,6 +25,7 @@ const FLAGS = new Set(process.argv.slice(2).filter(a => a.startsWith('--')));
 const args = process.argv.slice(2).filter(a => !a.startsWith('--'));
 const PDF = FLAGS.has('--pdf') || !FLAGS.has('--html'); // PDF is the default output
 const KEEP_HTML = FLAGS.has('--html');
+const SHOW_AVG = FLAGS.has('--avg'); // season AVG column is off by default — game stats only
 const target = args[0] || 'latest';
 
 // Manual-data path: BOX_DATA points at a JSON file that fully specifies the game
@@ -114,6 +117,25 @@ function kindOf(label) { return /pitching/i.test(label) ? 'pitching' : 'batting'
 const cleanTable = h => String(h || '').replace(/<caption>[\s\S]*?<\/caption>/gi, '').replace(/<a\b[^>]*>/gi, '').replace(/<\/a>/gi, '');
 const txtOf = s => String(s || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
 const normName = n => String(n || '').toLowerCase().replace(/\s*\([^)]*\)\s*$/, '').replace(/[^a-z\s]/g, '').replace(/\s+/g, ' ').trim();
+
+// Drop one column (matched by its header label, case-insensitive) from a box
+// table. The header row and every player row lose that cell; the Totals row —
+// which is short a cell for stat columns like AVG it never carries — is left
+// alone because its cell count doesn't reach the dropped index.
+function dropColByHeader(html, label) {
+  const rows = String(html || '').match(/<tr[\s\S]*?<\/tr>/gi) || [];
+  if (!rows.length) return html;
+  const head = rows[0].match(/<t[dh][\s\S]*?<\/t[dh]>/gi) || [];
+  const idx = head.findIndex(c => txtOf(c).toUpperCase() === String(label).toUpperCase());
+  if (idx < 0) return html;
+  const rebuilt = rows.map(r => {
+    const open = (r.match(/^<tr[^>]*>/i) || ['<tr>'])[0];
+    const cs = r.match(/<t[dh][\s\S]*?<\/t[dh]>/gi) || [];
+    if (cs.length > idx) cs.splice(idx, 1);
+    return open + cs.join('') + '</tr>';
+  });
+  return String(html).replace(/<tr[\s\S]*?<\/tr>/gi, () => rebuilt.shift());
+}
 
 function groupTeams(box) {
   const order = [], by = {};
@@ -221,6 +243,7 @@ function parseLineTeams(html) {
 function buildHtml(data) {
   const teams = groupTeams(data.box || []);
   injectHBP(teams, data.pbp);   // derive + add the HBP pitching column from the play-by-play
+  if (!SHOW_AVG) teams.forEach(t => { if (t.batting) t.batting = dropColByHeader(t.batting, 'AVG'); });
   const croc = S.crocSkinDataUri();
   // Score/result/opponent from the line score when present; seed game otherwise.
   let gs = game.gs, os = game.os, win = game.win, opp = oppName;
