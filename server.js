@@ -4345,8 +4345,10 @@ function buildLineup(g){
   var curBat=g.live&&g.live.batter?String(g.live.batter).trim():'';
   var battingV=g.live&&g.live.half==='Top';
   var teamBatting=(team.vh==='V')===battingV;
-  // Season AVG is shown only for the Gators — opponents' averages are withheld for now.
-  var showAvg=team.isGators;
+  // Season AVG (from Presto's league hitting leaderboard) is shown for both the
+  // Gators and the opponent — the lineup rows already carry seasonAvg for every
+  // player, whichever team is on the tab.
+  var showAvg=true;
   function sc(v){return '<td class="lpn">'+(v==null?'':esc(String(v)))+'</td>';}
   var rows='';
   team.rows.forEach(function(r){
