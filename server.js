@@ -671,6 +671,16 @@ function gameTimeCDT(yyyymmdd) {
 // ----- helpers --------------------------------------------------------------
 function ordinal(n){ const s=['th','st','nd','rd'], v=n%100; return n + (s[(v-20)%10] || s[v] || s[0]); }
 function cap(w){ return w ? w.charAt(0).toUpperCase()+w.slice(1).toLowerCase() : w; }
+// Opponent names arrive from the box-score feed SHOUTING in all caps
+// ("MARTINEZ, ANDREW" / "DYLAN BOHLKE"), while the Gators' own names come from
+// the roster in proper case. Title-case any word that is entirely uppercase so
+// opposing lineups read the same as ours. Words that already carry a lowercase
+// letter — "DeHoyos", "McDonald", "O'Brien" from a properly-cased source — are
+// left untouched, and hyphen/apostrophe compounds are cased part-by-part.
+function deshout(name){
+  return String(name || '').replace(/[A-Za-z][A-Za-z'’-]*/g, w =>
+    /[a-z]/.test(w) ? w : w.replace(/[A-Za-z]+/g, s => cap(s)));
+}
 // Names/short labels prefer the known-team map, but fall back to the scraped
 // link text so an unrecognized opponent never blanks out a game.
 function fullName(id, name){ return (TEAMS[id] && TEAMS[id].name) || String(name||'').trim() || 'TBD'; }
@@ -1146,7 +1156,7 @@ function lineupsFromFeed(json) {
         uni: o.uni != null ? String(o.uni) : (p.uni != null ? String(p.uni) : ''),
         // name = display ("F. Last", server-formatted); full = full name kept for
         // profile-link matching and current-batter highlighting on the client.
-        name: abbrev(full),
+        name: deshout(abbrev(full)),
         full,
         bats: String(p.bats || '').toUpperCase(),
         seasonAvg: seasonAvgFor(full),   // season-to-date AVG for the lineup
@@ -1165,8 +1175,8 @@ function lineupsFromFeed(json) {
     const battingRows = rows.filter(r => r.pos !== 'P');
     // Box-score note lines (2B/3B/HR/SB/CS/E): scan every player on the team
     // so defensive subs and pinch runners are counted, not just starters.
-    const lastName = p => p.revname ? String(p.revname).split(',')[0].trim()
-      : String(p.name || '').trim().split(/\s+/).slice(-1)[0] || '';
+    const lastName = p => deshout(p.revname ? String(p.revname).split(',')[0].trim()
+      : String(p.name || '').trim().split(/\s+/).slice(-1)[0] || '');
     const notes = { '2B': [], '3B': [], 'HR': [], 'SB': [], 'CS': [], 'E': [] };
     players.forEach(p => {
       const h = p.hitting || {}, fl = p.fielding || {};
@@ -1213,7 +1223,7 @@ function pitchersFromFeed(json) {
       if (strikes == null) { const balls = pickv(pg, ['balls', 'ball', 'bl']); if (balls != null && np != null) strikes = np - num(balls); }
       const sp = (np && strikes != null) ? Math.round(num(strikes) / np * 100) : null;
       rows.push({
-        name: String(p.name || p.shortname || '').trim(),
+        name: deshout(String(p.name || p.shortname || '').trim()),
         uni: p.uni != null ? String(p.uni) : '',
         ip: ip != null ? String(ip) : '0.0',
         h: num(pickv(pg, ['h', 'hits'])),
@@ -1242,7 +1252,8 @@ function pitchersFromFeed(json) {
 const livePitchMem = {}; // gameId -> { name, cum }
 function applyLivePitchCount(gameId, live, pitchers) {
   if (!live || !live.pitcher) return;
-  const name = String(live.pitcher).trim();
+  // Match against the deshouted display name — pitcher rows store it title-cased.
+  const name = deshout(String(live.pitcher).trim());
   let row = null;
   for (const t of (pitchers || [])) { const r = (t.rows || []).find(x => x.name === name); if (r) { row = r; break; } }
   const cum = row && row.np != null ? row.np : 0;
@@ -1255,7 +1266,7 @@ function applyLivePitchCount(gameId, live, pitchers) {
   const abStrikes = abNp - abBalls;
   if (row) row.np = cum + abNp;
   const pi = live.pitcherInfo;
-  if (pi && String(pi.name || '').trim() === name && pi.pitches != null) {
+  if (pi && deshout(String(pi.name || '').trim()) === name && pi.pitches != null) {
     pi.pitches = pi.pitches + abNp;
     if (pi.strikes != null) { pi.strikes = pi.strikes + abStrikes; pi.balls = pi.pitches - pi.strikes; }
   }
