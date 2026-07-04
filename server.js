@@ -1350,6 +1350,10 @@ function normalizeFeatured(g) {
 
 // ----- state ----------------------------------------------------------------
 let games = [], featured = null, prevFeatured = null;
+// Last Gators game we saw pitching for via the live feed. Kept so the rest chart
+// survives the live→final→scraped-box handoff even after `featured` rotates to the
+// next game and before Presto's (bot-gated) final box XML can be scraped.
+let lastGatorsFeedGame = null;
 let lastHtml = '', lastFetchAt = 0;
 const sseClients = new Set(), subscribers = new Set(), startedAnnounced = new Set();
 
@@ -1500,10 +1504,22 @@ async function pollSchedule() {
 // For a live game, pull the league's live feed for the at-bat situation
 // (count/outs/bases/batter/pitcher), the line score, and the play-by-play, and
 // use the feed's runs as the scoreboard (the schedule page reads 0-0 mid-game).
+// Fresh-final Gators games we've already pulled the feed for (to capture final
+// pitch counts once), so we don't re-fetch every schedule poll for 10 hours.
+const finalFeedDone = new Set();
 async function enrichLive(norm) {
-  if (norm.status !== 'live') return;
+  // Always enrich a live game. Also pull the feed ONCE for a just-final Gators
+  // game so the rest chart gets its final pitch counts — Presto gates the final
+  // box XML behind a bot challenge and the schedule flips to "final" before the
+  // box is available, so the feed is the only timely source.
+  const freshFinal = norm.status === 'final' && !finalFeedDone.has(norm.id)
+    && norm.gatorsHome != null && finalIsFresh(norm, Date.now());
+  if (norm.status !== 'live' && !freshFinal) return;
   try {
     const lf = await fetchLiveForGame(norm.id);
+    // Mark the fresh-final feed pulled only once it actually yields pitching, so a
+    // transient feed failure retries on the next poll instead of being skipped.
+    if (freshFinal && lf && lf.pitchers && lf.pitchers.length) finalFeedDone.add(norm.id);
     if (lf && lf.live) norm.live = lf.live;
     // The schedule page can lag the live feed by up to a half-inning. Since the
     // feed already drives the at-bat, count, and play-by-play, derive the header
@@ -1617,6 +1633,16 @@ async function refreshFeatured() {
     norm.heroNote = MANUAL_OVERRIDE.note;
   }
   prevFeatured = featured; featured = norm;
+  // Snapshot the Gators' own game's live-feed pitching (live or just-final) so the
+  // rest chart can keep showing tonight's outings after featured rotates away.
+  if (norm && (norm.status === 'live' || norm.status === 'final') && Array.isArray(norm.pitchers)) {
+    const side = norm.pitchers.find(t => t.isGators);
+    if (side && Array.isArray(side.rows) && side.rows.length) {
+      lastGatorsFeedGame = { id: norm.id, date: norm.date || String(norm.id).slice(0, 8), dateLabel: norm.dateLabel,
+        oppShort: (norm.opponent && (norm.opponent.short || norm.opponent.name)) || '',
+        gatorsHome: !!norm.gatorsHome, live: norm.status === 'live', rows: side.rows };
+    }
+  }
   diffAlert(norm);
   // Only push to SSE clients when the game actually changed. During a slow
   // half-inning the 4s live poll would otherwise fan out ~15 identical frames a
@@ -2465,22 +2491,33 @@ async function getPitcherRest(){
 // is the only timely source: use it both while the game is LIVE and once the feed
 // calls it FINAL, until the official box gets scraped into the finals set (the
 // caller dedupes by game id so it never double-counts). Roster-matched.
-function liveGatorsOutings(){
-  const f = featured;
-  if(!f || (f.status !== 'live' && f.status !== 'final') || !Array.isArray(f.pitchers)) return null;
-  const side = f.pitchers.find(t => t.isGators);
-  if(!side || !Array.isArray(side.rows)) return null;
-  const oppShort = (f.opponent && (f.opponent.short || f.opponent.name)) || '';
-  const date = f.date || todayCentralYmd();
+function gatorsOutingsFrom(src){
+  if(!src || !Array.isArray(src.rows)) return null;
   const outings = [];
-  for(const row of side.rows){
+  for(const row of src.rows){
     const np = row.np != null ? (Number(row.np) || 0) : 0;
     if(!(np > 0 || (row.ip && parseFloat(row.ip) > 0))) continue;   // actually took the mound
     const key = nameKey(row.name); const rp = ROSTER_BY_NAMEKEY[key];
     if(!rp) continue;
     outings.push({ key, name: rp.name, num: rp.num, np, ip: row.ip });
   }
-  return outings.length ? { id:f.id, date, dateLabel:f.dateLabel, oppShort, gatorsHome:!!f.gatorsHome, live:f.status==='live', outings } : null;
+  return outings.length ? { id:src.id, date:src.date, dateLabel:src.dateLabel, oppShort:src.oppShort, gatorsHome:!!src.gatorsHome, live:!!src.live, outings } : null;
+}
+function liveGatorsOutings(){
+  const f = featured;
+  // Prefer the current featured game when it's the Gators playing (live or just-final).
+  if(f && (f.status === 'live' || f.status === 'final') && Array.isArray(f.pitchers)){
+    const side = f.pitchers.find(t => t.isGators);
+    if(side && Array.isArray(side.rows) && side.rows.length){
+      const r = gatorsOutingsFrom({ id:f.id, date:f.date || String(f.id).slice(0,8), dateLabel:f.dateLabel,
+        oppShort:(f.opponent && (f.opponent.short || f.opponent.name)) || '', gatorsHome:f.gatorsHome, live:f.status === 'live', rows:side.rows });
+      if(r) return r;
+    }
+  }
+  // Featured has rotated away: fall back to the remembered Gators game, but only
+  // for today, so a prior-day snapshot never lingers on the chart.
+  if(lastGatorsFeedGame && lastGatorsFeedGame.date === todayCentralYmd()) return gatorsOutingsFrom(lastGatorsFeedGame);
+  return null;
 }
 // Overlay today's featured-game outings onto the (cached, finals-only) chart
 // without mutating the cache: clone each pitcher, append the outing, and recompute
@@ -3433,6 +3470,9 @@ app.get('/rest', async (q, r) => {
       body += '<div class="rlgd">Big number = <b>days of rest</b>. <span class="hot">≤1 just threw</span> · <span class="cool">4+ rested</span> · <b style="color:var(--gold2)">Np</b> = pitches, last outing.</div>';
       // Per-game pitch counts (for cross-checking hand-written sheets) are opt-in
       // via ?games=1 so the default view stays a single mobile screen.
+      // Per-game pitch counts are opt-in via ?games=1 so the default view stays a
+      // single mobile screen. No on-page link — it can't work inside an exported
+      // PDF (it would resolve to the render host), so it's reachable by URL only.
       if (showGames) {
         body += '<div class="sec">By game</div>';
         for (const g of data.byGame) {
@@ -3440,9 +3480,6 @@ app.get('/rest', async (q, r) => {
           body += '<ul class="plist">' + g.pitchers.map(pt =>
             '<li><span class="pinn">' + (pt.np || 0) + ' #P</span> ' + repEsc(pt.name) + '</li>').join('') + '</ul>';
         }
-      } else {
-        const key = q.query && q.query.key ? '?key=' + encodeURIComponent(q.query.key) + '&games=1' : '?games=1';
-        body += '<div style="text-align:center;margin-top:9px"><a href="' + repEsc(key) + '" style="color:var(--purple);font-size:12px;text-decoration:none">View per-game pitch counts →</a></div>';
       }
     }
     body += '<div class="foot" style="margin-top:12px">Pitch counts scraped from PrestoSports box scores.</div>';
