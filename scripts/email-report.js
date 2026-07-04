@@ -43,11 +43,15 @@ const stem = path.basename(pdf, '.pdf');
 (async () => {
   const nodemailer = require('nodemailer');
   const t = nodemailer.createTransport({ service: 'gmail', auth: { user: USER, pass: PASS } });
+  // Subject/body default to the post-game report wording; a caller (e.g. the
+  // pitchers' rest chart) can override them via env for a different attachment.
+  const subject = process.env.REPORT_SUBJECT || ('Gators Post-Game Report — ' + stem);
+  const body = process.env.REPORT_BODY || ('Your Gumbeaux Gators post-game report is attached.\n\n(' + path.basename(pdf) + ')\n');
   await t.sendMail({
     from: 'Gumbeaux Gators <' + USER + '>',
     to,
-    subject: 'Gators Post-Game Report — ' + stem,
-    text: 'Your Gumbeaux Gators post-game report is attached.\n\n(' + path.basename(pdf) + ')\n',
+    subject,
+    text: body,
     attachments: [{ filename: path.basename(pdf), path: pdf }],
   });
   console.log('[email-report] sent ' + path.basename(pdf) + ' to ' + to);
