@@ -26,6 +26,9 @@ const args = process.argv.slice(2).filter(a => !a.startsWith('--'));
 const PDF = FLAGS.has('--pdf') || !FLAGS.has('--html'); // PDF is the default output
 const KEEP_HTML = FLAGS.has('--html');
 const SHOW_AVG = FLAGS.has('--avg'); // season AVG column is off by default — game stats only
+// Header record label — BOX_DATA can set recordLabel (e.g. "2nd-Half Record"); the
+// seed path leaves it the plain overall "Record".
+const RECORD_LABEL = (process.env.BOX_DATA && (() => { try { return JSON.parse(fs.readFileSync(process.env.BOX_DATA, 'utf8')).recordLabel; } catch (e) { return null; } })()) || 'Record';
 const target = args[0] || 'latest';
 
 // Manual-data path: BOX_DATA points at a JSON file that fully specifies the game
@@ -114,7 +117,12 @@ function teamOf(label) { return String(label || '').split(DASH)[0].trim(); }
 function kindOf(label) { return /pitching/i.test(label) ? 'pitching' : 'batting'; }
 // Strip inert player links and the table's own caption (we add our own section
 // headers), so the box tables render clean inside the PDF.
-const cleanTable = h => String(h || '').replace(/<caption>[\s\S]*?<\/caption>/gi, '').replace(/<a\b[^>]*>/gi, '').replace(/<\/a>/gi, '');
+// The final replace restores the space between a position prefix and the name for
+// players with no roster link: linked names arrive as "<span>1b</span> <a>Name</a>",
+// but an unlinked one is "<span>1b</span><span>Name</span>" with the spans jammed
+// together (it rendered as "1BJEREMIAH TORRES"). Only a bare position <span> (no
+// class — so not the a-/b- sublet marker) glued straight to the next tag is spaced.
+const cleanTable = h => String(h || '').replace(/<caption>[\s\S]*?<\/caption>/gi, '').replace(/<a\b[^>]*>/gi, '').replace(/<\/a>/gi, '').replace(/(<span>[a-z0-9/]+<\/span>)(?=<)/gi, '$1 ');
 const txtOf = s => String(s || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
 const normName = n => String(n || '').toLowerCase().replace(/\s*\([^)]*\)\s*$/, '').replace(/[^a-z\s]/g, '').replace(/\s+/g, ' ').trim();
 
@@ -315,7 +323,10 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .tbl table tr:first-child th{background:#fff;color:var(--teamc,#3a2480);font-weight:800;text-transform:uppercase;letter-spacing:.02em;font-size:10.5px;}
 .tbl.pit table tr:first-child th{font-size:9px;letter-spacing:0;}
 .tbl th:first-child,.tbl td:first-child{text-align:left;white-space:nowrap;width:44%;}
-.tbl.pit th:first-child,.tbl.pit td:first-child{width:30%;}
+.tbl.pit th:first-child,.tbl.pit td:first-child{width:33%;padding-right:9px;}
+/* Pitcher win/loss decision (W, 2-1) — small, and the cell gutter above keeps it
+   off the IP number in the next column (it read as "(W, 2-1)5.1"). */
+.tbl .dec{font-size:9px;font-weight:600;}
 /* Give the wider pitching columns (IP, ERA, #P, S%) room — a 4-digit ERA fits —
    while the single-digit columns (H..HBP) share the remainder equally. */
 .tbl.pit th:nth-child(2),.tbl.pit td:nth-child(2){width:7.5%;}   /* IP */
@@ -331,7 +342,7 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .tbl table tr:nth-child(2n) th,.tbl table tr:nth-child(2n) td{background:#f0eafa;}
 .tbl tr:last-child th,.tbl tr:last-child td{background:#faf8ff;font-weight:800;border-bottom:none;}
 </style></head><body>`);
-  H.push(`<div class='band'><img src='${S.gatorsLogoDataUri()}'><div><div class='k'>Gumbeaux Gators · Official Box Score</div><h1><span class='hdate'>${esc(game.date)}, 2026</span>${game.home ? 'vs' : 'at'} ${esc(opp)}</h1>${T ? `<div class='sub'>Record ${T.w}${DASH}${T.l}</div>` : ''}</div><div class='badge'><div class='scores'><div class='scr${gs > os ? ' win' : ''}'><span class='snm'>${esc(gShort)}</span><span class='sval'>${gs}</span></div><div class='scr${os > gs ? ' win' : ''}'><span class='snm'>${esc(oShort)}</span><span class='sval'>${os}</span></div></div><div class='bstat'>F/${innings}</div></div></div>`);
+  H.push(`<div class='band'><img src='${S.gatorsLogoDataUri()}'><div><div class='k'>Gumbeaux Gators · Official Box Score</div><h1><span class='hdate'>${esc(game.date)}, 2026</span>${game.home ? 'vs' : 'at'} ${esc(opp)}</h1>${T ? `<div class='sub'>${esc(RECORD_LABEL)} ${T.w}${DASH}${T.l}</div>` : ''}</div><div class='badge'><div class='scores'><div class='scr${gs > os ? ' win' : ''}'><span class='snm'>${esc(gShort)}</span><span class='sval'>${gs}</span></div><div class='scr${os > gs ? ' win' : ''}'><span class='snm'>${esc(oShort)}</span><span class='sval'>${os}</span></div></div><div class='bstat'>F/${innings}</div></div></div>`);
   H.push(line);
   H.push(`<div class='cols'>${teams.map(teamBlock).join('')}</div>`);
   H.push(`</body></html>`);
