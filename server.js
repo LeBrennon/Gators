@@ -2459,13 +2459,15 @@ async function getPitcherRest(){
     catch(e){ logErr('getPitcherRest', e); _restCache.inflight=null; return _restCache.data || { computedAt:0, finals:0, pitchers:[], byGame:[] }; } })();
   return _restCache.inflight;
 }
-// Tonight's live outings: the Gators pitchers who have already thrown in the
-// in-progress featured game, read straight from the live feed (featured.pitchers)
-// since Presto gates the in-game box XML behind a bot challenge. Roster-matched,
-// so only current-roster pitchers count. Returns null when no Gators game is live.
+// Today's outings from the featured game's live feed (featured.pitchers), which
+// powers the gamecast. Presto gates the in-game AND freshly-final box XML behind
+// a bot challenge, and the schedule page lags the final by minutes, so the feed
+// is the only timely source: use it both while the game is LIVE and once the feed
+// calls it FINAL, until the official box gets scraped into the finals set (the
+// caller dedupes by game id so it never double-counts). Roster-matched.
 function liveGatorsOutings(){
   const f = featured;
-  if(!f || f.status !== 'live' || !Array.isArray(f.pitchers)) return null;
+  if(!f || (f.status !== 'live' && f.status !== 'final') || !Array.isArray(f.pitchers)) return null;
   const side = f.pitchers.find(t => t.isGators);
   if(!side || !Array.isArray(side.rows)) return null;
   const oppShort = (f.opponent && (f.opponent.short || f.opponent.name)) || '';
@@ -2478,22 +2480,25 @@ function liveGatorsOutings(){
     if(!rp) continue;
     outings.push({ key, name: rp.name, num: rp.num, np, ip: row.ip });
   }
-  return outings.length ? { id:f.id, date, dateLabel:f.dateLabel, oppShort, gatorsHome:!!f.gatorsHome, outings } : null;
+  return outings.length ? { id:f.id, date, dateLabel:f.dateLabel, oppShort, gatorsHome:!!f.gatorsHome, live:f.status==='live', outings } : null;
 }
-// Overlay tonight's live outings onto the (cached, finals-only) chart without
-// mutating the cache: clone each pitcher, append a live outing, and recompute the
-// derived fields so a pitcher who has thrown tonight shows 0 days rest with his
-// live pitch count. Applied per-request so the live counts stay current.
+// Overlay today's featured-game outings onto the (cached, finals-only) chart
+// without mutating the cache: clone each pitcher, append the outing, and recompute
+// the derived fields so a pitcher who threw today shows 0 days rest with his
+// current pitch count. Skipped once the official final box is already in the
+// finals set (dedupe by game id), so live → final → scraped-final is seamless.
 function restWithLive(data){
   const live = liveGatorsOutings();
+  const finalsIds = new Set((data.byGame || []).map(g => g.id));
+  const apply = live && !finalsIds.has(live.id);
   const byKey = {};
   const pitchers = data.pitchers.map(p => { const c = Object.assign({}, p, { outings: p.outings.slice() }); byKey[c.key] = c; return c; });
   let byGame = data.byGame;
-  if(live){
+  if(apply){
     for(const o of live.outings){
       let p = byKey[o.key];
       if(!p){ p = { key:o.key, name:o.name, num:o.num, outings:[] }; byKey[o.key] = p; pitchers.push(p); }
-      p.outings.push({ id:live.id, date:live.date, dateLabel:live.dateLabel, oppShort:live.oppShort, gatorsHome:live.gatorsHome, np:o.np, live:true });
+      p.outings.push({ id:live.id, date:live.date, dateLabel:live.dateLabel, oppShort:live.oppShort, gatorsHome:live.gatorsHome, np:o.np, live:live.live });
     }
     for(const p of pitchers){
       p.outings.sort((x,y)=>x.date.localeCompare(y.date));
@@ -2502,10 +2507,10 @@ function restWithLive(data){
       p.appearances=p.outings.length;
       p.totalPitches=p.outings.reduce((s,o)=>s+(o.np||0),0);
     }
-    byGame = [{ id:live.id, date:live.date, dateLabel:live.dateLabel, oppShort:live.oppShort, gatorsHome:live.gatorsHome, live:true,
+    byGame = [{ id:live.id, date:live.date, dateLabel:live.dateLabel, oppShort:live.oppShort, gatorsHome:live.gatorsHome, live:live.live,
       pitchers: live.outings.map(o=>({ name:o.name, num:o.num, np:o.np })) }].concat(data.byGame);
   }
-  return { computedAt:data.computedAt, finals:data.finals, live:!!live, pitchers, byGame };
+  return { computedAt:data.computedAt, finals:data.finals, live:!!(apply && live.live), liveGame: apply ? live : null, pitchers, byGame };
 }
 async function boxWalks(gid){
   const c=boxWalkCache[gid];
@@ -3413,7 +3418,7 @@ app.get('/rest', async (q, r) => {
       + '</style>';
     body += '<div class="rh"><div class="rt">Pitchers’ Rest</div></div>'
       + '<div class="rd">' + repEsc(ymdLabel(today)) + ' · ' + data.finals + ' games'
-      + (data.live ? ' · <span style="color:var(--gold2);font-weight:700">LIVE ' + repEsc(vs(featured && featured.gatorsHome) + ((featured && featured.opponent && (featured.opponent.short || featured.opponent.name)) || '')) + '</span>' : '') + '</div>';
+      + (data.liveGame ? ' · <span style="color:var(--gold2);font-weight:700">' + (data.liveGame.live ? 'LIVE ' : 'FINAL ') + repEsc(vs(data.liveGame.gatorsHome) + data.liveGame.oppShort) + '</span>' : '') + '</div>';
     const pitchers = data.pitchers.map(p => Object.assign({}, p, { daysRest: daysBetweenYmd(p.lastDate, today) }))
       .sort((a, b) => b.lastDate.localeCompare(a.lastDate) || (b.lastNp || 0) - (a.lastNp || 0));
     if (!pitchers.length) {
@@ -3423,7 +3428,7 @@ app.get('/rest', async (q, r) => {
       body += '<ul class="rl">' + pitchers.map(p =>
         '<li><span class="rn">' + (p.num != null ? p.num : '') + '</span>'
         + '<span class="rnm">' + repEsc(p.name) + (p.lastLive ? ' <span class="rlive">LIVE</span>' : '') + '</span>'
-        + '<span class="rmeta"><b>' + (p.lastNp || 0) + 'p</b> · ' + (p.lastLive ? '<span class="lv">tonight</span>' : repEsc(mmdd(p.lastDate))) + '</span>'
+        + '<span class="rmeta"><b>' + (p.lastNp || 0) + 'p</b> · ' + (p.lastDate === today ? '<span class="lv">tonight</span>' : repEsc(mmdd(p.lastDate))) + '</span>'
         + '<span class="rrd ' + restClass(p.daysRest) + '">' + p.daysRest + '<i>d</i></span></li>').join('') + '</ul>';
       body += '<div class="rlgd">Big number = <b>days of rest</b>. <span class="hot">≤1 just threw</span> · <span class="cool">4+ rested</span> · <b style="color:var(--gold2)">Np</b> = pitches, last outing.</div>';
       // Per-game pitch counts (for cross-checking hand-written sheets) are opt-in
@@ -3431,7 +3436,7 @@ app.get('/rest', async (q, r) => {
       if (showGames) {
         body += '<div class="sec">By game</div>';
         for (const g of data.byGame) {
-          body += '<div class="subh">' + repEsc(g.dateLabel + ' · ' + vs(g.gatorsHome) + g.oppShort) + (g.live ? ' <span class="rlive">LIVE</span>' : '') + '</div>';
+          body += '<div class="subh">' + repEsc(g.dateLabel + ' · ' + vs(g.gatorsHome) + g.oppShort) + (g.live ? ' <span class="rlive">LIVE</span>' : (data.liveGame && g.id === data.liveGame.id ? ' <span class="rlive">FINAL</span>' : '')) + '</div>';
           body += '<ul class="plist">' + g.pitchers.map(pt =>
             '<li><span class="pinn">' + (pt.np || 0) + ' #P</span> ' + repEsc(pt.name) + '</li>').join('') + '</ul>';
         }
