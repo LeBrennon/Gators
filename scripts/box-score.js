@@ -72,7 +72,7 @@ function teamShort(name) { for (const [re, , s] of TEAMS_INFO) if (re.test(name 
 
 // ---- fetch the parsed box ---------------------------------------------------
 async function getBox() {
-  if (BOX_DATA) return { line: BOX_DATA.line || '', box: BOX_DATA.box || [] };
+  if (BOX_DATA) return { line: BOX_DATA.line || '', box: BOX_DATA.box || [], pbp: BOX_DATA.pbp || [] };
   if (PARSE_SRC) {
     const { parseBoxscore } = require('../server');
     let html;
@@ -216,6 +216,73 @@ function notesLine(notes) {
   return parts.join(' &nbsp;·&nbsp; ');
 }
 
+// ---- substitutions (the a-/b- alphabet legend) ------------------------------
+// Presto's JSON feed drops the box's own substitution footnotes, but the
+// play-by-play records every swap. Reconstruct them so each team's box carries a
+// legend of exactly when its subs entered. Offensive subs (pinch hit/ran) belong
+// to the batting team; defensive/pitching swaps ("X to <pos>/p for Y") belong to
+// the fielding team (the side NOT batting that half-inning).
+const ORD = n => { n = +n; const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
+function subEvents(pbp, teams) {
+  const names = teams.map(t => t.team);
+  const events = [];
+  for (const pp of (pbp || [])) {
+    const title = txtOf(pp.title);
+    const inning = (title.match(/(\d+)(?:st|nd|rd|th)/) || [])[1] || '';
+    const half = /top/i.test(title) ? 'top' : /bottom/i.test(title) ? 'bot' : '';
+    const batting = names.find(n => n && title.includes(n));
+    const other = names.find(n => n !== batting);
+    for (const r of (String(pp.html || '').match(/<tr[\s\S]*?<\/tr>/gi) || [])) {
+      const t = txtOf(r).replace(/\s*\.\s*$/, '');
+      let m;
+      if ((m = t.match(/^(.+?)\s+pinch hit for\s+(.+)$/i)))               events.push({ team: batting, enter: m[1].trim(), repl: m[2].trim(), kind: 'PH', inning, half });
+      else if ((m = t.match(/^(.+?)\s+pinch ran for\s+(.+)$/i)))          events.push({ team: batting, enter: m[1].trim(), repl: m[2].trim(), kind: 'PR', inning, half });
+      else if ((m = t.match(/^(.+?)\s+to p for\s+(.+)$/i)))               events.push({ team: other,   enter: m[1].trim(), repl: m[2].trim(), kind: 'P',  inning, half });
+      else if ((m = t.match(/^(.+?)\s+to ([a-z0-9]{1,3}) for\s+(.+)$/i))) events.push({ team: other,   enter: m[1].trim(), repl: m[3].trim(), kind: m[2].toUpperCase(), inning, half });
+      // Mangled feed lines (e.g. a dropped name — "/ for Renteria") match nothing and are skipped.
+    }
+  }
+  // Drop anything with an empty/garbled entering name so no junk reaches the sheet.
+  return events.filter(e => e.enter && e.enter.length > 1 && !/[\/]/.test(e.enter));
+}
+// The a-/b- markers a team's batting table carries, in order, with display names.
+function subLetters(battingHtml) {
+  const out = [];
+  for (const r of (String(battingHtml || '').match(/<tr[\s\S]*?<\/tr>/gi) || [])) {
+    if (!/sublet/i.test(r)) continue;
+    const lm = r.match(/sublet">\s*([a-z])-/i); if (!lm) continue;
+    const cell = (r.match(/<t[dh][\s\S]*?<\/t[dh]>/i) || [''])[0];
+    const nm = txtOf(cell).replace(/^[a-z0-9/]+\s+/i, '').replace(/^[a-z]-\s*/i, '').trim();
+    out.push({ letter: lm[1].toLowerCase(), name: nm, key: normName(nm) });
+  }
+  return out;
+}
+// Full-width per-team substitutions legend. Each lettered batter is tied to its
+// entry event; a lettered batter whose entry the feed didn't record is still
+// listed (honestly flagged) so no letter in the table is left unexplained.
+function subsBlock(teams, events) {
+  if (!events.length) return '';
+  const HALF = h => h === 'top' ? 'Top' : h === 'bot' ? 'Bot' : '';
+  const verb = k => k === 'PH' ? 'pinch hit for' : k === 'PR' ? 'pinch ran for' : k === 'P' ? 'to P for' : `to ${k} for`;
+  const cols = teams.map(t => {
+    const letters = subLetters(t.batting);
+    const keyToLetter = {}; letters.forEach(x => { keyToLetter[x.key] = x.letter; });
+    const evs = events.filter(e => e.team === t.team)
+      .sort((a, b) => (+a.inning - +b.inning) || (a.half === b.half ? 0 : a.half === 'top' ? -1 : 1));
+    const covered = new Set();
+    const items = evs.map(e => {
+      const L = keyToLetter[normName(e.enter)]; if (L) covered.add(L);
+      const when = e.inning ? ` <span class='inn'>(${HALF(e.half)} ${ORD(e.inning)})</span>` : '';
+      return `<li>${L ? `<b>${L}-</b> ` : ''}${esc(e.enter)} ${verb(e.kind)} ${esc(e.repl)}${when}</li>`;
+    });
+    letters.forEach(x => { if (!covered.has(x.letter)) items.push(`<li><b>${x.letter}-</b> ${esc(x.name)} <span class='inn'>(entry not in play-by-play)</span></li>`); });
+    const cap = t.gators ? 'GATORS' : esc(t.team.toUpperCase());
+    const color = t.gators ? GATORS_PURPLE : teamColor(t.team);
+    return `<div class='subcol' style='--teamc:${color}'><div class='subcap'>${cap} — SUBSTITUTIONS</div><ul>${items.join('') || `<li class='none'>None</li>`}</ul></div>`;
+  }).join('');
+  return `<div class='subs'>${cols}</div>`;
+}
+
 // ---- render -----------------------------------------------------------------
 function teamBlock(t) {
   const cap = t.gators ? 'GATORS' : esc(t.team.toUpperCase());
@@ -253,6 +320,9 @@ function buildHtml(data) {
   injectHBP(teams, data.pbp);   // derive + add the HBP pitching column from the play-by-play
   if (!SHOW_AVG) teams.forEach(t => { if (t.batting) t.batting = dropColByHeader(t.batting, 'AVG'); });
   const croc = S.crocSkinDataUri();
+  // Both teams' records for the header, when BOX_DATA supplies them (e.g. each
+  // side's 2nd-half record). Falls back to the single-team T record otherwise.
+  const RECS = (BOX_DATA && BOX_DATA.records) ? BOX_DATA.records : null;
   // Score/result/opponent from the line score when present; seed game otherwise.
   let gs = game.gs, os = game.os, win = game.win, opp = oppName;
   const lt = parseLineTeams(data.line);
@@ -274,7 +344,11 @@ function buildHtml(data) {
   // without clipping the Totals row. Roomy for a normal box, tighter as rows grow.
   const rcount = html => (String(html || '').match(/<tr/gi) || []).length || 1;
   const maxRows = Math.max(1, ...teams.map(t => rcount(t.batting) + rcount(t.pitching)));
-  const padV = Math.max(3, Math.min(9, Math.floor((620 / maxRows - 16) / 2)));
+  // A substitutions legend at the foot claims vertical space, so shrink the table
+  // height budget when one is present to keep the whole sheet on a single page.
+  const subEvts = subEvents(data.pbp, teams);
+  const budgetH = subEvts.length ? 500 : 620;
+  const padV = Math.max(3, Math.min(9, Math.floor((budgetH / maxRows - 16) / 2)));
   const H = [];
   H.push(`<!doctype html><html><head><meta charset='utf-8'><style>
 @page{size:letter;margin:0;}
@@ -293,7 +367,7 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .k{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#ffd633;font-weight:800;text-shadow:0 1px 2px rgba(0,0,0,.5);}
 .band h1{font-size:28px;font-weight:900;line-height:1.08;margin:3px 0;text-shadow:0 2px 4px rgba(0,0,0,.55);}
 .band h1 .hdate{display:block;font-size:15px;font-weight:700;letter-spacing:.01em;color:#efe7ff;margin-bottom:2px;}
-.band .sub{font-size:13px;font-weight:700;color:#efe7ff;text-shadow:0 1px 2px rgba(0,0,0,.5);}
+.band .sub{font-size:11px;font-weight:700;color:#efe7ff;text-shadow:0 1px 2px rgba(0,0,0,.5);white-space:nowrap;}
 .badge{margin-left:auto;display:flex;align-items:center;gap:14px;}
 .badge .scr{display:flex;align-items:baseline;justify-content:flex-end;gap:16px;margin:3px 0;}
 .badge .snm{font-size:16px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5);}
@@ -311,6 +385,15 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .teamcol{flex:1;min-width:0;display:flex;flex-direction:column;}
 .tcap{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#fff;background:var(--teamc,#3a2480);padding:8px 11px;border-radius:6px 6px 0 0;}
 .tcap.pit{margin-top:16px;}
+/* Substitutions legend (the a-/b- alphabet system), reconstructed from the pbp. */
+.subs{display:flex;gap:22px;margin-top:9px;flex:0 0 auto;}
+.subcol{flex:1;min-width:0;}
+.subcap{font-size:9.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--teamc,#3a2480);border-bottom:2px solid var(--teamc,#3a2480);padding-bottom:2px;margin-bottom:4px;}
+.subs ul{list-style:none;margin:0;padding:0;}
+.subs li{font-size:10px;line-height:1.4;color:#2a2150;}
+.subs li b{color:var(--teamc,#3a2480);font-weight:800;}
+.subs .inn{color:#6b5ca8;font-weight:600;}
+.subs li.none{color:#9a91b8;font-style:italic;}
 .tbl{border:1px solid #e6def7;border-top:none;border-radius:0 0 6px 6px;overflow:hidden;min-height:0;}
 .tbl table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;height:100%;table-layout:fixed;}
 .tbl th,.tbl td{padding:var(--padv,8px) 5px;text-align:center;font-size:12.5px;font-weight:400;border-bottom:1px solid #efeaf9;}
@@ -342,9 +425,10 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .tbl table tr:nth-child(2n) th,.tbl table tr:nth-child(2n) td{background:#f0eafa;}
 .tbl tr:last-child th,.tbl tr:last-child td{background:#faf8ff;font-weight:800;border-bottom:none;}
 </style></head><body>`);
-  H.push(`<div class='band'><img src='${S.gatorsLogoDataUri()}'><div><div class='k'>Gumbeaux Gators · Official Box Score</div><h1><span class='hdate'>${esc(game.date)}, 2026</span>${game.home ? 'vs' : 'at'} ${esc(opp)}</h1>${T ? `<div class='sub'>${esc(RECORD_LABEL)} ${T.w}${DASH}${T.l}</div>` : ''}</div><div class='badge'><div class='scores'><div class='scr${gs > os ? ' win' : ''}'><span class='snm'>${esc(gShort)}</span><span class='sval'>${gs}</span></div><div class='scr${os > gs ? ' win' : ''}'><span class='snm'>${esc(oShort)}</span><span class='sval'>${os}</span></div></div><div class='bstat'>F/${innings}</div></div></div>`);
+  H.push(`<div class='band'><img src='${S.gatorsLogoDataUri()}'><div><div class='k'>Gumbeaux Gators · Official Box Score</div><h1><span class='hdate'>${esc(game.date)}, 2026</span>${game.home ? 'vs' : 'at'} ${esc(opp)}</h1>${RECS ? `<div class='sub'>${esc(RECS.label || 'Record')} &nbsp;—&nbsp; ${esc(gShort)} ${RECS.gators.w}${DASH}${RECS.gators.l} &nbsp;·&nbsp; ${esc(oShort)} ${RECS.opp.w}${DASH}${RECS.opp.l}</div>` : (T ? `<div class='sub'>${esc(RECORD_LABEL)} ${T.w}${DASH}${T.l}</div>` : '')}</div><div class='badge'><div class='scores'><div class='scr${gs > os ? ' win' : ''}'><span class='snm'>${esc(gShort)}</span><span class='sval'>${gs}</span></div><div class='scr${os > gs ? ' win' : ''}'><span class='snm'>${esc(oShort)}</span><span class='sval'>${os}</span></div></div><div class='bstat'>F/${innings}</div></div></div>`);
   H.push(line);
   H.push(`<div class='cols'>${teams.map(teamBlock).join('')}</div>`);
+  H.push(subsBlock(teams, subEvts));
   H.push(`</body></html>`);
   return H.join('\n');
 }
