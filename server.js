@@ -4836,6 +4836,11 @@ function renderStandings(d){
   if(!rows.length){$('standingsBody').innerHTML='<div class="note">Standings aren’t available yet — check back shortly.</div>';$('stMeta').textContent='';}
   else{
     var anyClinch=false;
+    // Standings position with ties: teams sharing the same second-half PCT hold
+    // the same rank, shown as "T-N" (e.g. four teams at .667 are all "T-1").
+    var pos=rows.map(function(x,i){return (i>0&&rows[i-1].pct===x.pct)?null:i+1;});
+    for(var pi=1;pi<pos.length;pi++){if(pos[pi]==null)pos[pi]=pos[pi-1];}
+    var groupSize={};pos.forEach(function(p){groupSize[p]=(groupSize[p]||0)+1;});
     var h='<div class="gltbl sttbl"><table><tr><th>#</th><th>Team</th><th title="Second-half W-L">2H</th><th>PCT</th><th>GB</th><th>STRK</th><th title="Full-season W-L">Season</th></tr>';
     rows.forEach(function(x,i){
       var isG=x.id&&x.id===d.gatorsId;
@@ -4848,7 +4853,8 @@ function renderStandings(d){
       var team=x.site?('<a class="stteam" href="'+esc(x.site)+'" target="_blank" rel="noopener">'+inner+'</a>'):('<div class="stteam">'+inner+'</div>');
       var cls=[isG?'stg':'',x.clinched?'stclinch':''].filter(Boolean).join(' ');
       var wl2=(x.w2|0)+'-'+(x.l2|0), wls=(x.ws|0)+'-'+(x.ls|0);
-      h+='<tr'+(cls?' class="'+cls+'"':'')+'><td>'+(i+1)+'</td>'
+      var rk=(groupSize[pos[i]]>1?'T-':'')+pos[i];
+      h+='<tr'+(cls?' class="'+cls+'"':'')+'><td>'+rk+'</td>'
         +'<td>'+team+'</td>'
         +'<td class="stwl2">'+wl2+'</td><td>'+fmtPct(x.pct)+'</td><td>'+fmtGb(x.gb)+'</td><td>'+sk+'</td><td class="stwls">'+wls+'</td></tr>';
     });
