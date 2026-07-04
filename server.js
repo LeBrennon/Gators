@@ -1674,7 +1674,8 @@ const ROSTER = [
   { num: 6,  name: 'Nathan McDonald',  slug: 'nathanmcdonaldftgl',   pos: 'Utility', cls: 'Senior',       ht: '6-0',  wt: '175', b: 'R', t: 'R', bday: '07/17/2004', home: 'McComb, MS',       school: 'Loyola-New Orleans' },
   // Added off the 6/28 gameday sheet; real Presto slug now set directly (was findSlug-matched by name).
   { num: 8,  name: 'Cade Robin',       slug: 'caderobinnu4m',        pos: 'P',       cls: 'Junior',       ht: '6-1',  wt: '200', b: 'R', t: 'R', bday: '',           home: 'Arnaudville, LA',  school: 'LSU-Shreveport' },
-  { num: 9,  name: 'James Reina',      slug: 'jamesreinaluai',       pos: 'IF',      cls: 'Junior',       ht: '5-9',  wt: '180', b: 'R', t: 'R', bday: '10/07/2004', home: 'Lake Charles, LA', school: 'Stephen F. Austin' },
+  // #35 off the 7/3 official roster (replaced #9 James Reina, who dropped off it).
+  { num: 35, name: 'Jeremiah Torres',  slug: 'jeremiahtorres',       pos: 'IF',      cls: 'Junior',       ht: '6-0',  wt: '210', b: 'R', t: 'R', bday: '05/10/2006', home: 'Klein, TX',        school: 'Southern Indiana', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
   // Added off the 6/30 second-half roster; real Presto slug now set directly. He'd
   // already played 9 games (.217 AVG), but findSlug never resolved him because the
   // league leaderboard lists him as "K Martin", which doesn't match "Kash Martin" via normPlayerName.
@@ -1707,6 +1708,8 @@ const ROSTER = [
   // Assigned #39 on the 6/30 second-half roster; now playing, so his real Presto slug is
   // set directly and stats flow. Headshot populates once a photo is bundled.
   { num: 39, name: 'Yuichiro Kumagami', slug: 'yuichirokumagamisa54', pos: 'C', cls: 'Sophomore', ht: '5-11', wt: '', b: '', t: '', bday: '', home: 'Miyagi, Japan', school: 'Mt. Hood CC' },
+  // On the 7/3 official roster with no jersey number yet — numTBD shows "TBD".
+  { num: null, numTBD: true, name: 'Pierce Boles', slug: 'pierceboles', pos: 'C', cls: '', ht: '', wt: '', b: '', t: '', bday: '', home: '', school: '', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
   // Added off the 6/30 second-half roster; real Presto slugs now set directly. Their player
   // pages exist but they haven't recorded game action yet, so the `note` shows until their first game.
   { num: 12, name: 'Taylor Hollier',  slug: 'taylorholliervl4b',  pos: 'P', cls: 'Freshman', ht: '6-0', wt: '155', b: 'L', t: 'L', bday: '', home: 'Opelousas, LA', school: 'Belhaven', note: 'Recently added — season stats will appear after his first game.' },
