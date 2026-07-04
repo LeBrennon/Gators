@@ -681,6 +681,22 @@ function deshout(name){
   return String(name || '').replace(/[A-Za-z][A-Za-z'’-]*/g, w =>
     /[a-z]/.test(w) ? w : w.replace(/[A-Za-z]+/g, s => cap(s)));
 }
+// Opponent schools in the league dataset are sometimes stored SHOUTING
+// ("ODESSA COLL", "MISSISSIPPI COLLEGE") while the Gators' own read in proper
+// case. Title-case each fully-uppercase word so a bio's school reads like the
+// rest of the card, but leave genuine initialisms ("UTSA", "LSU", "CC") in caps
+// and lowercase joiner words. Words that already carry a lowercase letter are
+// left untouched, so proper-cased schools pass through unchanged.
+const SCHOOL_ACRONYMS = new Set(['UTSA','UTRGV','UIW','UNO','UL','UT','TAMU','TX','SFA','PRCC','BPCC','LSU','LSUA','LSUE','CC','JC','HS','N']);
+const SCHOOL_JOINERS = new Set(['of','the','and','at']);
+function deshoutSchool(school){
+  return String(school || '').replace(/[A-Za-z][A-Za-z'’]*/g, w => {
+    if (/[a-z]/.test(w)) return w;            // already properly cased
+    if (SCHOOL_ACRONYMS.has(w)) return w;     // genuine initialism, keep caps
+    const c = cap(w);
+    return SCHOOL_JOINERS.has(c.toLowerCase()) ? c.toLowerCase() : c;
+  });
+}
 // The name spellings a play narrative might use for a player ("HUNTER HAM",
 // "HAM, HUNTER"), so a SHOUTING opponent name in the feed's free text can be
 // found and title-cased without touching the rest of the sentence.
@@ -1980,7 +1996,7 @@ function firstAbStats(name) {
     else if (has(hit.h)) third = ['H', String(N(hit.h))];
     if (third) line.push(third);
   }
-  const bioStr = bio ? [bio.school, bio.cls].filter(Boolean).join(' · ') : '';
+  const bioStr = bio ? [deshoutSchool(bio.school), bio.cls].filter(Boolean).join(' · ') : '';
   return { firstAB: true, bio: bioStr || null, seasonLine: line.length ? line : null };
 }
 let leaguePitcherStats = {};  // normName -> { era, ip, so, w, l, sv } for every league pitcher
@@ -2016,7 +2032,7 @@ function pitcherSeason(name) {
     const k = pit.so != null ? pit.so : pit.k;
     if (has(k)) line.push(['K', String(Number(k) || 0)]);
   }
-  const bioStr = bio ? [bio.school, bio.cls].filter(Boolean).join(' · ') : '';
+  const bioStr = bio ? [deshoutSchool(bio.school), bio.cls].filter(Boolean).join(' · ') : '';
   return { bio: bioStr || null, seasonLine: line.length ? line : null };
 }
 // Did the current pitcher just enter? Look for his pitching-change announcement
