@@ -129,3 +129,40 @@ jobs:
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           REPORT_TO: ${{ secrets.REPORT_TO }}
         run: node scripts/email-report.js
+
+      # ----- Pitchers' rest chart (personal delivery; nothing on the website) -----
+      # Built and emailed on the same game-day paths as the post-game report
+      # (repository_dispatch / manual), independent of the post-game build so a slow
+      # box score never blocks it. It boots the app, prints the private /rest page to
+      # a mobile one-page PDF, and emails it. email-report.js self-skips if the Gmail
+      # secret isn't set, so this is safe even before email is configured.
+      - name: Build the pitchers' rest chart PDF
+        id: restchart
+        if: ${{ always() && steps.plan.outputs.email == 'true' }}
+        continue-on-error: true
+        run: |
+          npm ci
+          export CHROMIUM_PATH="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
+          PDF="$(node scripts/rest-chart.js)"
+          echo "built pitchers' rest chart: $PDF"
+          echo "pdf=$PDF" >> "$GITHUB_OUTPUT"
+
+      - name: Upload the rest chart artifact
+        if: ${{ always() && steps.restchart.outputs.pdf != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: gators-pitchers-rest
+          path: reports/rest/
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Email the pitchers' rest chart
+        if: ${{ always() && steps.restchart.outputs.pdf != '' }}
+        continue-on-error: true
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          REPORT_TO: ${{ secrets.REPORT_TO }}
+          REPORT_SUBJECT: "Gators Pitchers' Rest Chart"
+          REPORT_BODY: "Today's Gumbeaux Gators pitchers' rest chart is attached (pitches thrown + days of rest, current roster)."
+        run: node scripts/email-report.js "${{ steps.restchart.outputs.pdf }}"
