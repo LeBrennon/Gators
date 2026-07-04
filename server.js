@@ -56,6 +56,11 @@ const mailReady    = !!(nodemailer && MAIL_USER && MAIL_PASS);
 // (we never store raw IPs). Same-day dedupe stays stable across restarts.
 const STATS_TO     = (process.env.STATS_TO || 'brennonmoore11@gmail.com').split(',').map(s => s.trim()).filter(Boolean);
 const STATS_SALT   = process.env.STATS_SALT || 'gators-visits-v1';
+// End-of-inning text alert: reuses the same Gmail sender to email an address
+// that a carrier turns into a text — e.g. 5551234567@vtext.com (Verizon),
+// @txt.att.net (AT&T), @tmomail.net (T-Mobile). Comma-separated, same
+// convention as STATS_TO; empty (the default) leaves the feature off.
+const INNING_ALERT_TO = (process.env.INNING_ALERT_TO || '').split(',').map(s => s.trim()).filter(Boolean);
 const VAPID_PUB    = process.env.VAPID_PUBLIC_KEY || '';
 const VAPID_PRIV   = process.env.VAPID_PRIVATE_KEY || '';
 const VAPID_MAIL   = process.env.VAPID_CONTACT || 'mailto:you@example.com';
@@ -1489,6 +1494,60 @@ function diffAlert(cur) {
   if (cur.status === 'final' && prevFeatured.status !== 'final')
     notify(g(cur) > o(cur) ? 'Gators win! \uD83D\uDC0A' : 'Final', 'Gators ' + sc + ' ' + opp, 'final');
 }
+// ---- end-of-inning text alert -----------------------------------------------
+// Kat (social media) asked for a text at end of 3rd/6th so she doesn't have to
+// pull up the site mid-inning while she's at an away game. Fires once per game
+// per inning, persisted to disk (same pattern as reportDispatched) so a Render
+// restart never re-sends or, worse, backfires for a boundary already passed.
+const INNING_ALERT_INNINGS = [3, 6];
+const INNING_ALERT_SENT_FILE = (process.env.CACHE_DIR || '.') + '/inning-alert-sent.json';
+const inningAlertSent = new Set(); // "gameId:inning" already texted
+let inningAlertSeeded = false;
+(function loadInningAlertSent() {
+  try { const a = JSON.parse(fs.readFileSync(INNING_ALERT_SENT_FILE, 'utf8')); if (Array.isArray(a)) a.forEach(k => inningAlertSent.add(k)); } catch (e) {}
+})();
+function saveInningAlertSent() { try { fs.writeFileSync(INNING_ALERT_SENT_FILE, JSON.stringify([...inningAlertSent])); } catch (e) {} }
+// Inning n is fully in the past once the game has moved on to a later inning,
+// or it ended (walk-off / mercy rule) during or before inning n.
+function inningComplete(norm, n) {
+  const inn = parseInt(norm.inning, 10) || 0;
+  return inn > n || (inn === n && norm.status === 'final');
+}
+function inningAlertText(norm, n) {
+  const g = norm.gatorsHome ? norm.home.runs : norm.away.runs;
+  const o = norm.gatorsHome ? norm.away.runs : norm.home.runs;
+  let box = '';
+  const ls = norm.lineScore || [];
+  const away = ls.find(t => t.vh === 'V'), home = ls.find(t => t.vh === 'H');
+  if (away && home) {
+    const row = t => (t.isGators ? 'Gators' : t.name) + ' ' + t.innings.slice(0, n).map(v => (v == null ? '-' : v)).join(' ');
+    box = '\n' + row(away) + '\n' + row(home);
+  }
+  return 'End of ' + ordinal(n) + ': Gators ' + g + '-' + o + ' ' + norm.opponent.short + box;
+}
+function sendInningAlert(norm, n) {
+  const t = getMailer(); if (!t || !INNING_ALERT_TO.length) return Promise.resolve(false);
+  return t.sendMail({ from: 'Gators GameTracker <' + MAIL_USER + '>', to: INNING_ALERT_TO.join(', '), text: inningAlertText(norm, n) })
+    .then(() => { process.stdout.write('\n[inning-alert] sent end-of-' + n + ' for ' + norm.id + '\n'); return true; })
+    .catch(e => { logErr('sendInningAlert', e); return false; });
+}
+function checkInningAlerts(norm) {
+  if (!INNING_ALERT_TO.length || norm.status === 'pregame' || norm.status === 'cancelled') return;
+  // First live/final game seen after boot: mark any boundary already in the
+  // past as sent instead of firing (or re-firing) for it.
+  if (!inningAlertSeeded) {
+    inningAlertSeeded = true;
+    for (const n of INNING_ALERT_INNINGS) if (inningComplete(norm, n)) inningAlertSent.add(norm.id + ':' + n);
+    saveInningAlertSent();
+    return;
+  }
+  for (const n of INNING_ALERT_INNINGS) {
+    const key = norm.id + ':' + n;
+    if (inningAlertSent.has(key) || !inningComplete(norm, n)) continue;
+    inningAlertSent.add(key); saveInningAlertSent();
+    sendInningAlert(norm, n);
+  }
+}
 async function pollSchedule() {
   try {
     const res = await fetch(SCHEDULE_URL, { headers: {
@@ -1634,6 +1693,7 @@ async function refreshFeatured() {
   }
   prevFeatured = featured; featured = norm;
   diffAlert(norm);
+  try { checkInningAlerts(norm); } catch (e) { logErr('checkInningAlerts', e); }
   // Only push to SSE clients when the game actually changed. During a slow
   // half-inning the 4s live poll would otherwise fan out ~15 identical frames a
   // minute to every open tab. New clients still get the current state on connect.
