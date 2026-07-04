@@ -3482,7 +3482,6 @@ app.get('/rest', async (q, r) => {
         }
       }
     }
-    body += '<div class="foot" style="margin-top:12px">Pitch counts scraped from PrestoSports box scores.</div>';
     r.set('Cache-Control', 'no-store');
     r.type('html').send(reportPage('Pitchers’ Rest', body));
   } catch (err) {
