@@ -125,6 +125,23 @@ function kindOf(label) { return /pitching/i.test(label) ? 'pitching' : 'batting'
 const cleanTable = h => String(h || '').replace(/<caption>[\s\S]*?<\/caption>/gi, '').replace(/<a\b[^>]*>/gi, '').replace(/<\/a>/gi, '').replace(/(<span>[a-z0-9/]+<\/span>)(?=<)/gi, '$1 ');
 const txtOf = s => String(s || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
 const normName = n => String(n || '').toLowerCase().replace(/\s*\([^)]*\)\s*$/, '').replace(/[^a-z\s]/g, '').replace(/\s+/g, ' ').trim();
+// The league feed SHOUTS some names in all-caps (e.g. "ANGEL MARTINEZ"); others
+// arrive already mixed-case ("Bruno Robles", "Nathan McDonald"). Title-case only
+// the fully-uppercase ones so both teams read consistently without flattening a
+// real internal capital like McDonald.
+const isAllCaps = s => /[A-Za-z]/.test(s) && !/[a-z]/.test(s);
+const titleCase = s => String(s).replace(/[A-Za-z][A-Za-z']*/g, w => w[0].toUpperCase() + w.slice(1).toLowerCase());
+const tcName = s => isAllCaps(s) ? titleCase(s) : s;
+// Title-case an all-caps player name in a box table's first (name) cell, leaving
+// the position prefix, a-/b- marker, W/L decision, and column headers alone.
+function titleCaseNameCells(html) {
+  let idx = 0;
+  return String(html || '').replace(/<tr[\s\S]*?<\/tr>/gi, row => {
+    if (idx++ === 0) return row;   // header row — keep the column labels as-is
+    return row.replace(/<(t[dh])\b[\s\S]*?<\/\1>/i, cell =>
+      cell.replace(/>([^<]+)</g, (m, txt) => isAllCaps(txt) ? '>' + titleCase(txt) + '<' : m));
+  });
+}
 
 // Drop one column (matched by its header label, case-insensitive) from a box
 // table. The header row and every player row lose that cell; the Totals row —
@@ -273,9 +290,9 @@ function subsBlock(teams, events) {
     const items = evs.map(e => {
       const L = keyToLetter[normName(e.enter)]; if (L) covered.add(L);
       const when = e.inning ? ` <span class='inn'>(${HALF(e.half)} ${ORD(e.inning)})</span>` : '';
-      return `<li>${L ? `<b>${L}-</b> ` : ''}${esc(e.enter)} ${verb(e.kind)} ${esc(e.repl)}${when}</li>`;
+      return `<li>${L ? `<b>${L}-</b> ` : ''}${esc(tcName(e.enter))} ${verb(e.kind)} ${esc(tcName(e.repl))}${when}</li>`;
     });
-    letters.forEach(x => { if (!covered.has(x.letter)) items.push(`<li><b>${x.letter}-</b> ${esc(x.name)} <span class='inn'>(entry not in play-by-play)</span></li>`); });
+    letters.forEach(x => { if (!covered.has(x.letter)) items.push(`<li><b>${x.letter}-</b> ${esc(tcName(x.name))} <span class='inn'>(entry not in play-by-play)</span></li>`); });
     const cap = t.gators ? 'GATORS' : esc(t.team.toUpperCase());
     const color = t.gators ? GATORS_PURPLE : teamColor(t.team);
     return `<div class='subcol' style='--teamc:${color}'><div class='subcap'>${cap} — SUBSTITUTIONS</div><ul>${items.join('') || `<li class='none'>None</li>`}</ul></div>`;
@@ -319,6 +336,7 @@ function buildHtml(data) {
   const teams = groupTeams(data.box || []);
   injectHBP(teams, data.pbp);   // derive + add the HBP pitching column from the play-by-play
   if (!SHOW_AVG) teams.forEach(t => { if (t.batting) t.batting = dropColByHeader(t.batting, 'AVG'); });
+  teams.forEach(t => { if (t.batting) t.batting = titleCaseNameCells(t.batting); if (t.pitching) t.pitching = titleCaseNameCells(t.pitching); });
   const croc = S.crocSkinDataUri();
   // Both teams' records for the header, when BOX_DATA supplies them (e.g. each
   // side's 2nd-half record). Falls back to the single-team T record otherwise.
@@ -419,7 +437,10 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 /* A little extra room for the last column so its label isn't cramped at the edge. */
 .tbl.bat th:last-child,.tbl.bat td:last-child{width:11%;}
 .tbl tr:not(:first-child) th:first-child{color:#2a2150;font-weight:600;}
-.tbl th:first-child span{text-transform:uppercase;}  /* the position prefix (1b, rf, ...) */
+/* Uppercase ONLY the position prefix (the first span: 1b, rf, ...) — not an
+   unlinked player's name span (which rendered "JEREMIAH TORRES") nor the a-/b-
+   sublet marker (kept lowercase to match the substitutions legend). */
+.tbl th:first-child span:first-child{text-transform:uppercase;}
 .tbl a{color:inherit;text-decoration:none;}
 /* Zebra striping for readability (every other data row), like the league box. */
 .tbl table tr:nth-child(2n) th,.tbl table tr:nth-child(2n) td{background:#f0eafa;}
