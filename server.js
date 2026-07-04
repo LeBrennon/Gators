@@ -2459,6 +2459,54 @@ async function getPitcherRest(){
     catch(e){ logErr('getPitcherRest', e); _restCache.inflight=null; return _restCache.data || { computedAt:0, finals:0, pitchers:[], byGame:[] }; } })();
   return _restCache.inflight;
 }
+// Tonight's live outings: the Gators pitchers who have already thrown in the
+// in-progress featured game, read straight from the live feed (featured.pitchers)
+// since Presto gates the in-game box XML behind a bot challenge. Roster-matched,
+// so only current-roster pitchers count. Returns null when no Gators game is live.
+function liveGatorsOutings(){
+  const f = featured;
+  if(!f || f.status !== 'live' || !Array.isArray(f.pitchers)) return null;
+  const side = f.pitchers.find(t => t.isGators);
+  if(!side || !Array.isArray(side.rows)) return null;
+  const oppShort = (f.opponent && (f.opponent.short || f.opponent.name)) || '';
+  const date = f.date || todayCentralYmd();
+  const outings = [];
+  for(const row of side.rows){
+    const np = row.np != null ? (Number(row.np) || 0) : 0;
+    if(!(np > 0 || (row.ip && parseFloat(row.ip) > 0))) continue;   // actually took the mound
+    const key = nameKey(row.name); const rp = ROSTER_BY_NAMEKEY[key];
+    if(!rp) continue;
+    outings.push({ key, name: rp.name, num: rp.num, np, ip: row.ip });
+  }
+  return outings.length ? { id:f.id, date, dateLabel:f.dateLabel, oppShort, gatorsHome:!!f.gatorsHome, outings } : null;
+}
+// Overlay tonight's live outings onto the (cached, finals-only) chart without
+// mutating the cache: clone each pitcher, append a live outing, and recompute the
+// derived fields so a pitcher who has thrown tonight shows 0 days rest with his
+// live pitch count. Applied per-request so the live counts stay current.
+function restWithLive(data){
+  const live = liveGatorsOutings();
+  const byKey = {};
+  const pitchers = data.pitchers.map(p => { const c = Object.assign({}, p, { outings: p.outings.slice() }); byKey[c.key] = c; return c; });
+  let byGame = data.byGame;
+  if(live){
+    for(const o of live.outings){
+      let p = byKey[o.key];
+      if(!p){ p = { key:o.key, name:o.name, num:o.num, outings:[] }; byKey[o.key] = p; pitchers.push(p); }
+      p.outings.push({ id:live.id, date:live.date, dateLabel:live.dateLabel, oppShort:live.oppShort, gatorsHome:live.gatorsHome, np:o.np, live:true });
+    }
+    for(const p of pitchers){
+      p.outings.sort((x,y)=>x.date.localeCompare(y.date));
+      const last = p.outings[p.outings.length-1];
+      p.lastDate=last.date; p.lastLabel=last.dateLabel; p.lastOpp=last.oppShort; p.lastHome=last.gatorsHome; p.lastNp=last.np; p.lastLive=!!last.live;
+      p.appearances=p.outings.length;
+      p.totalPitches=p.outings.reduce((s,o)=>s+(o.np||0),0);
+    }
+    byGame = [{ id:live.id, date:live.date, dateLabel:live.dateLabel, oppShort:live.oppShort, gatorsHome:live.gatorsHome, live:true,
+      pitchers: live.outings.map(o=>({ name:o.name, num:o.num, np:o.np })) }].concat(data.byGame);
+  }
+  return { computedAt:data.computedAt, finals:data.finals, live:!!live, pitchers, byGame };
+}
 async function boxWalks(gid){
   const c=boxWalkCache[gid];
   if(c && c.map) return c.map;   // game-log games are final — BB never changes
@@ -3322,12 +3370,12 @@ app.get('/stats', (q, r) => {
 // computed here against today's Central date.
 app.get('/api/rest', async (_q, r) => {
   try {
-    const data = await getPitcherRest();
+    const data = restWithLive(await getPitcherRest());
     const today = todayCentralYmd();
     const pitchers = data.pitchers.map(p => Object.assign({}, p, { daysRest: daysBetweenYmd(p.lastDate, today) }))
       .sort((a, b) => b.lastDate.localeCompare(a.lastDate) || (b.lastNp || 0) - (a.lastNp || 0));
     r.set('Cache-Control', 'no-store');
-    r.json({ today, finals: data.finals, computedAt: data.computedAt, pitchers, byGame: data.byGame });
+    r.json({ today, finals: data.finals, live: data.live, computedAt: data.computedAt, pitchers, byGame: data.byGame });
   } catch (err) {
     r.status(500).json({ error: String(err && err.message || err) });
   }
@@ -3338,7 +3386,7 @@ app.get('/api/rest', async (_q, r) => {
 app.get('/rest', async (q, r) => {
   if (reportLocked(q, r)) return;
   try {
-    const data = await getPitcherRest();
+    const data = restWithLive(await getPitcherRest());
     const today = todayCentralYmd();
     const vs = g => (g ? 'vs ' : '@ ');
     const mmdd = ymd => (+ymd.slice(4, 6)) + '/' + (+ymd.slice(6, 8));
@@ -3360,9 +3408,12 @@ app.get('/rest', async (q, r) => {
       + '.rrd.hot{color:var(--loss);}.rrd.warm{color:var(--bone);}.rrd.cool{color:var(--win);}'
       + '.rlgd{color:var(--mute);font-size:11px;text-align:center;margin:7px 2px 0;line-height:1.4;}'
       + '.rlgd .hot{color:var(--loss);font-weight:700;}.rlgd .cool{color:var(--win);font-weight:700;}'
+      + '.rlive{display:inline-block;font-size:9px;font-weight:800;letter-spacing:.06em;color:#16102b;background:var(--gold2);border-radius:4px;padding:1px 4px;vertical-align:1px;}'
+      + '.rmeta .lv{color:var(--gold2);font-weight:800;}'
       + '</style>';
     body += '<div class="rh"><div class="rt">Pitchers’ Rest</div></div>'
-      + '<div class="rd">' + repEsc(ymdLabel(today)) + ' · ' + data.finals + ' games</div>';
+      + '<div class="rd">' + repEsc(ymdLabel(today)) + ' · ' + data.finals + ' games'
+      + (data.live ? ' · <span style="color:var(--gold2);font-weight:700">LIVE ' + repEsc(vs(featured && featured.gatorsHome) + ((featured && featured.opponent && (featured.opponent.short || featured.opponent.name)) || '')) + '</span>' : '') + '</div>';
     const pitchers = data.pitchers.map(p => Object.assign({}, p, { daysRest: daysBetweenYmd(p.lastDate, today) }))
       .sort((a, b) => b.lastDate.localeCompare(a.lastDate) || (b.lastNp || 0) - (a.lastNp || 0));
     if (!pitchers.length) {
@@ -3371,8 +3422,8 @@ app.get('/rest', async (q, r) => {
       // One line per pitcher: number · name · last outing (pitches + date) · days rest.
       body += '<ul class="rl">' + pitchers.map(p =>
         '<li><span class="rn">' + (p.num != null ? p.num : '') + '</span>'
-        + '<span class="rnm">' + repEsc(p.name) + '</span>'
-        + '<span class="rmeta"><b>' + (p.lastNp || 0) + 'p</b> · ' + repEsc(mmdd(p.lastDate)) + '</span>'
+        + '<span class="rnm">' + repEsc(p.name) + (p.lastLive ? ' <span class="rlive">LIVE</span>' : '') + '</span>'
+        + '<span class="rmeta"><b>' + (p.lastNp || 0) + 'p</b> · ' + (p.lastLive ? '<span class="lv">tonight</span>' : repEsc(mmdd(p.lastDate))) + '</span>'
         + '<span class="rrd ' + restClass(p.daysRest) + '">' + p.daysRest + '<i>d</i></span></li>').join('') + '</ul>';
       body += '<div class="rlgd">Big number = <b>days of rest</b>. <span class="hot">≤1 just threw</span> · <span class="cool">4+ rested</span> · <b style="color:var(--gold2)">Np</b> = pitches, last outing.</div>';
       // Per-game pitch counts (for cross-checking hand-written sheets) are opt-in
@@ -3380,7 +3431,7 @@ app.get('/rest', async (q, r) => {
       if (showGames) {
         body += '<div class="sec">By game</div>';
         for (const g of data.byGame) {
-          body += '<div class="subh">' + repEsc(g.dateLabel + ' · ' + vs(g.gatorsHome) + g.oppShort) + '</div>';
+          body += '<div class="subh">' + repEsc(g.dateLabel + ' · ' + vs(g.gatorsHome) + g.oppShort) + (g.live ? ' <span class="rlive">LIVE</span>' : '') + '</div>';
           body += '<ul class="plist">' + g.pitchers.map(pt =>
             '<li><span class="pinn">' + (pt.np || 0) + ' #P</span> ' + repEsc(pt.name) + '</li>').join('') + '</ul>';
         }
