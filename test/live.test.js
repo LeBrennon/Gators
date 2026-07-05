@@ -151,8 +151,38 @@ const PLAYS = {
 test('summarizePlays: flattens narrated plays with inning/half and skips empties', () => {
   const p = summarizePlays(PLAYS);
   assert.equal(p.length, 3);
-  assert.deepEqual(p[0], { inning: 1, half: 'top', team: 'LAKE CHA', outs: 0, scored: false, text: 'Nathan McDonald singled to third base (2-2 KBKFB).' });
+  assert.deepEqual(p[0], { inning: 1, half: 'top', team: 'LAKE CHA', outs: 0, outsMade: 0, scored: false, text: 'Nathan McDonald singled to third base (2-2 KBKFB).' });
   assert.equal(p[2].half, 'bot');
+});
+
+test('summarizePlays: outsMade counts the outs a play recorded (single vs out)', () => {
+  const p = summarizePlays(PLAYS);
+  // The single makes no out; the groundout advances the count 0 -> 1 (seq3), so
+  // it recorded one out and is "for out 1".
+  assert.equal(p[0].outsMade, 0);
+  assert.equal(p[1].outsMade, 1);
+  assert.equal(p[1].outs, 0);
+});
+
+test('summarizePlays: outsMade handles a closed inning\'s final out and a double play', () => {
+  const feed = { plays: { format: 'summary', inning: [
+    { number: '1', batting: [
+      { vh: 'V', id: 'X', play: [
+        { seq: '1', outs: '0', narrative: { text: 'A One walked (3-1 BBKBB).' } },
+        { seq: '2', outs: '0', narrative: { text: 'B Two grounded into double play 6-4-3.' } },
+        { seq: '3', outs: '2', narrative: { text: 'C Three flied out to cf (1-1 BK).' } },
+      ] },
+      { vh: 'H', id: 'Y', play: [
+        { seq: '1', outs: '0', narrative: { text: 'D Four singled to left (0-0).' } },
+      ] },
+    ] },
+  ] } };
+  const p = summarizePlays(feed);
+  assert.equal(p[0].outsMade, 0);              // walk
+  assert.equal(p[1].outsMade, 2);              // double play: outs 1 and 2
+  assert.equal(p[1].outs, 0);
+  assert.equal(p[2].outsMade, 1);              // last out of a closed half -> out 3
+  assert.equal(p[2].outs, 2);
 });
 
 test('summarizePlays: flags run-scoring plays', () => {

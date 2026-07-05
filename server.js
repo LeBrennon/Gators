@@ -1051,24 +1051,44 @@ function summarizeLive(json) {
 
 // Flatten the feed's play-by-play into a chronological list of narrated plays
 // (skips runner-only sub-rows with no narrative). Each: inning, half, team,
-// outs, scored flag, and the human-readable text.
+// outs (the out count at the START of the play), outsMade (how many outs the
+// play recorded — 1 for a routine out, 2/3 for a double/triple play, 0 for a
+// hit/walk), scored flag, and the human-readable text.
 function summarizePlays(json) {
   const root = json && json.plays;
   if (!root || !Array.isArray(root.inning)) return [];
-  const out = [];
+  // Gather every half in order first, so we can tell whether a half is "closed"
+  // (a later half exists -> the inning is over, so its last out brought the
+  // count to 3). outsMade is derived from the out count, not the narrative:
+  // each play row carries the out count at its start, and the feed advances that
+  // count on the following row, so (next row's outs - this row's outs) is the
+  // number of outs this play made — which also handles double/triple plays.
+  const halves = [];
   for (const inn of root.inning) {
     const num = +val(inn.number) || 0;
-    for (const half of (inn.batting || [])) {
-      const side = half.vh === 'H' ? 'bot' : 'top';
-      const team = String(half.id || '').trim();
-      for (const p of (half.play || [])) {
-        const text = (p.narrative && val(p.narrative.text)) ? String(val(p.narrative.text)).trim() : '';
-        if (!text) continue;
-        out.push({ inning: num, half: side, team, outs: Number(val(p.outs)) || 0,
-          scored: /\bscored\b|homer|grand slam/i.test(text), text });
-      }
-    }
+    for (const half of (inn.batting || [])) halves.push({ num, half });
   }
+  const out = [];
+  halves.forEach(({ num, half }, hi) => {
+    const side = half.vh === 'H' ? 'bot' : 'top';
+    const team = String(half.id || '').trim();
+    const rows = half.play || [];
+    const closed = hi < halves.length - 1;
+    const startOuts = r => Number(val(r.outs)) || 0;
+    for (let i = 0; i < rows.length; i++) {
+      const p = rows[i];
+      const text = (p.narrative && val(p.narrative.text)) ? String(val(p.narrative.text)).trim() : '';
+      if (!text) continue;
+      const before = startOuts(p);
+      // Out count after this play: the next row's starting count, or 3 for the
+      // final play of a closed half (no following row, but the inning ended).
+      // For the last play of the current/in-progress half it's unknown -> 0 made.
+      const after = (i + 1 < rows.length) ? startOuts(rows[i + 1]) : (closed ? 3 : before);
+      const outsMade = Math.max(0, Math.min(3 - before, after - before));
+      out.push({ inning: num, half: side, team, outs: before, outsMade,
+        scored: /\bscored\b|homer|grand slam/i.test(text), text });
+    }
+  });
   return out;
 }
 
@@ -4111,6 +4131,7 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .pbprow{padding:8px 0;border-top:1px solid var(--line);font-size:12.5px;line-height:1.45;}
 .pbpempty{padding:10px 0;font-size:12px;color:var(--mute);font-style:italic;}
 .pbpt{color:var(--bone);overflow-wrap:anywhere;}
+.pbpout{color:var(--mute);font-style:italic;white-space:nowrap;}
 .pbprow.sc{background:linear-gradient(90deg,rgba(236,201,19,.10),transparent);margin:0 -6px;padding-left:6px;padding-right:6px;border-radius:6px;}
 .pbprow.sc .pbpt{color:var(--gold2);font-weight:600;}
 .watchbtn{margin-top:12px;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;font-family:'Oswald',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:13px;border-radius:14px;padding:13px;border:1px solid rgba(236,201,19,.45);background:rgba(236,201,19,.13);color:var(--gold2);text-decoration:none;}
@@ -4750,7 +4771,15 @@ function lineupNotes(team){
   });
   return lines?'<div class="lunotes">'+lines+'</div>':'';
 }
-function pbpRow(p){return '<div class="pbprow'+(p.scored?' sc':'')+'"><span class="pbpt">'+esc(p.text)+'</span></div>';}
+// "for out 2" / "for outs 1 and 2" tag on the play that recorded the out(s).
+// The out number is the count before the play plus one, up to how many it made.
+function pbpOutTag(p){
+  if(!p||!p.outsMade)return '';
+  var nums=[];for(var i=0;i<p.outsMade;i++)nums.push((p.outs||0)+1+i);
+  var joined=nums.length===1?String(nums[0]):nums.slice(0,-1).join(', ')+' and '+nums[nums.length-1];
+  return ' <span class="pbpout">for out'+(nums.length>1?'s':'')+' '+joined+'</span>';
+}
+function pbpRow(p){return '<div class="pbprow'+(p.scored?' sc':'')+'"><span class="pbpt">'+esc(p.text)+pbpOutTag(p)+'</span></div>';}
 function halfLabel(p){return (p.half==='top'?'▲ Top ':'▼ Bot ')+ord(p.inning);}
 function buildPbp(g){
   var plays=g.plays;if(!plays||!plays.length)return '';
