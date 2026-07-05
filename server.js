@@ -190,6 +190,9 @@ const PROMOS = {
 function promoFor(g) {
   if (!g || !g.gatorsHome || !g.date || (g.state !== 'scheduled' && g.state !== 'live')) return null;
   const dow = new Date(Date.UTC(+g.date.slice(0, 4), +g.date.slice(4, 6) - 1, +g.date.slice(6, 8), 12)).getUTCDay();
+  // Party at the Park's happy hour runs 6:00–7:00pm; once it's past 7pm Central on
+  // game day the tagline is stale, so drop it.
+  if (dow === 6 && g.date === todayCentralYmd() && centralHourNow() >= 19) return null;
   return PROMOS[dow] || null;
 }
 // One-off special events (date -> {emoji, name, detail}), shown as their own
@@ -838,6 +841,13 @@ function todayCentralYmd() {
     year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
   const g = t => (p.find(x => x.type === t) || {}).value;
   return '' + g('year') + g('month') + g('day');
+}
+// Current hour (0–23) in the league's timezone (US Central).
+function centralHourNow() {
+  const p = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago',
+    hour12: false, hour: '2-digit' }).formatToParts(new Date());
+  let h = +(p.find(x => x.type === 'hour') || {}).value;
+  return h === 24 ? 0 : h; // some runtimes emit "24" at midnight
 }
 
 // Scoreboard ordering: live games first, then finals, then scheduled; the
@@ -3030,8 +3040,8 @@ async function pollStrikePct() {
 // Manual second-half record override — used when the live standings feed lags
 // behind a confirmed result. Clear an entry once the feed catches up to it.
 const MANUAL_RECORD_OVERRIDE = {
-  et1bt9sixrz5lnnl: '1-1', // Lake Charles Gumbeaux Gators
-  z7w5th537gur3z15: '1-1', // Brazos Valley Bombers
+  // (empty) — the live standings feed has caught up, so second-half records now
+  // derive from it. Re-add an entry only when a confirmed result outpaces the feed.
 };
 // team {id,name,short} -> current-half "W-L"; name match then loose fallback.
 // The feed reports full-season W-L, so the second-half record is derived as
