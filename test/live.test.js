@@ -164,6 +164,23 @@ test('summarizePlays: outsMade counts the outs a play recorded (single vs out)',
   assert.equal(p[1].outs, 0);
 });
 
+test('summarizePlays: labels the newest out in the current half at once (live count)', () => {
+  const feed = { status: { inning: '9', vh: 'V', outs: '1' }, plays: { format: 'summary', inning: [
+    { number: '9', batting: [
+      { vh: 'V', id: 'X', play: [
+        { seq: '1', outs: '0', narrative: { text: 'A One to p for B Two.' } },      // pitching change, 0 outs
+        { seq: '2', outs: '0', narrative: { text: 'C Three struck out looking (3-2 BKFBBK).' } },
+      ] },
+    ] },
+  ] } };
+  const p = summarizePlays(feed);
+  // No following row exists yet, but the status says the half is at 1 out, so the
+  // strikeout is "for out 1" immediately.
+  assert.equal(p[0].outsMade, 0);              // pitching change
+  assert.equal(p[1].outsMade, 1);
+  assert.equal(p[1].outs, 0);
+});
+
 test('summarizePlays: outsMade handles a closed inning\'s final out and a double play', () => {
   const feed = { plays: { format: 'summary', inning: [
     { number: '1', batting: [

@@ -1068,6 +1068,13 @@ function summarizePlays(json) {
     const num = +val(inn.number) || 0;
     for (const half of (inn.batting || [])) halves.push({ num, half });
   }
+  // Live situation from the status block, so the newest play in the current
+  // (still-open) half can be labeled the instant it's entered — before any
+  // following row exists to advance the out count. The status carries the count
+  // that already reflects that play.
+  const st = json && (Array.isArray(json.status) ? json.status[0] : json.status);
+  const live = st ? { inning: +val(st.inning) || 0, side: val(st.vh) === 'H' ? 'bot' : 'top',
+    outs: Number(val(st.outs)) || 0, complete: val(st.complete) === 'Y' } : null;
   const out = [];
   halves.forEach(({ num, half }, hi) => {
     const side = half.vh === 'H' ? 'bot' : 'top';
@@ -1075,15 +1082,19 @@ function summarizePlays(json) {
     const rows = half.play || [];
     const closed = hi < halves.length - 1;
     const startOuts = r => Number(val(r.outs)) || 0;
+    // Out count after the last play of THIS half when no following row exists:
+    // 3 for a closed half (inning over), the live count for the current half
+    // (the newest play, labeled at once), else unknown -> no out inferred.
+    let lastAfter = null;
+    if (closed) lastAfter = 3;
+    else if (live && live.complete) lastAfter = 3;
+    else if (live && live.inning === num && live.side === side) lastAfter = live.outs;
     for (let i = 0; i < rows.length; i++) {
       const p = rows[i];
       const text = (p.narrative && val(p.narrative.text)) ? String(val(p.narrative.text)).trim() : '';
       if (!text) continue;
       const before = startOuts(p);
-      // Out count after this play: the next row's starting count, or 3 for the
-      // final play of a closed half (no following row, but the inning ended).
-      // For the last play of the current/in-progress half it's unknown -> 0 made.
-      const after = (i + 1 < rows.length) ? startOuts(rows[i + 1]) : (closed ? 3 : before);
+      const after = (i + 1 < rows.length) ? startOuts(rows[i + 1]) : (lastAfter == null ? before : lastAfter);
       const outsMade = Math.max(0, Math.min(3 - before, after - before));
       out.push({ inning: num, half: side, team, outs: before, outsMade,
         scored: /\bscored\b|homer|grand slam/i.test(text), text });
