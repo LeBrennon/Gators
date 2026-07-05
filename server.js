@@ -1782,7 +1782,7 @@ async function pollLive() {
 }
 
 // ===== Roster + player season stats =========================================
-// Official gameday roster (TCL gameday sheet, updated 6/25). Bios are static;
+// Official gameday roster (TCL gameday sheet, updated 7/4). Bios are static;
 // season stats are pulled live from the league stats site and cached.
 const GATORS_SLUG = 'lakecharlesgumbeauxgators';
 const playerUrl = slug => SPORT_BASE + '/players/' + slug;
@@ -1807,13 +1807,13 @@ const ROSTER = [
   { num: 14, name: 'Brandon Levy',     slug: 'brandonlevyejo5',      pos: 'P',       cls: 'Junior',       ht: '5-10', wt: '180', b: 'R', t: 'R', bday: '05/25/2004', home: 'Bossier City, LA', school: 'New Orleans' },
   // On the official roster but not yet in game action; findSlug resolves his real
   // Presto page by name once it exists, and the note shows until his first game.
-  { num: 15, name: 'Reed Dupre',       slug: 'reeddupre',            pos: 'P',       cls: '',             ht: '',     wt: '',    b: '', t: '',  bday: '',           home: '',                 school: 'Southern Univ of New Orleans', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
+  { num: 15, name: 'Reed Dupre',       slug: 'reeddupre',            pos: 'P',       cls: 'Freshman',     ht: '5-10', wt: '150', b: 'R', t: 'R', bday: '',           home: 'Iowa, LA',         school: 'Southern Univ of New Orleans', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
   { num: 16, name: 'Daniel Midkiff',   slug: 'danielmidkifffqkb',    pos: 'P',       cls: 'Sophomore',    ht: '6-2',  wt: '208', b: 'R', t: 'R', bday: '05/20/2007', home: 'Buna, TX',         school: 'Lamar' },
   { num: 17, name: 'Ayden Sunday',     slug: 'aydensundayyp1j',      pos: 'OF',      cls: 'Sophomore',    ht: '6-0',  wt: '185', b: 'R', t: 'R', bday: '',           home: 'Nederland, TX',    school: 'Lamar' },
   { num: 19, name: 'Jack Garcille',    slug: 'jackgarcille9sq9',     pos: 'P',       cls: 'HS Senior',    ht: '6-6',  wt: '210', b: 'R', t: 'R', bday: '07/07/2008', home: 'Lake Charles, LA', school: 'McNeese State' },
   { num: 21, name: 'Bankston Lembcke', slug: 'bankstonlembckeoxyb',  pos: 'IF',      cls: 'Junior',       ht: '5-11', wt: '205', b: 'R', t: 'R', bday: '11/14/2005', home: 'Klein, TX',        school: 'Bradley' },
   { num: 22, name: 'Matthew McKinley', slug: 'matthewmckinleylgvq',  pos: 'Utility', cls: 'Sophomore',    ht: '5-11', wt: '205', b: 'L', t: 'L', bday: '12/14/2006', home: 'Brandon, MS',      school: 'Meridian CC' },
-  { num: 28, name: 'Andrew Ramos',     slug: 'andrewramos4y33',      pos: 'Utility', cls: 'Sophomore',    ht: '5-10', wt: '',    b: 'R', t: 'R', bday: '',           home: 'Deer Park, TX',    school: 'San Jacinto CC' },
+  { num: 28, name: 'Andrew Ramos',     slug: 'andrewramos4y33',      pos: 'Utility', cls: 'Sophomore',    ht: '5-10', wt: '185', b: 'R', t: 'R', bday: '',           home: 'Deer Park, TX',    school: 'San Jacinto CC' },
   { num: 29, name: 'Sawyer Simmons',   slug: 'sawyersimmonss92p',    pos: 'P',       cls: 'Senior',       ht: '6-1',  wt: '193', b: 'R', t: 'L', bday: '03/30/2005', home: 'Bossier City, LA', school: 'Southeastern Louisiana' },
   // Added off the 6/28 gameday sheet; real Presto slug now set directly (was findSlug-matched by name).
   { num: 34, name: 'Brenyn Ebarb',     slug: 'brenynebarb6uqv',      pos: 'P',       cls: 'Graduate',     ht: '6-1',  wt: '195', b: 'R', t: 'R', bday: '05/04/2004', home: 'Zwolle, LA',       school: 'LSU-Alexandria', note: 'Recently added — season stats will appear after his first game.' },
@@ -1827,12 +1827,13 @@ const ROSTER = [
   { num: 45, name: 'Cannon Faulk',     slug: 'cannonfaulk0l9x',      pos: 'P',       cls: 'R-Sophomore',  ht: '6-4',  wt: '225', b: 'L', t: 'L', bday: '12/02/2005', home: 'Port Neches, TX',  school: 'Angelina College' },
   // On the official roster and already pitching; findSlug resolves his real Presto
   // page by name so his season stats flow in.
-  { num: 47, name: 'Brayden Guillory', slug: 'braydenguillory',      pos: 'P',       cls: '',             ht: '',     wt: '',    b: '', t: '',  bday: '',           home: '',                 school: 'Southern University', findSlug: true },
+  { num: 47, name: 'Brayden Guillory', slug: 'braydenguillory',      pos: 'P',       cls: 'R-Freshman',   ht: '6-2',  wt: '200', b: 'R', t: 'R', bday: '',           home: 'Kinder, LA',       school: 'Southern University', findSlug: true },
   // Assigned #39 on the 6/30 second-half roster; now playing, so his real Presto slug is
   // set directly and stats flow. Headshot populates once a photo is bundled.
-  { num: 39, name: 'Yuichiro Kumagami', slug: 'yuichirokumagamisa54', pos: 'C', cls: 'Sophomore', ht: '5-11', wt: '', b: '', t: '', bday: '', home: 'Miyagi, Japan', school: 'Mt. Hood CC' },
-  // On the 7/3 official roster with no jersey number yet — numTBD shows "TBD".
-  { num: null, numTBD: true, name: 'Pierce Boles', slug: 'pierceboles', pos: 'C', cls: '', ht: '', wt: '', b: '', t: '', bday: '', home: '', school: '', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
+  { num: 39, name: 'Yuichiro Kumagami', slug: 'yuichirokumagamisa54', pos: 'C', cls: 'Sophomore', ht: '5-11', wt: '200', b: 'R', t: 'R', bday: '', home: 'Miyagi, Japan', school: 'Mt. Hood CC' },
+  // Added off the 7/3 official roster; the 7/4 sheet assigns #24 and lists him as a
+  // pitcher (was catcher/TBD) with a full bio. findSlug resolves his real Presto page.
+  { num: 24, name: 'Pierce Boles', slug: 'pierceboles', pos: 'P', cls: 'Sophomore', ht: '6-2', wt: '190', b: 'R', t: 'R', bday: '', home: 'Mandeville, LA', school: 'LSU-Eunice', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
   // Added off the 6/30 second-half roster; real Presto slugs now set directly. Their player
   // pages exist but they haven't recorded game action yet, so the `note` shows until their first game.
   { num: 12, name: 'Taylor Hollier',  slug: 'taylorholliervl4b',  pos: 'P', cls: 'Freshman', ht: '6-0', wt: '155', b: 'L', t: 'L', bday: '', home: 'Opelousas, LA', school: 'Belhaven', note: 'Recently added — season stats will appear after his first game.' },
