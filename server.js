@@ -3980,7 +3980,10 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .tm .rec{font-family:'Inter',sans-serif;font-weight:600;font-size:11px;color:var(--mute);letter-spacing:.04em;margin-top:-4px;min-height:13px;}
 .tm.gators .nm{color:var(--gator);}
 .tm .sc{font-family:'Oswald',sans-serif;font-weight:700;font-size:60px;line-height:.9;}
-.tm.gators .sc{color:var(--gator);text-shadow:0 0 24px rgba(113,74,210,.35);}
+/* Score color tracks the result, not the team: leader/winner in gold, trailer
+   in light purple. A tie (or no result yet) leaves the default bone color. */
+.tm.win .sc{color:var(--gold2);text-shadow:0 0 24px rgba(255,214,51,.4);}
+.tm.lose .sc{color:var(--gator);text-shadow:0 0 24px rgba(113,74,210,.35);}
 .sc.flash{animation:fl .9s ease;}@keyframes fl{0%{transform:scale(1)}30%{transform:scale(1.18);filter:brightness(1.5)}100%{transform:scale(1)}}
 #fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9999;display:none;}
 .mid{display:flex;flex-direction:column;align-items:center;gap:8px;padding:0 2px;}
@@ -4420,6 +4423,14 @@ function renderGame(g){
   var gPrev=g.gatorsHome?prev.h:prev.a,gNow=g.gatorsHome?g.home.runs:g.away.runs;
   if(g.id===curId&&g.status==='live'&&gPrev!=null&&gNow>gPrev)FX.show(gNow-gPrev);
   $('awaySc').textContent=g.away.runs;$('homeSc').textContent=g.home.runs;
+  // Color the scores by result (leader gold, trailer light purple); only once a
+  // game is live or final and both totals are in. A tie leaves neither class, so
+  // both fall back to the default bone color.
+  var haveRes=(g.status==='live'||g.status==='final')&&g.away.runs!=null&&g.home.runs!=null;
+  $('awayTm').classList.toggle('win',haveRes&&g.away.runs>g.home.runs);
+  $('awayTm').classList.toggle('lose',haveRes&&g.away.runs<g.home.runs);
+  $('homeTm').classList.toggle('win',haveRes&&g.home.runs>g.away.runs);
+  $('homeTm').classList.toggle('lose',haveRes&&g.home.runs<g.away.runs);
   prev={a:g.away.runs,h:g.home.runs};var pc=curId;curId=g.id;if(schedList&&pc!==curId)renderSched(schedList);
   var sp=$('statpill');sp.textContent=g.inningLabel;sp.classList.toggle('live',g.status==='live');
   $('vs').textContent=g.dateLabel+(g.status==='pregame'?' · upcoming':'');
