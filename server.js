@@ -1838,6 +1838,9 @@ const ROSTER = [
   // pages exist but they haven't recorded game action yet, so the `note` shows until their first game.
   { num: 12, name: 'Taylor Hollier',  slug: 'taylorholliervl4b',  pos: 'P', cls: 'Freshman', ht: '6-0', wt: '155', b: 'L', t: 'L', bday: '', home: 'Opelousas, LA', school: 'Belhaven', note: 'Recently added — season stats will appear after his first game.' },
   { num: 43, name: 'Hunter Degeyter', slug: 'hunterdegeyterv7xl', pos: 'P', cls: 'HS Senior', ht: '6-1', wt: '170', b: 'R', t: 'R', bday: '', home: 'Lafayette, LA', school: 'Lafayette HS', note: 'Recently added — season stats will appear after his first game.' },
+  // Added off the 7/4 official roster; findSlug resolves his real Presto page by name
+  // once it exists, and the note shows until his first game.
+  { num: 48, name: 'Marco Bandiero', slug: 'marcobandiero', pos: 'IF', cls: 'Freshman', ht: '6-1', wt: '245', b: 'L', t: 'L', bday: '', home: 'Orange, TX', school: 'Angelina College', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
 ];
 
 // Coaching staff (gumbeauxgators.com/coaches). Shown beneath the player roster;
