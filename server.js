@@ -4375,37 +4375,52 @@ function flash(el){el.classList.remove('flash');void el.offsetWidth;el.classList
 // fired when the Gators' run total ticks up during a live game. Pointer-events
 // are off and it hides itself when the last spark fades, so it never blocks taps.
 var FX=(function(){
-  var cv,ctx,parts=[],raf=0,endAt=0,W=0,H=0,dpr=1;
+  var cv,ctx,parts=[],rockets=[],raf=0,endAt=0,W=0,H=0,dpr=1;
   var COLORS=['#ecc913','#ffd633','#714ad2','#b9a6ee','#f0ede4'];
   function size(){dpr=Math.min(window.devicePixelRatio||1,2);W=cv.clientWidth;H=cv.clientHeight;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);}
-  function burst(x,y){
-    var n=34+(Math.random()*22|0),base=COLORS[Math.random()*COLORS.length|0];
+  // A shell explodes into a ring of sparks plus a brief white core flash.
+  function burst(x,y,base){
+    base=base||COLORS[Math.random()*COLORS.length|0];
+    var n=46+(Math.random()*44|0);
+    parts.push({x:x,y:y,vx:0,vy:0,life:1,decay:0.055,col:'#ffffff',r:5+Math.random()*4,flash:1});
     for(var i=0;i<n;i++){
-      var a=(6.283*i)/n+Math.random()*0.3,sp=2+Math.random()*4.2;
-      parts.push({x:x,y:y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:1,
-        col:Math.random()<0.28?COLORS[Math.random()*COLORS.length|0]:base,r:1.4+Math.random()*1.8});
+      var a=(6.283*i)/n+Math.random()*0.24,sp=2.4+Math.random()*6.4;
+      parts.push({x:x,y:y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:1,decay:0.008+Math.random()*0.011,
+        col:Math.random()<0.3?COLORS[Math.random()*COLORS.length|0]:base,r:1.3+Math.random()*2});
     }
+  }
+  // A rocket rises from the bottom to a target height anywhere across the width,
+  // then explodes — so bursts scatter over the whole screen, not one spot.
+  function launch(){
+    rockets.push({x:W*(0.05+Math.random()*0.9),y:H+8,ty:H*(0.10+Math.random()*0.52),
+      vy:-(8.5+Math.random()*3.5),col:COLORS[Math.random()*COLORS.length|0]});
   }
   function tick(){
     raf=requestAnimationFrame(tick);ctx.clearRect(0,0,W,H);
+    for(var r=rockets.length-1;r>=0;r--){var k=rockets[r];
+      k.y+=k.vy;k.vy+=0.12;
+      ctx.globalAlpha=0.9;ctx.fillStyle=k.col;ctx.beginPath();ctx.arc(k.x,k.y,2,0,6.283);ctx.fill();
+      ctx.globalAlpha=0.22;ctx.beginPath();ctx.arc(k.x,k.y+6,1.3,0,6.283);ctx.fill();
+      if(k.y<=k.ty||k.vy>=0){burst(k.x,k.y,k.col);rockets.splice(r,1);}
+    }
     for(var i=parts.length-1;i>=0;i--){var p=parts[i];
-      p.vy+=0.05;p.vx*=0.99;p.vy*=0.99;p.x+=p.vx;p.y+=p.vy;p.life-=0.013;
+      p.vy+=0.045;p.vx*=0.985;p.vy*=0.985;p.x+=p.vx;p.y+=p.vy;p.life-=p.decay;
       if(p.life<=0){parts.splice(i,1);continue;}
-      ctx.globalAlpha=p.life<0?0:p.life;ctx.fillStyle=p.col;
-      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,6.283);ctx.fill();
+      ctx.globalAlpha=p.life<0?0:(p.flash?p.life:Math.min(1,p.life*1.25));ctx.fillStyle=p.col;
+      ctx.beginPath();ctx.arc(p.x,p.y,p.flash?p.r*p.life:p.r,0,6.283);ctx.fill();
     }
     ctx.globalAlpha=1;
-    if(!parts.length&&Date.now()>endAt){cancelAnimationFrame(raf);raf=0;cv.style.display='none';}
+    if(!parts.length&&!rockets.length&&Date.now()>endAt){cancelAnimationFrame(raf);raf=0;cv.style.display='none';}
   }
   function show(intensity){
     if(!cv){cv=$('fx');if(!cv||!cv.getContext)return;ctx=cv.getContext('2d');
       window.addEventListener('resize',function(){if(cv.style.display!=='none')size();});}
     if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
-    cv.style.display='';if(!raf)size();
-    var shots=Math.max(3,Math.min(2+(intensity||1),7));
-    for(var s=0;s<shots;s++)(function(d){setTimeout(function(){
-      burst(W*(0.18+Math.random()*0.64),H*(0.16+Math.random()*0.34));},d);})(s*210);
-    endAt=Date.now()+shots*210+1800;if(!raf)tick();
+    cv.style.display='block';if(!raf)size();
+    // More runs -> a bigger show. Rockets fire in a staggered barrage across the page.
+    var shots=Math.max(8,Math.min(6+(intensity||1)*2,18));
+    for(var s=0;s<shots;s++)(function(d){setTimeout(function(){if(cv.style.display!=='none')launch();},d);})(s*(150+Math.random()*130));
+    endAt=Date.now()+shots*280+2600;if(!raf)tick();
   }
   return {show:show};
 })();
