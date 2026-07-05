@@ -3030,12 +3030,35 @@ function parseStandings(html) {
   }
   return { map, rows: out };
 }
+// Manual full-season record override — used when the live standings feed lags a
+// confirmed final. Keyed by Presto team id -> the corrected full-season
+// { w, l, streak }. Applied to BOTH the name->record map (jumbo/scoreboard) and
+// the ordered rows (Standings tab) so every surface agrees; the second-half
+// record then derives from these totals minus FIRST_HALF_FINAL, exactly like the
+// feed. CLEAR an entry the moment the feed catches up to it.
+const MANUAL_STANDINGS_OVERRIDE = {
+  // The feed is one game behind the 7/4 Gators 7–3 Brazos Valley final (confirmed,
+  // with replay). Remove both entries once the feed ingests that result.
+  et1bt9sixrz5lnnl: { w: 16, l: 12, streak: 'W4' }, // Lake Charles Gumbeaux Gators
+  z7w5th537gur3z15: { w: 13, l: 15, streak: 'L1' }, // Brazos Valley Bombers
+};
+// Patch a freshly parsed standings result in place so the overrides above flow
+// into both the record map and the rows before either is published.
+function applyStandingsOverride(parsed) {
+  for (const id in MANUAL_STANDINGS_OVERRIDE) {
+    const o = MANUAL_STANDINGS_OVERRIDE[id], t = TEAMS[id]; if (!t) continue;
+    const k = normName(t.name);
+    parsed.map[k] = { w: o.w, l: o.l, t: (parsed.map[k] && parsed.map[k].t) || 0 };
+    const row = parsed.rows.find(x => x.id === id);
+    if (row) { row.w = o.w; row.l = o.l; if (o.streak != null) row.streak = o.streak; }
+  }
+}
 async function pollStandings() {
   try {
     const r = await fetchText(STANDINGS_URL, SCHEDULE_URL);
     if (!r.ok || !r.body) return;
     const parsed = parseStandings(r.body);
-    if (Object.keys(parsed.map).length) { standings = parsed.map; standingsTable = parsed.rows; standingsAt = Date.now(); }
+    if (Object.keys(parsed.map).length) { applyStandingsOverride(parsed); standings = parsed.map; standingsTable = parsed.rows; standingsAt = Date.now(); }
   } catch (e) { logErr('pollStandings', e); /* keep previous standings */ }
 }
 // Season strike% for the Gators staff: walk every finished Gators game's box-score
