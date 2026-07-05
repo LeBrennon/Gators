@@ -4098,7 +4098,7 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .pdec{color:var(--gold2);font-weight:700;font-size:10px;}
 .lunotes{margin-top:10px;display:flex;flex-direction:column;gap:5px;}
 .lunote{font-size:11.5px;line-height:1.45;color:var(--bone);}
-.lunk{display:inline-block;min-width:22px;font-family:'Oswald',sans-serif;font-weight:700;font-size:10px;letter-spacing:.04em;color:var(--gold2);margin-right:5px;}
+.lunk{display:inline-block;min-width:18px;font-family:'Oswald',sans-serif;font-weight:700;font-size:10px;letter-spacing:.04em;color:var(--gold2);margin-right:6px;}
 .pbp{margin-top:2px;}
 .pbptabs{display:flex;gap:6px;margin-bottom:10px;}
 .pbptab{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.05em;font-size:10px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);color:var(--mute);background:var(--bayou2);cursor:pointer;}
@@ -4728,7 +4728,7 @@ function lineupNotes(team){
   keys.forEach(function(k){
     var arr=n[k];if(!arr||!arr.length)return;
     var txt=arr.map(function(x){return esc(x.name)+(x.n>1?' '+x.n:'');}).join('; ');
-    lines+='<div class="lunote"><span class="lunk">'+k+'</span> '+txt+'</div>';
+    lines+='<div class="lunote"><span class="lunk">'+k+'</span>'+txt+'</div>';
   });
   return lines?'<div class="lunotes">'+lines+'</div>':'';
 }
