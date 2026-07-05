@@ -4,7 +4,7 @@
 // block down), and teamLineScores (per-team runs/hits/errors).
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { extractEventAuth, summarizeLive, teamLineScores, summarizePlays, pitchersFromFeed, applyLivePitchCount, pitchingTotals } = require('../server');
+const { extractEventAuth, summarizeLive, teamLineScores, summarizePlays, pitchersFromFeed, applyLivePitchCount, applyPitcherOverrides, pitchingTotals } = require('../server');
 
 const GATORS = 'et1bt9sixrz5lnnl';
 
@@ -276,4 +276,44 @@ test('pitchersFromFeed: a non-appeared, non-current pitcher is still dropped', (
     ] }],
   };
   assert.deepEqual(pitchersFromFeed(json), []);
+});
+
+test('applyPitcherOverrides: rewrites a placeholder pitcher across the live card and box row', () => {
+  const overrides = [{ gameId: null, from: 'Emergency Player', name: 'Cameron Carlile', uni: '21' }];
+  const live = { pitcher: 'Emergency Player', pitcherInfo: { name: 'Emergency Player', uni: '0' } };
+  const pitchers = [{ vh: 'V', rows: [{ name: 'Emergency Player', uni: '0', ip: '1.0', er: 2 }] }];
+  applyPitcherOverrides('anygame', live, pitchers, overrides);
+  assert.equal(live.pitcher, 'Cameron Carlile');
+  assert.equal(live.pitcherInfo.name, 'Cameron Carlile');
+  assert.equal(live.pitcherInfo.uni, '21');
+  assert.equal(pitchers[0].rows[0].name, 'Cameron Carlile');
+  assert.equal(pitchers[0].rows[0].uni, '21');
+  assert.equal(pitchers[0].rows[0].ip, '1.0'); // stat line preserved
+});
+
+test('applyPitcherOverrides: matches the feed\'s SHOUTED placeholder name', () => {
+  const overrides = [{ gameId: null, from: 'Emergency Player', name: 'Cameron Carlile', uni: '21' }];
+  const live = { pitcher: 'EMERGENCY PLAYER', pitcherInfo: { name: 'EMERGENCY PLAYER', uni: '0' } };
+  applyPitcherOverrides('anygame', live, [], overrides);
+  assert.equal(live.pitcher, 'Cameron Carlile');
+  assert.equal(live.pitcherInfo.uni, '21');
+});
+
+test('applyPitcherOverrides: leaves a real (non-placeholder) pitcher untouched', () => {
+  const overrides = [{ gameId: null, from: 'Emergency Player', name: 'Cameron Carlile', uni: '21' }];
+  const live = { pitcher: 'Hogan Shelby', pitcherInfo: { name: 'Hogan Shelby', uni: '14' } };
+  const pitchers = [{ vh: 'V', rows: [{ name: 'Hogan Shelby', uni: '14' }] }];
+  applyPitcherOverrides('anygame', live, pitchers, overrides);
+  assert.equal(live.pitcher, 'Hogan Shelby');
+  assert.equal(pitchers[0].rows[0].uni, '14');
+});
+
+test('applyPitcherOverrides: a gameId-scoped entry only fires for that game', () => {
+  const overrides = [{ gameId: '20260704_abcd', from: 'Emergency Player', name: 'Cameron Carlile', uni: '21' }];
+  const other = { pitcher: 'Emergency Player', pitcherInfo: { name: 'Emergency Player', uni: '0' } };
+  applyPitcherOverrides('20260705_zzzz', other, [], overrides);
+  assert.equal(other.pitcher, 'Emergency Player'); // different game, untouched
+  const match = { pitcher: 'Emergency Player', pitcherInfo: { name: 'Emergency Player', uni: '0' } };
+  applyPitcherOverrides('20260704_abcd', match, [], overrides);
+  assert.equal(match.pitcher, 'Cameron Carlile');
 });
