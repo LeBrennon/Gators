@@ -42,6 +42,16 @@ const MANUAL_OVERRIDE = {
   homeRuns: 8,
   note: 'Box score will be fully updated soon. Final score is correct.',
 };
+// Manual pitcher-name override for the live feed, used when the source scorer has
+// a pitcher entered as a placeholder — e.g. Presto's "Emergency Player #0" — and
+// we know the real player. Each entry matches the feed's raw pitcher name
+// (case-insensitive), optionally scoped to a single gameId, and rewrites the live
+// "Pitching" card, the box-score pitching row, and pitch-count matching so the
+// real name shows everywhere. Clear an entry once the scorekeeper fixes the name
+// in Presto.
+const MANUAL_PITCHER_OVERRIDES = [
+  { gameId: null, from: 'Emergency Player', name: 'Cameron Carlile', uni: '21' },
+];
 const LIVE_POLL_MS = Number(process.env.LIVE_POLL_MS || 4000); // tight enough that the live count/score/pitch-count track pitch-by-pitch
 const SCHEDULE_URL = process.env.SCHEDULE_URL || 'https://texasleaguestats.prestosports.com/sports/bsb/2026/schedule';
 const SITE_URL     = (process.env.SITE_URL || 'https://whatisthegatorscore.com').replace(/\/$/, '');
@@ -1108,6 +1118,9 @@ async function fetchLiveForGame(boxscoreId, wantRaw) {
   out.feed = { url: feed.url, ok: feed.ok, status: feed.status, contentType: feed.contentType, length: feed.length, parseError: feed.parseError, head: feed.json ? undefined : feed.head };
   if (feed.json) {
     out.live = summarizeLive(feed.json); out.teams = teamLineScores(feed.json); out.plays = summarizePlays(feed.json); out.lineups = lineupsFromFeed(feed.json); out.pitchers = pitchersFromFeed(feed.json); out.feedSource = feed.json.source;
+    // Rewrite any placeholder pitcher name (e.g. Presto's "Emergency Player") to
+    // the real player before the enrichment passes below key off it.
+    applyPitcherOverrides(boxscoreId, out.live, out.pitchers);
     // Show the batter's earlier at-bats this game on the live at-bat card; on his
     // FIRST plate appearance (no prior PAs) there's no game line yet, so swap in
     // his school/class + season AVG/RBI/(HR|SB|H) instead.
@@ -1331,6 +1344,30 @@ function applyLivePitchCount(gameId, live, pitchers) {
   if (pi && deshout(String(pi.name || '').trim()) === name && pi.pitches != null) {
     pi.pitches = pi.pitches + abNp;
     if (pi.strikes != null) { pi.strikes = pi.strikes + abStrikes; pi.balls = pi.pitches - pi.strikes; }
+  }
+}
+
+// Swap placeholder pitcher names (see MANUAL_PITCHER_OVERRIDES) across the live
+// situation and the pitching box, so the real pitcher shows on the "Pitching"
+// card, the box-score row, and pitch-count matching. Runs before the new-pitcher
+// and pitch-count passes so those key off the real name. Names are compared
+// deshouted + lowercased, since the feed SHOUTs opponent names.
+function applyPitcherOverrides(gameId, live, pitchers, overrides = MANUAL_PITCHER_OVERRIDES) {
+  for (const ov of (overrides || [])) {
+    if (!ov || !ov.from || !ov.name) continue;
+    if (ov.gameId && ov.gameId !== gameId) continue;
+    const from = deshout(String(ov.from).trim()).toLowerCase();
+    const matches = n => n != null && deshout(String(n).trim()).toLowerCase() === from;
+    if (live && matches(live.pitcher)) live.pitcher = ov.name;
+    if (live && live.pitcherInfo && matches(live.pitcherInfo.name)) {
+      live.pitcherInfo.name = ov.name;
+      if (ov.uni) live.pitcherInfo.uni = ov.uni;
+    }
+    for (const t of (pitchers || [])) {
+      for (const r of (t.rows || [])) {
+        if (matches(r.name)) { r.name = ov.name; if (ov.uni) r.uni = ov.uni; }
+      }
+    }
   }
 }
 
@@ -3856,7 +3893,7 @@ if (require.main === module) {
   app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleDailyRoster(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); setTimeout(pollStrikePct, 15000); setInterval(pollStrikePct, 3 * 60 * 60 * 1000); setTimeout(getPitcherRest, 20000); scheduleDailyStats(); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, pitchersFromFeed, extractEventAuth,
-  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseGameLog, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, pitchingTotals, strikeCounts };
+  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseGameLog, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, applyPitcherOverrides, pitchingTotals, strikeCounts };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
