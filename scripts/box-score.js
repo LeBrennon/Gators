@@ -427,7 +427,7 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .tbl.pit th:first-child,.tbl.pit td:first-child{width:33%;padding-right:9px;}
 /* Pitcher win/loss decision (W, 2-1) — small, and the cell gutter above keeps it
    off the IP number in the next column (it read as "(W, 2-1)5.1"). */
-.tbl .dec{font-size:9px;font-weight:600;}
+.tbl .dec{display:block;font-size:8.5px;font-weight:700;color:#6b5ca8;line-height:1.15;}
 /* Give the wider pitching columns (IP, ERA, #P, S%) room — a 4-digit ERA fits —
    while the single-digit columns (H..HBP) share the remainder equally. */
 .tbl.pit th:nth-child(2),.tbl.pit td:nth-child(2){width:7.5%;}   /* IP */
