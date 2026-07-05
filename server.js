@@ -679,12 +679,10 @@ function dateFromId(yyyymmdd) {
   const dt = new Date(Date.UTC(y, m-1, d, 12));
   return { iso: y+'-'+yyyymmdd.slice(4,6)+'-'+yyyymmdd.slice(6,8), label: DOW[dt.getUTCDay()]+' '+m+'/'+d, sortKey: +yyyymmdd };
 }
-// League first pitch is 7:05pm Central, except Sundays at 6:05pm. The schedule
-// page's listed times are unreliable, so derive the start time from the date.
+// League first pitch is 7:05pm Central every day. The schedule page's listed
+// times are unreliable, so use the fixed league start time instead.
 function gameTimeCDT(yyyymmdd) {
-  const y = +yyyymmdd.slice(0,4), m = +yyyymmdd.slice(4,6), d = +yyyymmdd.slice(6,8);
-  const dow = new Date(Date.UTC(y, m-1, d, 12)).getUTCDay();
-  return (dow === 0 ? '6:05' : '7:05') + ' PM CDT';
+  return '7:05 PM CDT';
 }
 // ----- helpers --------------------------------------------------------------
 function ordinal(n){ const s=['th','st','nd','rd'], v=n%100; return n + (s[(v-20)%10] || s[v] || s[0]); }
