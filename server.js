@@ -1797,8 +1797,11 @@ const ROSTER = [
   { num: 6,  name: 'Nathan McDonald',  slug: 'nathanmcdonaldftgl',   pos: 'Utility', cls: 'Senior',       ht: '6-0',  wt: '175', b: 'R', t: 'R', bday: '07/17/2004', home: 'McComb, MS',       school: 'Loyola-New Orleans' },
   // Added off the 6/28 gameday sheet; real Presto slug now set directly (was findSlug-matched by name).
   { num: 8,  name: 'Cade Robin',       slug: 'caderobinnu4m',        pos: 'P',       cls: 'Junior',       ht: '6-1',  wt: '200', b: 'R', t: 'R', bday: '',           home: 'Arnaudville, LA',  school: 'LSU-Shreveport' },
-  // #35 off the 7/3 official roster (replaced #9 James Reina, who dropped off it).
-  { num: 35, name: 'Jeremiah Torres',  slug: 'jeremiahtorres',       pos: 'IF',      cls: 'Junior',       ht: '6-0',  wt: '210', b: 'R', t: 'R', bday: '05/10/2006', home: 'Klein, TX',        school: 'Southern Indiana', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
+  // #35 off the 7/3 official roster (replaced #9 James Reina, who dropped off it). He'd
+  // already played 9 games (.207 AVG), but findSlug never resolved him because the league
+  // leaderboard lists him as "J Torres", which doesn't match "Jeremiah Torres" via
+  // normPlayerName — so his real Presto slug is set directly and stats flow.
+  { num: 35, name: 'Jeremiah Torres',  slug: 'jeremiahtorrescsuy',   pos: 'IF',      cls: 'Junior',       ht: '6-0',  wt: '210', b: 'R', t: 'R', bday: '05/10/2006', home: 'Klein, TX',        school: 'Southern Indiana' },
   // Added off the 6/30 second-half roster; real Presto slug now set directly. He'd
   // already played 9 games (.217 AVG), but findSlug never resolved him because the
   // league leaderboard lists him as "K Martin", which doesn't match "Kash Martin" via normPlayerName.
