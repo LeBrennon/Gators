@@ -2442,11 +2442,12 @@ const recHasData = rec => !!(rec && (rec.hit || rec.pit || rec.glBat.length || r
 // A "full" record carries player-page detail (game logs + stats like SB), as
 // opposed to a league-leaderboard seed that only has headline card stats.
 const recIsFull = rec => !!(rec && ((rec.glBat && rec.glBat.length) || (rec.glPit && rec.glPit.length)));
-// A record is "fresh" while it's younger than this. The daily poll re-scrapes any
+// A record is "fresh" while it's younger than this. Each roster poll re-scrapes any
 // player whose record is older, so list-view card stats (served from rosterStats)
-// refresh day to day instead of freezing at whatever was first scraped. 20h sits
-// below the ~24h between daily polls, so every player refreshes once a day.
-const RECORD_TTL_MS = 20 * 60 * 60 * 1000;
+// refresh instead of freezing at whatever was first scraped. 10h sits below the
+// ~12h between the twice-daily polls (noon & midnight Central), so every player
+// refreshes on each poll.
+const RECORD_TTL_MS = 10 * 60 * 60 * 1000;
 const recFresh = rec => !!(rec && rec.ts && (Date.now() - rec.ts < RECORD_TTL_MS));
 function storePlayer(slug, rec) {
   const had = playerCache[slug];
@@ -2561,8 +2562,20 @@ function msUntilNextCentralMidnight() {
   const into = h * 3600 + get('minute') * 60 + get('second');
   return Math.max(1000, (24 * 3600 - into) * 1000);
 }
-function scheduleDailyRoster() {
-  setTimeout(() => { try { pollRoster(); } catch (e) { logErr('scheduleDailyRoster', e); } scheduleDailyRoster(); }, msUntilNextCentralMidnight());
+// ms until the next noon OR midnight Central, whichever comes first — the twice-a-day
+// cadence for roster/player-stat refreshes. (The visitor-digest email keeps its own
+// midnight-only schedule via msUntilNextCentralMidnight.)
+function msUntilNextCentralHalfDay() {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', hour12: false,
+    hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(new Date());
+  const get = t => +(parts.find(p => p.type === t) || {}).value;
+  let h = get('hour'); if (h === 24) h = 0; // some runtimes emit "24" at midnight
+  const into = h * 3600 + get('minute') * 60 + get('second');
+  const next = into < 12 * 3600 ? 12 * 3600 : 24 * 3600; // next noon, else next midnight
+  return Math.max(1000, (next - into) * 1000);
+}
+function scheduleRosterRefresh() {
+  setTimeout(() => { try { pollRoster(); } catch (e) { logErr('scheduleRosterRefresh', e); } scheduleRosterRefresh(); }, msUntilNextCentralHalfDay());
 }
 // ----- per-game pitching walks (BB) from box scores --------------------------
 // Presto's per-game pitching LOG omits BB, but each game's full box score lists
@@ -4001,7 +4014,7 @@ app.get('/api/stream', (q, r) => {
 if (require.main === module) {
   loadCache(); // serve last-saved player stats instantly, then refresh below
   loadBoxCache(); // restore cached final box scores so we don't re-fetch them
-  app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleDailyRoster(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); setTimeout(pollStrikePct, 15000); setInterval(pollStrikePct, 3 * 60 * 60 * 1000); setTimeout(getPitcherRest, 20000); scheduleDailyStats(); });
+  app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleRosterRefresh(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); setTimeout(pollStrikePct, 15000); setInterval(pollStrikePct, 3 * 60 * 60 * 1000); setTimeout(getPitcherRest, 20000); scheduleDailyStats(); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, pitchersFromFeed, extractEventAuth,
   dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseGameLog, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, applyPitcherOverrides, pitchingTotals, strikeCounts };
