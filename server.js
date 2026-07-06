@@ -32,7 +32,7 @@ const BUILD = {
 const BUILD_LABEL = 'build ' + BUILD.commit + (BUILD.branch ? ' · ' + BUILD.branch : '');
 // Manual incident banner shown atop the live tracker. Empty string hides it —
 // clear this out once Brazos confirms their scorekeeper/feed is caught up.
-const SITE_NOTICE = '';
+const SITE_NOTICE = 'Today\'s game is in a <b>weather delay</b> until at least 8:00 PM. Check back here for the latest updates.';
 // Manual score override for the featured game, used when the source feed lags
 // behind a confirmed final. Clear gameId to null once the feed catches up to
 // the same score to fall back to the scraped data.
