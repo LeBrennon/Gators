@@ -4457,9 +4457,9 @@ __SITE_NOTICE__
 <div class="sec">League Standings</div>
 <div class="rmeta" id="stMeta">Loading standings…</div>
 <div id="standingsBody"></div>
-<div id="poffBody"></div>
 <div class="sec sbsec" id="sbSec" style="display:none"><span>Around the League</span><span class="sbdate" id="sbMeta"></span></div>
 <div id="scoreboardBody"></div>
+<div id="poffBody"></div>
 </div>
 <div class="bld">__BUILD_LABEL__</div>
 </div>
