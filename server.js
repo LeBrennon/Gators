@@ -3707,6 +3707,28 @@ app.get('/api/schedule', (_q, r) => {
   }
   r.type('application/json').send(_schedCache.json);
 });
+// Build the four-team playoff bracket from the computed standings rows. Seeds
+// 1-2 are the first-half champions (already clinched), ordered by first-half
+// final record; seeds 3-4 are the current top two second-half teams that
+// haven't clinched (rows arrive sorted by second-half pct), and stay
+// provisional until the second half ends. Matchups: 1v4 and 2v3, best-of-3.
+function buildPlayoffPicture(rows) {
+  if (!rows.length) return null;
+  const pick = x => x ? { id: x.id, name: x.name, short: x.short, logo: x.logo || null, site: x.site || null } : null;
+  const champs = rows.filter(x => x.clinched).sort((a, b) => {
+    const fa = FIRST_HALF_FINAL[a.id] || { w: 0, l: 0 }, fb = FIRST_HALF_FINAL[b.id] || { w: 0, l: 0 };
+    const pa = (fa.w + fa.l) ? fa.w / (fa.w + fa.l) : 0, pb = (fb.w + fb.l) ? fb.w / (fb.w + fb.l) : 0;
+    return pb - pa || fb.w - fa.w;
+  });
+  const field = rows.filter(x => !x.clinched);
+  const seeds = [
+    { seed: 1, team: pick(champs[0]), note: 'First-half champion', clinched: true },
+    { seed: 2, team: pick(champs[1]), note: 'First-half champion', clinched: true },
+    { seed: 3, team: pick(field[0]), note: 'Second-half leader', provisional: true },
+    { seed: 4, team: pick(field[1]), note: 'Second-half runner-up', provisional: true },
+  ];
+  return { format: 'Best-of-3', seeds, matchups: [[1, 4], [2, 3]] };
+}
 app.get('/api/standings', (_q, r) => {
   r.set('Cache-Control', 'no-store');
   if (!standingsTable.length) pollStandings();
@@ -3727,7 +3749,7 @@ app.get('/api/standings', (_q, r) => {
   }).sort((a, b) => b.pct - a.pct || b.pctSeason - a.pctSeason || b.ws - a.ws || a.ls - b.ls);
   const lead = rows[0];
   for (const x of rows) x.gb = lead ? ((lead.w2 - x.w2) + (x.l2 - lead.l2)) / 2 : 0;
-  r.json({ updatedAt: standingsAt, gatorsId: GATORS_ID, half: SEASON_HALF, rows, scoreboard: buildLeagueBoard() });
+  r.json({ updatedAt: standingsAt, gatorsId: GATORS_ID, half: SEASON_HALF, rows, playoffs: buildPlayoffPicture(rows), scoreboard: buildLeagueBoard() });
 });
 app.get('/debug/extras', (_q, r) => {
   const sample = games.filter(g => g.state === 'live' || g.state === 'scheduled').slice(0, 4)
@@ -4358,6 +4380,26 @@ body.noscroll{overflow:hidden;}
 .clinch{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;flex:none;font-size:14px;font-family:'Oswald',sans-serif;font-weight:700;color:var(--gold2);}
 .clinch small{font-size:8px;letter-spacing:.06em;margin-top:3px;}
 .stnote{margin-top:8px;font-size:10px;color:var(--mute);display:flex;align-items:center;gap:6px;font-family:'Oswald',sans-serif;letter-spacing:.01em;}
+.poffwrap{background:var(--bayou2);border:1px solid var(--line);border-radius:12px;padding:14px;}
+.poffintro{font-size:12px;color:var(--mute);line-height:1.5;margin-bottom:13px;}
+.poffhd{display:flex;align-items:center;justify-content:space-between;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.08em;font-size:12px;color:var(--gold2);margin-bottom:10px;}
+.pofftag{font-size:10px;color:var(--bayou);background:var(--gold2);border-radius:20px;padding:2px 10px;font-weight:700;letter-spacing:.05em;}
+.poffmatch{border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:10px;}
+.poffslot{display:flex;align-items:center;gap:9px;padding:10px 12px;}
+.poffslot.g{background:rgba(113,74,210,.16);}
+.poffslot.tbd .poffnm{color:var(--mute);font-style:italic;}
+.poffvs{text-align:center;font-family:'Oswald',sans-serif;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);padding:2px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--bayou);}
+.poffseed{flex:none;width:23px;height:23px;border-radius:50%;background:var(--gator2);color:var(--bone);display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-weight:700;font-size:12px;}
+.poffseed.clin{background:var(--gold2);color:var(--bayou);}
+.poffslot.g .poffseed{background:var(--purple);color:var(--bone);}
+.poffl{width:24px;height:24px;border-radius:5px;object-fit:contain;background:transparent;flex:none;}
+.poffnm{flex:1;min-width:0;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.01em;color:var(--bone);white-space:normal;overflow-wrap:anywhere;line-height:1.15;}
+.poffslot.g .poffnm{color:var(--gator);}
+.poffclinch{flex:none;font-size:13px;}
+.poffrules{margin:12px 0 0;padding-left:18px;color:var(--mute);font-size:11px;line-height:1.6;}
+.poffrules li{margin-bottom:2px;}
+.poffnote{margin-top:11px;font-size:10px;color:var(--mute);display:flex;align-items:flex-start;gap:6px;font-family:'Oswald',sans-serif;letter-spacing:.01em;line-height:1.45;}
+.poffprov{color:var(--gold2);font-weight:700;}
 .sbg{display:flex;align-items:center;gap:10px;background:var(--bayou2);border:1px solid var(--line);border-radius:12px;padding:10px 13px;margin-bottom:8px;color:inherit;text-decoration:none;cursor:pointer;transition:border-color .15s,background .15s;}
 a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 .sbg.g{border-color:var(--purple);background:rgba(113,74,210,.10);}
@@ -4415,6 +4457,7 @@ __SITE_NOTICE__
 <div class="sec">League Standings</div>
 <div class="rmeta" id="stMeta">Loading standings…</div>
 <div id="standingsBody"></div>
+<div id="poffBody"></div>
 <div class="sec sbsec" id="sbSec" style="display:none"><span>Around the League</span><span class="sbdate" id="sbMeta"></span></div>
 <div id="scoreboardBody"></div>
 </div>
@@ -5025,7 +5068,39 @@ function renderStandings(d){
     $('standingsBody').innerHTML=h;
     $('stMeta').textContent=d.half===2?'Second-half standings':d.half===1?'First-half standings':'';
   }
+  renderPlayoffs(d);
   renderScoreboard(d&&d.scoreboard,d&&d.gatorsId,recById);
+}
+// A single seeded slot in a playoff matchup card.
+function poffSlot(s,gatorsId){
+  if(!s)return '';
+  var t=s.team;
+  var isG=t&&t.id&&gatorsId&&t.id===gatorsId;
+  var lg=t&&t.logo?'<img class="poffl" src="'+esc(t.logo)+'" alt="">':'<span class="poffl"></span>';
+  var nm=t?esc(t.name||t.short):'TBD';
+  var badge=s.clinched?'<span class="poffclinch" title="Clinched — first-half champion">🏆</span>':'';
+  return '<div class="poffslot'+(isG?' g':'')+(t?'':' tbd')+'">'
+    +'<span class="poffseed'+(s.clinched?' clin':'')+'">'+s.seed+'</span>'
+    +lg+'<span class="poffnm">'+nm+'</span>'+badge+'</div>';
+}
+function renderPlayoffs(d){
+  var host=$('poffBody');if(!host)return;
+  var p=d&&d.playoffs;
+  if(!p||!p.seeds||!p.seeds.length){host.innerHTML='';return;}
+  var gid=d&&d.gatorsId;
+  var byseed={};p.seeds.forEach(function(s){byseed[s.seed]=s;});
+  var provisional=p.seeds.some(function(s){return s.provisional;});
+  var h='<div class="sec">Playoff Picture</div><div class="poffwrap">';
+  h+='<div class="poffintro">Four teams reach the playoffs: the two first-half champions (seeds 1–2) plus the top two teams of the second half (seeds 3–4).</div>';
+  h+='<div class="poffhd"><span>Semifinals</span><span class="pofftag">Best-of-3</span></div>';
+  (p.matchups||[]).forEach(function(m){
+    h+='<div class="poffmatch">'+poffSlot(byseed[m[0]],gid)+'<div class="poffvs">vs</div>'+poffSlot(byseed[m[1]],gid)+'</div>';
+  });
+  h+='<ul class="poffrules"><li>Best-of-3 series — first to two wins advances.</li>'
+    +'<li>Lower seed hosts Game 1; higher seed hosts Games 2 &amp; 3 (if needed).</li></ul>';
+  if(provisional)h+='<div class="poffnote"><span class="poffprov">•</span> Seeds 3 &amp; 4 reflect the current second-half standings and can still change.</div>';
+  h+='</div>';
+  host.innerHTML=h;
 }
 function sbScore(v){return (v==null||v==='')?'':v;}
 // Compact the inning label for the card: drop "of" and shorten the half word
