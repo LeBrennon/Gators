@@ -1769,10 +1769,16 @@ function applyLiveScores(games, feat) {
 function buildLeagueBoard() {
   const date = (featured && featured.date) || todayCentralYmd();
   const raw = lastHtml ? sortBoard(applyLiveScores(parseLeagueScoreboard(lastHtml, date), featured)) : [];
-  const games = raw.map(g => Object.assign({}, g, {
-    away: Object.assign({}, g.away, { city: boardCity(g.away && g.away.id), nick: NICK[g.away && g.away.id] || (g.away && g.away.short) || '' }),
-    home: Object.assign({}, g.home, { city: boardCity(g.home && g.home.id), nick: NICK[g.home && g.home.id] || (g.home && g.home.short) || '' }),
-  }));
+  const games = raw.map(g => {
+    // Mirror the featured game's manual cancellation onto the board so the same
+    // game reads "Cancelled" here too (the schedule/feed may still report it as
+    // live or scheduled). Blank the scores so the card shows logo-vs-logo.
+    const cancelled = MANUAL_CANCEL.gameId && g.id === MANUAL_CANCEL.gameId;
+    return Object.assign({}, g, cancelled ? { state: 'cancelled', status: 'Cancelled' } : null, {
+      away: Object.assign({}, g.away, { city: boardCity(g.away && g.away.id), nick: NICK[g.away && g.away.id] || (g.away && g.away.short) || '', score: cancelled ? null : g.away && g.away.score }),
+      home: Object.assign({}, g.home, { city: boardCity(g.home && g.home.id), nick: NICK[g.home && g.home.id] || (g.home && g.home.short) || '', score: cancelled ? null : g.home && g.home.score }),
+    });
+  });
   return { date, dateLabel: dateFromId(date).label, updatedAt: lastFetchAt, games };
 }
 // Recompute the featured game from the cached schedule, enrich it if live, and
