@@ -42,6 +42,13 @@ const MANUAL_OVERRIDE = {
   homeRuns: 8,
   note: 'Box score will be fully updated soon. Final score is correct.',
 };
+// Manual cancellation override for the featured game. When gameId matches the
+// featured game, force it to a cancelled state — this ends the live gamecast
+// (score strip, at-bat/pitching cards, play-by-play) and shows only the
+// cancellation. Set gameId to null once the game is off the board.
+const MANUAL_CANCEL = {
+  gameId: '20260705_17i2',
+};
 // Manual pitcher-name override for the live feed, used when the source scorer has
 // a pitcher entered as a placeholder — e.g. Presto's "Emergency Player #0" — and
 // we know the real player. Each entry matches the feed's raw pitcher name
@@ -1782,6 +1789,14 @@ async function refreshFeatured() {
     norm.status = 'final';
     norm.inningLabel = 'Final';
     norm.heroNote = MANUAL_OVERRIDE.note;
+  }
+  if (MANUAL_CANCEL.gameId && norm.id === MANUAL_CANCEL.gameId) {
+    norm.status = 'cancelled';
+    norm.inningLabel = 'Cancelled';
+    // Blank the runs so the jumbo shows logo-vs-logo (no 0-0) for a game that
+    // never played, matching how pregame renders.
+    norm.away.runs = null;
+    norm.home.runs = null;
   }
   prevFeatured = featured; featured = norm;
   // Snapshot the Gators' own game's live-feed pitching (live or just-final) so the
@@ -4500,7 +4515,7 @@ function renderGame(g){
   var ar=$('awayRec'),hr=$('homeRec');
   if(ar)ar.textContent=g.away.record||'';if(hr)hr.textContent=g.home.record||'';
   // Upcoming games haven't been played, so show logo-vs-logo with no 0-0 score.
-  var preGame=(g.status==='pregame');
+  var preGame=(g.status==='pregame'||g.status==='cancelled');
   $('awaySc').style.display=preGame?'none':'';
   $('homeSc').style.display=preGame?'none':'';
   if(g.id===curId){if(g.away.runs>prev.a)flash($('awaySc'));if(g.home.runs>prev.h)flash($('homeSc'));}
@@ -4528,7 +4543,7 @@ function renderGame(g){
   if(wb){
     // Live game: show the TCL stream pill. Upcoming games use the Buy Tickets
     // button below instead (you can't watch a game that hasn't started).
-    if(g.status!=='pregame'&&g.watchUrl){wb.href=g.watchUrl;wb.textContent='Watch on TCL';wb.classList.remove('replay');wb.style.display='';}
+    if(g.status!=='pregame'&&g.status!=='cancelled'&&g.watchUrl){wb.href=g.watchUrl;wb.textContent='Watch on TCL';wb.classList.remove('replay');wb.style.display='';}
     else{wb.style.display='none';}
   }
   var tk=$('ticketBtn');
