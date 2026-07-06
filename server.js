@@ -3067,10 +3067,9 @@ function parseStandings(html) {
 // record then derives from these totals minus FIRST_HALF_FINAL, exactly like the
 // feed. CLEAR an entry the moment the feed catches up to it.
 const MANUAL_STANDINGS_OVERRIDE = {
-  // The feed is one game behind the 7/4 Gators 7–3 Brazos Valley final (confirmed,
-  // with replay). Remove both entries once the feed ingests that result.
-  et1bt9sixrz5lnnl: { w: 16, l: 12, streak: 'W4' }, // Lake Charles Gumbeaux Gators
-  z7w5th537gur3z15: { w: 13, l: 15, streak: 'L1' }, // Brazos Valley Bombers
+  // (empty) — the live standings feed has caught up, so full-season records now
+  // flow straight from the feed. Re-add an entry only when a confirmed final
+  // outpaces the feed, and clear it the moment the feed ingests that result.
 };
 // Patch a freshly parsed standings result in place so the overrides above flow
 // into both the record map and the rows before either is published.
