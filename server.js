@@ -4394,9 +4394,12 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .cpill.live{color:var(--gator);border-color:rgba(113,74,210,.4);background:rgba(113,74,210,.08);}
 .cpill.live .dot{width:5px;height:5px;animation:pulse 1.8s infinite;}
 .cpill.final{color:var(--gold);}
+/* Upcoming game: gold the start-time pill so it reads as the card's accent,
+   matching the Around-the-League scoreboard cards. */
+.cpill.sched{color:var(--gold2);border-color:rgba(255,214,51,.35);background:rgba(255,214,51,.07);}
 .crow{display:flex;align-items:center;gap:9px;padding:3px 0;}
 .crow img{width:30px;height:30px;border-radius:6px;object-fit:contain;background:transparent;}
-.crow .n{flex:1;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.crow .n{flex:1;min-width:0;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;font-size:13px;line-height:1.18;overflow-wrap:anywhere;}
 .tcity{font-weight:400;opacity:.72;}
 .crow.g .n{color:var(--gator);}
 .crow .s{font-family:'Oswald',sans-serif;font-weight:700;font-size:18px;min-width:22px;text-align:right;}
@@ -5075,7 +5078,7 @@ function renderSched(list){
   // curId, and slicing the first upcoming game would make it vanish entirely.
   var ord=done.concat(up).filter(function(g){return g.id!==curId;}),h='';
   ord.forEach(function(g){
-    var pill=g.state==='live'?'<span class="cpill live"><span class="dot"></span>'+g.status+'</span>':g.state==='final'?'<span class="cpill final">'+g.status+' \u203A</span>':'<span class="cpill">'+esc(g.status)+'</span>';
+    var pill=g.state==='live'?'<span class="cpill live"><span class="dot"></span>'+g.status+'</span>':g.state==='final'?'<span class="cpill final">'+g.status+' \u203A</span>':'<span class="cpill'+(g.state==='scheduled'?' sched':'')+'">'+esc(g.status)+'</span>';
     var aw=g.state==='final'&&g.away.score>g.home.score,hw=g.state==='final'&&g.home.score>g.away.score;
     function row(t,isG,won){var sc=(g.state==='live'||g.state==='final')&&t.score!=null?t.score:'';var ct=t.city?'<span class="tcity">'+esc(t.city)+'</span> ':'';return '<div class="crow'+(isG?' g':'')+(won?' w':'')+'"><img src="'+t.logo+'" alt=""><span class="n">'+ct+esc(t.nick||t.short)+'</span><span class="s">'+sc+'</span><span class="warrow" aria-label="'+(won?'Winner':'')+'">'+(won?'◀':'')+'</span></div>';}
     h+='<div class="card '+(g.state==='live'?'glive':g.state==='cancelled'?'gcancel':'')+(g.id===curId?' pinned':'')+'" data-state="'+g.state+'" data-id="'+g.id+'">'
