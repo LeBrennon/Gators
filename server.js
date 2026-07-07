@@ -2466,6 +2466,12 @@ async function fetchPlayer(slug, batMap, pitMap, tries) {
   return buildRecord(slug, primary, batMap, pitMap);
 }
 const recHasData = rec => !!(rec && (rec.hit || rec.pit || rec.glBat.length || rec.glPit.length));
+// Whether a stat line has numbers actually worth showing on a card — real
+// batting (AB/AVG) or pitching (IP/ERA). Distinguishes a produced line from
+// Presto's placeholder {pa:0,tb:0} line for a player who has appeared in the box
+// scores but whose games Presto hasn't aggregated onto their page/leaderboard.
+const lineIsShowable = s => !!(s && ((s.hit && (s.hit.ab != null || s.hit.avg != null))
+  || (s.pit && (s.pit.ip != null || s.pit.era != null))));
 // A "full" record carries player-page detail (game logs + stats like SB), as
 // opposed to a league-leaderboard seed that only has headline card stats.
 const recIsFull = rec => !!(rec && ((rec.glBat && rec.glBat.length) || (rec.glPit && rec.glPit.length)));
@@ -2478,6 +2484,10 @@ const RECORD_TTL_MS = 10 * 60 * 60 * 1000;
 const recFresh = rec => !!(rec && rec.ts && (Date.now() - rec.ts < RECORD_TTL_MS));
 function storePlayer(slug, rec) {
   const had = playerCache[slug];
+  // Don't let Presto's empty {pa:0,tb:0} placeholder line wipe a box-derived
+  // fallback: keep the fallback until the real page has showable stats to replace
+  // it. (recHasData treats {pa,tb} as data, which would otherwise clobber it.)
+  if (rosterStats[slug] && rosterStats[slug].fromBox && !lineIsShowable({ hit: rec.hit, pit: rec.pit })) return;
   if (recHasData(rec) || !had) {
     playerCache[slug] = rec;
     rosterStats[slug] = { kind: rec.kind, hit: rec.hit, pit: rec.pit, hitRanks: rec.hitRanks, pitRanks: rec.pitRanks };
@@ -2490,6 +2500,7 @@ const isTwoWay = slug => { const pl = ROSTER_BY_SLUG[slug]; return !!(pl && /two
 // so the roster cache isn't stuck on the hitting-only league seed.
 const playerNeedsData = slug => {
   const s = rosterStats[slug]; if (!s) return true;
+  if (s.fromBox) return true; // box-derived fallback — keep re-checking the real player page
   if (isTwoWay(slug)) return recIsFull(playerCache[slug]) ? false : (s.hit == null || s.pit == null);
   return s.hit == null && s.pit == null;
 };
@@ -2585,6 +2596,17 @@ async function pollRoster() {
       saveCache();
       if (ROSTER.some(pl => playerNeedsData(pl.slug))) await sleep(4000);
     }
+    // Box-score fallback: anyone still without stats — typically a just-debuted
+    // player whose games Presto hasn't posted to their player page/leaderboard
+    // yet — gets a season line derived straight from the Gators box scores. Only
+    // touches players who have no player-page/leaderboard stats, so it never
+    // overrides official numbers.
+    try {
+      await fillStatsFromBoxes(ROSTER.filter(pl => {
+        const s = rosterStats[pl.slug];
+        return (s && s.fromBox) || !lineIsShowable(s);
+      }));
+    } catch (e) { logErr('fillStatsFromBoxes', e); }
     rosterUpdated = Date.now();
     saveCache();
   } catch (e) { logErr('pollRoster', e); /* keep previous */ }
@@ -3490,6 +3512,60 @@ async function fetchBoxPage(id) {
   job.finally(() => boxInflight.delete(id));
   return job;
 }
+// ---- Box-score season-line fallback -----------------------------------------
+// A just-debuted player can have real box-score lines for a game or two while
+// Presto has not yet posted those games to their individual player page or the
+// season leaderboard (both of which the roster reads), leaving their card blank
+// in the meantime. As a fallback, read the player's per-game batting/pitching
+// line straight from the completed Gators box scores and aggregate them with the
+// same aggBat/aggPit the player-page game log uses, so the season line has the
+// identical shape. Batting cols are name,AB,R,H,RBI,BB,K…; pitching cols are
+// name,IP,H,R,ER,BB,K…; HR isn't a batting column so it's read from the notes.
+function boxRowsForPlayer(boxData, normTarget) {
+  const bat = [], pit = [];
+  for (const sec of (boxData && boxData.box) || []) {
+    if (!/Gator/i.test(sec.label || '')) continue;
+    const isBat = /Batting/i.test(sec.label), isPit = /Pitching/i.test(sec.label);
+    if (!isBat && !isPit) continue;
+    // Per-game HR count for each batter from the notes ("Name" or "Name (2)").
+    const hrBy = {};
+    if (isBat && sec.notes && sec.notes.HR) {
+      String(sec.notes.HR).split(',').forEach(part => {
+        const m = part.match(/^\s*(.+?)\s*(?:\((\d+)\))?\s*$/);
+        if (m) { const nm = normPlayerName(m[1]); if (nm) hrBy[nm] = m[2] ? +m[2] : 1; }
+      });
+    }
+    for (const row of rowsOf(sec.html)) {
+      const cells = cellsOf(row); if (cells.length < 7) continue;
+      if (normPlayerName(bsBatterName(cells[0])) !== normTarget) continue;
+      const num = i => bsText(cells[i]).replace(/[^0-9.]/g, '');
+      if (isBat) bat.push({ ab: num(1), h: num(3), hr: String(hrBy[normTarget] || 0), rbi: num(4), bb: num(5), k: num(6) });
+      else pit.push({ ip: num(1), h: num(2), r: num(3), er: num(4), bb: num(5), k: num(6) });
+      break; // one row per player per table
+    }
+  }
+  return { bat, pit };
+}
+// Fill each still-statless roster player from the Gators box scores. Fetches each
+// final's box once (cached) and checks every target against it, then aggregates.
+// Marks the result fromBox so the poll keeps re-checking the real player page and
+// replaces it the moment Presto posts official stats (see storePlayer).
+async function fillStatsFromBoxes(players) {
+  if (!players || !players.length) return;
+  const targets = players.map(pl => ({ pl, norm: normPlayerName(pl.name), bat: [], pit: [] }));
+  const finals = (games || []).filter(g => g.state === 'final' && isGatorsGame(g));
+  for (const g of finals) {
+    let res; try { res = await fetchBoxPage(g.id); } catch (e) { continue; }
+    if (!res || !res.ok || !res.data) continue;
+    for (const t of targets) { const r = boxRowsForPlayer(res.data, t.norm); t.bat.push(...r.bat); t.pit.push(...r.pit); }
+    await sleep(150);
+  }
+  for (const t of targets) {
+    const hit = t.bat.length ? aggBat(t.bat) : null;
+    const pit = t.pit.length ? aggPit(t.pit) : null;
+    if (hit || pit) rosterStats[t.pl.slug] = { kind: pit ? 'pitching' : 'batting', hit, pit, hitRanks: {}, pitRanks: {}, fromBox: true };
+  }
+}
 // Gmail transport, shared by the daily visitor-analytics digest.
 let _mailer = null;
 function getMailer() { if (!_mailer && mailReady) _mailer = nodemailer.createTransport({ service: 'gmail', auth: { user: MAIL_USER, pass: MAIL_PASS } }); return _mailer; }
@@ -4089,7 +4165,7 @@ if (require.main === module) {
   app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleRosterRefresh(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); setTimeout(pollStrikePct, 15000); setInterval(pollStrikePct, 3 * 60 * 60 * 1000); setTimeout(getPitcherRest, 20000); scheduleDailyStats(); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, pitchersFromFeed, extractEventAuth,
-  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseTeamRosterSlugs, parseGameLog, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, applyPitcherOverrides, pitchingTotals, strikeCounts, inningAlertText, finalAlertText };
+  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseTeamRosterSlugs, parseGameLog, boxRowsForPlayer, aggBat, aggPit, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, applyPitcherOverrides, pitchingTotals, strikeCounts, inningAlertText, finalAlertText };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
