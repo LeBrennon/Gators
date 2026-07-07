@@ -1882,9 +1882,9 @@ const ROSTER = [
   { num: 10, name: 'Kash Martin',      slug: 'kashmartin44sc',       pos: 'Utility', cls: 'Sophomore',    ht: '5-10', wt: '185', b: 'R', t: 'R', bday: '11/09/2006', home: 'Westlake, LA',     school: 'Bossier Parish CC' },
   { num: 11, name: 'Diego Corrales',   slug: 'diegocorrales91v5',    pos: 'P',       cls: 'Junior',       ht: '5-8',  wt: '185', b: 'L', t: 'L', bday: '08/01/2005', home: 'Lake Charles, LA', school: 'McNeese State' },
   { num: 14, name: 'Brandon Levy',     slug: 'brandonlevyejo5',      pos: 'P',       cls: 'Junior',       ht: '5-10', wt: '180', b: 'R', t: 'R', bday: '05/25/2004', home: 'Bossier City, LA', school: 'New Orleans' },
-  // On the official roster but not yet in game action; findSlug resolves his real
-  // Presto page by name once it exists, and the note shows until his first game.
-  { num: 15, name: 'Reed Dupre',       slug: 'reeddupre',            pos: 'P',       cls: 'Freshman',     ht: '5-10', wt: '150', b: 'R', t: 'R', bday: '',           home: 'Iowa, LA',         school: 'Southern Univ of New Orleans', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
+  // On the official roster; real Presto slug set directly (resolved from the Gators
+  // team roster page). No game action yet, so the note shows until his first game.
+  { num: 15, name: 'Reed Dupre',       slug: 'reeddupremvk3',        pos: 'P',       cls: 'Freshman',     ht: '5-10', wt: '150', b: 'R', t: 'R', bday: '',           home: 'Iowa, LA',         school: 'Southern Univ of New Orleans', note: 'Recently added — season stats will appear after his first game.' },
   { num: 16, name: 'Daniel Midkiff',   slug: 'danielmidkifffqkb',    pos: 'P',       cls: 'Sophomore',    ht: '6-2',  wt: '208', b: 'R', t: 'R', bday: '05/20/2007', home: 'Buna, TX',         school: 'Lamar' },
   { num: 17, name: 'Ayden Sunday',     slug: 'aydensundayyp1j',      pos: 'OF',      cls: 'Sophomore',    ht: '6-0',  wt: '185', b: 'R', t: 'R', bday: '',           home: 'Nederland, TX',    school: 'Lamar' },
   { num: 19, name: 'Jack Garcille',    slug: 'jackgarcille9sq9',     pos: 'P',       cls: 'HS Senior',    ht: '6-6',  wt: '210', b: 'R', t: 'R', bday: '07/07/2008', home: 'Lake Charles, LA', school: 'McNeese State' },
@@ -1902,22 +1902,25 @@ const ROSTER = [
   { num: 41, name: 'Cole Flanagan',    slug: 'coleflanaganemnl',     pos: 'P',       cls: 'Freshman',     ht: '6-1',  wt: '230', b: 'L', t: 'L', bday: '',           home: 'Moss Bluff, LA',   school: 'Jacksonville State' },
   { num: 42, name: 'Kale Cropper',     slug: 'kalecropperuden',      pos: 'P',       cls: 'Sophomore',    ht: '6-4',  wt: '210', b: 'R', t: 'R', bday: '08/25/2006', home: 'Port Neches, TX',  school: 'Hill College' },
   { num: 45, name: 'Cannon Faulk',     slug: 'cannonfaulk0l9x',      pos: 'P',       cls: 'R-Sophomore',  ht: '6-4',  wt: '225', b: 'L', t: 'L', bday: '12/02/2005', home: 'Port Neches, TX',  school: 'Angelina College' },
-  // On the official roster and already pitching; findSlug resolves his real Presto
-  // page by name so his season stats flow in.
-  { num: 47, name: 'Brayden Guillory', slug: 'braydenguillory',      pos: 'P',       cls: 'R-Freshman',   ht: '6-2',  wt: '200', b: 'R', t: 'R', bday: '',           home: 'Kinder, LA',       school: 'Southern University', findSlug: true },
+  // On the official roster and already pitching; real Presto slug set directly
+  // (resolved from the Gators team roster page) so his season stats flow in.
+  { num: 47, name: 'Brayden Guillory', slug: 'braydenguilloryagcn',  pos: 'P',       cls: 'R-Freshman',   ht: '6-2',  wt: '200', b: 'R', t: 'R', bday: '',           home: 'Kinder, LA',       school: 'Southern University' },
   // Assigned #39 on the 6/30 second-half roster; now playing, so his real Presto slug is
   // set directly and stats flow. Headshot populates once a photo is bundled.
   { num: 39, name: 'Yuichiro Kumagami', slug: 'yuichirokumagamisa54', pos: 'C', cls: 'Sophomore', ht: '5-11', wt: '200', b: 'R', t: 'R', bday: '', home: 'Miyagi, Japan', school: 'Mt. Hood CC' },
   // Added off the 7/3 official roster; the 7/4 sheet assigns #24 and lists him as a
-  // pitcher (was catcher/TBD) with a full bio. findSlug resolves his real Presto page.
-  { num: 24, name: 'Pierce Boles', slug: 'pierceboles', pos: 'P', cls: 'Sophomore', ht: '6-2', wt: '190', b: 'R', t: 'R', bday: '', home: 'Mandeville, LA', school: 'LSU-Eunice', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
-  // Added off the 6/30 second-half roster; real Presto slugs now set directly. Their player
-  // pages exist but they haven't recorded game action yet, so the `note` shows until their first game.
-  { num: 12, name: 'Taylor Hollier',  slug: 'taylorholliervl4b',  pos: 'P', cls: 'Freshman', ht: '6-0', wt: '155', b: 'L', t: 'L', bday: '', home: 'Opelousas, LA', school: 'Belhaven', note: 'Recently added — season stats will appear after his first game.' },
+  // pitcher (was catcher/TBD). Real Presto slug set directly (resolved from the
+  // Gators team roster page); he has pitched, so his season stats flow in.
+  { num: 24, name: 'Pierce Boles', slug: 'piercebolesgu20', pos: 'P', cls: 'Sophomore', ht: '6-2', wt: '190', b: 'R', t: 'R', bday: '', home: 'Mandeville, LA', school: 'LSU-Eunice' },
+  // Added off the 6/30 second-half roster. Hollier's earlier hardcoded slug pointed
+  // to a wrong/namesake page (no data even after he pitched); both real slugs are
+  // now set directly from the Gators team roster page. Hollier has pitched (stats
+  // flow); Degeyter hasn't yet, so his note shows until his first appearance.
+  { num: 12, name: 'Taylor Hollier',  slug: 'taylorhollierj0t9',  pos: 'P', cls: 'Freshman', ht: '6-0', wt: '155', b: 'L', t: 'L', bday: '', home: 'Opelousas, LA', school: 'Belhaven' },
   { num: 43, name: 'Hunter Degeyter', slug: 'hunterdegeyterv7xl', pos: 'P', cls: 'HS Senior', ht: '6-1', wt: '170', b: 'R', t: 'R', bday: '', home: 'Lafayette, LA', school: 'Belhaven University', note: 'Recently added — season stats will appear after his first game.' },
-  // Added off the 7/4 official roster; findSlug resolves his real Presto page by name
-  // once it exists, and the note shows until his first game.
-  { num: 48, name: 'Marco Bandiero', slug: 'marcobandiero', pos: 'IF', cls: 'Freshman', ht: '6-1', wt: '245', b: 'L', t: 'L', bday: '', home: 'Orange, TX', school: 'Angelina College', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
+  // Added off the 7/4 official roster; real Presto slug set directly (resolved from
+  // the Gators team roster page). No game action yet, so the note shows for now.
+  { num: 48, name: 'Marco Bandiero', slug: 'marcobandieroddnu', pos: 'IF', cls: 'Freshman', ht: '6-1', wt: '245', b: 'L', t: 'L', bday: '', home: 'Orange, TX', school: 'Angelina College', note: 'Recently added — season stats will appear after his first game.' },
 ];
 
 // Coaching staff (gumbeauxgators.com/coaches). Shown beneath the player roster;
@@ -2504,10 +2507,22 @@ async function pollRoster() {
       const lh = parseAllLeagueHitters(hRes.body); if (Object.keys(lh).length) leagueHitterStats = lh; // opponents' season lines for the live 1st-AB card
       const lp = parseAllLeaguePitchers(pRes.body); if (Object.keys(lp).length) leaguePitcherStats = lp; // opponents' season lines for the live new-pitcher card
       // Resolve real Presto slugs for players added before their player page was
-      // known (findSlug). Both league pages list each Gators player's name+slug,
-      // so a newly-active player is matched by name and their placeholder slug is
-      // swapped for the real one — stats then flow on the passes below.
-      const nameSlugs = Object.assign({}, parseLeagueSlugs(hRes.body), parseLeagueSlugs(pRes.body));
+      // known (findSlug). The league hitting page lists each Gators hitter's
+      // name+slug, but the league pitching page is JS-rendered and yields none —
+      // so newly-active pitchers never resolved this way and their cards stayed
+      // blank. The Gators team roster page lists EVERY player (hitters AND
+      // pitchers) with their real slug, so fetch it too and merge: a player is
+      // matched by name and their placeholder slug swapped for the real one —
+      // stats then flow on the passes below. Wrapped separately so a team-page
+      // failure still leaves the league-page resolution intact.
+      let teamSlugs = {};
+      if (ROSTER.some(pl => pl.findSlug)) {
+        try {
+          const tr = await fetchText(SPORT_BASE + '/teams/' + GATORS_SLUG, SPORT_BASE + '/schedule');
+          if (tr.ok) teamSlugs = parseTeamRosterSlugs(tr.body);
+        } catch (e) {}
+      }
+      const nameSlugs = Object.assign({}, parseLeagueSlugs(hRes.body), parseLeagueSlugs(pRes.body), teamSlugs);
       for (const pl of ROSTER) {
         if (!pl.findSlug) continue;
         const real = nameSlugs[normPlayerName(pl.name)];
@@ -3954,6 +3969,28 @@ app.get('/debug/roster', async (_q, r) => {
     });
   } catch (e) { r.status(502).json({ error: e.message, stack: e.stack }); }
 });
+// Dump the Gators team roster page's name -> real Presto slug map, and show how
+// each roster entry currently resolves. Used to verify findSlug resolution picks
+// up newly-active players (especially pitchers, who never appear on the league
+// pitching leaderboard). Read-only, like the sibling /debug/* endpoints.
+app.get('/debug/teamroster', async (_q, r) => {
+  try {
+    const url = SPORT_BASE + '/teams/' + GATORS_SLUG;
+    const tr = await fetchText(url, SPORT_BASE + '/schedule');
+    const byName = tr.ok ? parseTeamRosterSlugs(tr.body) : {};
+    const roster = ROSTER.map(p => {
+      const norm = normPlayerName(p.name);
+      const teamSlug = byName[norm] || null;
+      const s = rosterStats[p.slug];
+      return { name: p.name, pos: p.pos, currentSlug: p.slug, teamPageSlug: teamSlug,
+        matches: teamSlug === p.slug, findSlug: !!p.findSlug,
+        hasStats: !!(s && (s.hit != null || s.pit != null)) };
+    });
+    r.set('Cache-Control', 'no-store');
+    r.json({ url, ok: tr.ok, status: tr.status, teamRosterCount: Object.keys(byName).length,
+      unresolved: roster.filter(x => !x.hasStats).map(x => x.name), roster });
+  } catch (e) { r.status(502).json({ error: String(e && e.message || e) }); }
+});
 app.get('/debug/player', async (q, r) => {
   try {
     const slug = (q.query.slug || '').trim();
@@ -4052,7 +4089,7 @@ if (require.main === module) {
   app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleRosterRefresh(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); setTimeout(pollStrikePct, 15000); setInterval(pollStrikePct, 3 * 60 * 60 * 1000); setTimeout(getPitcherRest, 20000); scheduleDailyStats(); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, pitchersFromFeed, extractEventAuth,
-  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseGameLog, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, applyPitcherOverrides, pitchingTotals, strikeCounts, inningAlertText, finalAlertText };
+  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseTeamRosterSlugs, parseGameLog, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, applyPitcherOverrides, pitchingTotals, strikeCounts, inningAlertText, finalAlertText };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
