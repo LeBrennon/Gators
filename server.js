@@ -1582,10 +1582,11 @@ function diffAlert(cur) {
     notify(g(cur) > o(cur) ? 'Gators win! \uD83D\uDC0A' : 'Final', 'Gators ' + sc + ' ' + opp, 'final');
 }
 // ---- end-of-inning text alert -----------------------------------------------
-// Kat (social media) asked for a text at end of 3rd/6th so she doesn't have to
-// pull up the site mid-inning while she's at an away game. Fires once per game
-// per inning, persisted to disk (same pattern as reportDispatched) so a Render
-// restart never re-sends or, worse, backfires for a boundary already passed.
+// Kat (social media) asked for a text at end of 3rd/6th plus the final so she
+// doesn't have to pull up the site mid-inning while she's at an away game.
+// Fires once per game per boundary (innings 3 & 6, and the final), persisted to
+// disk (same pattern as reportDispatched) so a Render restart never re-sends
+// or, worse, backfires for a boundary already passed.
 const INNING_ALERT_INNINGS = [3, 6];
 const INNING_ALERT_SENT_FILE = (process.env.CACHE_DIR || '.') + '/inning-alert-sent.json';
 const inningAlertSent = new Set(); // "gameId:inning" already texted
@@ -1612,19 +1613,37 @@ function inningAlertText(norm, n) {
   }
   return 'End of ' + ordinal(n) + ': Gators ' + g + '-' + o + ' ' + norm.opponent.short + box;
 }
-function sendInningAlert(norm, n) {
+// End-of-game text: the full line score plus a W/L/T tag, keyed ':final' so it
+// fires exactly once per game, independent of the inning boundaries.
+function finalAlertText(norm) {
+  const g = norm.gatorsHome ? norm.home.runs : norm.away.runs;
+  const o = norm.gatorsHome ? norm.away.runs : norm.home.runs;
+  const wl = g > o ? 'W' : g < o ? 'L' : 'T';
+  let box = '';
+  const ls = norm.lineScore || [];
+  const away = ls.find(t => t.vh === 'V'), home = ls.find(t => t.vh === 'H');
+  if (away && home) {
+    const row = t => (t.isGators ? 'Gators' : t.name) + ' ' + t.innings.map(v => (v == null ? '-' : v)).join(' ');
+    box = '\n' + row(away) + '\n' + row(home);
+  }
+  return 'FINAL (' + wl + '): Gators ' + g + '-' + o + ' ' + norm.opponent.short + box;
+}
+function sendAlertText(norm, text, label) {
   const t = getMailer(); if (!t || !INNING_ALERT_TO.length) return Promise.resolve(false);
-  return t.sendMail({ from: 'Gators GameTracker <' + MAIL_USER + '>', to: INNING_ALERT_TO.join(', '), text: inningAlertText(norm, n) })
-    .then(() => { process.stdout.write('\n[inning-alert] sent end-of-' + n + ' for ' + norm.id + '\n'); return true; })
+  return t.sendMail({ from: 'Gators GameTracker <' + MAIL_USER + '>', to: INNING_ALERT_TO.join(', '), text })
+    .then(() => { process.stdout.write('\n[inning-alert] sent ' + label + ' for ' + norm.id + '\n'); return true; })
     .catch(e => { logErr('sendInningAlert', e); return false; });
 }
 function checkInningAlerts(norm) {
   if (!INNING_ALERT_TO.length || norm.status === 'pregame' || norm.status === 'cancelled') return;
+  const isFinal = norm.status === 'final';
   // First live/final game seen after boot: mark any boundary already in the
-  // past as sent instead of firing (or re-firing) for it.
+  // past (including the final, if the game is already over) as sent instead of
+  // firing (or re-firing) for it.
   if (!inningAlertSeeded) {
     inningAlertSeeded = true;
     for (const n of INNING_ALERT_INNINGS) if (inningComplete(norm, n)) inningAlertSent.add(norm.id + ':' + n);
+    if (isFinal) inningAlertSent.add(norm.id + ':final');
     saveInningAlertSent();
     return;
   }
@@ -1632,7 +1651,12 @@ function checkInningAlerts(norm) {
     const key = norm.id + ':' + n;
     if (inningAlertSent.has(key) || !inningComplete(norm, n)) continue;
     inningAlertSent.add(key); saveInningAlertSent();
-    sendInningAlert(norm, n);
+    sendAlertText(norm, inningAlertText(norm, n), 'end-of-' + n);
+  }
+  const fkey = norm.id + ':final';
+  if (isFinal && !inningAlertSent.has(fkey)) {
+    inningAlertSent.add(fkey); saveInningAlertSent();
+    sendAlertText(norm, finalAlertText(norm), 'final');
   }
 }
 async function pollSchedule() {
@@ -4020,7 +4044,7 @@ if (require.main === module) {
   app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleRosterRefresh(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); setTimeout(pollStrikePct, 15000); setInterval(pollStrikePct, 3 * 60 * 60 * 1000); setTimeout(getPitcherRest, 20000); scheduleDailyStats(); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, pitchersFromFeed, extractEventAuth,
-  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseGameLog, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, applyPitcherOverrides, pitchingTotals, strikeCounts };
+  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseGameLog, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, applyPitcherOverrides, pitchingTotals, strikeCounts, inningAlertText, finalAlertText };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
