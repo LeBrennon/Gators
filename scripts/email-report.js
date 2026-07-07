@@ -31,28 +31,34 @@ function latestPdf(explicit) {
   return files.sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)[0];
 }
 
-const pdf = latestPdf(process.argv[2]);
-if (!pdf || !fs.existsSync(pdf)) {
-  console.error('[email-report] no PDF found in reports/postgame/ — nothing to send.');
+// One or more explicit paths become the attachments (e.g. the two GM report
+// cards); with no path, fall back to the newest post-game PDF.
+const explicit = process.argv.slice(2).filter(a => !a.startsWith('--'));
+let pdfs;
+if (explicit.length) pdfs = explicit.map(p => path.resolve(p)).filter(p => fs.existsSync(p));
+else { const one = latestPdf(); pdfs = one ? [one] : []; }
+if (!pdfs.length) {
+  console.error('[email-report] no file(s) to send — nothing attached.');
   process.exit(0);
 }
 
 const to = (process.env.REPORT_TO || USER).split(',').map(s => s.trim()).filter(Boolean).join(', ');
-const stem = path.basename(pdf, '.pdf');
+const stem = path.basename(pdfs[0], path.extname(pdfs[0]));
+const names = pdfs.map(p => path.basename(p));
 
 (async () => {
   const nodemailer = require('nodemailer');
   const t = nodemailer.createTransport({ service: 'gmail', auth: { user: USER, pass: PASS } });
   // Subject/body default to the post-game report wording; a caller (e.g. the
-  // pitchers' rest chart) can override them via env for a different attachment.
+  // GM report cards or the pitchers' rest chart) can override them via env.
   const subject = process.env.REPORT_SUBJECT || ('Gators Post-Game Report — ' + stem);
-  const body = process.env.REPORT_BODY || ('Your Gumbeaux Gators post-game report is attached.\n\n(' + path.basename(pdf) + ')\n');
+  const body = process.env.REPORT_BODY || ('Your Gumbeaux Gators post-game report is attached.\n\n(' + names.join('\n') + ')\n');
   await t.sendMail({
     from: 'Gumbeaux Gators <' + USER + '>',
     to,
     subject,
     text: body,
-    attachments: [{ filename: path.basename(pdf), path: pdf }],
+    attachments: pdfs.map(p => ({ filename: path.basename(p), path: p })),
   });
-  console.log('[email-report] sent ' + path.basename(pdf) + ' to ' + to);
+  console.log('[email-report] sent ' + names.join(', ') + ' to ' + to);
 })().catch(e => { console.error('[email-report] send failed (best-effort, ignoring):', e.message); process.exit(0); });
