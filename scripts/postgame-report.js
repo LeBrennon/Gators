@@ -26,6 +26,10 @@ const PDF = FLAGS.has('--pdf');
 const HTML = FLAGS.has('--html');
 const NOBOX = FLAGS.has('--no-box'); // skip the box-score fetch (force offline)
 const STRICT = FLAGS.has('--strict'); // exit non-zero if no pitching data yet (let the workflow retry)
+// When set, also write the game's facts as a JSON block for the branded GM
+// report cards (scripts/gm-report-cards.js --data <file>), so the shareable
+// cards render from the same numbers/narrative as this report.
+const CARD_DATA_OUT = process.env.CARD_DATA_OUT || '';
 const target = args[0] || 'latest';
 
 const game = S.resolveGame(target);
@@ -388,6 +392,58 @@ function buildGameContent(bat, pit, tb, tp, stats) {
   return { recap, keyHitters, analysis, pitcherLines, gm, gameBB9, partial };
 }
 
+// Assemble the data block the branded GM report cards render from — the same
+// facts and narrative this report already computed, reshaped to the schema
+// gm-report-cards.js expects (stat tiles as [value, label]; a two-row line
+// score with R/H/E). Keeps the shareable cards in lockstep with the report.
+function buildCardData(content, ctx) {
+  const { tb, tp, stats, data } = ctx;
+  const result = game.win == null ? 'PLAYED' : game.win ? 'WIN' : 'LOSS';
+  // The report builds tiles as [label, value]; the cards want [value, label].
+  const flip = arr => (arr || []).map(([label, value]) => [String(value), label === 'Strikeouts' ? 'K' : label]);
+  // Prefer the parsed line-score table (exact R/H/E for both teams, including
+  // the opponent's errors); fall back to runs-by-inning + totals when absent.
+  let gLine = null, oLine = null;
+  if (data && typeof data.line === 'string') {
+    try {
+      const teams = lineGrid(data.line);
+      if (teams && teams.length >= 2) {
+        const g = teams.find(t => /gator|gumbeaux/i.test(t.name)) || teams[0];
+        const o = teams.find(t => t !== g) || teams[1];
+        gLine = { name: 'Gators', inns: g.innings, r: g.r, h: g.h, e: g.e };
+        oLine = { name: o.name || oppName, inns: o.innings, r: o.r, h: o.h, e: o.e };
+      }
+    } catch (e) { /* fall through to the totals-based line score */ }
+  }
+  const innsOf = side => (stats && stats.innings && stats.innings[side]) || [];
+  if (!gLine) gLine = { name: 'Gators', inns: innsOf('gators'), r: game.gs, h: tb.h, e: (stats && stats.errors) || 0 };
+  if (!oLine) oLine = { name: oppName, inns: innsOf('opp'), r: game.os, h: tp.h, e: 0 };
+  // Fill both stat strips to a clean 3-wide grid: lead pitching with IP, and add
+  // an On-Base tile (hits + walks) to the offense.
+  const offense = flip(content.gm.offense);
+  offense.push([String(tb.h + (tb.bb || 0)), 'On Base']);
+  const pitching = flip(content.gm.pitching);
+  pitching.unshift([`${Math.floor(tp.outs / 3)}.${tp.outs % 3}`, 'IP']);
+  return {
+    fileStem: `${stem}-gm-report`,
+    date: game.date,
+    headline: `${game.date} vs ${oppName}`,
+    oppName,
+    sub: `${game.home ? 'Home' : 'Road'} · Record ${T.w}–${T.l}`,
+    result,
+    gatorScore: game.gs,
+    oppScore: game.os,
+    lineScore: { gators: gLine, opp: oLine },
+    offense,
+    pitching,
+    recap: content.recap,
+    stoodOut: content.analysis,
+    keyHitters: content.keyHitters,
+    onMound: content.pitcherLines,
+    season: `The Gators are <b>${T.w}–${T.l}</b> on the season.`,
+  };
+}
+
 // Build the trend lines. The seed's last-5 average lags the game just played
 // (the per-player logs post late), so a player can look "hot" while having gone
 // hitless tonight. Cross-check against tonight's box: don't call a hitter hot if
@@ -556,6 +612,16 @@ async function main() {
   const content = buildGameContent(bat, pit, tb, tp, stats);
   const trends = buildTrends(bat);
   const md = buildMarkdown(content, trends);
+
+  // Emit the branded-cards data block (opt-in via CARD_DATA_OUT) so the same
+  // game the report covers renders as the shareable GM report cards too.
+  if (CARD_DATA_OUT) {
+    const cardData = buildCardData(content, { bat, pit, tb, tp, stats, data });
+    const dir = path.dirname(CARD_DATA_OUT);
+    if (dir && !fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(CARD_DATA_OUT, JSON.stringify(cardData, null, 2));
+    console.error('wrote', CARD_DATA_OUT);
+  }
 
   if (PDF || HTML) {
     ensureDir();

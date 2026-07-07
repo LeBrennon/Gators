@@ -79,6 +79,9 @@ jobs:
 
       - name: Build the post-game report (waits for stats to post)
         id: build
+        env:
+          # Also emit the data block the branded GM report cards render from.
+          CARD_DATA_OUT: reports/postgame/card-data.json
         run: |
           export CHROMIUM_PATH="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
           TARGET="${{ steps.plan.outputs.game_id }}"; [ -z "$TARGET" ] && TARGET="latest"
@@ -129,6 +132,42 @@ jobs:
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           REPORT_TO: ${{ secrets.REPORT_TO }}
         run: node scripts/email-report.js
+
+      # ----- Branded GM report cards (Computer + Mobile; personal delivery) -------
+      # Rendered from the data block the post-game build emitted (card-data.json),
+      # so the shareable cards carry the same numbers + narrative as the report.
+      # Independent of the plain report email so a render hiccup never blocks it.
+      - name: Build the branded GM report cards
+        id: cards
+        if: steps.build.outputs.built == 'true'
+        continue-on-error: true
+        run: |
+          export CHROMIUM_PATH="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
+          node scripts/gm-report-cards.js --data reports/postgame/card-data.json
+          echo "built=true" >> "$GITHUB_OUTPUT"
+
+      - name: Upload the GM report cards artifact
+        if: steps.cards.outputs.built == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: gators-gm-report-cards
+          path: reports/postgame/*gm-report*
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Email the GM report cards
+        if: steps.cards.outputs.built == 'true' && steps.plan.outputs.email == 'true' && steps.mail.outputs.enabled == 'true'
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          REPORT_TO: ${{ secrets.REPORT_TO }}
+          REPORT_SUBJECT: "Gators GM Report Cards"
+          REPORT_BODY: "The branded GM report cards (computer + mobile) for the latest game are attached."
+        run: |
+          shopt -s nullglob
+          mapfile -t CARDS < <(printf '%s\n' reports/postgame/*gm-report*\ \(Computer\).pdf reports/postgame/*gm-report*\ \(Mobile\).pdf)
+          if [ ${#CARDS[@]} -eq 0 ]; then echo "no GM card PDFs found to email"; exit 0; fi
+          node scripts/email-report.js "${CARDS[@]}"
 
       # ----- Pitchers' rest chart (personal delivery; nothing on the website) -----
       # Built and emailed on the same game-day paths as the post-game report

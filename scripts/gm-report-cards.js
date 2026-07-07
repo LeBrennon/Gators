@@ -26,11 +26,22 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
+// Args: an optional output stem (positional) and an optional `--data <file>`
+// (or CARD_DATA_IN env) pointing at a JSON block emitted by
+// scripts/postgame-report.js. With it, the cards render from that game's real
+// facts instead of the hand-fed DEFAULT_DATA below — this is what the game-final
+// workflow uses to auto-build the cards. Without it, the DEFAULT_DATA renders.
+const _argv = process.argv.slice(2);
+const _di = _argv.indexOf('--data');
+const DATA_PATH = _di >= 0 ? _argv[_di + 1] : (process.env.CARD_DATA_IN || '');
+if (_di >= 0) _argv.splice(_di, 2);              // drop the flag + its value
+const stemArg = _argv.find(a => a && !a.startsWith('--'));
+
 // ===========================================================================
 // GAME DATA — replace this block for each game. Everything below is generic.
 // (Values shown are the Jun 30, 2026 @ Brazos Valley report.)
 // ===========================================================================
-const DATA = {
+const DEFAULT_DATA = {
   fileStem: '06-30 LCGG @ BVB - GM Report',   // output filename stem
   date: 'Jun 30',
   headline: 'Jun 30 @ Brazos',                 // shown big in the header band
@@ -73,6 +84,7 @@ const DATA = {
 // ===========================================================================
 // Generic rendering below — no per-game edits needed.
 // ===========================================================================
+const DATA = DATA_PATH ? JSON.parse(fs.readFileSync(DATA_PATH, 'utf8')) : DEFAULT_DATA;
 const ROOT = path.join(__dirname, '..');
 const b64 = (f, m) => 'data:' + m + ';base64,' + fs.readFileSync(path.join(ROOT, f)).toString('base64');
 const logo = b64('gators-logo.png', 'image/png');
@@ -223,7 +235,6 @@ function measureHeight(html, W) {
   return parseInt(m[1], 10);
 }
 
-const stemArg = process.argv[2];
 const OUTDIR = stemArg ? path.dirname(path.resolve(stemArg)) : path.join(ROOT, 'reports', 'postgame');
 const STEM = stemArg ? path.resolve(stemArg) : path.join(OUTDIR, DATA.fileStem);
 if (!fs.existsSync(OUTDIR)) fs.mkdirSync(OUTDIR, { recursive: true });
