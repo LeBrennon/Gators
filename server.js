@@ -3303,10 +3303,18 @@ app.use(express.json());
 // (memoized by name) instead of re-compressing on every request as the global
 // compression() middleware would. compression() skips a response that already
 // carries a Content-Encoding, so there's no double work.
-const _gzMemo = {};
+const _gzMemo = {}, _brMemo = {};
 function sendStatic(r, name, body, type) {
   r.type(type);
   const enc = String((r.req && r.req.headers['accept-encoding']) || '');
+  // Prefer Brotli (noticeably smaller than gzip for this text-heavy HTML) when
+  // the client accepts it, otherwise gzip. Each encoding is compressed once and
+  // memoized by name, so no re-compression per request. Vary so shared caches
+  // key on the negotiated encoding.
+  if (/\bbr\b/.test(enc)) {
+    r.set('Content-Encoding', 'br'); r.set('Vary', 'Accept-Encoding');
+    return r.send(_brMemo[name] || (_brMemo[name] = zlib.brotliCompressSync(body)));
+  }
   if (/\bgzip\b/.test(enc)) {
     r.set('Content-Encoding', 'gzip'); r.set('Vary', 'Accept-Encoding');
     return r.send(_gzMemo[name] || (_gzMemo[name] = zlib.gzipSync(body)));
@@ -5300,7 +5308,7 @@ function renderRoster(d){
   for(var i=0;i<arr.length;i++){var p=arr[i];
     // Profile photo fills the avatar box; falls back to the player's initials when
     // we don't have a headshot yet. The jersey number moves beside the name (gold).
-    var box=p.photo?('<img class="ppic" src="'+esc(p.photo)+'" alt="">'):('<span class="pinit">'+esc(pInitials(p.name))+'</span>');
+    var box=p.photo?('<img class="ppic" loading="lazy" decoding="async" src="'+esc(p.photo)+'" alt="">'):('<span class="pinit">'+esc(pInitials(p.name))+'</span>');
     h+='<div class="pcard" data-slug="'+p.slug+'">'+
        '<div class="pnum">'+box+'</div>'+
        '<div class="pmain"><div class="pname"><span class="pnametext">'+esc(p.name)+'</span><span class="pjersey">'+(p.numTBD?'TBD':'#'+p.num)+'</span></div>'+
@@ -5311,7 +5319,7 @@ function renderRoster(d){
     coachData=d.coaches;
     h+='<div class="csec">Coaching Staff</div>';
     for(var k=0;k<d.coaches.length;k++){var c=d.coaches[k];
-      var cbox=c.photo?('<img class="ppic" src="'+esc(c.photo)+'" alt="">'):('<span class="pinit">'+esc(pInitials(c.name))+'</span>');
+      var cbox=c.photo?('<img class="ppic" loading="lazy" decoding="async" src="'+esc(c.photo)+'" alt="">'):('<span class="pinit">'+esc(pInitials(c.name))+'</span>');
       h+='<div class="pcard coach" data-coachnum="'+c.num+'">'+
          '<div class="pnum coachico">'+cbox+'</div>'+
          '<div class="pmain"><div class="pname"><span class="pnametext">'+esc(c.name)+'</span><span class="pjersey">#'+c.num+'</span></div>'+
