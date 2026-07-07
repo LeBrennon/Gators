@@ -56,7 +56,7 @@ const DEFAULT_DATA = {
     opp: { name: 'Bombers', inns: [0, 1, 0, 1, 5, 0, 0, 2, '–'], r: 9, h: 10, e: 0 },
   },
   offense: [['.154', 'AVG'], ['4', 'Hits'], ['2', 'RBI'], ['10', 'Walks'], ['5', 'K'], ['9', 'Left On']],
-  pitching: [['8.0', 'IP'], ['10', 'Hits'], ['9', 'Runs'], ['6', 'Walks'], ['4', 'K'], ['56%', 'Strike']],
+  pitching: [['8.0', 'IP'], ['10', 'Hits'], ['9', 'Runs'], ['6', 'Walks'], ['4', 'K'], ['54%', 'Strike']],
   recap: [
     `The Gumbeaux Gators opened the second half with a <b>3–9 loss</b> at Brazos Valley. They jumped ahead <b>2–0</b> in the 2nd — Nathan McDonald doubled home Jaxon Landreneau and Andrew Ramos added a sacrifice fly — but the lead didn't hold.`,
     `Brazos tied it by the 4th and blew it open with a <b>five-run 5th</b> (RBI singles by Derrick Mitchell and Matt Scott around a three-run Kason Atkins double). Tiger Donnato's two-run homer in the 8th put it away.`,
@@ -65,7 +65,7 @@ const DEFAULT_DATA = {
     `<b>On base in bulk, no payoff.</b> 10 walks and only 4 hits — the Gators put 14 men on, left 9 stranded, and scored 3. The first-half on-base-without-power signature in one night. Griffin Hebert alone walked 4 times.`,
     `<b>Ran into outs on the bases.</b> Three Gators were caught stealing — Ayden Sunday in the 2nd, then James Reina and Griffin Hebert in the same 3rd — wiping out baserunners a 10-walk night could least afford.`,
     `<b>The 5th decided it.</b> Tied 2–2 through four, Landon Richards gave up a five-spot — back-to-back RBI singles and a three-run Atkins double. That one inning was the game.`,
-    `<b>Command wobbled.</b> The staff walked 6; Corrales issued 4 in four innings and Richards allowed 7 hits over his four.`,
+    `<b>Command wobbled.</b> The staff walked 6 — Corrales issued 4 over his four innings and Richards 2 more in his lone inning. Cannon Faulk was the exception: no walks over his 3.`,
     `<b>Atkins was the difference.</b> 3-for-3, 5 RBI (sac fly, RBI single, 3-run double). With Donnato's 2-run homer, two hitters drove in 7 of Brazos' 9.`,
   ],
   keyHitters: [
@@ -75,8 +75,9 @@ const DEFAULT_DATA = {
     `<b>Bankston Lembcke</b> (3B) — 1-for-4 but left 4 on base; a top bat (.304) caught in the traffic jam.`,
   ],
   onMound: [
-    `<b>Diego Corrales</b> (SP) — 4.0 IP, 3 H, 3 R/ER, 4 BB, 2 K, 61 pitches (62% strikes). Kept it even through four.`,
-    `<b>Landon Richards</b> (RP) — 4.0 IP, 7 H, 6 R/ER, 2 BB, 2 K, 37 pitches. Wore the loss: the five-run 5th and Donnato's 8th-inning homer.`,
+    `<b>Diego Corrales</b> (SP) — 4.0 IP, 3 H, 2 R (1 ER), 4 BB, 2 K, 64 pitches (53% strikes). Kept it even through four.`,
+    `<b>Landon Richards</b> (RP) — 1.0 IP, 3 H, 5 R/ER, 2 BB, 1 K, 28 pitches. Came on for the 5th and never got out of it — the five-run rally that decided the game.`,
+    `<b>Cannon Faulk</b> (RP) — 3.0 IP, 4 H, 2 R/ER, 0 BB, 1 K, 35 pitches (66% strikes). Steadied the staff over the last three; Donnato's 8th-inning homer was the only damage.`,
   ],
   season: `Second-half opener; the Gators fall to <b>0–1</b> in the second half (<b>12–12</b> overall). The 10-walk, 4-hit night mirrors the first half's on-base-without-power profile — the offense that led the league in walks needs the big hit to follow the traffic.`,
 };
