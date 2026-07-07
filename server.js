@@ -4555,7 +4555,8 @@ body.noscroll{overflow:hidden;}
 .poffl{width:24px;height:24px;border-radius:5px;object-fit:contain;background:transparent;flex:none;}
 .poffnm{flex:1;min-width:0;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.01em;color:var(--bone);white-space:normal;overflow-wrap:anywhere;line-height:1.15;}
 .poffslot.g .poffnm{color:var(--gator);}
-.poffclinch{flex:none;font-size:13px;}
+.poffclinch{flex:none;display:inline-flex;flex-direction:column;align-items:center;line-height:1;font-size:14px;color:var(--gold2);}
+.poffclinch small{margin-top:2px;font-size:7.5px;font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--gold2);}
 .poffrules{margin:12px 0 0;padding-left:18px;color:var(--mute);font-size:11px;line-height:1.6;}
 .poffrules li{margin-bottom:2px;}
 .poffnote{margin-top:11px;font-size:10px;color:var(--mute);display:flex;align-items:flex-start;gap:6px;font-family:'Oswald',sans-serif;letter-spacing:.01em;line-height:1.45;}
@@ -4563,10 +4564,14 @@ body.noscroll{overflow:hidden;}
 .sbg{display:flex;align-items:center;gap:10px;background:var(--bayou2);border:1px solid var(--line);border-radius:12px;padding:10px 13px;margin-bottom:8px;color:inherit;text-decoration:none;cursor:pointer;transition:border-color .15s,background .15s;}
 a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 .sbg.g{border-color:var(--purple);background:rgba(113,74,210,.10);}
+/* Upcoming games read as a legible matchup: full-strength team names, records
+   kept subtle, and the start time as the one accent on the right. */
+.sbg.sched .sbn{color:var(--bone);}
+.sbg.sched .sbrec{opacity:1;color:#b9abe0;}
 .sbteams{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;}
 .sbrow{display:flex;align-items:center;gap:9px;}
 .sbl{width:30px;height:30px;border-radius:6px;object-fit:contain;background:transparent;flex:none;}
-.sbn{flex:0 1 auto;min-width:0;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.02em;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sbn{flex:0 1 auto;min-width:0;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.02em;color:var(--mute);line-height:1.18;overflow-wrap:anywhere;}
 .sbrec{flex:none;margin-left:5px;font-weight:400;font-size:.82em;color:var(--mute);opacity:.85;white-space:nowrap;}
 .sbs{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:16px;color:var(--mute);min-width:20px;text-align:right;}
 .sbsc{display:flex;align-items:center;gap:6px;flex:none;margin-left:auto;}
@@ -4575,8 +4580,10 @@ a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 .sbrow.w .sbs{color:var(--gold2);}
 /* Status block: inning over outs over the bases diamond, top-aligned for live
    games (like a standard scoreboard card); centered for finals/scheduled. */
-.sbstat{flex:none;align-self:stretch;min-width:72px;display:flex;flex-direction:column;justify-content:center;align-items:flex-end;gap:3px;}
+.sbstat{flex:none;align-self:stretch;min-width:66px;display:flex;flex-direction:column;justify-content:center;align-items:flex-end;gap:3px;}
 .sbstat.live{justify-content:flex-start;}
+.sbtime{font-family:'Oswald',sans-serif;font-weight:700;font-size:15px;letter-spacing:.01em;color:var(--gold2);white-space:nowrap;text-align:right;line-height:1.1;}
+.sbtz{font-family:'Oswald',sans-serif;font-weight:600;font-size:9px;letter-spacing:.12em;color:var(--mute);text-align:right;margin-top:2px;}
 .sbinn{font-family:'Oswald',sans-serif;font-weight:600;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--gator);text-align:right;}
 .sbstat.final .sbinn{color:var(--bone);}
 .sbouts{font-family:'Oswald',sans-serif;font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--mute);}
@@ -5238,7 +5245,7 @@ function poffSlot(s,gatorsId){
   var isG=t&&t.id&&gatorsId&&t.id===gatorsId;
   var lg=t&&t.logo?'<img class="poffl" src="'+esc(t.logo)+'" alt="">':'<span class="poffl"></span>';
   var nm=t?esc(t.name||t.short):'TBD';
-  var badge=s.clinched?'<span class="poffclinch" title="Clinched — first-half champion">🏆</span>':'';
+  var badge=s.clinched?'<span class="poffclinch" title="First-half champion — clinched a playoff spot">🏆<small>1st half</small></span>':'';
   return '<div class="poffslot'+(isG?' g':'')+(t?'':' tbd')+'">'
     +'<span class="poffseed'+(s.clinched?' clin':'')+'">'+s.seed+'</span>'
     +lg+'<span class="poffnm">'+nm+'</span>'+badge+'</div>';
@@ -5298,22 +5305,31 @@ function renderScoreboard(sb,gatorsId,recById){
   var h='';
   games.forEach(function(g){
     var fin=g.state==='final',live=g.state==='live';
+    var sched=!fin&&!live;
     var haveScores=g.away.score!=null&&g.home.score!=null;
     // Bold the winner (final) or the current leader (live); plain on ties.
     var aw=haveScores&&(fin||live)&&g.away.score>g.home.score;
     var hw=haveScores&&(fin||live)&&g.home.score>g.away.score;
-    var st=live?'live':fin?'final':'';
+    var st=live?'live':fin?'final':'sched';
     var showScore=fin||live;
-    // Status block: compact inning, then outs + bases diamond for live games
-    // (shown for any live game we have feed data for, not just the Gators').
-    var stat='<div class="sbinn">'+esc(live?sbCompactInn(g.status):sbStatus(g))+'</div>';
-    if(live){
-      var topOrBot=/^(top|bot)/i.test(g.status||'');
-      if(topOrBot&&g.outs!=null)stat+='<div class="sbouts">'+g.outs+' Out'+(g.outs===1?'':'s')+'</div>';
-      if(topOrBot&&g.bases)stat+=sbDiamond(g.bases);
+    // Status block: scheduled games show the start time as time-over-zone so a
+    // long team name keeps its room; live/final show compact inning, then outs +
+    // bases diamond for live games (any live game we have feed data for).
+    var stat;
+    if(sched){
+      var ts=String(sbStatus(g)).trim().split(' ').filter(Boolean);
+      var tz=ts.length>2?ts.pop():'';
+      stat='<div class="sbtime">'+esc(ts.join(' '))+'</div>'+(tz?'<div class="sbtz">'+esc(tz)+'</div>':'');
+    }else{
+      stat='<div class="sbinn">'+esc(live?sbCompactInn(g.status):sbStatus(g))+'</div>';
+      if(live){
+        var topOrBot=/^(top|bot)/i.test(g.status||'');
+        if(topOrBot&&g.outs!=null)stat+='<div class="sbouts">'+g.outs+' Out'+(g.outs===1?'':'s')+'</div>';
+        if(topOrBot&&g.bases)stat+=sbDiamond(g.bases);
+      }
     }
     var tag=g.url?'a':'div',attr=g.url?(' href="'+esc(g.url)+'" target="_blank" rel="noopener"'):'';
-    h+='<'+tag+' class="sbg'+(g.isGators?' g':'')+'"'+attr+'>'
+    h+='<'+tag+' class="sbg'+(g.isGators?' g':'')+' '+st+'"'+attr+'>'
       +'<div class="sbteams">'+sbTeamRow(g.away,aw,g.away.id===gatorsId,showScore,recById,fin)+sbTeamRow(g.home,hw,g.home.id===gatorsId,showScore,recById,fin)+'</div>'
       +'<div class="sbstat '+st+'">'+stat+'</div></'+tag+'>';
   });
