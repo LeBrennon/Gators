@@ -171,6 +171,29 @@ function pbpPositions(pbp) {
   }));
   return map;
 }
+// Drop a pitcher's row from the batting table only when he never came to the
+// plate. In a DH league a reliever gets listed with an empty 0-for-0 line (the
+// source span-wraps his name so the app's own pitcher filter misses him); a
+// pitcher who actually hit in the DH slot has real numbers, so he's kept.
+function dropIdlePitchers(battingHtml, pitchingHtml) {
+  const pitchers = new Set();
+  (String(pitchingHtml || '').match(/<tr\b[\s\S]*?<\/tr>/gi) || []).forEach(r => {
+    const first = (r.match(/<t[hd]\b[\s\S]*?<\/t[hd]>/i) || [''])[0];
+    const nm = normName(txtOf(first));
+    if (nm && nm !== 'pitchers' && nm !== 'totals') pitchers.add(nm);
+  });
+  if (!pitchers.size) return battingHtml;
+  const nameOf = cell => normName(txtOf(String(cell).replace(/<span class=['"](?:pos|sub)['"]>[^<]*<\/span>/gi, '')));
+  return String(battingHtml || '').replace(/<tr\b[\s\S]*?<\/tr>/gi, row => {
+    const cells = row.match(/<t[hd]\b[\s\S]*?<\/t[hd]>/gi) || [];
+    if (cells.length < 2) return row;
+    const nm = nameOf(cells[0]);
+    if (!nm || nm === 'hitters' || nm === 'totals') return row;
+    if (!pitchers.has(nm)) return row;                                   // position player — keep
+    const batted = cells.slice(1).some(c => (parseInt(txtOf(c), 10) || 0) > 0);
+    return batted ? row : '';                                            // pitcher, never batted — drop
+  });
+}
 function fillMissingPositions(html, posMap) {
   if (!posMap || !Object.keys(posMap).length) return html;
   return String(html || '').replace(/<tr\b[\s\S]*?<\/tr>/gi, row => row.replace(/<th\b([^>]*)>([\s\S]*?)<\/th>/i, (full, attrs, inner) => {
@@ -303,6 +326,9 @@ function parseLineTeams(html) {
 
 function buildHtml(data) {
   const teams = groupTeams(data.box || []);
+  // Remove relievers listed with an empty batting line (they never hit); a
+  // pitcher who actually batted in the DH slot has real numbers and stays.
+  teams.forEach(t => { if (t.batting && t.pitching) t.batting = dropIdlePitchers(t.batting, t.pitching); });
   const posMap = pbpPositions(data.pbp);   // backfill positions Presto dropped in double-switches
   teams.forEach(t => { if (t.batting) t.batting = fillMissingPositions(t.batting, posMap); });
   injectHBP(teams, data.pbp);   // derive + add the HBP pitching column from the play-by-play
