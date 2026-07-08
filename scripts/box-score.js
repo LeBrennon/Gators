@@ -355,6 +355,11 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
    old blanket span rule SHOUTED pitcher + positionless names). */
 .tbl .pos{text-transform:uppercase;color:#6a5aa8;font-weight:700;}
 .tbl .sub{color:#8a1a4c;font-weight:700;}  /* the a-/b- substitute reference letter */
+/* Substitutes (pinch-hit/ran, defensive replacements) are indented under the
+   starter they replaced, MLB Gameday / ESPN style — the box lists them in that
+   starter's slot, so the indent alone reads as "came in for the man above". */
+.tbl th.bxsub{padding-left:22px;font-weight:400;}
+.tbl th.bxsub .pos{color:#8b83a8;}
 .tbl a{color:inherit;text-decoration:none;}
 /* Substitution ledger under a team's batting table — the alphabet legend. */
 .sublegend{font-size:9px;line-height:1.45;color:#4a416e;padding:5px 3px 1px;}
