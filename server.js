@@ -4906,7 +4906,11 @@ a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 .sbteams{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;}
 .sbrow{display:flex;align-items:center;gap:9px;}
 .sbl{width:30px;height:30px;border-radius:6px;object-fit:contain;background:transparent;flex:none;}
-.sbn{flex:0 1 auto;min-width:0;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.02em;color:var(--mute);line-height:1.18;overflow-wrap:anywhere;}
+/* One line always: a long name (e.g. "San Antonio River Monsters") ellipsizes
+   rather than wrapping, so its record stays aligned with the other rows. 14px
+   lets the longest name fit whole on phone-width screens; it only clips on the
+   narrowest. */
+.sbn{flex:0 1 auto;min-width:0;font-family:'Oswald',sans-serif;font-weight:600;font-size:14px;letter-spacing:.02em;color:var(--mute);line-height:1.18;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .sbrec{flex:none;margin-left:5px;font-weight:400;font-size:.82em;color:var(--mute);opacity:.85;white-space:nowrap;}
 .sbs{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:16px;color:var(--mute);min-width:20px;text-align:right;}
 .sbsc{display:flex;align-items:center;gap:6px;flex:none;margin-left:auto;}
