@@ -4850,6 +4850,13 @@ var FX=(function(){
 })();
 var prev={a:null,h:null};
 var lastPlayTx='',lastPlayGid=null; // track the live "Last play" text to flash only on change
+// Gators fireworks are deferred so they launch WITH the green "scored" bubble,
+// not before it: the run total ticks up a live-update frame or two ahead of the
+// play narrative, so we stash the pending run count here and fire when the
+// Gators' scored bubble appears — with a timer as a fallback for a run that
+// never gets a "scored" narrative (e.g. a bases-loaded walk).
+var fxPending=0,fxTimer=0;
+function fireFx(){if(fxTimer){clearTimeout(fxTimer);fxTimer=0;}if(fxPending>0){FX.show(fxPending);fxPending=0;}}
 // Point a team's scoreboard logo at their official site. Only the opponent is
 // linked; the Gators' own logo (isGators=true) stays a plain, non-clickable image.
 function logoLink(id,t,isGators){
@@ -4873,8 +4880,12 @@ function renderGame(g){
   $('homeSc').style.display=preGame?'none':'';
   if(g.id===curId){if(g.away.runs>prev.a)flash($('awaySc'));if(g.home.runs>prev.h)flash($('homeSc'));}
   // Fireworks when the Gators score (their run total rises) during a live game.
+  // Don't fire yet — stash the runs and let them go off with the green "scored"
+  // bubble below, which usually lands a frame later. The fallback timer fires the
+  // show anyway if that narrative never arrives.
   var gPrev=g.gatorsHome?prev.h:prev.a,gNow=g.gatorsHome?g.home.runs:g.away.runs;
-  if(g.id===curId&&g.status==='live'&&gPrev!=null&&gNow>gPrev)FX.show(gNow-gPrev);
+  if(g.id===curId&&g.status==='live'&&gPrev!=null&&gNow>gPrev){
+    fxPending+=gNow-gPrev;if(!fxTimer)fxTimer=setTimeout(fireFx,5000);}
   $('awaySc').textContent=g.away.runs;$('homeSc').textContent=g.home.runs;
   // Color the scores by result (leader gold, trailer light purple); only once a
   // game is live or final and both totals are in. A tie leaves neither class, so
@@ -4916,7 +4927,11 @@ function renderGame(g){
     // not on every poll, and not when first switching to this game.
     var lpb=document.getElementById('lastPlay');
     if(lpb){var lt=lpb.querySelector('.lptx');var ntx=lt?lt.textContent:'';
-      if(g.id===lastPlayGid&&ntx&&ntx!==lastPlayTx){lpb.classList.remove('lpnew');void lpb.offsetWidth;lpb.classList.add('lpnew');}
+      var lpNew=(g.id===lastPlayGid&&ntx&&ntx!==lastPlayTx);
+      if(lpNew){lpb.classList.remove('lpnew');void lpb.offsetWidth;lpb.classList.add('lpnew');}
+      // Launch the deferred Gators fireworks in lockstep with their scoring
+      // bubble, so the burst and the "here's what happened" text land together.
+      if(lpNew&&fxPending>0&&lpb.classList.contains('gscore'))fireFx();
       lastPlayTx=ntx;}
     lastPlayGid=g.id;
   }
@@ -4962,7 +4977,10 @@ function buildLive(g){
   var lastPlay='';
   if((!L||!L.abPitches)&&g.plays&&g.plays.length){var lp=g.plays[g.plays.length-1];
     var inHalf=!L||(lp.inning===(+L.inning)&&lp.half===(L.half==='Top'?'top':'bot'));
-    if(lp&&lp.text&&inHalf)lastPlay='<div class="lastplay'+(lp.scored?' scored':'')+'" id="lastPlay"><span class="lplab">Last play</span><span class="lptx">'+esc(lp.text)+'</span></div>';}
+    // gscore marks a Gators scoring play (their half + a "scored" narrative) so
+    // the deferred fireworks fire the instant this bubble shows.
+    var gBat=g.gatorsHome?(lp.half==='bot'):(lp.half==='top');
+    if(lp&&lp.text&&inHalf)lastPlay='<div class="lastplay'+(lp.scored?' scored':'')+(lp.scored&&gBat?' gscore':'')+'" id="lastPlay"><span class="lplab">Last play</span><span class="lptx">'+esc(lp.text)+'</span></div>';}
   var line=buildLineScore(g);
   var dueup=buildDueUp(g);
   var lineup=buildLineup(g);
