@@ -3263,24 +3263,39 @@ function parseStandings(html) {
 // { w, l, streak }. Applied to BOTH the name->record map (jumbo/scoreboard) and
 // the ordered rows (Standings tab) so every surface agrees; the second-half
 // record then derives from these totals minus FIRST_HALF_FINAL, exactly like the
-// feed. CLEAR an entry the moment the feed catches up to it.
+// feed.
+//
+// The override acts as a FLOOR, not a fixed pin: full-season W and L only ever
+// climb over a season, so the correction applies only while the feed still sits
+// BELOW it. The instant the feed ingests the confirmed result (or the team plays
+// on past it), the feed's own numbers meet/exceed the floor and win — the record
+// resumes updating automatically and the entry self-expires with no manual step.
+// That's the fix for the recurring "records frozen because a stale pin was left
+// behind" problem; a caught-up entry is harmless, but clearing it keeps this list
+// honest about what's actually still lagging.
 const MANUAL_STANDINGS_OVERRIDE = {
-  // The feed still hasn't ingested the 7/4 Gators 7–3 Brazos Valley final (as of
-  // 7/6 it shows the Gators 15–12 / 3–1 2H and the Bombers a loss short). Pin both
-  // sides of that game to the confirmed totals. CLEAR both the moment the feed
-  // catches up — verify against the live standings page first.
+  // The feed lagged the 7/4 Gators 7–3 Brazos Valley final (as of 7/6 it showed
+  // the Gators 15–12 / 3–1 2H and the Bombers a loss short). These floors carry
+  // both sides through until the feed catches up, after which they no-op.
   et1bt9sixrz5lnnl: { w: 16, l: 12, streak: 'W4' }, // Lake Charles Gumbeaux Gators (4-1 2H)
   z7w5th537gur3z15: { w: 13, l: 15, streak: 'L1' }, // Brazos Valley Bombers (3-2 2H)
 };
 // Patch a freshly parsed standings result in place so the overrides above flow
-// into both the record map and the rows before either is published.
+// into both the record map and the rows before either is published. Floor
+// semantics: never lower a feed number, and only stamp the manual streak while
+// we're actually lifting the record (feed still behind) so a caught-up team keeps
+// its live streak.
 function applyStandingsOverride(parsed) {
   for (const id in MANUAL_STANDINGS_OVERRIDE) {
     const o = MANUAL_STANDINGS_OVERRIDE[id], t = TEAMS[id]; if (!t) continue;
     const k = normName(t.name);
-    parsed.map[k] = { w: o.w, l: o.l, t: (parsed.map[k] && parsed.map[k].t) || 0 };
+    const feed = parsed.map[k];
+    const w = feed ? Math.max(feed.w, o.w) : o.w;
+    const l = feed ? Math.max(feed.l, o.l) : o.l;
+    const correcting = !feed || w > feed.w || l > feed.l;
+    parsed.map[k] = { w, l, t: (feed && feed.t) || 0 };
     const row = parsed.rows.find(x => x.id === id);
-    if (row) { row.w = o.w; row.l = o.l; if (o.streak != null) row.streak = o.streak; }
+    if (row) { row.w = w; row.l = l; if (correcting && o.streak != null) row.streak = o.streak; }
   }
 }
 async function pollStandings() {
@@ -4308,7 +4323,7 @@ if (require.main === module) {
   app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleRosterRefresh(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); setTimeout(pollStrikePct, 15000); setInterval(pollStrikePct, 3 * 60 * 60 * 1000); setTimeout(getPitcherRest, 20000); scheduleDailyStats(); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, pitchersFromFeed, extractEventAuth,
-  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseTeamRosterSlugs, parseGameLog, boxRowsForPlayer, aggBat, aggPit, buildRecord, lineIsShowable, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, applyPitcherOverrides, pitchingTotals, strikeCounts, inningAlertText, finalAlertText };
+  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, applyStandingsOverride, MANUAL_STANDINGS_OVERRIDE, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseTeamRosterSlugs, parseGameLog, boxRowsForPlayer, aggBat, aggPit, buildRecord, lineIsShowable, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, applyPitcherOverrides, pitchingTotals, strikeCounts, inningAlertText, finalAlertText };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [

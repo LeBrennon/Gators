@@ -4,7 +4,7 @@
 // row list (used by the Standings tab).
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { parseStandings } = require('../server');
+const { parseStandings, applyStandingsOverride, MANUAL_STANDINGS_OVERRIDE } = require('../server');
 
 // A trimmed standings table shaped like the PrestoSports page: a header row with
 // short W/L/T codes and a team-name cell that links to /teams/<id>.
@@ -81,4 +81,76 @@ test('parseStandings: parses the streak column into compact W#/L# form', () => {
 test('parseStandings: streak is blank when there is no streak column', () => {
   const { rows } = parseStandings(HTML);
   assert.equal(rows[0].streak, '');
+});
+
+// applyStandingsOverride(): a manual full-season override acts as a FLOOR so a
+// lagging feed is lifted to the confirmed total, but the moment the feed catches
+// up (or the team plays past it) the live numbers win and the record keeps
+// climbing on its own — no manual clearing needed.
+const GATORS = 'et1bt9sixrz5lnnl';
+
+function parsedFor(w, l, t, streak) {
+  return {
+    map: { lakecharlesgumbeauxgators: { w, l, t } },
+    rows: [{ id: GATORS, name: 'Lake Charles Gumbeaux Gators', short: 'Gators', w, l, t, streak }],
+  };
+}
+
+function withOverride(id, ov, fn) {
+  const prev = MANUAL_STANDINGS_OVERRIDE[id];
+  MANUAL_STANDINGS_OVERRIDE[id] = ov;
+  try { return fn(); } finally {
+    if (prev === undefined) delete MANUAL_STANDINGS_OVERRIDE[id];
+    else MANUAL_STANDINGS_OVERRIDE[id] = prev;
+  }
+}
+
+test('applyStandingsOverride: lifts a lagging feed up to the confirmed floor', () => {
+  withOverride(GATORS, { w: 16, l: 12, streak: 'W4' }, () => {
+    const parsed = parsedFor(15, 12, 0, 'W3'); // feed a win short
+    applyStandingsOverride(parsed);
+    assert.deepEqual(parsed.map.lakecharlesgumbeauxgators, { w: 16, l: 12, t: 0 });
+    assert.equal(parsed.rows[0].w, 16);
+    assert.equal(parsed.rows[0].l, 12);
+    assert.equal(parsed.rows[0].streak, 'W4'); // manual streak while still correcting
+  });
+});
+
+test('applyStandingsOverride: self-expires — feed that caught up keeps its own numbers and streak', () => {
+  withOverride(GATORS, { w: 16, l: 12, streak: 'W4' }, () => {
+    const parsed = parsedFor(16, 12, 0, 'W4'); // feed now matches the floor
+    applyStandingsOverride(parsed);
+    assert.deepEqual(parsed.map.lakecharlesgumbeauxgators, { w: 16, l: 12, t: 0 });
+    assert.equal(parsed.rows[0].streak, 'W4');
+  });
+});
+
+test('applyStandingsOverride: never lowers a feed that has moved past the floor', () => {
+  withOverride(GATORS, { w: 16, l: 12, streak: 'W4' }, () => {
+    const parsed = parsedFor(17, 12, 0, 'W5'); // Gators won again; feed leads the floor
+    applyStandingsOverride(parsed);
+    assert.equal(parsed.map.lakecharlesgumbeauxgators.w, 17);
+    assert.equal(parsed.rows[0].w, 17);
+    assert.equal(parsed.rows[0].streak, 'W5'); // live streak preserved, not the stale manual one
+  });
+});
+
+test('applyStandingsOverride: floors each of W and L independently', () => {
+  withOverride(GATORS, { w: 16, l: 12, streak: 'W4' }, () => {
+    const parsed = parsedFor(17, 11, 0, 'W1'); // more wins, but feed a loss short
+    applyStandingsOverride(parsed);
+    assert.equal(parsed.map.lakecharlesgumbeauxgators.w, 17); // feed's higher W wins
+    assert.equal(parsed.map.lakecharlesgumbeauxgators.l, 12); // floor lifts the lagging L
+    assert.equal(parsed.rows[0].streak, 'W4'); // still correcting (L was lifted)
+  });
+});
+
+test('applyStandingsOverride: preserves the feed tie count and leaves other teams alone', () => {
+  withOverride(GATORS, { w: 16, l: 12, streak: 'W4' }, () => {
+    const parsed = parsedFor(15, 12, 2, 'W3');
+    parsed.map.victoriagenerals = { w: 20, l: 8, t: 0 }; // not in the override list
+    applyStandingsOverride(parsed);
+    assert.equal(parsed.map.lakecharlesgumbeauxgators.t, 2); // tie count untouched
+    assert.deepEqual(parsed.map.victoriagenerals, { w: 20, l: 8, t: 0 });
+  });
 });
