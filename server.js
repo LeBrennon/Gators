@@ -2561,6 +2561,20 @@ function buildRecord(slug, primary, batMap, pitMap) {
   if (pMap && primary.kind === 'pitching') { rec.pit = flatVals(pMap); rec.pitRanks = flatRanks(pMap); }
   else if (pitMap && pitMap[slug] && (pitMap[slug].era || pitMap[slug].ip)) rec.pit = pitMap[slug];
   else if (rec.glPit.length) rec.pit = aggPit(rec.glPit);
+  // Presto leaves a recently-added player's page aggregate as a placeholder
+  // {pa:0,tb:0} (no AB/AVG) for a while after his first game, even though his
+  // game-by-game log already lists that game. That placeholder wins the branches
+  // above but isn't showable, so his season line and lineup AVG read N/A. When a
+  // game log exists but the chosen line has nothing to show, fall back to the
+  // game-log aggregate (real AB/H/AVG, IP/ERA) so a number shows instead.
+  if (rec.glBat.length && !lineIsShowable({ hit: rec.hit })) {
+    const agg = aggBat(rec.glBat);
+    if (lineIsShowable({ hit: agg })) { rec.hit = agg; rec.hitRanks = {}; }
+  }
+  if (rec.glPit.length && !lineIsShowable({ pit: rec.pit })) {
+    const agg = aggPit(rec.glPit);
+    if (lineIsShowable({ pit: agg })) { rec.pit = agg; rec.pitRanks = {}; }
+  }
   return rec;
 }
 // On-demand fetch (taps + lazy-fill): a few gentle retries so a single open succeeds.
@@ -4294,7 +4308,7 @@ if (require.main === module) {
   app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleRosterRefresh(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); setTimeout(pollStrikePct, 15000); setInterval(pollStrikePct, 3 * 60 * 60 * 1000); setTimeout(getPitcherRest, 20000); scheduleDailyStats(); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, pitchersFromFeed, extractEventAuth,
-  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseTeamRosterSlugs, parseGameLog, boxRowsForPlayer, aggBat, aggPit, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, applyPitcherOverrides, pitchingTotals, strikeCounts, inningAlertText, finalAlertText };
+  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseTeamRosterSlugs, parseGameLog, boxRowsForPlayer, aggBat, aggPit, buildRecord, lineIsShowable, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, applyPitcherOverrides, pitchingTotals, strikeCounts, inningAlertText, finalAlertText };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
