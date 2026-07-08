@@ -157,6 +157,32 @@ function normalizeNameCell(row) {
   });
 }
 const normalizeNames = html => String(html || '').replace(/<tr\b[\s\S]*?<\/tr>/gi, normalizeNameCell);
+// Backfill a missing fielding position from the play-by-play. Presto sometimes
+// drops the position on a player caught in a mid-inning double-switch — e.g. a
+// starter pinch-hit for who then re-enters on defense — leaving a positionless
+// 0-for-0 line (that's why Kumagami showed up bare). The feed still announces
+// "<name> to <pos> for <other>", so map each such player to the last position he
+// took and inject it where the box omitted one, so his row reads like the rest.
+function pbpPositions(pbp) {
+  const map = {};
+  (pbp || []).forEach(h => (String(h.html || '').match(/<tr[\s\S]*?<\/tr>/gi) || []).forEach(r => {
+    const m = txtOf(r).match(/^(.+?) to ([a-z0-9]+) for /i);
+    if (m && BOX_POS.has(m[2].toLowerCase())) map[normName(m[1])] = m[2].toUpperCase();
+  }));
+  return map;
+}
+function fillMissingPositions(html, posMap) {
+  if (!posMap || !Object.keys(posMap).length) return html;
+  return String(html || '').replace(/<tr\b[\s\S]*?<\/tr>/gi, row => row.replace(/<th\b([^>]*)>([\s\S]*?)<\/th>/i, (full, attrs, inner) => {
+    if (/class=['"][^'"]*\bpos\b/.test(inner)) return full;          // already carries a position
+    const nm = txtOf(inner).replace(/^[a-z+]-\s*/i, '');             // drop any leading sub letter
+    if (!nm || /^(hitters|totals?)$/i.test(nm)) return full;         // header / totals row
+    const pos = posMap[normName(nm)];
+    if (!pos) return full;
+    const injected = inner.replace(/^(\s*(?:<span class='sub'>[^<]*<\/span>)?)/i, `$1<span class='pos'>${esc(pos)}</span> `);
+    return `<th${attrs}>${injected}</th>`;
+  }));
+}
 
 function groupTeams(box) {
   const order = [], by = {};
@@ -247,6 +273,11 @@ function teamBlock(t) {
       const items = t.legend.map(s => `<span class='litem'><b>${esc(s.letter)}-</b> ${esc(s.text || ('for ' + (s.forName || '')))}</span>`).join('');
       sections.push(`<div class='sublegend'>${items}</div>`);
     }
+    // Box notes (2B/3B/HR/SB/CS/E …) under the batting table, same stat set the
+    // in-app box score lists — the batting columns don't carry these, so the notes
+    // are the only place they show.
+    const nl = notesLine(t.notes);
+    if (nl) sections.push(`<div class='boxnotes'>${nl}</div>`);
   }
   if (t.pitching) sections.push(`<div class='tcap pit'>${cap} — PITCHING</div><div class='tbl pit' style='flex:${rc(t.pitching)} 1 0'>${t.pitching}</div>`);
   // Brand the column to the team's color (Gators purple by default).
@@ -272,6 +303,8 @@ function parseLineTeams(html) {
 
 function buildHtml(data) {
   const teams = groupTeams(data.box || []);
+  const posMap = pbpPositions(data.pbp);   // backfill positions Presto dropped in double-switches
+  teams.forEach(t => { if (t.batting) t.batting = fillMissingPositions(t.batting, posMap); });
   injectHBP(teams, data.pbp);   // derive + add the HBP pitching column from the play-by-play
   const croc = S.crocSkinDataUri();
   // Score/result/opponent from the line score when present; seed game otherwise.
@@ -312,12 +345,15 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .band h1{font-size:28px;font-weight:900;line-height:1.08;margin:3px 0;text-shadow:0 2px 4px rgba(0,0,0,.55);}
 .band h1 .hdate{display:block;font-size:15px;font-weight:700;letter-spacing:.01em;color:#efe7ff;margin-bottom:2px;}
 .band .sub{font-size:13px;font-weight:700;color:#efe7ff;text-shadow:0 1px 2px rgba(0,0,0,.5);}
-.badge{margin-left:auto;display:flex;align-items:center;gap:14px;}
-.badge .scr{display:flex;align-items:baseline;justify-content:flex-end;gap:16px;margin:3px 0;}
-.badge .snm{font-size:16px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5);}
-.badge .sval{font-size:28px;font-weight:900;color:#fff;min-width:30px;text-align:right;text-shadow:0 2px 4px rgba(0,0,0,.5);}
-.badge .scr.win .sval{color:#ffd633;}
-.badge .bstat{font-size:20px;font-weight:800;letter-spacing:.06em;color:#cdbff5;text-shadow:0 1px 2px rgba(0,0,0,.5);}
+/* Scoreboard card: a self-contained panel (team name left, score right, winner
+   in gold, a FINAL footer) so it reads as a scoreboard rather than loose text. */
+.badge{margin-left:auto;display:flex;flex-direction:column;justify-content:center;gap:4px;min-width:216px;padding:12px 16px;border-radius:11px;background:rgba(14,8,32,.34);border:1px solid rgba(255,214,51,.30);box-shadow:inset 0 0 0 1px rgba(255,255,255,.05);}
+.badge .sbrow{display:flex;align-items:baseline;justify-content:space-between;gap:22px;}
+.badge .snm{font-size:15px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#e4d9ff;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.5);}
+.badge .sval{font-size:27px;font-weight:900;line-height:1;color:#fff;font-variant-numeric:tabular-nums;text-shadow:0 2px 4px rgba(0,0,0,.5);}
+.badge .win .snm{color:#fff;}
+.badge .win .sval{color:#ffd633;}
+.badge .bstat{margin-top:5px;padding-top:6px;border-top:1px solid rgba(255,255,255,.16);text-align:center;font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#e7dcff;text-shadow:0 1px 2px rgba(0,0,0,.5);}
 .linewrap{margin:18px 0 4px;}
 .linewrap table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;}
 .linewrap th,.linewrap td{border:1px solid #d9d2ec;padding:9px 10px;text-align:center;font-size:15px;}
@@ -334,20 +370,18 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .tbl th,.tbl td{padding:var(--padv,8px) 5px;text-align:center;font-size:12.5px;font-weight:400;border-bottom:1px solid #efeaf9;}
 /* Vertical column dividers. */
 .tbl table th:not(:last-child),.tbl table td:not(:last-child){border-right:1px solid #e6def7;}
-/* Pitching has more columns (IP..S%) than batting, so tighten it to fit the half-width column. */
-.tbl.pit th,.tbl.pit td{padding-left:2px;padding-right:2px;font-size:11px;}
+/* Pitching has more columns (IP..S%) than batting, so tighten it to fit the
+   half-width column, and let it size each column to its own content (below). */
+.tbl.pit table{table-layout:auto;}
+.tbl.pit th,.tbl.pit td{padding-left:4px;padding-right:4px;font-size:11px;white-space:nowrap;}
 /* Column-header row only — PrestoSports also marks each per-row name cell as a <th>,
    so the header style must not leak onto those (it was shading + upper-casing names). */
 .tbl table tr:first-child th{background:#fff;color:var(--teamc,#3a2480);font-weight:800;text-transform:uppercase;letter-spacing:.02em;font-size:10.5px;}
 .tbl.pit table tr:first-child th{font-size:9px;letter-spacing:0;}
 .tbl th:first-child,.tbl td:first-child{text-align:left;white-space:nowrap;width:44%;}
-.tbl.pit th:first-child,.tbl.pit td:first-child{width:32%;white-space:normal;overflow-wrap:anywhere;}
-/* Give the wider pitching columns (IP, ERA, #P, S%) room — a 4-digit ERA fits —
-   while the single-digit columns (H..HBP) share the remainder equally. */
-.tbl.pit th:nth-child(2),.tbl.pit td:nth-child(2){width:7.5%;}   /* IP */
-.tbl.pit th:nth-child(9),.tbl.pit td:nth-child(9){width:11%;}    /* ERA */
-.tbl.pit th:nth-child(10),.tbl.pit td:nth-child(10){width:8%;}   /* #P */
-.tbl.pit th:nth-child(11),.tbl.pit td:nth-child(11){width:9%;}   /* S% */
+/* Auto layout sizes each stat column to its own header/content, so no label
+   (HBP, ERA, #P, S%) ever clips; only the name column gets a width hint and wraps. */
+.tbl.pit th:first-child,.tbl.pit td:first-child{width:25%;white-space:normal;overflow-wrap:anywhere;}
 /* A little extra room for the last column so its label isn't cramped at the edge. */
 .tbl.bat th:last-child,.tbl.bat td:last-child{width:11%;}
 .tbl tr:not(:first-child) th:first-child{color:#2a2150;font-weight:600;}
@@ -365,11 +399,15 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .sublegend{font-size:9px;line-height:1.45;color:#4a416e;padding:5px 3px 1px;}
 .sublegend .litem{display:inline-block;margin:0 11px 2px 0;}
 .sublegend b{color:var(--teamc,#3a2480);font-weight:800;}
+/* Box notes (2B/3B/HR/SB/CS/E) under the batting table — the extra-base hits,
+   steals, and errors the batting columns don't carry, like the in-app box. */
+.boxnotes{font-size:9px;line-height:1.5;color:#3a3358;padding:6px 3px 1px;border-top:1px solid #ece6f8;margin-top:2px;}
+.boxnotes b{color:var(--teamc,#3a2480);font-weight:800;letter-spacing:.02em;}
 /* Zebra striping for readability (every other data row), like the league box. */
 .tbl table tr:nth-child(2n) th,.tbl table tr:nth-child(2n) td{background:#f0eafa;}
 .tbl tr:last-child th,.tbl tr:last-child td{background:#faf8ff;font-weight:800;border-bottom:none;}
 </style></head><body>`);
-  H.push(`<div class='band'><img src='${S.gatorsLogoDataUri()}'><div><div class='k'>Gumbeaux Gators · Official Box Score</div><h1><span class='hdate'>${esc(game.date)}, 2026</span>${game.home ? 'vs' : 'at'} ${esc(opp)}</h1>${T ? `<div class='sub'>Record ${T.w}${DASH}${T.l}</div>` : ''}</div><div class='badge'><div class='scores'><div class='scr${gs > os ? ' win' : ''}'><span class='snm'>${esc(gShort)}</span><span class='sval'>${gs}</span></div><div class='scr${os > gs ? ' win' : ''}'><span class='snm'>${esc(oShort)}</span><span class='sval'>${os}</span></div></div><div class='bstat'>F/${innings}</div></div></div>`);
+  H.push(`<div class='band'><img src='${S.gatorsLogoDataUri()}'><div><div class='k'>Gumbeaux Gators · Official Box Score</div><h1><span class='hdate'>${esc(game.date)}, 2026</span>${game.home ? 'vs' : 'at'} ${esc(opp)}</h1>${T ? `<div class='sub'>Record ${T.w}-${T.l}</div>` : ''}</div><div class='badge'><div class='sbrow${gs > os ? ' win' : ''}'><span class='snm'>${esc(gShort)}</span><span class='sval'>${gs}</span></div><div class='sbrow${os > gs ? ' win' : ''}'><span class='snm'>${esc(oShort)}</span><span class='sval'>${os}</span></div><div class='bstat'>${innings === 9 ? 'Final' : 'Final &middot; ' + innings + ' inn'}</div></div></div>`);
   H.push(line);
   H.push(`<div class='cols'>${teams.map(teamBlock).join('')}</div>`);
   H.push(`</body></html>`);
