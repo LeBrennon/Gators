@@ -1518,7 +1518,7 @@ function normalizeFeatured(g) {
     inning: ip.inning, half: ip.half,
     inningLabel: status === 'live' ? g.status : status === 'final' ? (g.status || 'Final') : status === 'cancelled' ? 'Cancelled' : g.status,
     gatorsHome: g.gatorsHome, opponent: g.opponent,
-    location: gameLocation(g), watchUrl: watchUrlFor(g), ticketUrl: ticketIndex[g.id] || null, theme: THEMES[g.date] || null, freeAdmission: FREE_ADMISSION[g.date] || null, promo: promoFor(g), special: SPECIALS[g.date] || null,
+    location: gameLocation(g), watchUrl: watchUrlFor(g), replayUrl: replayUrlFor(g), ticketUrl: ticketIndex[g.id] || null, theme: THEMES[g.date] || null, freeAdmission: FREE_ADMISSION[g.date] || null, promo: promoFor(g), special: SPECIALS[g.date] || null,
     away: { name: g.away.name, short: g.away.short, logo: g.away.logo, runs: g.away.score || 0, record: recordStr(g.away), site: TEAM_SITE[g.away.id] || null },
     home: { name: g.home.name, short: g.home.short, logo: g.home.logo, runs: g.home.score || 0, record: recordStr(g.home), site: TEAM_SITE[g.home.id] || null },
   };
