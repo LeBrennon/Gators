@@ -1173,7 +1173,12 @@ async function fetchLiveForGame(boxscoreId, wantRaw) {
     if (out.live && out.live.batterInfo && out.live.batter) {
       out.live.batterInfo.prev = batterPriorPAs(out.plays, out.live.batter);
       if (!out.live.batterInfo.prev.length) {
-        Object.assign(out.live.batterInfo, firstAbStats(out.live.batter));
+        // The batting team (Top = visitor, Bottom = home) lets firstAbStats read
+        // that team's own player-page stats, so an opponent bat the league
+        // leaderboard omits still shows a season line here.
+        const battingVH = out.live.half === 'Bottom' ? 'H' : 'V';
+        const bt = (out.lineups || []).find(t => t && t.vh === battingVH);
+        Object.assign(out.live.batterInfo, firstAbStats(out.live.batter, bt && bt.teamId));
         const pinch = pinchFor(out.plays, out.live.batter);
         if (pinch) out.live.batterInfo.pinch = pinch;
       }
@@ -2184,6 +2189,14 @@ function normPlayerName(n) {
   return s.toLowerCase().replace(/\b(jr|sr|ii|iii|iv)\b/g, '').replace(/[^a-z\s]/g, '').replace(/\s+/g, ' ').trim();
 }
 const GATOR_BY_NORM = {}; for (const p of ROSTER) GATOR_BY_NORM[normPlayerName(p.name)] = p;
+// Abbreviated-name index (firstInitial|lastname -> {t,s,c}) over the committed
+// league roster, so an opponent the live feed names slightly differently than the
+// roster PDF (a nickname, or an extra middle name) still resolves to a school +
+// class on his 1st-AB card. First name wins on a collision. Built once — the bio
+// dataset is loaded once at startup.
+const LEAGUE_BIO_ABBR = {};
+for (const k in LEAGUE_BIO) { const p = k.split(' '); if (p.length < 2) continue; const li = p[0][0] + '|' + p[p.length - 1]; if (!(li in LEAGUE_BIO_ABBR)) LEAGUE_BIO_ABBR[li] = LEAGUE_BIO[k]; }
+function leagueBioAbbr(key) { const p = String(key || '').split(' '); if (p.length < 2 || !p[0]) return null; return LEAGUE_BIO_ABBR[p[0][0] + '|' + p[p.length - 1]] || null; }
 let leagueHitterStats = {};  // normName -> { avg, hr, rbi, h } for every league hitter
 // Like parseLeagueStats but keeps ALL teams, keyed by normalized player name, so
 // an opponent batter's season line can be shown on his first at-bat.
@@ -2204,17 +2217,30 @@ function parseAllLeagueHitters(html) {
 // Build the first-at-bat enrichment (bio + 3 season stats) for a batter by name.
 // Third stat is HR, else SB (Gators only — the league leaderboard omits SB), else
 // Hits. Returns { firstAB:true } with whatever data we have; absent -> just "1st AB".
-function firstAbStats(name) {
+function firstAbStats(name, teamId) {
   const key = normPlayerName(name);
   let bio = null, hit = null;
   const g = GATOR_BY_NORM[key];
   if (g) { bio = { school: g.school, cls: g.cls }; const s = rosterStats[g.slug]; hit = (s && s.hit) || null; }
-  else { const b = LEAGUE_BIO[key]; if (b) bio = { school: b.s, cls: b.c }; hit = leagueHitterStats[key] || null; }
+  else {
+    const b = LEAGUE_BIO[key] || leagueBioAbbr(key); if (b) bio = { school: b.s, cls: b.c };
+    // Opponent stats: prefer his own Presto player page (which the lineup pass
+    // fetches into rosterStats and which covers bats the league leaderboard drops
+    // under its min-AB cutoff), then the leaderboard — the same source order the
+    // lineup's season AVG uses, so this card doesn't go blank when that one shows a number.
+    const rs = teamId && teamRosterSlugs[teamId];
+    const slug = rs && rs.byName[key];
+    hit = (slug && (rosterStats[slug] || {}).hit) || leagueHitterStats[key] || null;
+  }
   const N = v => { const n = Number(v); return isFinite(n) ? n : 0; };
   const has = v => v != null && v !== '' && v !== '-';
   const line = [];
+  // AVG from the season line when we have it, else the full-fallback lookup the
+  // lineup uses (player page -> leaderboard -> first-initial+last-name match), so
+  // the average still shows for a hitter we only matched by an abbreviated name.
+  const avg = (hit && has(hit.avg)) ? String(hit.avg) : seasonAvgFor(name, teamId);
+  if (has(avg)) line.push(['AVG', String(avg)]);
   if (hit) {
-    if (has(hit.avg)) line.push(['AVG', String(hit.avg)]);
     if (has(hit.rbi)) line.push(['RBI', String(N(hit.rbi))]);
     let third = null;
     if (N(hit.hr) > 0) third = ['HR', String(N(hit.hr))];
