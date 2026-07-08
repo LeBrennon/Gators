@@ -42,14 +42,26 @@ in `server.js`). Four teams make the playoffs.
 2. Run differential
 3. Run differential in H2H games for all teams involved
 
-## Data the app would need to apply these
+## How the app applies these
 
-The live standings feed (`parseStandings` in `server.js`) currently provides W / L / T
-and streak only. Resolving the tie-breakers above additionally requires:
+The live playoff race is computed in `server.js` and served by `GET /api/standings`
+(rendered on the **Standings** tab). The standings feed only carries W / L / T +
+streak, so the run-differential and head-to-head inputs are reconstructed from the
+league schedule page:
 
-- **Run differential** (season, and within H2H games) — not currently aggregated.
-- **Head-to-head records** between the tied teams — not currently aggregated.
-- **The last regulation game** result between two tied teams (for the 2-team step 6).
+- **`parseLeagueResults(html)`** — every decided game on the schedule (all eight teams,
+  all dates) as `{ date, regulation, away:{id,score}, home:{id,score} }`. Forfeits are
+  real W/L but not "regulation" games, so they're excluded from the last-regulation-game
+  step.
+- **`computeLeagueMetrics(log)`** — per-team season run differential, pairwise
+  head-to-head (record + runs), and the latest regulation meeting between each pair.
+- **`cmpTwoTeam` / `rankTiedGroup` / `rankSecondHalf`** — the 2-team and 3+-team
+  tie-break chains above, used to fully order the second-half standings; the applied
+  tie-breaks are surfaced as plain-language footnotes.
+- **`buildPlayoffPicture(ranked, metrics)`** — the four-team bracket, including the
+  both-halves overlap rule (a team that places top-2 in both halves keeps its first-half
+  seed; the vacated second-half berth passes to the best remaining full-season record).
 
-Finished-game box scores are already fetched (`fetchBoxPage`), so run totals and H2H
-results are derivable from game data if/when a live playoff-race view is built.
+Season run differential shows as a **DIFF** column on the standings table; the playoff
+picture shows each seed's reason and any overlap note. Tests live in
+`test/playoffs.test.js`.
