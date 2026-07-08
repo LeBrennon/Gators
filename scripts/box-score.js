@@ -297,10 +297,15 @@ function teamBlock(t) {
       sections.push(`<div class='sublegend'>${items}</div>`);
     }
     // Box notes (2B/3B/HR/SB/CS/E …) under the batting table, same stat set the
-    // in-app box score lists — the batting columns don't carry these, so the notes
-    // are the only place they show.
-    const nl = notesLine(t.notes);
-    if (nl) sections.push(`<div class='boxnotes'>${nl}</div>`);
+    // in-app box score lists — the batting columns don't carry these. Errors (E)
+    // get their own row beneath the offensive notes so the fielders credited with
+    // an error stay grouped together instead of trailing off a wrapped line.
+    const offensive = {}, errNotes = {};
+    for (const k in (t.notes || {})) { (String(k).toUpperCase() === 'E' ? errNotes : offensive)[k] = t.notes[k]; }
+    const notesRows = [];
+    const oLine = notesLine(offensive); if (oLine) notesRows.push(`<div>${oLine}</div>`);
+    const eLine = notesLine(errNotes); if (eLine) notesRows.push(`<div>${eLine}</div>`);
+    if (notesRows.length) sections.push(`<div class='boxnotes'>${notesRows.join('')}</div>`);
   }
   if (t.pitching) sections.push(`<div class='tcap pit'>${cap} — PITCHING</div><div class='tbl pit' style='flex:${rc(t.pitching)} 1 0'>${t.pitching}</div>`);
   // Brand the column to the team's color (Gators purple by default).
@@ -428,6 +433,7 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 /* Box notes (2B/3B/HR/SB/CS/E) under the batting table — the extra-base hits,
    steals, and errors the batting columns don't carry, like the in-app box. */
 .boxnotes{font-size:9px;line-height:1.5;color:#3a3358;padding:6px 3px 1px;border-top:1px solid #ece6f8;margin-top:2px;}
+.boxnotes > div + div{margin-top:2px;}
 .boxnotes b{color:var(--teamc,#3a2480);font-weight:800;letter-spacing:.02em;}
 /* Zebra striping for readability (every other data row), like the league box. */
 .tbl table tr:nth-child(2n) th,.tbl table tr:nth-child(2n) td{background:#f0eafa;}
