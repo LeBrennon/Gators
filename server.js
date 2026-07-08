@@ -4809,10 +4809,14 @@ var FX=(function(){
     }
   }
   // A rocket rises from the bottom to a target height anywhere across the width,
-  // then explodes — so bursts scatter over the whole screen, not one spot.
+  // then explodes — so bursts scatter over the whole screen, not one spot. Targets
+  // reach from just under the top header (4%) down, and each rocket's launch speed
+  // is derived from its target under gravity (0.12/frame) so it actually climbs
+  // that high — the highest shells burst over the gold "Gumbeaux Gators" letters.
   function launch(){
-    rockets.push({x:W*(0.05+Math.random()*0.9),y:H+8,ty:H*(0.10+Math.random()*0.52),
-      vy:-(8.5+Math.random()*3.5),col:COLORS[Math.random()*COLORS.length|0]});
+    var ty=H*(0.04+Math.random()*0.56),rise=(H+8)-ty;
+    rockets.push({x:W*(0.05+Math.random()*0.9),y:H+8,ty:ty,
+      vy:-Math.sqrt(0.24*rise)*(0.99+Math.random()*0.05),col:COLORS[Math.random()*COLORS.length|0]});
   }
   function tick(){
     raf=requestAnimationFrame(tick);ctx.clearRect(0,0,W,H);
@@ -4836,8 +4840,9 @@ var FX=(function(){
       window.addEventListener('resize',function(){if(cv.style.display!=='none')size();});}
     if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
     cv.style.display='block';if(!raf)size();
-    // More runs -> a bigger show. Rockets fire in a staggered barrage across the page.
-    var shots=Math.max(8,Math.min(6+(intensity||1)*2,18));
+    // More runs -> a bigger show. Rockets fire in a staggered barrage across the
+    // page; the barrage (and so the whole show) runs about twice as long as before.
+    var shots=Math.max(16,Math.min(12+(intensity||1)*4,36));
     for(var s=0;s<shots;s++)(function(d){setTimeout(function(){if(cv.style.display!=='none')launch();},d);})(s*(150+Math.random()*130));
     endAt=Date.now()+shots*280+2600;if(!raf)tick();
   }
