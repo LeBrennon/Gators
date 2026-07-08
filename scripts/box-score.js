@@ -358,44 +358,47 @@ function buildHtml(data) {
   // vertical cell padding so a long lineup + a deep bullpen still fit one page
   // without clipping the Totals row. Roomy for a normal box, tighter as rows grow.
   const rcount = html => (String(html || '').match(/<tr/gi) || []).length || 1;
+  // Budget accounts for the per-column fixed overhead the rows share the page
+  // with — two section captions, the sub legend, and the notes block — so a tall
+  // lineup + bullpen still lands its Totals rows on the page instead of clipping.
   const maxRows = Math.max(1, ...teams.map(t => rcount(t.batting) + rcount(t.pitching)));
-  const padV = Math.max(3, Math.min(9, Math.floor((620 / maxRows - 16) / 2)));
+  const padV = Math.max(3, Math.min(7, Math.floor((540 / maxRows - 15) / 2)));
   const H = [];
   H.push(`<!doctype html><html><head><meta charset='utf-8'><style>
 @page{size:letter;margin:0;}
 *{box-sizing:border-box;margin:0;padding:0;}
 html{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-body{font-family:'Helvetica Neue',Arial,sans-serif;color:#1b1e27;font-size:12px;padding:32px 36px;height:100vh;display:flex;flex-direction:column;overflow:hidden;--padv:${padV}px;}
-.band{position:relative;display:flex;align-items:center;gap:18px;color:#fff;padding:18px 24px 18px 150px;border-radius:13px;border:2px solid #ecc913;
+body{font-family:'Helvetica Neue',Arial,sans-serif;color:#1b1e27;font-size:12px;padding:22px 34px;height:100vh;display:flex;flex-direction:column;overflow:hidden;--padv:${padV}px;}
+.band{position:relative;display:flex;align-items:center;gap:14px;color:#fff;padding:10px 20px 10px 112px;border-radius:12px;border:2px solid #ecc913;
 background:linear-gradient(rgba(22,16,43,.02),rgba(22,16,43,.16))${croc ? `,url('${croc}') center center / cover no-repeat` : ''};
 background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1px rgba(255,255,255,.08);}
 /* Absolutely positioned so its size doesn't stretch the band — the band height
    stays driven by the text, and the logo is enlarged within it. */
-.band img{position:absolute;left:20px;top:50%;transform:translateY(-50%);width:104px;height:104px;}
-.k{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#ffd633;font-weight:800;text-shadow:0 1px 2px rgba(0,0,0,.5);}
-.band h1{font-size:28px;font-weight:900;line-height:1.08;margin:3px 0;text-shadow:0 2px 4px rgba(0,0,0,.55);}
-.band h1 .hdate{display:block;font-size:15px;font-weight:700;letter-spacing:.01em;color:#efe7ff;margin-bottom:2px;}
-.band .sub{font-size:13px;font-weight:700;color:#efe7ff;text-shadow:0 1px 2px rgba(0,0,0,.5);}
+.band img{position:absolute;left:16px;top:50%;transform:translateY(-50%);width:78px;height:78px;}
+.k{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#ffd633;font-weight:800;text-shadow:0 1px 2px rgba(0,0,0,.5);}
+.band h1{font-size:21px;font-weight:900;line-height:1.05;margin:2px 0;text-shadow:0 2px 4px rgba(0,0,0,.55);white-space:nowrap;}
+.band h1 .hdate{display:block;font-size:12.5px;font-weight:700;letter-spacing:.01em;color:#efe7ff;margin-bottom:1px;}
+.band .sub{font-size:12px;font-weight:700;color:#efe7ff;text-shadow:0 1px 2px rgba(0,0,0,.5);}
 /* Scoreboard card: a self-contained panel (team name left, score right, winner
    in gold, a FINAL footer) so it reads as a scoreboard rather than loose text. */
-.badge{margin-left:auto;display:flex;flex-direction:column;justify-content:center;gap:4px;min-width:216px;padding:12px 16px;border-radius:11px;background:rgba(14,8,32,.34);border:1px solid rgba(255,214,51,.30);box-shadow:inset 0 0 0 1px rgba(255,255,255,.05);}
+.badge{margin-left:auto;display:flex;flex-direction:column;justify-content:center;gap:2px;min-width:196px;padding:8px 14px;border-radius:10px;background:rgba(14,8,32,.34);border:1px solid rgba(255,214,51,.30);box-shadow:inset 0 0 0 1px rgba(255,255,255,.05);}
 .badge .sbrow{display:flex;align-items:baseline;justify-content:space-between;gap:22px;}
-.badge .snm{font-size:15px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#e4d9ff;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.5);}
-.badge .sval{font-size:27px;font-weight:900;line-height:1;color:#fff;font-variant-numeric:tabular-nums;text-shadow:0 2px 4px rgba(0,0,0,.5);}
+.badge .snm{font-size:14px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#e4d9ff;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.5);}
+.badge .sval{font-size:24px;font-weight:900;line-height:1;color:#fff;font-variant-numeric:tabular-nums;text-shadow:0 2px 4px rgba(0,0,0,.5);}
 .badge .win .snm{color:#fff;}
 .badge .win .sval{color:#ffd633;}
-.badge .bstat{margin-top:5px;padding-top:6px;border-top:1px solid rgba(255,255,255,.16);text-align:center;font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#e7dcff;text-shadow:0 1px 2px rgba(0,0,0,.5);}
-.linewrap{margin:18px 0 4px;}
+.badge .bstat{margin-top:4px;padding-top:5px;border-top:1px solid rgba(255,255,255,.16);text-align:center;font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#e7dcff;text-shadow:0 1px 2px rgba(0,0,0,.5);}
+.linewrap{margin:11px 0 3px;}
 .linewrap table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;}
-.linewrap th,.linewrap td{border:1px solid #d9d2ec;padding:9px 10px;text-align:center;font-size:15px;}
+.linewrap th,.linewrap td{border:1px solid #d9d2ec;padding:6px 10px;text-align:center;font-size:14px;}
 .linewrap th{background:#3a2480;color:#fff;font-weight:800;text-transform:uppercase;letter-spacing:.03em;}
 .linewrap th:first-child,.linewrap td:first-child{text-align:left;font-weight:800;white-space:nowrap;}
 .linewrap td:first-child{background:#f3f0fb;}
 .linewrap td:nth-last-child(-n+3){font-weight:800;background:#faf8ff;}
-.cols{display:flex;gap:22px;margin-top:18px;flex:1;min-height:0;}
+.cols{display:flex;gap:16px;margin-top:10px;flex:1;min-height:0;}
 .teamcol{flex:1;min-width:0;display:flex;flex-direction:column;}
-.tcap{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#fff;background:var(--teamc,#3a2480);padding:8px 11px;border-radius:6px 6px 0 0;}
-.tcap.pit{margin-top:16px;}
+.tcap{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#fff;background:var(--teamc,#3a2480);padding:5px 11px;border-radius:6px 6px 0 0;}
+.tcap.pit{margin-top:9px;}
 .tbl{border:1px solid #e6def7;border-top:none;border-radius:0 0 6px 6px;overflow:hidden;min-height:0;}
 .tbl table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;height:100%;table-layout:fixed;}
 .tbl th,.tbl td{padding:var(--padv,8px) 5px;text-align:center;font-size:12.5px;font-weight:400;border-bottom:1px solid #efeaf9;}
