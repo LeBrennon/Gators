@@ -5665,7 +5665,10 @@ function sbTeamRow(t,win,isGt,showScore,recById,fin){
   // Winner triangle only on finals (a live leader is shown bold, no arrow).
   var tri=(fin&&win)?'<span class="sbtri"></span>':'';
   var ct=t.city?'<span class="tcity">'+esc(t.city)+'</span> ':'';
-  return '<div class="sbrow'+(win?' w':'')+(isGt?' gt':'')+'">'+lg+'<span class="sbn">'+ct+esc(t.nick||t.short||'')+'</span>'+rec+'<span class="sbsc">'+tri+'<span class="sbs">'+sc+'</span></span></div>';
+  // Keep the record inside the name so it flows right after the last word and
+  // wraps with it — a long name like "San Antonio River Monsters" reads as one
+  // block instead of leaving the record floating beside a two-line name.
+  return '<div class="sbrow'+(win?' w':'')+(isGt?' gt':'')+'">'+lg+'<span class="sbn">'+ct+esc(t.nick||t.short||'')+rec+'</span><span class="sbsc">'+tri+'<span class="sbs">'+sc+'</span></span></div>';
 }
 function renderScoreboard(sb,gatorsId,recById){
   var games=(sb&&sb.games)||[];
