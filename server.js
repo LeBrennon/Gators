@@ -1956,11 +1956,10 @@ const ROSTER = [
   { num: 2,  name: 'Jaxon Landreneau', slug: 'jaxonlandreneautqp8',  pos: 'Utility', cls: 'Junior',       ht: '5-10', wt: '190', b: 'R', t: 'R', bday: '10/20/2004', home: 'Lake Charles, LA', school: 'LSU-Eunice' },
   // Recently activated (6/25 sheet); placeholder slug until his Presto player page
   // exists, so the `note` shows on his profile instead of stats until his first game.
-  { num: 3,  name: 'Griffin Hebert',   slug: 'griffinhebertqmlk',    pos: 'Utility', cls: 'Sophomore',    ht: '6-1',  wt: '205', b: 'L', t: 'R', bday: '',            home: 'Moss Bluff, LA',   school: 'Lamar', note: 'Recently activated — season stats will appear after his first game.' },
+  { num: 3,  name: 'Griffin Hebert',   slug: 'griffinhebertqmlk',    pos: 'Utility', cls: 'Sophomore',    ht: '5-11', wt: '200', b: 'L', t: 'R', bday: '12/30/2006',   home: 'Lake Charles, LA', school: 'Lamar', note: 'Recently activated — season stats will appear after his first game.' },
   { num: 5,  name: 'Davis Duhon',      slug: 'davisduhons0vw',       pos: 'P',       cls: 'Junior',       ht: '6-0',  wt: '185', b: 'L', t: 'L', bday: '03/12/2005', home: 'Katy, TX',         school: 'Louisiana Christian' },
-  { num: 6,  name: 'Nathan McDonald',  slug: 'nathanmcdonaldftgl',   pos: 'Utility', cls: 'Senior',       ht: '6-0',  wt: '175', b: 'R', t: 'R', bday: '07/17/2004', home: 'McComb, MS',       school: 'Loyola-New Orleans' },
   // Added off the 6/28 gameday sheet; real Presto slug now set directly (was findSlug-matched by name).
-  { num: 8,  name: 'Cade Robin',       slug: 'caderobinnu4m',        pos: 'P',       cls: 'Junior',       ht: '6-1',  wt: '200', b: 'R', t: 'R', bday: '',           home: 'Arnaudville, LA',  school: 'LSU-Shreveport' },
+  { num: 8,  name: 'Cade Robin',       slug: 'caderobinnu4m',        pos: 'P',       cls: 'Junior',       ht: '6-1',  wt: '200', b: 'R', t: 'R', bday: '03/15/2005', home: 'Arnaudville, LA',  school: 'LSU-Shreveport' },
   // #35 off the 7/3 official roster (replaced #9 James Reina, who dropped off it). He'd
   // already played 9 games (.207 AVG), but findSlug never resolved him because the league
   // leaderboard lists him as "J Torres", which doesn't match "Jeremiah Torres" via
@@ -1971,33 +1970,28 @@ const ROSTER = [
   // league leaderboard lists him as "K Martin", which doesn't match "Kash Martin" via normPlayerName.
   { num: 10, name: 'Kash Martin',      slug: 'kashmartin44sc',       pos: 'Utility', cls: 'Sophomore',    ht: '5-10', wt: '185', b: 'R', t: 'R', bday: '11/09/2006', home: 'Westlake, LA',     school: 'Bossier Parish CC' },
   { num: 11, name: 'Diego Corrales',   slug: 'diegocorrales91v5',    pos: 'P',       cls: 'Junior',       ht: '5-8',  wt: '185', b: 'L', t: 'L', bday: '08/01/2005', home: 'Lake Charles, LA', school: 'McNeese State' },
-  { num: 14, name: 'Brandon Levy',     slug: 'brandonlevyejo5',      pos: 'P',       cls: 'Junior',       ht: '5-10', wt: '180', b: 'R', t: 'R', bday: '05/25/2004', home: 'Bossier City, LA', school: 'New Orleans' },
   // On the official roster; real Presto slug set directly (resolved from the Gators
   // team roster page). No game action yet, so the note shows until his first game.
   { num: 15, name: 'Reed Dupre',       slug: 'reeddupremvk3',        pos: 'P',       cls: 'Freshman',     ht: '5-10', wt: '150', b: 'R', t: 'R', bday: '',           home: 'Iowa, LA',         school: 'Southern Univ of New Orleans', note: 'Recently added — season stats will appear after his first game.' },
   { num: 16, name: 'Daniel Midkiff',   slug: 'danielmidkifffqkb',    pos: 'P',       cls: 'Sophomore',    ht: '6-2',  wt: '208', b: 'R', t: 'R', bday: '05/20/2007', home: 'Buna, TX',         school: 'Lamar' },
-  { num: 17, name: 'Ayden Sunday',     slug: 'aydensundayyp1j',      pos: 'OF',      cls: 'Sophomore',    ht: '6-0',  wt: '185', b: 'R', t: 'R', bday: '',           home: 'Nederland, TX',    school: 'Lamar' },
-  { num: 19, name: 'Jack Garcille',    slug: 'jackgarcille9sq9',     pos: 'P',       cls: 'HS Senior',    ht: '6-6',  wt: '210', b: 'R', t: 'R', bday: '07/07/2008', home: 'Lake Charles, LA', school: 'McNeese State' },
+  { num: 17, name: 'Ayden Sunday',     slug: 'aydensundayyp1j',      pos: 'OF',      cls: 'Sophomore',    ht: '6-0',  wt: '185', b: 'R', t: 'R', bday: '09/07/2006', home: 'Nederland, TX',    school: 'Lamar' },
   { num: 21, name: 'Bankston Lembcke', slug: 'bankstonlembckeoxyb',  pos: 'IF',      cls: 'Junior',       ht: '5-11', wt: '205', b: 'R', t: 'R', bday: '11/14/2005', home: 'Klein, TX',        school: 'Bradley' },
-  { num: 22, name: 'Matthew McKinley', slug: 'matthewmckinleylgvq',  pos: 'Utility', cls: 'Sophomore',    ht: '5-11', wt: '205', b: 'L', t: 'L', bday: '12/14/2006', home: 'Brandon, MS',      school: 'Meridian CC' },
-  { num: 28, name: 'Andrew Ramos',     slug: 'andrewramos4y33',      pos: 'Utility', cls: 'Sophomore',    ht: '5-10', wt: '185', b: 'R', t: 'R', bday: '',           home: 'Deer Park, TX',    school: 'San Jacinto CC' },
+  { num: 28, name: 'Andrew Ramos',     slug: 'andrewramos4y33',      pos: 'Utility', cls: 'Sophomore',    ht: '5-10', wt: '185', b: 'R', t: 'R', bday: '10/19/2006', home: 'Deer Park, TX',    school: 'San Jacinto CC' },
   { num: 29, name: 'Sawyer Simmons',   slug: 'sawyersimmonss92p',    pos: 'P',       cls: 'Senior',       ht: '6-1',  wt: '193', b: 'R', t: 'L', bday: '03/30/2005', home: 'Bossier City, LA', school: 'Southeastern Louisiana' },
   // Added off the 6/28 gameday sheet; real Presto slug now set directly (was findSlug-matched by name).
   { num: 34, name: 'Brenyn Ebarb',     slug: 'brenynebarb6uqv',      pos: 'P',       cls: 'Graduate',     ht: '6-1',  wt: '195', b: 'R', t: 'R', bday: '05/04/2004', home: 'Zwolle, LA',       school: 'LSU-Alexandria', note: 'Recently added — season stats will appear after his first game.' },
   { num: 36, name: 'Jake Rider',       slug: 'jakeridergyu4',        pos: 'P',       cls: 'Junior',       ht: '6-4',  wt: '220', b: 'R', t: 'R', bday: '10/11/2005', home: 'Lake Charles, LA', school: 'Nunez CC' },
-  { num: 37, name: 'Landon Richards',  slug: 'landonrichards2fu3',   pos: 'P',       cls: 'Sophomore',    ht: '5-11', wt: '235', b: 'R', t: 'R', bday: '06/22/2007', home: 'Orange, TX',       school: 'Angelina College' },
   // Added off the 6/30 second-half roster; now playing, so his real Presto slug is set directly and stats flow.
-  { num: 38, name: 'Gabe Guidry',      slug: 'gabeguidryfktf',       pos: 'Utility', cls: 'R-Sophomore',  ht: '6-3',  wt: '200', b: 'R', t: 'R', bday: '',            home: 'Lake Charles, LA', school: 'Bossier Parish CC' },
-  { num: 40, name: 'Chris Melvin',     slug: 'chrismelvinnddm',      pos: 'P',       cls: 'R-Sophomore',  ht: '6-4',  wt: '220', b: 'L', t: 'R', bday: '09/12/2005', home: 'Waterloo, Ontario',school: 'Paris JC' },
-  { num: 41, name: 'Cole Flanagan',    slug: 'coleflanaganemnl',     pos: 'P',       cls: 'Freshman',     ht: '6-1',  wt: '230', b: 'L', t: 'L', bday: '',           home: 'Moss Bluff, LA',   school: 'Jacksonville State' },
+  { num: 38, name: 'Gabe Guidry',      slug: 'gabeguidryfktf',       pos: 'Utility', cls: 'R-Sophomore',  ht: '6-3',  wt: '200', b: 'R', t: 'R', bday: '01/26/2005',  home: 'Lake Charles, LA', school: 'Bossier Parish CC' },
+  { num: 41, name: 'Cole Flanagan',    slug: 'coleflanaganemnl',     pos: 'P',       cls: 'Freshman',     ht: '6-1',  wt: '230', b: 'L', t: 'L', bday: '11/24/2006', home: 'Moss Bluff, LA',   school: 'Jacksonville State' },
   { num: 42, name: 'Kale Cropper',     slug: 'kalecropperuden',      pos: 'P',       cls: 'Sophomore',    ht: '6-4',  wt: '210', b: 'R', t: 'R', bday: '08/25/2006', home: 'Port Neches, TX',  school: 'Hill College' },
   { num: 45, name: 'Cannon Faulk',     slug: 'cannonfaulk0l9x',      pos: 'P',       cls: 'R-Sophomore',  ht: '6-4',  wt: '225', b: 'L', t: 'L', bday: '12/02/2005', home: 'Port Neches, TX',  school: 'Angelina College' },
   // On the official roster and already pitching; real Presto slug set directly
   // (resolved from the Gators team roster page) so his season stats flow in.
-  { num: 47, name: 'Brayden Guillory', slug: 'braydenguilloryagcn',  pos: 'P',       cls: 'R-Freshman',   ht: '6-2',  wt: '200', b: 'R', t: 'R', bday: '',           home: 'Kinder, LA',       school: 'Southern University' },
+  { num: 47, name: 'Brayden Guillory', slug: 'braydenguilloryagcn',  pos: 'P',       cls: 'R-Freshman',   ht: '6-2',  wt: '200', b: 'R', t: 'R', bday: '11/17/2005', home: 'Kinder, LA',       school: 'Southern University' },
   // Assigned #39 on the 6/30 second-half roster; now playing, so his real Presto slug is
   // set directly and stats flow. Headshot populates once a photo is bundled.
-  { num: 39, name: 'Yuichiro Kumagami', slug: 'yuichirokumagamisa54', pos: 'C', cls: 'Sophomore', ht: '5-11', wt: '200', b: 'R', t: 'R', bday: '', home: 'Miyagi, Japan', school: 'Mt. Hood CC' },
+  { num: 39, name: 'Yuichiro Kumagami', slug: 'yuichirokumagamisa54', pos: 'C', cls: 'Junior', ht: '5-11', wt: '200', b: 'R', t: 'R', bday: '07/16/2005', home: 'Miyagi, Japan', school: 'Mount Hood CC' },
   // Added off the 7/3 official roster; the 7/4 sheet assigns #24 and lists him as a
   // pitcher (was catcher/TBD). Real Presto slug set directly (resolved from the
   // Gators team roster page); he has pitched, so his season stats flow in.
@@ -2011,6 +2005,17 @@ const ROSTER = [
   // Added off the 7/4 official roster; real Presto slug set directly (resolved from
   // the Gators team roster page). No game action yet, so the note shows for now.
   { num: 48, name: 'Marco Bandiero', slug: 'marcobandieroddnu', pos: 'IF', cls: 'Freshman', ht: '6-1', wt: '245', b: 'L', t: 'L', bday: '', home: 'Orange, TX', school: 'Angelina College', note: 'Recently added — season stats will appear after his first game.' },
+  // Added off the 7/7 official roster. The sheet listed Victorian at #28 (a duplicate of
+  // Andrew Ramos); Coach Carl confirmed his real number is #18. findSlug resolves his real
+  // Presto page by name once it exists, and the note shows until his first game.
+  { num: 18, name: 'Landon Victorian', slug: 'landonvictorian', pos: 'P', cls: 'Sophomore', ht: '6-3', wt: '180', b: 'R', t: 'R', bday: '11/02/2005', home: 'Lake Charles, LA', school: 'Louisiana Lafayette', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
+  // Added off the 7/7 official roster as unnumbered position players; jersey numbers per
+  // Coach Carl (Cooley #7, Beddoe #13); Sparks' number is still TBD. Details beyond name
+  // aren't on the sheet yet. findSlug resolves each real Presto page by name once it
+  // exists, and the note shows until their first game.
+  { num: 7,  name: 'Griffin Cooley', slug: 'griffincooley', pos: 'Utility', cls: '', ht: '', wt: '', b: '', t: '', bday: '', home: '', school: '', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
+  { num: 13, name: 'Jackson Beddoe', slug: 'jacksonbeddoe', pos: 'Utility', cls: '', ht: '', wt: '', b: '', t: '', bday: '', home: '', school: '', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
+  { num: null, numTBD: true, name: 'Lane Sparks', slug: 'lanesparks', pos: 'Utility', cls: '', ht: '', wt: '', b: '', t: '', bday: '', home: '', school: '', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
 ];
 
 // Coaching staff (gumbeauxgators.com/coaches). Shown beneath the player roster;
