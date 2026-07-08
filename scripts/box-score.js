@@ -157,6 +157,25 @@ function normalizeNameCell(row) {
   });
 }
 const normalizeNames = html => String(html || '').replace(/<tr\b[\s\S]*?<\/tr>/gi, normalizeNameCell);
+// Keep a long pitcher name on one line by shortening the first name to an initial
+// (Michael Salazar-Sanchez -> M. Salazar-Sanchez) instead of letting the narrow
+// pitching name column wrap it. Short names stay in full, matching the rest of
+// the staff. Applied to pitching only — the batting name column is wide enough.
+function abbreviateLongName(name, maxLen) {
+  const n = String(name || '').trim();
+  if (n.length <= maxLen) return n;
+  const parts = n.split(/\s+/);
+  if (parts.length < 2 || !parts[0]) return n;                 // single token — can't abbreviate
+  return parts[0].charAt(0).toUpperCase() + '. ' + parts.slice(1).join(' ');
+}
+function abbreviatePitcherNames(html, maxLen) {
+  return String(html || '').replace(/<tr\b[\s\S]*?<\/tr>/gi, row => row.replace(/<th\b([^>]*)>([\s\S]*?)<\/th>/i, (full, attrs, inner) => {
+    const nm = txtOf(inner);
+    if (!nm || /^(pitchers|totals?)$/i.test(nm)) return full;
+    const abbr = abbreviateLongName(nm, maxLen);
+    return abbr === nm ? full : `<th${attrs}>${esc(abbr)}</th>`;
+  }));
+}
 // Backfill a missing fielding position from the play-by-play. Presto sometimes
 // drops the position on a player caught in a mid-inning double-switch — e.g. a
 // starter pinch-hit for who then re-enters on defense — leaving a positionless
@@ -205,6 +224,60 @@ function fillMissingPositions(html, posMap) {
     const injected = inner.replace(/^(\s*(?:<span class='sub'>[^<]*<\/span>)?)/i, `$1<span class='pos'>${esc(pos)}</span> `);
     return `<th${attrs}>${injected}</th>`;
   }));
+}
+const ordinal = n => { const v = n % 100, s = ['th', 'st', 'nd', 'rd']; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
+// How each substitute entered, read from the play-by-play announcements the same
+// way the app builds its own sub legend — the first "X pinch hit/ran for Y" or
+// "X to <pos> for Y" for each player. Keyed by normalized name.
+function pbpSubInfo(pbp) {
+  const info = {};
+  const set = (nm, v) => { const k = normName(nm); if (k && !info[k]) info[k] = v; };
+  (pbp || []).forEach(h => {
+    const im = (h.title || '').match(/(?:Top|Bottom) of (\d+)/i); const inn = im ? +im[1] : 0;
+    (String(h.html || '').match(/<tr[\s\S]*?<\/tr>/gi) || []).forEach(r => {
+      const t = txtOf(r);
+      let m = t.match(/^(.+?) pinch hit for (.+?)\.?$/i); if (m) { set(m[1], { type: 'ph', forName: m[2].trim(), inn }); return; }
+      m = t.match(/^(.+?) pinch ran for (.+?)\.?$/i); if (m) { set(m[1], { type: 'pr', forName: m[2].trim(), inn }); return; }
+      m = t.match(/^(.+?) to ([a-z0-9]+) for (.+?)\.?$/i);
+      if (m && BOX_POS.has(m[2].toLowerCase())) set(m[1], { type: 'def', pos: m[2], forName: m[3].trim(), inn });
+    });
+  });
+  return info;
+}
+// Mark substitutes the app's own detector missed. It flags a sub when a batter's
+// position repeats one already in the lineup, but it can't when the source left
+// the position blank (Kumagami). Now that fillMissingPositions has restored those
+// positions, re-run that "repeated position = sub" rule for any row not already
+// flagged: indent it, give it the next alphabet letter, and add a legend entry
+// (its entry read from the play-by-play), exactly like the subs the app caught.
+function markMissedSubs(html, subInfo, legend) {
+  const out = legend ? legend.slice() : [];
+  const seenPos = new Set();
+  const newHtml = String(html || '').replace(/<tr\b[\s\S]*?<\/tr>/gi, row => {
+    const thm = row.match(/<th\b([^>]*)>([\s\S]*?)<\/th>/i);
+    if (!thm) return row;
+    const attrs = thm[1], inner = thm[2], plain = txtOf(inner);
+    if (!plain || /^(hitters|totals?)$/i.test(plain)) return row;
+    if (/\bbxsub\b/.test(attrs)) return row;                              // already flagged by the app
+    const posM = inner.match(/<span class='pos'>([^<]*)<\/span>/i);
+    const first = posM ? posM[1].trim().toLowerCase().split(/[/-]/)[0] : '';
+    const isSub = first === 'ph' || first === 'pr' || (first && seenPos.has(first));
+    if (!isSub) { if (first) seenPos.add(first); return row; }            // a starter — record his slot
+    const name = txtOf(inner.replace(/<span class='(?:pos|sub)'>[^<]*<\/span>/gi, ''));
+    const letter = String.fromCharCode(97 + out.length);
+    const info = subInfo[normName(name)];
+    const verb = info ? (info.type === 'pr' ? 'ran for ' : info.type === 'ph' ? 'pinch-hit for ' : 'in for ') : '';
+    const text = info ? verb + info.forName + (info.inn ? ' in the ' + ordinal(info.inn) : '') : '';
+    out.push({ letter, name, forName: info ? info.forName : '', text });
+    const newAttrs = /class=/i.test(attrs)
+      ? attrs.replace(/class=(['"])([^'"]*)\1/i, (m, q, c) => `class=${q}${c} bxsub${q}`)
+      : attrs + " class='bxsub'";
+    const newInner = posM
+      ? inner.replace(/(<span class='pos'>[^<]*<\/span>)\s*/i, `$1 <span class='sub'>${letter}-</span>`)
+      : `<span class='sub'>${letter}-</span>` + inner;
+    return row.replace(thm[0], `<th${newAttrs}>${newInner}</th>`);
+  });
+  return { html: newHtml, legend: out };
 }
 
 function groupTeams(box) {
@@ -336,7 +409,13 @@ function buildHtml(data) {
   teams.forEach(t => { if (t.batting && t.pitching) t.batting = dropIdlePitchers(t.batting, t.pitching); });
   const posMap = pbpPositions(data.pbp);   // backfill positions Presto dropped in double-switches
   teams.forEach(t => { if (t.batting) t.batting = fillMissingPositions(t.batting, posMap); });
+  // With positions restored, flag any substitute the app missed (its position was
+  // blank in the source) so it indents under its starter with an alphabet letter
+  // and a legend entry, like the subs the app already caught.
+  const subInfo = pbpSubInfo(data.pbp);
+  teams.forEach(t => { if (t.batting) { const r = markMissedSubs(t.batting, subInfo, t.legend); t.batting = r.html; t.legend = r.legend; } });
   injectHBP(teams, data.pbp);   // derive + add the HBP pitching column from the play-by-play
+  teams.forEach(t => { if (t.pitching) t.pitching = abbreviatePitcherNames(t.pitching, 15); });   // long name -> "F. Last" (one line)
   const croc = S.crocSkinDataUri();
   // Score/result/opponent from the line score when present; seed game otherwise.
   let gs = game.gs, os = game.os, win = game.win, opp = oppName;
@@ -415,7 +494,7 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .tbl th:first-child,.tbl td:first-child{text-align:left;white-space:nowrap;width:44%;}
 /* Auto layout sizes each stat column to its own header/content, so no label
    (HBP, ERA, #P, S%) ever clips; only the name column gets a width hint and wraps. */
-.tbl.pit th:first-child,.tbl.pit td:first-child{width:25%;white-space:normal;overflow-wrap:anywhere;}
+.tbl.pit th:first-child,.tbl.pit td:first-child{width:25%;white-space:nowrap;}
 /* A little extra room for the last column so its label isn't cramped at the edge. */
 .tbl.bat th:last-child,.tbl.bat td:last-child{width:11%;}
 .tbl tr:not(:first-child) th:first-child{color:#2a2150;font-weight:600;}
