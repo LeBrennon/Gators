@@ -963,10 +963,54 @@ function scanForAuth(html) {
   return out;
 }
 
-async function fetchText(url, referer) {
+// ----- one gateway for every Presto request ---------------------------------
+// All scraping funnels through fetchCore so timeout, network-error retry, and
+// throttle backoff live in one place instead of being re-implemented (or
+// forgotten) per caller. Two shared pieces:
+//   throttledUntil — a soft circuit breaker. When ANY request sees a throttle
+//     status (429/503/459/403), every LATER background request waits until it
+//     clears, so we back off as one instead of each subsystem discovering the
+//     throttle independently and hammering through it.
+//   netLimit — a global concurrency cap for FAN-OUT scrapes (the roster poll,
+//     opponent-lineup warming, box-score enrichment). Foreground singles (the
+//     live poll, the current batter, a profile tap) pass { priority:true } /
+//     bypass the limiter so a cold roster scrape can't stall a live frame.
+let throttledUntil = 0;
+const netBackoff = a => Math.min(8000, 700 * Math.pow(2, a));  // 700, 1400, 2800…
+function pLimit(max) {
+  let active = 0; const queue = [];
+  const run = () => {
+    if (active >= max || !queue.length) return;
+    active++;
+    const { fn, resolve, reject } = queue.shift();
+    Promise.resolve().then(fn).then(resolve, reject).finally(() => { active--; run(); });
+  };
+  return fn => new Promise((resolve, reject) => { queue.push({ fn, resolve, reject }); run(); });
+}
+const netLimit = pLimit(Number(process.env.SCRAPE_CONCURRENCY || 6));
+async function fetchCore(url, { headers, timeout = 12000, tries = 3, priority = false } = {}) {
+  let lastErr;
+  for (let a = 0; a < tries; a++) {
+    // Background requests wait out an active throttle; the live poll doesn't —
+    // it's the one request that must always go through.
+    if (!priority) { const wait = throttledUntil - Date.now(); if (wait > 0) await sleep(Math.min(wait, 8000)); }
+    const ctl = new AbortController();
+    const to = setTimeout(() => { try { ctl.abort(); } catch (e) {} }, timeout);
+    try {
+      const res = await fetch(url, { headers, signal: ctl.signal });
+      if (isThrottle(res.status)) throttledUntil = Date.now() + netBackoff(a);  // signal everyone to back off
+      return res;  // HTTP errors (incl. throttle) come back as-is; callers read .status
+    } catch (e) {
+      lastErr = e; if (a < tries - 1) await sleep(netBackoff(a));  // network error / timeout → retry
+    } finally { clearTimeout(to); }
+  }
+  throw lastErr;
+}
+
+async function fetchText(url, referer, opts = {}) {
   const headers = { 'user-agent': UA, 'accept-language': 'en-US,en;q=0.9', 'cache-control': 'no-cache' };
   if (referer) headers.referer = referer;
-  const res = await fetch(url, { headers });
+  const res = await fetchCore(url, { headers, timeout: opts.timeout, tries: opts.tries, priority: opts.priority });
   const body = await res.text();
   return { ok: res.ok, status: res.status, contentType: res.headers.get('content-type') || '', body };
 }
@@ -977,7 +1021,9 @@ async function fetchLiveUpdate(e, h, referer) {
   const headers = { 'user-agent': UA, 'accept': 'application/json, text/javascript, */*; q=0.01',
     'x-requested-with': 'XMLHttpRequest', 'cache-control': 'no-cache' };
   if (referer) headers.referer = referer;
-  const res = await fetch(url, { headers });
+  // The live poll is latency-critical and one request: short timeout, and priority
+  // so it never waits behind a throttle backoff or the scrape limiter.
+  const res = await fetchCore(url, { headers, timeout: 8000, priority: true });
   const text = await res.text();
   let json = null, parseError = null;
   try { json = JSON.parse(text); } catch (err) { parseError = err.message; }
@@ -1178,6 +1224,20 @@ async function fetchLiveForGame(boxscoreId, wantRaw) {
         // leaderboard omits still shows a season line here.
         const battingVH = out.live.half === 'Bottom' ? 'H' : 'V';
         const bt = (out.lineups || []).find(t => t && t.vh === battingVH);
+        // Eager fill: if this is an opponent bat we don't have cached yet, fetch his
+        // player page NOW so the card shows a season line on THIS frame instead of
+        // next poll. Bounded to one page, bypasses the scrape limiter, and capped
+        // so a slow page never stalls the live frame — it keeps loading in the
+        // background and the next poll picks it up.
+        if (bt && bt.teamId && bt.teamId !== GATORS_ID) {
+          const bkey = normPlayerName(out.live.batter);
+          let byName = teamRosterSlugs[bt.teamId] && teamRosterSlugs[bt.teamId].byName;
+          if (!byName) { try { byName = await ensureTeamRoster(bt.teamId); } catch (e) {} }
+          const bslug = byName && byName[bkey];
+          if (bslug && (!rosterStats[bslug] || !recFresh(playerCache[bslug]))) {
+            await Promise.race([fetchOpponentAvg(bslug), sleep(2500)]);
+          }
+        }
         Object.assign(out.live.batterInfo, firstAbStats(out.live.batter, bt && bt.teamId));
         const pinch = pinchFor(out.plays, out.live.batter);
         if (pinch) out.live.batterInfo.pinch = pinch;
@@ -1207,6 +1267,10 @@ async function fetchLiveForGame(boxscoreId, wantRaw) {
     if (out.lineups) {
       const opp = out.lineups.find(t => t && !t.isGators && t.teamId && t.teamId !== GATORS_ID);
       if (opp && opp.rows) loadOpponentLineupAvgs(opp.teamId, opp.rows.map(r => r.full || r.name));
+      // And, once per game, warm the opponent's WHOLE hitting roster — not just the
+      // nine in the lineup — so a pinch hitter or due-up bat is already cached when
+      // he steps in, instead of the eager per-batter fetch above having to block.
+      if (opp && opp.teamId) warmOpponentRoster(boxscoreId, opp.teamId);
     }
     // Diagnostics only: when the situation block can't be parsed (live === null)
     // we can't tell from afar where the feed moved it. Surface the feed's
@@ -2595,7 +2659,9 @@ async function pollRoster() {
       const worker = async () => {
         while (i < todo.length) {
           const pl = todo[i++];
-          const pg = await fetchPlayerPage(pl.slug);
+          // Through the shared limiter so this batch shares one global budget with
+          // a live game's opponent warming instead of adding to it.
+          const pg = await netLimit(() => fetchPlayerPage(pl.slug));
           storePlayer(pl.slug, buildRecord(pl.slug, pg.primary, batMap, pitMap));
           if (isThrottle(pg.status)) { throttled = true; await sleep(2500); }
           else await sleep(120);
@@ -3624,8 +3690,8 @@ async function boxWithSeasonAvg(data) {
     for (const slug of Object.values(sec.slugs)) if (slug) slugs.add(slug);
   }
   const unseen = [...slugs].filter(s => !rosterStats[s]);
-  if (unseen.length) await Promise.all(unseen.map(fetchOpponentAvg));
-  for (const s of slugs) if (rosterStats[s] && !recFresh(playerCache[s])) fetchOpponentAvg(s);
+  if (unseen.length) await Promise.all(unseen.map(s => netLimit(() => fetchOpponentAvg(s))));
+  for (const s of slugs) if (rosterStats[s] && !recFresh(playerCache[s])) netLimit(() => fetchOpponentAvg(s));
   return Object.assign({}, data, { box: data.box.map(sec =>
     /\bBatting\b/i.test(sec.label || '') ? Object.assign({}, sec, { html: bsAddSeasonAvg(sec.html, sec.slugs) }) : sec) });
 }
@@ -3691,8 +3757,27 @@ async function loadOpponentLineupAvgs(teamId, names) {
     if (!byName) return;
     const slugs = new Set();
     for (const nm of (names || [])) { const s = byName[normPlayerName(nm)]; if (s) slugs.add(s); }
-    for (const s of slugs) if (!rosterStats[s] || !recFresh(playerCache[s])) fetchOpponentAvg(s);
+    for (const s of slugs) if (!rosterStats[s] || !recFresh(playerCache[s])) netLimit(() => fetchOpponentAvg(s));
   } catch (e) { logErr('loadOpponentLineupAvgs', e); }
+}
+// Warm the opponent's ENTIRE roster once per game (loadOpponentLineupAvgs only
+// covers the current nine). Bench bats, pinch hitters, and due-up players are all
+// cached ahead of time, bounded by the shared scrape limiter, so the eager
+// per-batter fetch on the live card almost never has to block. Runs at most once
+// per game; if the team page itself failed, the guard is cleared so the next poll
+// retries. Fire-and-forget — the fetches land in rosterStats for later polls.
+const rosterWarmed = new Set();  // gameId -> warmed
+async function warmOpponentRoster(gameId, teamId) {
+  if (!gameId || rosterWarmed.has(gameId) || !teamId || teamId === GATORS_ID) return;
+  rosterWarmed.add(gameId);
+  try {
+    const byName = await ensureTeamRoster(teamId);
+    if (!byName) { rosterWarmed.delete(gameId); return; }
+    for (const s of new Set(Object.values(byName))) {
+      if (rosterStats[s] && recFresh(playerCache[s])) continue;
+      netLimit(() => fetchOpponentAvg(s));
+    }
+  } catch (e) { rosterWarmed.delete(gameId); logErr('warmOpponentRoster', e); }
 }
 app.get('/api/boxscore', async (q, r) => {
   const id = q.query && q.query.id;
