@@ -143,6 +143,9 @@ const boardCity = id => id === GATORS_ID ? '' : (CITY[id] || '');
 // Split-season tracking. The TCL plays two halves; each half's winner clinches a
 // playoff berth. Standings shown below reflect the current half, with clinched
 // teams tagged "x-" regardless of where their (reset) second-half record sits.
+// Playoff seeding + tie-breaker rules (half champions seed 1-2, top-2 of the 2nd
+// half seed 3-4, overlap/next-best rules, and the 2- and 3+-team tie-breakers)
+// are recorded in docs/tcl-playoff-rules.md for end-of-season resolution.
 const SEASON_HALF = 2;            // 1 = first half, 2 = second half
 // Team ids that have already clinched a playoff spot, with the reason shown in
 // the Standings legend. Victoria & Acadiana won the first half.
