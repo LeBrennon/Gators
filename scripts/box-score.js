@@ -66,7 +66,7 @@ function teamShort(name) { for (const [re, , s] of TEAMS_INFO) if (re.test(name 
 
 // ---- fetch the parsed box ---------------------------------------------------
 async function getBox() {
-  if (BOX_DATA) return { line: BOX_DATA.line || '', box: BOX_DATA.box || [] };
+  if (BOX_DATA) return { line: BOX_DATA.line || '', box: BOX_DATA.box || [], pbp: BOX_DATA.pbp || [] };
   if (PARSE_SRC) {
     const { parseBoxscore } = require('../server');
     let html;
@@ -115,12 +115,51 @@ const cleanTable = h => String(h || '').replace(/<caption>[\s\S]*?<\/caption>/gi
 const txtOf = s => String(s || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
 const normName = n => String(n || '').toLowerCase().replace(/\s*\([^)]*\)\s*$/, '').replace(/[^a-z\s]/g, '').replace(/\s+/g, ' ').trim();
 
+// ---- name-cell normalization ------------------------------------------------
+// Each box row's first cell mixes a lowercase position span ("rf"), an optional
+// substitute letter span ("a-"), and the player name — and the name arrives in
+// three shapes: a bare text node, a <span> (positionless players + every
+// pitcher), or two adjacent spans with no space ("dh"+"Jackson Beddoe"). A blanket
+// `span{text-transform:uppercase}` in the print CSS used to SHOUT every one of
+// those name spans (JACOB BAKER, JOHN SHADAR, DHJACKSON BEDDOE). We instead rebuild
+// the cell here: uppercase ONLY the position, space it off the name, keep the sub
+// letter, and title-case a name that arrives all-caps (leaving intentional inner
+// caps like "LaCava" alone).
+const BOX_POS = new Set(['1b', '2b', '3b', 'ss', 'lf', 'cf', 'rf', 'c', 'dh', 'of', 'p', 'ph', 'pr', 'dp', 'fl', 'util']);
+// A short slash/hyphen-joined token where every part is a fielding position
+// (covers combos like "3b/2b", "2b-rf") — as opposed to a player name.
+const isPosToken = t => { const s = String(t).trim().toLowerCase(); return s.length <= 6 && s.split(/[/-]/).every(p => BOX_POS.has(p)); };
+// Title-case a name only where a whole word (or hyphen-part) is ALL-CAPS, so a
+// SHOUTED "BEDDOE" / "SALAZAR-SANCHEZ" is fixed but a real "LaCava"/"DeShields"
+// (which already carries a lowercase letter) is left untouched.
+const fixNameCaps = name => String(name).replace(/[A-Za-z][A-Za-z'’.]*/g, w => (/[a-z]/.test(w) || w.length < 2) ? w : (w[0] + w.slice(1).toLowerCase()));
+function normalizeNameCell(row) {
+  return row.replace(/<th\b([^>]*)>([\s\S]*?)<\/th>/i, (full, attrs, inner) => {
+    const plain = txtOf(inner);
+    if (!plain || /^(hitters|pitchers|totals?)$/i.test(plain)) return full; // header / totals row
+    let sublet = '';
+    let content = inner
+      .replace(/<span[^>]*class="sublet"[^>]*>\s*([a-z+])-?\s*<\/span>/i, (m, l) => { sublet = l; return ''; })
+      .replace(/<\/?div[^>]*>/gi, '')
+      .replace(/<a\b[^>]*>|<\/a>/gi, '');
+    let pos = '';
+    content = content.replace(/^\s*<span[^>]*>\s*([^<]{1,6})\s*<\/span>/i, (m, t) => { if (isPosToken(t)) { pos = t.trim().toUpperCase(); return ''; } return m; });
+    const name = fixNameCaps(txtOf(content));
+    let out = '';
+    if (pos) out += `<span class='pos'>${esc(pos)}</span> `;
+    if (sublet) out += `<span class='sub'>${esc(sublet)}-</span>`;
+    out += esc(name);
+    return `<th${attrs}>${out}</th>`;
+  });
+}
+const normalizeNames = html => String(html || '').replace(/<tr\b[\s\S]*?<\/tr>/gi, normalizeNameCell);
+
 function groupTeams(box) {
   const order = [], by = {};
   for (const e of box) {
     const tm = teamOf(e.label);
     if (!by[tm]) { by[tm] = { team: tm, gators: /gator|gumbeaux/i.test(tm), batting: null, pitching: null, legend: null, notes: null }; order.push(tm); }
-    by[tm][kindOf(e.label)] = cleanTable(e.html);
+    by[tm][kindOf(e.label)] = normalizeNames(cleanTable(e.html));
     if (e.legend && e.legend.length) by[tm].legend = e.legend;
     if (e.notes) by[tm].notes = e.notes;
   }
@@ -195,7 +234,16 @@ function teamBlock(t) {
   // batting table hogs the space.
   const rc = html => (String(html || '').match(/<tr/gi) || []).length || 1;
   const sections = [];
-  if (t.batting) sections.push(`<div class='tcap bat'>${cap} — BATTING</div><div class='tbl bat' style='flex:${rc(t.batting)} 1 0'>${t.batting}</div>`);
+  if (t.batting) {
+    sections.push(`<div class='tcap bat'>${cap} — BATTING</div><div class='tbl bat' style='flex:${rc(t.batting)} 1 0'>${t.batting}</div>`);
+    // Substitution ledger: the alphabet legend keyed to the "a-/b-" letters on the
+    // substitute rows above (pinch-hit/ran/defensive replacements), matching the
+    // in-app box score. Only rendered when this side actually made a substitution.
+    if (t.legend && t.legend.length) {
+      const items = t.legend.map(s => `<span class='litem'><b>${esc(s.letter)}-</b> ${esc(s.text || ('for ' + (s.forName || '')))}</span>`).join('');
+      sections.push(`<div class='sublegend'>${items}</div>`);
+    }
+  }
   if (t.pitching) sections.push(`<div class='tcap pit'>${cap} — PITCHING</div><div class='tbl pit' style='flex:${rc(t.pitching)} 1 0'>${t.pitching}</div>`);
   // Brand the column to the team's color (Gators purple by default).
   const color = t.gators ? GATORS_PURPLE : teamColor(t.team);
@@ -289,7 +337,7 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .tbl table tr:first-child th{background:#fff;color:var(--teamc,#3a2480);font-weight:800;text-transform:uppercase;letter-spacing:.02em;font-size:10.5px;}
 .tbl.pit table tr:first-child th{font-size:9px;letter-spacing:0;}
 .tbl th:first-child,.tbl td:first-child{text-align:left;white-space:nowrap;width:44%;}
-.tbl.pit th:first-child,.tbl.pit td:first-child{width:30%;}
+.tbl.pit th:first-child,.tbl.pit td:first-child{width:32%;white-space:normal;overflow-wrap:anywhere;}
 /* Give the wider pitching columns (IP, ERA, #P, S%) room — a 4-digit ERA fits —
    while the single-digit columns (H..HBP) share the remainder equally. */
 .tbl.pit th:nth-child(2),.tbl.pit td:nth-child(2){width:7.5%;}   /* IP */
@@ -299,8 +347,15 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 /* A little extra room for the last column so its label isn't cramped at the edge. */
 .tbl.bat th:last-child,.tbl.bat td:last-child{width:11%;}
 .tbl tr:not(:first-child) th:first-child{color:#2a2150;font-weight:600;}
-.tbl th:first-child span{text-transform:uppercase;}  /* the position prefix (1b, rf, ...) */
+/* Only the fielding-position prefix is upper-cased — never the player name (the
+   old blanket span rule SHOUTED pitcher + positionless names). */
+.tbl .pos{text-transform:uppercase;color:#6a5aa8;font-weight:700;}
+.tbl .sub{color:#8a1a4c;font-weight:700;}  /* the a-/b- substitute reference letter */
 .tbl a{color:inherit;text-decoration:none;}
+/* Substitution ledger under a team's batting table — the alphabet legend. */
+.sublegend{font-size:9px;line-height:1.45;color:#4a416e;padding:5px 3px 1px;}
+.sublegend .litem{display:inline-block;margin:0 11px 2px 0;}
+.sublegend b{color:var(--teamc,#3a2480);font-weight:800;}
 /* Zebra striping for readability (every other data row), like the league box. */
 .tbl table tr:nth-child(2n) th,.tbl table tr:nth-child(2n) td{background:#f0eafa;}
 .tbl tr:last-child th,.tbl tr:last-child td{background:#faf8ff;font-weight:800;border-bottom:none;}
