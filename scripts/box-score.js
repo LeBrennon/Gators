@@ -279,6 +279,45 @@ function markMissedSubs(html, subInfo, legend) {
   });
   return { html: newHtml, legend: out };
 }
+// Defensive position changes from the play-by-play. A "<Player> to <pos> for
+// <Other>" line where <pos> is a fielding spot (not pitcher) marks a mid-game
+// move. Returns { byPlayer: {name:{pos,inn}}, inns:Set } — inns is used to date a
+// fielder who shifted in the same realignment but whose own move the feed didn't
+// spell out (the cascade when a substitute enters and everyone slides over).
+function pbpFieldChanges(pbp) {
+  const byPlayer = {};
+  (pbp || []).forEach(h => {
+    const im = (h.title || '').match(/(?:Top|Bottom) of (\d+)/i); const inn = im ? +im[1] : 0;
+    (String(h.html || '').match(/<tr[\s\S]*?<\/tr>/gi) || []).forEach(r => {
+      const m = txtOf(r).match(/^(.+?) to ([a-z0-9]+) for /i);
+      if (m && BOX_POS.has(m[2].toLowerCase()) && m[2].toLowerCase() !== 'p') byPlayer[normName(m[1])] = { pos: m[2].toUpperCase(), inn };
+    });
+  });
+  return byPlayer;
+}
+// A player whose box position lists two spots (e.g. "SS/3B") changed positions
+// mid-game: started at the first, moved to the second. Date the move from the
+// feed — the player's own "to <pos>" announcement when there is one, otherwise
+// the inning of this team's sole defensive realignment (the cascade shares it).
+function positionChanges(battingHtml, fieldChanges) {
+  const rows = String(battingHtml || '').match(/<tr\b[\s\S]*?<\/tr>/gi) || [];
+  const teamNames = [], changed = [];
+  for (const r of rows) {
+    const thm = r.match(/<th\b[^>]*>([\s\S]*?)<\/th>/i); if (!thm) continue;
+    const inner = thm[1], plain = txtOf(inner);
+    if (!plain || /^(hitters|totals?)$/i.test(plain)) continue;
+    const name = txtOf(inner.replace(/<span class='(?:pos|sub)'>[^<]*<\/span>/gi, ''));
+    if (name) teamNames.push(normName(name));
+    const posM = inner.match(/<span class='pos'>([^<]*)<\/span>/i);
+    const pos = posM ? posM[1].trim() : '';
+    if (pos.includes('/')) { const p = pos.split('/'); changed.push({ name, norm: normName(name), from: p[0], to: p[p.length - 1] }); }
+  }
+  if (!changed.length) return [];
+  const inns = new Set();
+  for (const nm of teamNames) { const c = fieldChanges[nm]; if (c && c.inn) inns.add(c.inn); }
+  const soleInn = inns.size === 1 ? [...inns][0] : null;
+  return changed.map(c => ({ ...c, inn: (fieldChanges[c.norm] && fieldChanges[c.norm].inn) || soleInn }));
+}
 
 function groupTeams(box) {
   const order = [], by = {};
@@ -369,6 +408,20 @@ function teamBlock(t) {
       const items = t.legend.map(s => `<span class='litem'><b>${esc(s.letter)}-</b> ${esc(s.text || ('for ' + (s.forName || '')))}</span>`).join('');
       sections.push(`<div class='sublegend'>${items}</div>`);
     }
+    // Position changes: a player whose box position lists two spots (SS/3B) moved
+    // mid-game. Explain each with the inning, like the substitution legend above —
+    // grouped under one inning when the whole shuffle happened at once.
+    if (t.posChanges && t.posChanges.length) {
+      const inns = [...new Set(t.posChanges.map(c => c.inn).filter(Boolean))];
+      const allSame = inns.length === 1 && t.posChanges.every(c => c.inn === inns[0]);
+      const items = t.posChanges.map(c => {
+        const last = c.name.split(/\s+/).pop();
+        const when = (!allSame && c.inn) ? ` (${ordinal(c.inn)})` : '';
+        return `<span class='litem'>${esc(last)} ${esc(c.from)}→${esc(c.to)}${when}</span>`;
+      }).join('');
+      const label = allSame ? `Position changes (${ordinal(inns[0])}):` : 'Position changes:';
+      sections.push(`<div class='poschg'><b>${label}</b> ${items}</div>`);
+    }
     // Box notes (2B/3B/HR/SB/CS/E …) under the batting table, same stat set the
     // in-app box score lists — the batting columns don't carry these. Errors (E)
     // get their own row beneath the offensive notes so the fielders credited with
@@ -416,6 +469,8 @@ function buildHtml(data) {
   teams.forEach(t => { if (t.batting) { const r = markMissedSubs(t.batting, subInfo, t.legend); t.batting = r.html; t.legend = r.legend; } });
   injectHBP(teams, data.pbp);   // derive + add the HBP pitching column from the play-by-play
   teams.forEach(t => { if (t.pitching) t.pitching = abbreviatePitcherNames(t.pitching, 15); });   // long name -> "F. Last" (one line)
+  const fieldChanges = pbpFieldChanges(data.pbp);   // explain dual-position players (SS/3B) + when they moved
+  teams.forEach(t => { if (t.batting) t.posChanges = positionChanges(t.batting, fieldChanges); });
   const croc = S.crocSkinDataUri();
   // Score/result/opponent from the line score when present; seed game otherwise.
   let gs = game.gs, os = game.os, win = game.win, opp = oppName;
@@ -512,6 +567,10 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .sublegend{font-size:9px;line-height:1.45;color:#4a416e;padding:5px 3px 1px;}
 .sublegend .litem{display:inline-block;margin:0 11px 2px 0;}
 .sublegend b{color:var(--teamc,#3a2480);font-weight:800;}
+/* Position changes (dual-position players, e.g. SS/3B) — who moved and when. */
+.poschg{font-size:9px;line-height:1.5;color:#4a416e;padding:4px 3px 1px;}
+.poschg .litem{display:inline-block;margin:0 10px 2px 0;white-space:nowrap;}
+.poschg b{color:var(--teamc,#3a2480);font-weight:800;margin-right:2px;}
 /* Box notes (2B/3B/HR/SB/CS/E) under the batting table — the extra-base hits,
    steals, and errors the batting columns don't carry, like the in-app box. */
 .boxnotes{font-size:9px;line-height:1.5;color:#3a3358;padding:6px 3px 1px;border-top:1px solid #ece6f8;margin-top:2px;}
