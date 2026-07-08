@@ -1703,6 +1703,27 @@ function sendAlertText(norm, text, label) {
     .then(() => { process.stdout.write('\n[inning-alert] sent ' + label + ' for ' + norm.id + '\n'); return true; })
     .catch(e => { logErr('sendInningAlert', e); return false; });
 }
+// Fire one boundary's alert, committing the "sent" flag only once the send
+// actually succeeds. Marking sent *before* the send (the old behavior) meant a
+// single transient SMTP hiccup at the moment a boundary was first detected
+// permanently swallowed that text — the 4s live poll never retried it. Now:
+//  - an in-flight guard stops overlapping polls from double-sending;
+//  - success persists the flag to disk (survives a Render restart);
+//  - failure leaves the flag unset so the next poll retries, bounded so a hard
+//    mailer outage doesn't attempt every 4s for the rest of the game.
+const inningAlertInFlight = new Set();  // keys with a send currently in flight
+const inningAlertAttempts = new Map();  // key -> failed send attempts so far
+const INNING_ALERT_MAX_ATTEMPTS = 6;
+function dispatchInningAlert(norm, key, text, label) {
+  if (inningAlertInFlight.has(key)) return;
+  if ((inningAlertAttempts.get(key) || 0) >= INNING_ALERT_MAX_ATTEMPTS) return;
+  inningAlertInFlight.add(key);
+  sendAlertText(norm, text, label).then(ok => {
+    inningAlertInFlight.delete(key);
+    if (ok) { inningAlertSent.add(key); inningAlertAttempts.delete(key); saveInningAlertSent(); }
+    else inningAlertAttempts.set(key, (inningAlertAttempts.get(key) || 0) + 1);
+  });
+}
 function checkInningAlerts(norm) {
   if (!INNING_ALERT_TO.length || norm.status === 'pregame' || norm.status === 'cancelled') return;
   const isFinal = norm.status === 'final';
@@ -1719,14 +1740,11 @@ function checkInningAlerts(norm) {
   for (const n of INNING_ALERT_INNINGS) {
     const key = norm.id + ':' + n;
     if (inningAlertSent.has(key) || !inningComplete(norm, n)) continue;
-    inningAlertSent.add(key); saveInningAlertSent();
-    sendAlertText(norm, inningAlertText(norm, n), 'end-of-' + n);
+    dispatchInningAlert(norm, key, inningAlertText(norm, n), 'end-of-' + n);
   }
   const fkey = norm.id + ':final';
-  if (isFinal && !inningAlertSent.has(fkey)) {
-    inningAlertSent.add(fkey); saveInningAlertSent();
-    sendAlertText(norm, finalAlertText(norm), 'final');
-  }
+  if (isFinal && !inningAlertSent.has(fkey))
+    dispatchInningAlert(norm, fkey, finalAlertText(norm), 'final');
 }
 async function pollSchedule() {
   try {
