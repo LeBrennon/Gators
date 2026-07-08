@@ -143,6 +143,9 @@ const boardCity = id => id === GATORS_ID ? '' : (CITY[id] || '');
 // Split-season tracking. The TCL plays two halves; each half's winner clinches a
 // playoff berth. Standings shown below reflect the current half, with clinched
 // teams tagged "x-" regardless of where their (reset) second-half record sits.
+// Playoff seeding + tie-breaker rules (half champions seed 1-2, top-2 of the 2nd
+// half seed 3-4, overlap/next-best rules, and the 2- and 3+-team tie-breakers)
+// are recorded in docs/tcl-playoff-rules.md for end-of-season resolution.
 const SEASON_HALF = 2;            // 1 = first half, 2 = second half
 // Team ids that have already clinched a playoff spot, with the reason shown in
 // the Standings legend. Victoria & Acadiana won the first half.
@@ -1515,7 +1518,7 @@ function normalizeFeatured(g) {
     inning: ip.inning, half: ip.half,
     inningLabel: status === 'live' ? g.status : status === 'final' ? (g.status || 'Final') : status === 'cancelled' ? 'Cancelled' : g.status,
     gatorsHome: g.gatorsHome, opponent: g.opponent,
-    location: gameLocation(g), watchUrl: watchUrlFor(g), ticketUrl: ticketIndex[g.id] || null, theme: THEMES[g.date] || null, freeAdmission: FREE_ADMISSION[g.date] || null, promo: promoFor(g), special: SPECIALS[g.date] || null,
+    location: gameLocation(g), watchUrl: watchUrlFor(g), replayUrl: replayUrlFor(g), ticketUrl: ticketIndex[g.id] || null, theme: THEMES[g.date] || null, freeAdmission: FREE_ADMISSION[g.date] || null, promo: promoFor(g), special: SPECIALS[g.date] || null,
     away: { name: g.away.name, short: g.away.short, logo: g.away.logo, runs: g.away.score || 0, record: recordStr(g.away), site: TEAM_SITE[g.away.id] || null },
     home: { name: g.home.name, short: g.home.short, logo: g.home.logo, runs: g.home.score || 0, record: recordStr(g.home), site: TEAM_SITE[g.home.id] || null },
   };
@@ -1703,6 +1706,27 @@ function sendAlertText(norm, text, label) {
     .then(() => { process.stdout.write('\n[inning-alert] sent ' + label + ' for ' + norm.id + '\n'); return true; })
     .catch(e => { logErr('sendInningAlert', e); return false; });
 }
+// Fire one boundary's alert, committing the "sent" flag only once the send
+// actually succeeds. Marking sent *before* the send (the old behavior) meant a
+// single transient SMTP hiccup at the moment a boundary was first detected
+// permanently swallowed that text — the 4s live poll never retried it. Now:
+//  - an in-flight guard stops overlapping polls from double-sending;
+//  - success persists the flag to disk (survives a Render restart);
+//  - failure leaves the flag unset so the next poll retries, bounded so a hard
+//    mailer outage doesn't attempt every 4s for the rest of the game.
+const inningAlertInFlight = new Set();  // keys with a send currently in flight
+const inningAlertAttempts = new Map();  // key -> failed send attempts so far
+const INNING_ALERT_MAX_ATTEMPTS = 6;
+function dispatchInningAlert(norm, key, text, label) {
+  if (inningAlertInFlight.has(key)) return;
+  if ((inningAlertAttempts.get(key) || 0) >= INNING_ALERT_MAX_ATTEMPTS) return;
+  inningAlertInFlight.add(key);
+  sendAlertText(norm, text, label).then(ok => {
+    inningAlertInFlight.delete(key);
+    if (ok) { inningAlertSent.add(key); inningAlertAttempts.delete(key); saveInningAlertSent(); }
+    else inningAlertAttempts.set(key, (inningAlertAttempts.get(key) || 0) + 1);
+  });
+}
 function checkInningAlerts(norm) {
   if (!INNING_ALERT_TO.length || norm.status === 'pregame' || norm.status === 'cancelled') return;
   const isFinal = norm.status === 'final';
@@ -1719,14 +1743,11 @@ function checkInningAlerts(norm) {
   for (const n of INNING_ALERT_INNINGS) {
     const key = norm.id + ':' + n;
     if (inningAlertSent.has(key) || !inningComplete(norm, n)) continue;
-    inningAlertSent.add(key); saveInningAlertSent();
-    sendAlertText(norm, inningAlertText(norm, n), 'end-of-' + n);
+    dispatchInningAlert(norm, key, inningAlertText(norm, n), 'end-of-' + n);
   }
   const fkey = norm.id + ':final';
-  if (isFinal && !inningAlertSent.has(fkey)) {
-    inningAlertSent.add(fkey); saveInningAlertSent();
-    sendAlertText(norm, finalAlertText(norm), 'final');
-  }
+  if (isFinal && !inningAlertSent.has(fkey))
+    dispatchInningAlert(norm, fkey, finalAlertText(norm), 'final');
 }
 async function pollSchedule() {
   try {
@@ -2543,6 +2564,20 @@ function buildRecord(slug, primary, batMap, pitMap) {
   if (pMap && primary.kind === 'pitching') { rec.pit = flatVals(pMap); rec.pitRanks = flatRanks(pMap); }
   else if (pitMap && pitMap[slug] && (pitMap[slug].era || pitMap[slug].ip)) rec.pit = pitMap[slug];
   else if (rec.glPit.length) rec.pit = aggPit(rec.glPit);
+  // Presto leaves a recently-added player's page aggregate as a placeholder
+  // {pa:0,tb:0} (no AB/AVG) for a while after his first game, even though his
+  // game-by-game log already lists that game. That placeholder wins the branches
+  // above but isn't showable, so his season line and lineup AVG read N/A. When a
+  // game log exists but the chosen line has nothing to show, fall back to the
+  // game-log aggregate (real AB/H/AVG, IP/ERA) so a number shows instead.
+  if (rec.glBat.length && !lineIsShowable({ hit: rec.hit })) {
+    const agg = aggBat(rec.glBat);
+    if (lineIsShowable({ hit: agg })) { rec.hit = agg; rec.hitRanks = {}; }
+  }
+  if (rec.glPit.length && !lineIsShowable({ pit: rec.pit })) {
+    const agg = aggPit(rec.glPit);
+    if (lineIsShowable({ pit: agg })) { rec.pit = agg; rec.pitRanks = {}; }
+  }
   return rec;
 }
 // On-demand fetch (taps + lazy-fill): a few gentle retries so a single open succeeds.
@@ -3231,24 +3266,39 @@ function parseStandings(html) {
 // { w, l, streak }. Applied to BOTH the name->record map (jumbo/scoreboard) and
 // the ordered rows (Standings tab) so every surface agrees; the second-half
 // record then derives from these totals minus FIRST_HALF_FINAL, exactly like the
-// feed. CLEAR an entry the moment the feed catches up to it.
+// feed.
+//
+// The override acts as a FLOOR, not a fixed pin: full-season W and L only ever
+// climb over a season, so the correction applies only while the feed still sits
+// BELOW it. The instant the feed ingests the confirmed result (or the team plays
+// on past it), the feed's own numbers meet/exceed the floor and win — the record
+// resumes updating automatically and the entry self-expires with no manual step.
+// That's the fix for the recurring "records frozen because a stale pin was left
+// behind" problem; a caught-up entry is harmless, but clearing it keeps this list
+// honest about what's actually still lagging.
 const MANUAL_STANDINGS_OVERRIDE = {
-  // The feed still hasn't ingested the 7/4 Gators 7–3 Brazos Valley final (as of
-  // 7/6 it shows the Gators 15–12 / 3–1 2H and the Bombers a loss short). Pin both
-  // sides of that game to the confirmed totals. CLEAR both the moment the feed
-  // catches up — verify against the live standings page first.
+  // The feed lagged the 7/4 Gators 7–3 Brazos Valley final (as of 7/6 it showed
+  // the Gators 15–12 / 3–1 2H and the Bombers a loss short). These floors carry
+  // both sides through until the feed catches up, after which they no-op.
   et1bt9sixrz5lnnl: { w: 16, l: 12, streak: 'W4' }, // Lake Charles Gumbeaux Gators (4-1 2H)
   z7w5th537gur3z15: { w: 13, l: 15, streak: 'L1' }, // Brazos Valley Bombers (3-2 2H)
 };
 // Patch a freshly parsed standings result in place so the overrides above flow
-// into both the record map and the rows before either is published.
+// into both the record map and the rows before either is published. Floor
+// semantics: never lower a feed number, and only stamp the manual streak while
+// we're actually lifting the record (feed still behind) so a caught-up team keeps
+// its live streak.
 function applyStandingsOverride(parsed) {
   for (const id in MANUAL_STANDINGS_OVERRIDE) {
     const o = MANUAL_STANDINGS_OVERRIDE[id], t = TEAMS[id]; if (!t) continue;
     const k = normName(t.name);
-    parsed.map[k] = { w: o.w, l: o.l, t: (parsed.map[k] && parsed.map[k].t) || 0 };
+    const feed = parsed.map[k];
+    const w = feed ? Math.max(feed.w, o.w) : o.w;
+    const l = feed ? Math.max(feed.l, o.l) : o.l;
+    const correcting = !feed || w > feed.w || l > feed.l;
+    parsed.map[k] = { w, l, t: (feed && feed.t) || 0 };
     const row = parsed.rows.find(x => x.id === id);
-    if (row) { row.w = o.w; row.l = o.l; if (o.streak != null) row.streak = o.streak; }
+    if (row) { row.w = w; row.l = l; if (correcting && o.streak != null) row.streak = o.streak; }
   }
 }
 async function pollStandings() {
@@ -3956,32 +4006,190 @@ app.get('/api/schedule', (_q, r) => {
   }
   r.type('application/json').send(_schedCache.json);
 });
-// Build the four-team playoff bracket from the computed standings rows. Seeds
-// 1-2 are the first-half champions (already clinched), ordered by first-half
-// final record; seeds 3-4 are the current top two second-half teams that
-// haven't clinched (rows arrive sorted by second-half pct), and stay
-// provisional until the second half ends. Matchups: 1v4 and 2v3, best-of-3.
-function buildPlayoffPicture(rows) {
-  if (!rows.length) return null;
+// ----- playoff race: league game log, run diff, head-to-head, tie-breakers ---
+// The standings feed only carries W/L/T + streak. Jared's TCL tie-breakers need
+// run differential and head-to-head, which we reconstruct from every DECIDED
+// game on the league schedule page (all eight teams, all dates). See
+// docs/tcl-playoff-rules.md for the rules this implements.
+//
+// Parse the schedule HTML into a flat log of finals: { id, date, regulation,
+// away:{id,score}, home:{id,score} }. Same chunking as parseLeagueScoreboard,
+// but across every date and keeping only finals with two known teams and a
+// score. A forfeit is a real W/L but not a "regulation" game (never played to
+// completion), so it's excluded from the last-regulation-game tie-break.
+function parseLeagueResults(html) {
+  if (!html) return [];
+  const re = /\/sports\/bsb\/\d{4}\/boxscores\/(\d{8})_([a-z0-9]+)\.xml/gi;
+  const links = []; let m;
+  while ((m = re.exec(html)) !== null) links.push({ id: m[1] + '_' + m[2], date: m[1], idx: m.index });
+  const out = []; let prevEnd = 0; const seen = new Set();
+  for (const link of links) {
+    const chunk = html.slice(prevEnd, link.idx); prevEnd = link.idx + 1;
+    if (seen.has(link.id)) continue;
+    const cls = classify(chunk);
+    if (cls.state !== 'final') continue;                       // decided games only
+    const t = teamsFromChunk(chunk); if (!t) continue;
+    const a = t.away, h = t.home;
+    if (!a.id || !h.id || !TEAMS[a.id] || !TEAMS[h.id]) continue;   // both known teams
+    if (a.score == null || h.score == null) continue;          // need a final score
+    seen.add(link.id);
+    out.push({ id: link.id, date: link.date, regulation: !/Forfeit/i.test(cls.status),
+      away: { id: a.id, score: a.score }, home: { id: h.id, score: h.score } });
+  }
+  return out;
+}
+// Roll the game log up into per-team run differential and pairwise head-to-head.
+//   rd[id]      = { rs, ra, w, l }                     season totals
+//   h2h[a][b]   = { w, l, rs, ra }                     a's record/runs vs b
+//   lastReg[a][b] = { date, winnerId }                 latest regulation meeting
+function computeLeagueMetrics(log) {
+  const rd = {}, h2h = {}, lastReg = {};
+  const team = id => (rd[id] || (rd[id] = { rs: 0, ra: 0, w: 0, l: 0 }));
+  const pair = (a, b) => { (h2h[a] || (h2h[a] = {})); return h2h[a][b] || (h2h[a][b] = { w: 0, l: 0, rs: 0, ra: 0 }); };
+  for (const g of log || []) {
+    const A = g.away, H = g.home;
+    const ta = team(A.id), th = team(H.id);
+    ta.rs += A.score; ta.ra += H.score; th.rs += H.score; th.ra += A.score;
+    const aWon = A.score > H.score, hWon = H.score > A.score;
+    if (aWon) { ta.w++; th.l++; } else if (hWon) { th.w++; ta.l++; }
+    const pa = pair(A.id, H.id), ph = pair(H.id, A.id);
+    pa.rs += A.score; pa.ra += H.score; ph.rs += H.score; ph.ra += A.score;
+    if (aWon) { pa.w++; ph.l++; } else if (hWon) { ph.w++; pa.l++; }
+    if (g.regulation && (aWon || hWon)) {
+      const winnerId = aWon ? A.id : H.id;
+      const prev = lastReg[A.id] && lastReg[A.id][H.id];
+      if (!prev || g.date >= prev.date) {              // keep the latest meeting
+        (lastReg[A.id] || (lastReg[A.id] = {}))[H.id] = { date: g.date, winnerId };
+        (lastReg[H.id] || (lastReg[H.id] = {}))[A.id] = { date: g.date, winnerId };
+      }
+    }
+  }
+  return { rd, h2h, lastReg };
+}
+const seasonDiff = (metrics, id) => { const r = metrics.rd[id]; return r ? r.rs - r.ra : 0; };
+const h2hRec = (metrics, a, b) => (metrics.h2h[a] && metrics.h2h[a][b]) || { w: 0, l: 0, rs: 0, ra: 0 };
+const fmtDiff = n => (n > 0 ? '+' : '') + n;
+// Two-team tie-break (Jared): games back → win% → H2H → run diff → run diff in
+// H2H → last regulation game. Returns { d, by, detail }: d<0 ranks `a` ahead.
+function cmpTwoTeam(a, b, metrics) {
+  const gb = (b.w2 - b.l2) - (a.w2 - a.l2);            // 1. games back (games over .500)
+  if (gb) return { d: gb, by: 'games back', detail: null };
+  if (a.pct !== b.pct) return { d: b.pct - a.pct, by: 'win percentage', detail: null };  // 2.
+  const ha = h2hRec(metrics, a.id, b.id);              // 3. head-to-head
+  if (ha.w !== ha.l) return { d: ha.l - ha.w, by: 'head-to-head', detail: ha.w + '-' + ha.l };
+  const da = seasonDiff(metrics, a.id), db = seasonDiff(metrics, b.id);  // 4. run differential
+  if (da !== db) return { d: db - da, by: 'run differential', detail: fmtDiff(da) + ' vs ' + fmtDiff(db) };
+  const hd = ha.rs - ha.ra;                            // 5. run diff in H2H games
+  if (hd) return { d: -hd, by: 'run differential (H2H)', detail: fmtDiff(hd) };
+  const lr = metrics.lastReg[a.id] && metrics.lastReg[a.id][b.id];       // 6. last regulation game
+  if (lr && lr.winnerId === a.id) return { d: -1, by: 'last regulation game', detail: null };
+  if (lr && lr.winnerId === b.id) return { d: 1, by: 'last regulation game', detail: null };
+  return { d: 0, by: null, detail: null };
+}
+// Three-or-more-team tie-break (Jared): H2H among the tied teams → run diff →
+// run diff in H2H among the tied teams. Returns teams ordered best-first plus a
+// human note describing how the knot was settled.
+function rankTiedGroup(group, metrics) {
+  const key = t => {
+    let w = 0, l = 0, hrd = 0;
+    for (const o of group) { if (o.id === t.id) continue; const h = h2hRec(metrics, t.id, o.id); w += h.w; l += h.l; hrd += h.rs - h.ra; }
+    return { id: t.id, hpct: (w + l) ? w / (w + l) : 0, hw: w, hl: l, diff: seasonDiff(metrics, t.id), hrd };
+  };
+  const keys = {}; group.forEach(t => { keys[t.id] = key(t); });
+  const ordered = group.slice().sort((a, b) => {
+    const ka = keys[a.id], kb = keys[b.id];
+    return kb.hpct - ka.hpct || kb.diff - ka.diff || kb.hrd - ka.hrd;
+  });
+  const ka = keys[ordered[0].id], kb = keys[ordered[1].id];
+  const by = ka.hpct !== kb.hpct ? 'head-to-head among tied teams'
+    : ka.diff !== kb.diff ? 'run differential'
+    : ka.hrd !== kb.hrd ? 'run differential in H2H games' : null;
+  const names = ordered.map(t => t.short || t.name).join(' › ');
+  return { ordered, note: by ? (names + ' — ' + by) : null };
+}
+// Fully rank the second-half standings, applying the tie-breakers within any set
+// of teams level on both games-over-.500 and win%. Returns the ordered rows and
+// a list of plain-language tie-break notes for the UI.
+function rankSecondHalf(rows, metrics) {
+  const base = rows.slice().sort((a, b) => (b.w2 - b.l2) - (a.w2 - a.l2) || b.pct - a.pct);
+  const out = [], notes = [];
+  for (let i = 0; i < base.length;) {
+    let j = i + 1;
+    while (j < base.length && (base[j].w2 - base[j].l2) === (base[i].w2 - base[i].l2) && base[j].pct === base[i].pct) j++;
+    const group = base.slice(i, j);
+    if (group.length === 1) { out.push(group[0]); }
+    else if (group.length === 2) {
+      const c = cmpTwoTeam(group[0], group[1], metrics);
+      const ord = c.d <= 0 ? group : [group[1], group[0]];
+      ord.forEach(x => out.push(x));
+      if (c.by) notes.push((ord[0].short || ord[0].name) + ' over ' + (ord[1].short || ord[1].name)
+        + ' — ' + c.by + (c.detail ? ' (' + c.detail + ')' : ''));
+    } else {
+      const r = rankTiedGroup(group, metrics);
+      r.ordered.forEach(x => out.push(x));
+      if (r.note) notes.push(r.note);
+    }
+    i = j;
+  }
+  return { rows: out, tiebreaks: notes };
+}
+// Build the four-team playoff bracket. Seeds 1-2 are the two first-half
+// qualifiers (clinched), ordered by first-half record. Seeds 3-4 are the top two
+// of the second half — but a team that placed top-2 in BOTH halves keeps its
+// first-half seed (overlap rule), and the second-half berth it vacates passes to
+// the best FULL-SEASON record among teams that didn't otherwise qualify. Ranked
+// rows arrive already tie-broken. Matchups: 1v4 and 2v3, best-of-3.
+function buildPlayoffPicture(ranked, metrics) {
+  if (!ranked.length) return null;
+  metrics = metrics || { rd: {}, h2h: {}, lastReg: {} };
   const pick = x => x ? { id: x.id, name: x.name, short: x.short, logo: x.logo || null, site: x.site || null } : null;
-  const champs = rows.filter(x => x.clinched).sort((a, b) => {
+  const champs = ranked.filter(x => x.clinched).sort((a, b) => {
     const fa = FIRST_HALF_FINAL[a.id] || { w: 0, l: 0 }, fb = FIRST_HALF_FINAL[b.id] || { w: 0, l: 0 };
     const pa = (fa.w + fa.l) ? fa.w / (fa.w + fa.l) : 0, pb = (fb.w + fb.l) ? fb.w / (fb.w + fb.l) : 0;
     return pb - pa || fb.w - fa.w;
   });
-  const field = rows.filter(x => !x.clinched);
+  const fhIds = new Set(champs.map(x => x.id));
+  const shTop2 = ranked.slice(0, 2);                          // top 2 of the second half
+  const genuine = shTop2.filter(x => !fhIds.has(x.id));       // ones not already in via 1H
+  const qualified = new Set([...fhIds, ...genuine.map(x => x.id)]);
+  const open = 2 - genuine.length;                            // berths vacated by overlap
+  const replacements = ranked.filter(x => !qualified.has(x.id))
+    .sort((a, b) => b.pctSeason - a.pctSeason || (b.ws - b.ls) - (a.ws - a.ls) || seasonDiff(metrics, b.id) - seasonDiff(metrics, a.id))
+    .slice(0, open);
+  const lower = [...genuine, ...replacements];                // seed 3 then seed 4
+  const lowNote = (x, i) => !x ? null
+    : genuine.indexOf(x) !== -1 ? (i === 0 ? 'Second-half leader' : 'Second-half runner-up')
+    : 'Best remaining full-season record';
   const seeds = [
     { seed: 1, team: pick(champs[0]), note: 'First-half champion', clinched: true },
     { seed: 2, team: pick(champs[1]), note: 'First-half champion', clinched: true },
-    { seed: 3, team: pick(field[0]), note: 'Second-half leader', provisional: true },
-    { seed: 4, team: pick(field[1]), note: 'Second-half runner-up', provisional: true },
+    { seed: 3, team: pick(lower[0]), note: lowNote(lower[0], 0), provisional: true },
+    { seed: 4, team: pick(lower[1]), note: lowNote(lower[1], 1), provisional: true },
   ];
-  return { format: 'Best-of-3', seeds, matchups: [[1, 4], [2, 3]] };
+  const notes = [];
+  if (open > 0 && replacements.length) {
+    const overlappers = shTop2.filter(x => fhIds.has(x.id)).map(x => x.short || x.name);
+    notes.push((overlappers.join(' & ') || 'A first-half qualifier')
+      + ' placed top-2 in both halves and keep' + (overlappers.length === 1 ? 's' : '') + ' a first-half seed, so '
+      + (open === 1 ? 'the open second-half berth goes' : 'both open second-half berths go')
+      + ' to the best remaining full-season record.');
+  }
+  return { format: 'Best-of-3', seeds, matchups: [[1, 4], [2, 3]], notes };
+}
+// Memoize the league metrics against the schedule fetch so we reparse only when
+// pollSchedule brings in fresh HTML.
+let _metricsCache = { at: -1, val: null };
+function leagueMetrics() {
+  if (_metricsCache.at !== lastFetchAt || !_metricsCache.val) {
+    _metricsCache = { at: lastFetchAt, val: computeLeagueMetrics(parseLeagueResults(lastHtml)) };
+  }
+  return _metricsCache.val;
 }
 app.get('/api/standings', (_q, r) => {
   r.set('Cache-Control', 'no-store');
   if (!standingsTable.length) pollStandings();
-  const rows = standingsTable.map(x => {
+  const metrics = leagueMetrics();
+  const enriched = standingsTable.map(x => {
     // The feed reports full-season W-L; the second half = season − first-half
     // final (clamped at 0). Ranking, PCT and GB run off the second-half race.
     const base = (x.id && FIRST_HALF_FINAL[x.id]) || { w: 0, l: 0 };
@@ -3992,13 +4200,17 @@ app.get('/api/standings', (_q, r) => {
       w2, l2, ws: sw, ls: sl,
       pct: g2 ? w2 / g2 : 0,                       // second-half pct (drives sort/GB)
       pctSeason: gs ? (sw + x.t * 0.5) / gs : 0,   // full-season pct (tiebreak)
+      diff: seasonDiff(metrics, x.id),             // season run differential
       site: TEAM_SITE[x.id] || null,
       clinched: (x.id && CLINCHED_PLAYOFF[x.id]) || null,
     });
-  }).sort((a, b) => b.pct - a.pct || b.pctSeason - a.pctSeason || b.ws - a.ws || a.ls - b.ls);
+  });
+  const ranked = rankSecondHalf(enriched, metrics);
+  const rows = ranked.rows;
   const lead = rows[0];
   for (const x of rows) x.gb = lead ? ((lead.w2 - x.w2) + (x.l2 - lead.l2)) / 2 : 0;
-  r.json({ updatedAt: standingsAt, gatorsId: GATORS_ID, half: SEASON_HALF, rows, playoffs: buildPlayoffPicture(rows), scoreboard: buildLeagueBoard() });
+  r.json({ updatedAt: standingsAt, gatorsId: GATORS_ID, half: SEASON_HALF, rows,
+    tiebreaks: ranked.tiebreaks, playoffs: buildPlayoffPicture(rows, metrics), scoreboard: buildLeagueBoard() });
 });
 app.get('/debug/extras', (_q, r) => {
   const sample = games.filter(g => g.state === 'live' || g.state === 'scheduled').slice(0, 4)
@@ -4276,7 +4488,8 @@ if (require.main === module) {
   app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleRosterRefresh(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); setTimeout(pollStrikePct, 15000); setInterval(pollStrikePct, 3 * 60 * 60 * 1000); setTimeout(getPitcherRest, 20000); scheduleDailyStats(); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, pitchersFromFeed, extractEventAuth,
-  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseTeamRosterSlugs, parseGameLog, boxRowsForPlayer, aggBat, aggPit, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, applyPitcherOverrides, pitchingTotals, strikeCounts, inningAlertText, finalAlertText };
+  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, applyStandingsOverride, MANUAL_STANDINGS_OVERRIDE, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseTeamRosterSlugs, parseGameLog, boxRowsForPlayer, aggBat, aggPit, buildRecord, lineIsShowable, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, applyPitcherOverrides, pitchingTotals, strikeCounts, inningAlertText, finalAlertText,
+  parseLeagueResults, computeLeagueMetrics, cmpTwoTeam, rankTiedGroup, rankSecondHalf, buildPlayoffPicture };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
@@ -4654,6 +4867,13 @@ body.noscroll{overflow:hidden;}
 .clinch{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;flex:none;font-size:14px;font-family:'Oswald',sans-serif;font-weight:700;color:var(--gold2);}
 .clinch small{font-size:8px;letter-spacing:.06em;margin-top:3px;}
 .stnote{margin-top:8px;font-size:10px;color:var(--mute);display:flex;align-items:center;gap:6px;font-family:'Oswald',sans-serif;letter-spacing:.01em;}
+.sttbl .stdiff{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--mute);text-align:right;}
+.sttbl .stdiff.pos{color:#41a913;}
+.sttbl .stdiff.neg{color:var(--away);}
+.sttb{margin-top:10px;background:var(--bayou2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;}
+.sttbh{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.06em;font-size:10px;color:var(--gold2);margin-bottom:6px;}
+.sttb ul{margin:0;padding-left:16px;color:var(--mute);font-size:11px;line-height:1.55;}
+.sttb li{margin-bottom:2px;}
 .poffwrap{background:var(--bayou2);border:1px solid var(--line);border-radius:12px;padding:14px;}
 .poffintro{font-size:12px;color:var(--mute);line-height:1.5;margin-bottom:13px;}
 .poffhd{display:flex;align-items:center;justify-content:space-between;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.08em;font-size:12px;color:var(--gold2);margin-bottom:10px;}
@@ -4669,6 +4889,7 @@ body.noscroll{overflow:hidden;}
 .poffl{width:24px;height:24px;border-radius:5px;object-fit:contain;background:transparent;flex:none;}
 .poffnm{flex:1;min-width:0;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.01em;color:var(--bone);white-space:normal;overflow-wrap:anywhere;line-height:1.15;}
 .poffslot.g .poffnm{color:var(--gator);}
+.poffwhy{display:block;margin-top:2px;font-size:9px;font-weight:400;letter-spacing:.03em;text-transform:uppercase;color:var(--mute);}
 .poffclinch{flex:none;display:inline-flex;flex-direction:column;align-items:center;line-height:1;font-size:14px;color:var(--gold2);}
 .poffclinch small{margin-top:2px;font-size:7.5px;font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--gold2);}
 .poffrules{margin:12px 0 0;padding-left:18px;color:var(--mute);font-size:11px;line-height:1.6;}
@@ -4685,7 +4906,11 @@ a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 .sbteams{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;}
 .sbrow{display:flex;align-items:center;gap:9px;}
 .sbl{width:30px;height:30px;border-radius:6px;object-fit:contain;background:transparent;flex:none;}
-.sbn{flex:0 1 auto;min-width:0;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.02em;color:var(--mute);line-height:1.18;overflow-wrap:anywhere;}
+/* One line always: a long name (e.g. "San Antonio River Monsters") ellipsizes
+   rather than wrapping, so its record stays aligned with the other rows. 14px
+   lets the longest name fit whole on phone-width screens; it only clips on the
+   narrowest. */
+.sbn{flex:0 1 auto;min-width:0;font-family:'Oswald',sans-serif;font-weight:600;font-size:14px;letter-spacing:.02em;color:var(--mute);line-height:1.18;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .sbrec{flex:none;margin-left:5px;font-weight:400;font-size:.82em;color:var(--mute);opacity:.85;white-space:nowrap;}
 .sbs{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:16px;color:var(--mute);min-width:20px;text-align:right;}
 .sbsc{display:flex;align-items:center;gap:6px;flex:none;margin-left:auto;}
@@ -4791,10 +5016,14 @@ var FX=(function(){
     }
   }
   // A rocket rises from the bottom to a target height anywhere across the width,
-  // then explodes — so bursts scatter over the whole screen, not one spot.
+  // then explodes — so bursts scatter over the whole screen, not one spot. Targets
+  // reach from just under the top header (4%) down, and each rocket's launch speed
+  // is derived from its target under gravity (0.12/frame) so it actually climbs
+  // that high — the highest shells burst over the gold "Gumbeaux Gators" letters.
   function launch(){
-    rockets.push({x:W*(0.05+Math.random()*0.9),y:H+8,ty:H*(0.10+Math.random()*0.52),
-      vy:-(8.5+Math.random()*3.5),col:COLORS[Math.random()*COLORS.length|0]});
+    var ty=H*(0.04+Math.random()*0.56),rise=(H+8)-ty;
+    rockets.push({x:W*(0.05+Math.random()*0.9),y:H+8,ty:ty,
+      vy:-Math.sqrt(0.24*rise)*(0.99+Math.random()*0.05),col:COLORS[Math.random()*COLORS.length|0]});
   }
   function tick(){
     raf=requestAnimationFrame(tick);ctx.clearRect(0,0,W,H);
@@ -4818,8 +5047,9 @@ var FX=(function(){
       window.addEventListener('resize',function(){if(cv.style.display!=='none')size();});}
     if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
     cv.style.display='block';if(!raf)size();
-    // More runs -> a bigger show. Rockets fire in a staggered barrage across the page.
-    var shots=Math.max(8,Math.min(6+(intensity||1)*2,18));
+    // More runs -> a bigger show. Rockets fire in a staggered barrage across the
+    // page; the barrage (and so the whole show) runs about twice as long as before.
+    var shots=Math.max(16,Math.min(12+(intensity||1)*4,36));
     for(var s=0;s<shots;s++)(function(d){setTimeout(function(){if(cv.style.display!=='none')launch();},d);})(s*(150+Math.random()*130));
     endAt=Date.now()+shots*280+2600;if(!raf)tick();
   }
@@ -4827,6 +5057,13 @@ var FX=(function(){
 })();
 var prev={a:null,h:null};
 var lastPlayTx='',lastPlayGid=null; // track the live "Last play" text to flash only on change
+// Gators fireworks are deferred so they launch WITH the green "scored" bubble,
+// not before it: the run total ticks up a live-update frame or two ahead of the
+// play narrative, so we stash the pending run count here and fire when the
+// Gators' scored bubble appears — with a timer as a fallback for a run that
+// never gets a "scored" narrative (e.g. a bases-loaded walk).
+var fxPending=0,fxTimer=0;
+function fireFx(){if(fxTimer){clearTimeout(fxTimer);fxTimer=0;}if(fxPending>0){FX.show(fxPending);fxPending=0;}}
 // Point a team's scoreboard logo at their official site. Only the opponent is
 // linked; the Gators' own logo (isGators=true) stays a plain, non-clickable image.
 function logoLink(id,t,isGators){
@@ -4850,8 +5087,12 @@ function renderGame(g){
   $('homeSc').style.display=preGame?'none':'';
   if(g.id===curId){if(g.away.runs>prev.a)flash($('awaySc'));if(g.home.runs>prev.h)flash($('homeSc'));}
   // Fireworks when the Gators score (their run total rises) during a live game.
+  // Don't fire yet — stash the runs and let them go off with the green "scored"
+  // bubble below, which usually lands a frame later. The fallback timer fires the
+  // show anyway if that narrative never arrives.
   var gPrev=g.gatorsHome?prev.h:prev.a,gNow=g.gatorsHome?g.home.runs:g.away.runs;
-  if(g.id===curId&&g.status==='live'&&gPrev!=null&&gNow>gPrev)FX.show(gNow-gPrev);
+  if(g.id===curId&&g.status==='live'&&gPrev!=null&&gNow>gPrev){
+    fxPending+=gNow-gPrev;if(!fxTimer)fxTimer=setTimeout(fireFx,5000);}
   $('awaySc').textContent=g.away.runs;$('homeSc').textContent=g.home.runs;
   // Color the scores by result (leader gold, trailer light purple); only once a
   // game is live or final and both totals are in. A tie leaves neither class, so
@@ -4893,7 +5134,11 @@ function renderGame(g){
     // not on every poll, and not when first switching to this game.
     var lpb=document.getElementById('lastPlay');
     if(lpb){var lt=lpb.querySelector('.lptx');var ntx=lt?lt.textContent:'';
-      if(g.id===lastPlayGid&&ntx&&ntx!==lastPlayTx){lpb.classList.remove('lpnew');void lpb.offsetWidth;lpb.classList.add('lpnew');}
+      var lpNew=(g.id===lastPlayGid&&ntx&&ntx!==lastPlayTx);
+      if(lpNew){lpb.classList.remove('lpnew');void lpb.offsetWidth;lpb.classList.add('lpnew');}
+      // Launch the deferred Gators fireworks in lockstep with their scoring
+      // bubble, so the burst and the "here's what happened" text land together.
+      if(lpNew&&fxPending>0&&lpb.classList.contains('gscore'))fireFx();
       lastPlayTx=ntx;}
     lastPlayGid=g.id;
   }
@@ -4939,7 +5184,10 @@ function buildLive(g){
   var lastPlay='';
   if((!L||!L.abPitches)&&g.plays&&g.plays.length){var lp=g.plays[g.plays.length-1];
     var inHalf=!L||(lp.inning===(+L.inning)&&lp.half===(L.half==='Top'?'top':'bot'));
-    if(lp&&lp.text&&inHalf)lastPlay='<div class="lastplay'+(lp.scored?' scored':'')+'" id="lastPlay"><span class="lplab">Last play</span><span class="lptx">'+esc(lp.text)+'</span></div>';}
+    // gscore marks a Gators scoring play (their half + a "scored" narrative) so
+    // the deferred fireworks fire the instant this bubble shows.
+    var gBat=g.gatorsHome?(lp.half==='bot'):(lp.half==='top');
+    if(lp&&lp.text&&inHalf)lastPlay='<div class="lastplay'+(lp.scored?' scored':'')+(lp.scored&&gBat?' gscore':'')+'" id="lastPlay"><span class="lplab">Last play</span><span class="lptx">'+esc(lp.text)+'</span></div>';}
   var line=buildLineScore(g);
   var dueup=buildDueUp(g);
   var lineup=buildLineup(g);
@@ -5327,7 +5575,9 @@ function renderStandings(d){
     var pos=rows.map(function(x,i){return (i>0&&rows[i-1].pct===x.pct)?null:i+1;});
     for(var pi=1;pi<pos.length;pi++){if(pos[pi]==null)pos[pi]=pos[pi-1];}
     var groupSize={};pos.forEach(function(p){groupSize[p]=(groupSize[p]||0)+1;});
-    var h='<div class="gltbl sttbl"><table><tr><th>#</th><th>Team</th><th title="Second-half W-L">2H</th><th>PCT</th><th>GB</th><th>STRK</th><th title="Full-season W-L">Season</th></tr>';
+    var haveDiff=rows.some(function(x){return x.diff!=null&&x.diff!==0;});
+    var h='<div class="gltbl sttbl"><table><tr><th>#</th><th>Team</th><th title="Second-half W-L">2H</th><th>PCT</th><th>GB</th>'
+      +(haveDiff?'<th title="Season run differential">DIFF</th>':'')+'<th>STRK</th><th title="Full-season W-L">Season</th></tr>';
     rows.forEach(function(x,i){
       var isG=x.id&&x.id===d.gatorsId;
       var lg=x.logo?'<img class="stlogo" src="'+esc(x.logo)+'" alt="">':'';
@@ -5340,12 +5590,20 @@ function renderStandings(d){
       var cls=[isG?'stg':'',x.clinched?'stclinch':''].filter(Boolean).join(' ');
       var wl2=(x.w2|0)+'-'+(x.l2|0), wls=(x.ws|0)+'-'+(x.ls|0);
       var rk=(groupSize[pos[i]]>1?'T-':'')+pos[i];
+      var dv=(x.diff==null)?0:x.diff;
+      var diffTd=haveDiff?('<td class="stdiff '+(dv>0?'pos':dv<0?'neg':'')+'">'+(dv>0?'+':'')+dv+'</td>'):'';
       h+='<tr'+(cls?' class="'+cls+'"':'')+'><td>'+rk+'</td>'
         +'<td>'+team+'</td>'
-        +'<td class="stwl2">'+wl2+'</td><td>'+fmtPct(x.pct)+'</td><td>'+fmtGb(x.gb)+'</td><td>'+sk+'</td><td class="stwls">'+wls+'</td></tr>';
+        +'<td class="stwl2">'+wl2+'</td><td>'+fmtPct(x.pct)+'</td><td>'+fmtGb(x.gb)+'</td>'+diffTd+'<td>'+sk+'</td><td class="stwls">'+wls+'</td></tr>';
     });
     h+='</table></div>';
     if(anyClinch)h+='<div class="stnote"><span class="clinch">🏆<small>1H</small></span> first-half champion — clinched a playoff spot</div>';
+    var tbs=(d&&d.tiebreaks)||[];
+    if(tbs.length){
+      h+='<div class="sttb"><div class="sttbh">Tiebreakers applied</div><ul>';
+      tbs.forEach(function(t){h+='<li>'+esc(t)+'</li>';});
+      h+='</ul></div>';
+    }
     $('standingsBody').innerHTML=h;
     $('stMeta').textContent=d.half===2?'Second-half standings':d.half===1?'First-half standings':'';
   }
@@ -5360,9 +5618,10 @@ function poffSlot(s,gatorsId){
   var lg=t&&t.logo?'<img class="poffl" src="'+esc(t.logo)+'" alt="">':'<span class="poffl"></span>';
   var nm=t?esc(t.name||t.short):'TBD';
   var badge=s.clinched?'<span class="poffclinch" title="First-half champion — clinched a playoff spot">🏆<small>1st half</small></span>':'';
+  var note=(t&&s.note)?'<span class="poffwhy">'+esc(s.note)+'</span>':'';
   return '<div class="poffslot'+(isG?' g':'')+(t?'':' tbd')+'">'
     +'<span class="poffseed'+(s.clinched?' clin':'')+'">'+s.seed+'</span>'
-    +lg+'<span class="poffnm">'+nm+'</span>'+badge+'</div>';
+    +lg+'<span class="poffnm">'+nm+note+'</span>'+badge+'</div>';
 }
 function renderPlayoffs(d){
   var host=$('poffBody');if(!host)return;
@@ -5379,6 +5638,7 @@ function renderPlayoffs(d){
   });
   h+='<ul class="poffrules"><li>Best-of-3 series — first to two wins advances.</li>'
     +'<li>Lower seed hosts Game 1; higher seed hosts Games 2 &amp; 3 (if needed).</li></ul>';
+  (p.notes||[]).forEach(function(n){h+='<div class="poffnote">'+esc(n)+'</div>';});
   if(provisional)h+='<div class="poffnote"><span class="poffprov">•</span> Seeds 3 &amp; 4 reflect the current second-half standings and can still change.</div>';
   h+='</div>';
   host.innerHTML=h;
