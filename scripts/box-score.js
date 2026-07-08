@@ -112,6 +112,10 @@ function kindOf(label) { return /pitching/i.test(label) ? 'pitching' : 'batting'
 // Strip inert player links and the table's own caption (we add our own section
 // headers), so the box tables render clean inside the PDF.
 const cleanTable = h => String(h || '').replace(/<caption>[\s\S]*?<\/caption>/gi, '').replace(/<a\b[^>]*>/gi, '').replace(/<\/a>/gi, '');
+// The app appends a season batting-average column (each cell tagged class="bxavg")
+// to every batting table. The printed box is a single-game sheet, so drop that
+// column — header and data cells alike — before rendering.
+const dropAvgCol = h => String(h || '').replace(/<t[hd]\b[^>]*class="[^"]*\bbxavg\b[^"]*"[^>]*>[\s\S]*?<\/t[hd]>/gi, '');
 const txtOf = s => String(s || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
 const normName = n => String(n || '').toLowerCase().replace(/\s*\([^)]*\)\s*$/, '').replace(/[^a-z\s]/g, '').replace(/\s+/g, ' ').trim();
 
@@ -159,7 +163,7 @@ function groupTeams(box) {
   for (const e of box) {
     const tm = teamOf(e.label);
     if (!by[tm]) { by[tm] = { team: tm, gators: /gator|gumbeaux/i.test(tm), batting: null, pitching: null, legend: null, notes: null }; order.push(tm); }
-    by[tm][kindOf(e.label)] = normalizeNames(cleanTable(e.html));
+    by[tm][kindOf(e.label)] = normalizeNames(dropAvgCol(cleanTable(e.html)));
     if (e.legend && e.legend.length) by[tm].legend = e.legend;
     if (e.notes) by[tm].notes = e.notes;
   }
