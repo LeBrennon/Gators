@@ -3508,7 +3508,7 @@ function sendStatic(r, name, body, type) {
 app.get('/', (q, r) => { recordVisit(q); r.set('Cache-Control', 'no-store, must-revalidate'); sendStatic(r, 'app', APP_HTML, 'html'); });
 app.get('/sw.js', (_q, r) => { r.set('Cache-Control', 'no-cache, no-store, must-revalidate'); sendStatic(r, 'sw', SW, 'application/javascript'); });
 app.get('/manifest.json', (_q, r) => sendStatic(r, 'manifest', MANIFEST, 'application/json'));
-app.get('/health', (_q, r) => r.json({ ok: true, build: BUILD, games: games.length, featured: featured && featured.id, push: pushReady }));
+app.get('/health', (_q, r) => r.json({ ok: true, build: BUILD, games: games.length, featured: featured && featured.id, push: pushReady, mail: mailReady, texts: INNING_ALERT_TO.length ? (mailReady ? 'on' : 'misconfigured') : 'off' }));
 app.get('/api/version', (_q, r) => r.json(BUILD));
 app.get('/debug', (_q, r) => {
   const html = lastHtml || '';
@@ -4480,6 +4480,21 @@ app.get('/api/test', (_q, r) => {
   notify('Test \uD83D\uDC0A', 'Push is working — you\u2019re all set', 'run');
   r.json({ ok: true, sentTo: subscribers.size });
 });
+// On-demand end-to-end test of the inning-text mailer, so a misconfigured
+// deploy can be verified in seconds instead of waiting for a live inning
+// boundary. Gated by REPORT_KEY (same as the other private pages) so it can't
+// be used to spam the recipients. Sends one real text to INNING_ALERT_TO and
+// returns the actual SMTP result — a wrong app password surfaces as the error.
+app.get('/debug/testtext', async (q, r) => {
+  if (!REPORT_KEY || String(q.query.key || '') !== REPORT_KEY) return r.status(403).json({ ok: false, error: 'set REPORT_KEY on the server and call with ?key=<REPORT_KEY>' });
+  if (!INNING_ALERT_TO.length) return r.json({ ok: false, error: 'INNING_ALERT_TO not set' });
+  const t = getMailer();
+  if (!t) return r.json({ ok: false, mailReady, error: 'mailer off — set GMAIL_USER and GMAIL_APP_PASSWORD on the server' });
+  try {
+    await t.sendMail({ from: 'Gators GameTracker <' + MAIL_USER + '>', to: INNING_ALERT_TO.join(', '), text: 'Gators GameTracker test — inning texts are wired up 🐊' });
+    r.json({ ok: true, recipients: INNING_ALERT_TO });
+  } catch (e) { r.json({ ok: false, error: String(e && e.message || e) }); }
+});
 app.get('/api/stream', (q, r) => {
   r.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
   r.flushHeaders(); r.write(':ok\n\n'); if (featured) r.write('data: ' + JSON.stringify({ type: 'game', game: featured }) + '\n\n');
@@ -4490,7 +4505,13 @@ app.get('/api/stream', (q, r) => {
 if (require.main === module) {
   loadCache(); // serve last-saved player stats instantly, then refresh below
   loadBoxCache(); // restore cached final box scores so we don't re-fetch them
-  app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleRosterRefresh(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); setTimeout(pollStrikePct, 15000); setInterval(pollStrikePct, 3 * 60 * 60 * 1000); setTimeout(getPitcherRest, 20000); scheduleDailyStats(); });
+  app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '  texts:' + (INNING_ALERT_TO.length ? (mailReady ? 'on' : 'MISCONFIGURED') : 'off') + '\n');
+    // Loud, actionable boot warning: recipients are set but the server has no
+    // Gmail creds, so inning/final texts would silently no-op (getMailer null).
+    // This is exactly the gap that hid a whole season of missing end-of-inning
+    // texts — surface it instead of failing quietly.
+    if (INNING_ALERT_TO.length && !mailReady) console.warn('[inning-alert] mailer NOT configured: INNING_ALERT_TO is set but GMAIL_USER/GMAIL_APP_PASSWORD are missing — no texts will send until they are set.');
+    pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleRosterRefresh(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); setTimeout(pollStrikePct, 15000); setInterval(pollStrikePct, 3 * 60 * 60 * 1000); setTimeout(getPitcherRest, 20000); scheduleDailyStats(); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, pitchersFromFeed, extractEventAuth,
   dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, applyStandingsOverride, MANUAL_STANDINGS_OVERRIDE, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseTeamRosterSlugs, parseGameLog, boxRowsForPlayer, aggBat, aggPit, buildRecord, lineIsShowable, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, applyPitcherOverrides, pitchingTotals, strikeCounts, inningAlertText, finalAlertText,
