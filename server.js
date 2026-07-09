@@ -3968,11 +3968,11 @@ app.get('/api/rest', async (_q, r) => {
     r.status(500).json({ error: String(err && err.message || err) });
   }
 });
-// Private pitchers' rest chart page for the pitching coach — mirrors the layout
-// of their hand-written pitch-count sheets so numbers can be cross-checked.
-// Gated by REPORT_KEY like /stats.
+// Pitchers' rest chart page for the pitching coach — mirrors the layout of their
+// hand-written pitch-count sheets so numbers can be cross-checked. Open (unlike
+// /stats): the owner wants to pull it on demand without a key. A ?key= is still
+// accepted but ignored, so the post-game Action's keyed render keeps working.
 app.get('/rest', async (q, r) => {
-  if (reportLocked(q, r)) return;
   try {
     const data = restWithLive(await getPitcherRest());
     const today = todayCentralYmd();
