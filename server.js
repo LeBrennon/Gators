@@ -5989,7 +5989,11 @@ function glTable(rows,cols){
   return h+'</table></div>';
 }
 // Box id is YYYYMMDD_xxxx -> "Jun 24, 2026" for the box-score modal header.
-function boxDate(id){var m=/^(\d{4})(\d{2})(\d{2})/.exec(id||'');if(!m)return '';
+// NB: this whole client script lives in the APP template literal, which drops a
+// lone backslash in an escape it does not recognise (so a d-class shorthand
+// would ship without its backslash and never match a real id -- why the date
+// used to come up blank). Use [0-9] classes, which pass through untouched.
+function boxDate(id){var m=/^([0-9]{4})([0-9]{2})([0-9]{2})/.exec(id||'');if(!m)return '';
   var mon=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m[2]-1];
   return mon?(mon+' '+(+m[3])+', '+m[1]):'';}
 function oppShort(o){o=(o||'').replace('at ','@ ');var map={'Acadiana Cane Cutters':'Acadiana','Baton Rouge Rougarou':'Baton Rouge','Abilene Flying Bison':'Abilene','Brazos Valley Bombers':'Brazos Valley','San Antonio River Monsters':'San Antonio','Sherman Shadowcats':'Sherman','Victoria Generals':'Victoria','Lake Charles Gumbeaux Gators':'Gators'};for(var k in map)o=o.replace(k,map[k]);return o;}
@@ -6056,3 +6060,8 @@ const SITE_NOTICE_HTML = SITE_NOTICE
   : '';
 const APP_HTML = APP.replace('__BUILD_LABEL__', BUILD_LABEL).replace('__BUILD_COMMIT__', BUILD.commit)
   .replace('__SITE_NOTICE__', SITE_NOTICE_HTML);
+
+// The client script rides inside the APP template literal, so regex escapes can
+// silently lose their backslash between source and shipped page. Export the
+// rendered page so tests can exercise the client code exactly as it ships.
+module.exports.APP = APP;
