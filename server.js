@@ -4567,10 +4567,14 @@ const APP = `<!DOCTYPE html>
 <style>
 :root{--bayou:#16102b;--bayou2:#1e1640;--panel:#2b1e5c;--line:#41327a;--gator:#b9a6ee;--gator2:#4e3191;--purple:#714ad2;--gold:#ecc913;--gold2:#ffd633;--bone:#f0ede4;--mute:#9a8cc4;--away:#e0524a;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-html{margin:0;background:var(--bayou);}
+html{margin:0;background:#39276e;}
 body{margin:0;font-family:'Inter',system-ui,sans-serif;color:var(--bone);min-height:100vh;
 background:transparent;-webkit-font-smoothing:antialiased;}
-.bgfx{position:fixed;inset:0;z-index:-1;background-color:var(--bayou);
+/* Size the croc layer to the LARGEST viewport (lvh) so it still covers the screen
+   after mobile Safari's toolbars collapse and the visual viewport grows. Using
+   inset:0/100vh alone leaves a strip of the page background exposed at the bottom
+   on iOS. 100vh is the pre-lvh fallback (historically the large viewport on iOS). */
+.bgfx{position:fixed;top:0;left:0;right:0;height:100vh;height:100lvh;z-index:-1;background-color:#39276e;
 background:radial-gradient(1100px 550px at 50% -10%,rgba(111,79,212,.10),transparent 60%),linear-gradient(rgba(22,16,43,.12),rgba(22,16,43,.20)),url(${BG_PATH}) center center / cover no-repeat;}
 .wrap{max-width:520px;margin:0 auto;padding:0 14px 40px;}
 .topbar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:9px;padding:14px 4px 12px;}
