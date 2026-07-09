@@ -5113,8 +5113,8 @@ function renderGame(g){
   var jl=$('jloc');if(jl)jl.textContent=g.location||'';
   var th=$('themeTag');if(th){if(g.theme&&g.status==='pregame'){th.textContent='🎉 '+g.theme+' Night';th.style.display='';}else{th.style.display='none';}}
   var sn=$('specialName'),sd=$('specialDetail');
-  if(sn&&sd){if(g.special&&g.status!=='final'&&g.status!=='cancelled'){sn.textContent=(g.special.emoji?g.special.emoji+' ':'')+g.special.name;sn.style.display='';if(g.special.detail){sd.textContent=g.special.detail;sd.style.display='';}else sd.style.display='none';}else{sn.style.display='none';sd.style.display='none';}}
-  var pr=$('promoTag');if(pr){if(g.promo&&g.status!=='final'&&g.status!=='cancelled'){pr.innerHTML=esc(g.promo.emoji)+' <b>'+esc(g.promo.name)+'</b> · '+esc(g.promo.detail);pr.style.display='';}else{pr.style.display='none';}}
+  if(sn&&sd){if(g.special&&g.status==='pregame'){sn.textContent=(g.special.emoji?g.special.emoji+' ':'')+g.special.name;sn.style.display='';if(g.special.detail){sd.textContent=g.special.detail;sd.style.display='';}else sd.style.display='none';}else{sn.style.display='none';sd.style.display='none';}}
+  var pr=$('promoTag');if(pr){if(g.promo&&g.status==='pregame'){pr.innerHTML=esc(g.promo.emoji)+' <b>'+esc(g.promo.name)+'</b> · '+esc(g.promo.detail);pr.style.display='';}else{pr.style.display='none';}}
   var wb=$('watchBtn');
   if(wb){
     // Live game: show the TCL stream pill. Upcoming games use the Buy Tickets
@@ -5450,7 +5450,7 @@ function renderSched(list){
       +row(g.away,g.away.id==='et1bt9sixrz5lnnl',aw)+row(g.home,g.home.id==='et1bt9sixrz5lnnl',hw)
       +(g.state==='scheduled'&&g.theme?('<div class="ctheme">🎉 '+esc(g.theme)+' Night</div>'):'')
       +(g.state==='scheduled'&&g.special?('<div class="ctheme">'+(g.special.emoji?esc(g.special.emoji)+' ':'')+esc(g.special.name)+'</div>'+(g.special.detail?('<div class="cpromo">'+esc(g.special.detail)+'</div>'):'')):'')
-      +(g.promo?('<div class="cpromo">'+esc(g.promo.emoji)+' <b>'+esc(g.promo.name)+'</b> · '+esc(g.promo.detail)+'</div>'):'')
+      +(g.state==='scheduled'&&g.promo?('<div class="cpromo">'+esc(g.promo.emoji)+' <b>'+esc(g.promo.name)+'</b> · '+esc(g.promo.detail)+'</div>'):'')
       +'<div class="cfoot"><span class="cloc">'+esc(g.location||'')+'</span>'
       +(g.state==='final'&&g.replayUrl?('<a class="watchmini replay" href="'+esc(g.replayUrl)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Replay</a>'):'')
       +(g.state==='scheduled'&&g.freeAdmission?('<span class="watchmini free">Free Admission</span>'):(g.state==='scheduled'&&g.ticketUrl?('<a class="watchmini tickets" href="'+esc(g.ticketUrl)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Tickets</a>'):''))
