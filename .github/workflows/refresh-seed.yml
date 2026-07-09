@@ -4,8 +4,9 @@ name: Refresh seed + post-game report
 #   • schedule (daily 07:00 UTC ≈ 2am Central) — rebuild + commit the warm-boot
 #     seed (roster-seed.json) and upload a fresh report artifact. No email.
 #   • repository_dispatch (type: gators-final) — fired by the live server within
-#     seconds of the last out. Builds the branded PDF for the just-finished game
-#     and EMAILS it to the recipients. This is the "as soon as the last out" path.
+#     seconds of the last out. Builds the branded post-game report, the full
+#     one-page BOX SCORE, the GM cards, and the rest chart for the just-finished
+#     game and EMAILS them to the recipients. The "as soon as the last out" path.
 #   • workflow_dispatch — manual run from the Actions tab (also emails), optionally
 #     for a specific box id.
 #
@@ -132,6 +133,51 @@ jobs:
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           REPORT_TO: ${{ secrets.REPORT_TO }}
         run: node scripts/email-report.js
+
+      # ----- Full box score PDF (personal delivery; nothing on the website) -------
+      # The branded one-page box score, built + emailed on the game-final / manual
+      # email paths. Independent of the post-game report so a slow box never blocks
+      # it. --strict fails until Presto renders the finished box (line score in), so
+      # the retry loop waits out the post-final gate lag before sending.
+      - name: Build the box-score PDF (waits for the finished box to render)
+        id: box
+        if: ${{ always() && steps.plan.outputs.email == 'true' }}
+        continue-on-error: true
+        run: |
+          npm ci
+          export CHROMIUM_PATH="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
+          TARGET="${{ steps.plan.outputs.game_id }}"; [ -z "$TARGET" ] && TARGET="tonight"
+          for i in 1 2 3 4 5 6; do
+            if node scripts/box-score.js "$TARGET" --pdf --strict; then
+              PDF="$(ls -t reports/box/*.pdf | head -1)"
+              echo "pdf=$PDF" >> "$GITHUB_OUTPUT"
+              echo "built the box score: $PDF"
+              exit 0
+            fi
+            echo "  box for '$TARGET' isn't fully rendered yet — waiting 120s ($i/6)"
+            sleep 120
+          done
+          echo "::warning::box score for '$TARGET' never fully rendered in time"
+
+      - name: Upload the box-score artifact
+        if: ${{ always() && steps.box.outputs.pdf != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: gators-box-score
+          path: reports/box/
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Email the box score
+        if: ${{ always() && steps.box.outputs.pdf != '' && steps.mail.outputs.enabled == 'true' }}
+        continue-on-error: true
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          REPORT_TO: ${{ secrets.REPORT_TO }}
+          REPORT_SUBJECT: "Gators Box Score"
+          REPORT_BODY: "The full one-page box score for tonight's game is attached."
+        run: node scripts/email-report.js "${{ steps.box.outputs.pdf }}"
 
       # ----- Branded GM report cards (Computer + Mobile; personal delivery) -------
       # Rendered from the data block the post-game build emitted (card-data.json),

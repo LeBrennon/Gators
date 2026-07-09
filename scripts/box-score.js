@@ -23,6 +23,11 @@ const FLAGS = new Set(process.argv.slice(2).filter(a => a.startsWith('--')));
 const args = process.argv.slice(2).filter(a => !a.startsWith('--'));
 const PDF = FLAGS.has('--pdf') || !FLAGS.has('--html'); // PDF is the default output
 const KEEP_HTML = FLAGS.has('--html');
+// --strict: only succeed on a fully-rendered box. Right after a game ends Presto
+// serves the batting/pitching tables before it renders the line score, so
+// --strict fails (exit 3) until the line score is present — letting an automated
+// caller (the game-final Action) retry until the finished box is ready to send.
+const STRICT = FLAGS.has('--strict');
 const target = args[0] || 'latest';
 
 // Manual-data path: BOX_DATA points at a JSON file that fully specifies the game
@@ -690,6 +695,10 @@ async function main() {
   }
   const data = await getBox();
   if (!data || !data.box || !data.box.length) { console.error(`[box] no box score available${game ? ' for ' + game.id : ''} (offline? host not allowlisted? game not final yet?).`); process.exit(2); }
+  if (STRICT && !(data.line && String(data.line).trim())) {
+    console.error(`[box] strict: the line score hasn't rendered yet${game ? ' for ' + game.id : ''} — the box is still finalizing. Retry shortly.`);
+    process.exit(3);
+  }
   if (!game) deriveMeta(data);
   const stem = buildStem(data);
   const html = buildHtml(data);

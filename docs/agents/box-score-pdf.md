@@ -6,6 +6,18 @@ the next game's box score so it matches the ones already produced. The rules liv
 code (mostly `buildHtml`), so a normal run reproduces them — this doc is the intent,
 so a future session doesn't regress them by "cleaning up."
 
+## Automatic delivery (no action needed)
+
+When a Gators game goes final, the live server fires a `gators-final`
+`repository_dispatch` and the `Refresh seed + post-game report` Action
+(`.github/workflows/refresh-seed.yml`) builds the box-score PDF and **emails it**
+to the recipients — alongside the post-game report, GM cards, and rest chart. The
+box step runs `box-score.js <game_id> --pdf --strict` in a retry loop; `--strict`
+fails until Presto has rendered the finished box (line score present), so it waits
+out the post-final gate lag before sending. So the owner gets the box in their
+inbox within a few minutes of the last out without asking. Generate by hand only
+for a re-run or a game that predates the automation.
+
 ## Generating one
 
 **Right after a game ends — one command (the fast path):**
