@@ -8,28 +8,37 @@ so a future session doesn't regress them by "cleaning up."
 
 ## Generating one
 
+**Right after a game ends — one command (the fast path):**
 ```
-node scripts/box-score.js <target> --pdf      # target: latest | "Jun 27" | 20260627_5hqn | box URL
+REPORT_APP_BASE=https://gators.onrender.com node scripts/box-score.js tonight --pdf
 ```
+`tonight` (also `live`) pulls the current **featured** game straight from the live
+app: `/api/game` for the header meta (home/away, score, record) and `/api/boxscore`
+for the tables + play-by-play. No manual data, even though a just-finished game
+isn't in the season seed yet. Team names come from the box's own captions when the
+line score hasn't rendered, so the Gators are still branded/ordered correctly. An
+explicit fresh-final box id works the same way when it's the featured game.
 
-Output lands in `reports/box/` (gitignored — it's a personal artifact, never committed
-and never on the website). Deliver the file to the user; don't commit it.
+**Any other game:**
+```
+node scripts/box-score.js <target> --pdf      # latest | "Jun 27" | 20260627_5hqn | box URL
+```
+`latest`/date/id resolve through the season seed. A box-score URL is fetched + parsed
+locally (`deriveMeta` reads the header from the parsed box).
+
+Output lands in `reports/box/` (gitignored — a personal artifact, never committed and
+never on the website). Deliver the file to the user; don't commit it.
 
 - **Data source:** the parsed box comes from the live app's `/api/boxscore?id=…`
-  (set `REPORT_APP_BASE=https://gators.onrender.com`). PrestoSports 403s most hosts,
-  so go through the app. Pull `/api/game` too for the header/record.
-- **Fresh finals not in the seed yet:** `latest`/date/id resolves through the season
-  seed; a just-finished game often isn't in it, so `resolveGame` fails. Use the
-  `BOX_DATA` path instead — build a JSON file and pass it:
-  ```
-  BOX_DATA=/path/box.json node scripts/box-score.js --pdf
-  ```
-  Shape: `{ game:{id,date,home,opp,gs,os,win}, record:{w,l}, line, box, pbp }`.
-  Fill `line`, `box`, `pbp` from `/api/boxscore`; `game`/`record` from `/api/game`.
-  **`pbp` is required** for HBP, positions, subs, and position-change notes.
-- **Record:** the live feed's W-L can lag a just-finished game. Set `record` to the
-  correct value *including* this game (a loss makes 4-1 → 4-2). Confirm with the user
-  if unsure.
+  (`REPORT_APP_BASE`). PrestoSports 403s most hosts, so go through the app.
+- **Record:** on the `tonight` path it's taken from `/api/game` (the Gators side's
+  W-L, which normally already includes the just-finished game). If the feed's record
+  looks stale, confirm with the user.
+- **Manual fallback (`BOX_DATA`):** only needed when the app is unreachable or the
+  numbers are in hand but the box can't be fetched. JSON shape:
+  `{ game:{id,date,home,opp,gs,os,win}, record:{w,l}, line, box, pbp }` — `pbp` is
+  required for HBP, positions, subs, and position-change notes.
+  `BOX_DATA=/path/box.json node scripts/box-score.js --pdf`.
 - **Rendering:** local Chromium at `/opt/pw-browsers/chromium`, one US-letter page.
 - **Verify before sending:** render the HTML at *true letter pixel size*
   (`--window-size=816,1056`, i.e. 8.5×11 @ 96dpi) and eyeball it. A taller preview

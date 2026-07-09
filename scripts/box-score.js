@@ -40,10 +40,10 @@ let game = null, T = null, oppName = '';
 if (BOX_DATA && BOX_DATA.game) {
   game = BOX_DATA.game; T = BOX_DATA.record || null; oppName = String(game.opp || '').replace(/^@ /, '');
 } else if (!PARSE_SRC) {
-  game = S.resolveGame(target);
-  if (!game) { console.error(`No game found for "${target}". Try 'latest', a date like "Jun 27", a box id, or a box-score URL.`); process.exit(1); }
-  T = S.teamSummary(game.id);
-  oppName = S.oppShort(game.opp).replace(/^@ /, '');
+  game = S.resolveGame(target);   // null for a just-finished game not yet in the season seed
+  if (game) { T = S.teamSummary(game.id); oppName = S.oppShort(game.opp).replace(/^@ /, ''); }
+  // else: main() falls back to the live app's featured game (see liveGameMeta), so a
+  // box can be built the moment a game ends without waiting for the seed to catch up.
 }
 const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -63,6 +63,12 @@ const TEAMS_INFO = [
 const GATORS_PURPLE = '#3a2480';
 function teamColor(name) { for (const [re, c] of TEAMS_INFO) if (re.test(name || '')) return c; return GATORS_PURPLE; }
 function teamShort(name) { for (const [re, , s] of TEAMS_INFO) if (re.test(name || '')) return s; return String(name || '').split(/\s+/).pop(); }
+const APP_BASE = (process.env.REPORT_APP_BASE || 'https://gators.onrender.com').replace(/\/$/, '');
+async function fetchAppJSON(pathname) {
+  const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 20000);
+  try { const r = await fetch(APP_BASE + pathname, { headers: { accept: 'application/json' }, signal: ctl.signal }); return r.ok ? await r.json() : null; }
+  catch (e) { return null; } finally { clearTimeout(to); }
+}
 
 // ---- fetch the parsed box ---------------------------------------------------
 async function getBox() {
@@ -319,10 +325,22 @@ function positionChanges(battingHtml, fieldChanges) {
   return changed.map(c => ({ ...c, inn: (fieldChanges[c.norm] && fieldChanges[c.norm].inn) || soleInn }));
 }
 
+// The box section's team comes from its label ("<Team> — Batting"). On a fresh
+// final the line score often hasn't rendered, so the label falls back to a generic
+// "Team 1/2" — but the table's own <caption> still names the team ("Gators Batters").
+// Read the caption in that case so the Gators are still branded/ordered correctly
+// without any manual relabeling.
+function teamNameFor(e) {
+  const tm = teamOf(e.label);
+  if (!/^Team \d+$/i.test(tm)) return tm;
+  const cap = (String(e.html || '').match(/<caption>[\s\S]*?<h2>([\s\S]*?)<\/h2>/i) || [, ''])[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const t = cap.replace(/\s*(Batters|Pitchers)\s*$/i, '').trim();
+  return t || tm;
+}
 function groupTeams(box) {
   const order = [], by = {};
   for (const e of box) {
-    const tm = teamOf(e.label);
+    const tm = teamNameFor(e);
     if (!by[tm]) { by[tm] = { team: tm, gators: /gator|gumbeaux/i.test(tm), batting: null, pitching: null, legend: null, notes: null }; order.push(tm); }
     by[tm][kindOf(e.label)] = normalizeNames(dropAvgCol(cleanTable(e.html)));
     if (e.legend && e.legend.length) by[tm].legend = e.legend;
@@ -640,7 +658,36 @@ function deriveMeta(data) {
   T = null;   // record isn't in the box score; omit it from the header
 }
 
+// Build header meta straight from the live app's featured game (/api/game) so a
+// just-finished game — not yet in the season seed — needs no manual data entry.
+// Used when the seed can't resolve the target and it's the featured game (or the
+// `tonight`/`live`/`latest` keyword). This is the fast path right after a game ends.
+async function liveGameMeta() {
+  const g = await fetchAppJSON('/api/game');
+  if (!g || !g.id) return null;
+  const wantId = /^\d{8}_[a-z0-9]+$/i.test(target) ? target : null;
+  if (!(/^(latest|tonight|live)$/i.test(target) || (wantId && wantId === g.id))) return null;
+  const ymd = String(g.id).slice(0, 8);
+  const date = /^\d{8}$/.test(ymd) ? `${MONTHS[+ymd.slice(4, 6) - 1] || ''} ${+ymd.slice(6, 8)}`.trim() : '';
+  const gators = g.gatorsHome ? g.home : g.away, opp = g.gatorsHome ? g.away : g.home;
+  const gs = Number(gators && gators.runs) || 0, os = Number(opp && opp.runs) || 0;
+  const rec = String((gators && gators.record) || '').match(/(\d+)\s*-\s*(\d+)/);
+  return {
+    game: { id: g.id, date, home: !!g.gatorsHome, opp: (opp && opp.name) || 'Opponent', gs, os, win: gs > os },
+    T: rec ? { w: +rec[1], l: +rec[2] } : null,
+    oppName: String((opp && opp.name) || '').replace(/^(lake charles|the)\s+/i, '').trim(),
+  };
+}
+
 async function main() {
+  if (!game && !PARSE_SRC && !BOX_DATA) {
+    const live = await liveGameMeta();   // just-finished game not in the seed yet -> pull meta from the live app
+    if (live) { game = live.game; T = live.T; oppName = live.oppName; }
+  }
+  if (!game && !PARSE_SRC && !BOX_DATA) {
+    console.error(`No game found for "${target}". Try 'tonight' (the just-finished featured game), 'latest', a date like "Jun 27", a box id, or a box-score URL.`);
+    process.exit(1);
+  }
   const data = await getBox();
   if (!data || !data.box || !data.box.length) { console.error(`[box] no box score available${game ? ' for ' + game.id : ''} (offline? host not allowlisted? game not final yet?).`); process.exit(2); }
   if (!game) deriveMeta(data);
