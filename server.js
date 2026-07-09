@@ -143,6 +143,9 @@ const boardCity = id => id === GATORS_ID ? '' : (CITY[id] || '');
 // Split-season tracking. The TCL plays two halves; each half's winner clinches a
 // playoff berth. Standings shown below reflect the current half, with clinched
 // teams tagged "x-" regardless of where their (reset) second-half record sits.
+// Playoff seeding + tie-breaker rules (half champions seed 1-2, top-2 of the 2nd
+// half seed 3-4, overlap/next-best rules, and the 2- and 3+-team tie-breakers)
+// are recorded in docs/tcl-playoff-rules.md for end-of-season resolution.
 const SEASON_HALF = 2;            // 1 = first half, 2 = second half
 // Team ids that have already clinched a playoff spot, with the reason shown in
 // the Standings legend. Victoria & Acadiana won the first half.
@@ -1515,7 +1518,7 @@ function normalizeFeatured(g) {
     inning: ip.inning, half: ip.half,
     inningLabel: status === 'live' ? g.status : status === 'final' ? (g.status || 'Final') : status === 'cancelled' ? 'Cancelled' : g.status,
     gatorsHome: g.gatorsHome, opponent: g.opponent,
-    location: gameLocation(g), watchUrl: watchUrlFor(g), ticketUrl: ticketIndex[g.id] || null, theme: THEMES[g.date] || null, freeAdmission: FREE_ADMISSION[g.date] || null, promo: promoFor(g), special: SPECIALS[g.date] || null,
+    location: gameLocation(g), watchUrl: watchUrlFor(g), replayUrl: replayUrlFor(g), ticketUrl: ticketIndex[g.id] || null, theme: THEMES[g.date] || null, freeAdmission: FREE_ADMISSION[g.date] || null, promo: promoFor(g), special: SPECIALS[g.date] || null,
     away: { name: g.away.name, short: g.away.short, logo: g.away.logo, runs: g.away.score || 0, record: recordStr(g.away), site: TEAM_SITE[g.away.id] || null },
     home: { name: g.home.name, short: g.home.short, logo: g.home.logo, runs: g.home.score || 0, record: recordStr(g.home), site: TEAM_SITE[g.home.id] || null },
   };
@@ -1957,11 +1960,10 @@ const ROSTER = [
   { num: 2,  name: 'Jaxon Landreneau', slug: 'jaxonlandreneautqp8',  pos: 'Utility', cls: 'Junior',       ht: '5-10', wt: '190', b: 'R', t: 'R', bday: '10/20/2004', home: 'Lake Charles, LA', school: 'LSU-Eunice' },
   // Recently activated (6/25 sheet); placeholder slug until his Presto player page
   // exists, so the `note` shows on his profile instead of stats until his first game.
-  { num: 3,  name: 'Griffin Hebert',   slug: 'griffinhebertqmlk',    pos: 'Utility', cls: 'Sophomore',    ht: '6-1',  wt: '205', b: 'L', t: 'R', bday: '',            home: 'Moss Bluff, LA',   school: 'Lamar', note: 'Recently activated — season stats will appear after his first game.' },
+  { num: 3,  name: 'Griffin Hebert',   slug: 'griffinhebertqmlk',    pos: 'Utility', cls: 'Sophomore',    ht: '5-11', wt: '200', b: 'L', t: 'R', bday: '12/30/2006',   home: 'Lake Charles, LA', school: 'Lamar', note: 'Recently activated — season stats will appear after his first game.' },
   { num: 5,  name: 'Davis Duhon',      slug: 'davisduhons0vw',       pos: 'P',       cls: 'Junior',       ht: '6-0',  wt: '185', b: 'L', t: 'L', bday: '03/12/2005', home: 'Katy, TX',         school: 'Louisiana Christian' },
-  { num: 6,  name: 'Nathan McDonald',  slug: 'nathanmcdonaldftgl',   pos: 'Utility', cls: 'Senior',       ht: '6-0',  wt: '175', b: 'R', t: 'R', bday: '07/17/2004', home: 'McComb, MS',       school: 'Loyola-New Orleans' },
   // Added off the 6/28 gameday sheet; real Presto slug now set directly (was findSlug-matched by name).
-  { num: 8,  name: 'Cade Robin',       slug: 'caderobinnu4m',        pos: 'P',       cls: 'Junior',       ht: '6-1',  wt: '200', b: 'R', t: 'R', bday: '',           home: 'Arnaudville, LA',  school: 'LSU-Shreveport' },
+  { num: 8,  name: 'Cade Robin',       slug: 'caderobinnu4m',        pos: 'P',       cls: 'Junior',       ht: '6-1',  wt: '200', b: 'R', t: 'R', bday: '03/15/2005', home: 'Arnaudville, LA',  school: 'LSU-Shreveport' },
   // #35 off the 7/3 official roster (replaced #9 James Reina, who dropped off it). He'd
   // already played 9 games (.207 AVG), but findSlug never resolved him because the league
   // leaderboard lists him as "J Torres", which doesn't match "Jeremiah Torres" via
@@ -1972,33 +1974,28 @@ const ROSTER = [
   // league leaderboard lists him as "K Martin", which doesn't match "Kash Martin" via normPlayerName.
   { num: 10, name: 'Kash Martin',      slug: 'kashmartin44sc',       pos: 'Utility', cls: 'Sophomore',    ht: '5-10', wt: '185', b: 'R', t: 'R', bday: '11/09/2006', home: 'Westlake, LA',     school: 'Bossier Parish CC' },
   { num: 11, name: 'Diego Corrales',   slug: 'diegocorrales91v5',    pos: 'P',       cls: 'Junior',       ht: '5-8',  wt: '185', b: 'L', t: 'L', bday: '08/01/2005', home: 'Lake Charles, LA', school: 'McNeese State' },
-  { num: 14, name: 'Brandon Levy',     slug: 'brandonlevyejo5',      pos: 'P',       cls: 'Junior',       ht: '5-10', wt: '180', b: 'R', t: 'R', bday: '05/25/2004', home: 'Bossier City, LA', school: 'New Orleans' },
   // On the official roster; real Presto slug set directly (resolved from the Gators
   // team roster page). No game action yet, so the note shows until his first game.
   { num: 15, name: 'Reed Dupre',       slug: 'reeddupremvk3',        pos: 'P',       cls: 'Freshman',     ht: '5-10', wt: '150', b: 'R', t: 'R', bday: '',           home: 'Iowa, LA',         school: 'Southern Univ of New Orleans', note: 'Recently added — season stats will appear after his first game.' },
   { num: 16, name: 'Daniel Midkiff',   slug: 'danielmidkifffqkb',    pos: 'P',       cls: 'Sophomore',    ht: '6-2',  wt: '208', b: 'R', t: 'R', bday: '05/20/2007', home: 'Buna, TX',         school: 'Lamar' },
-  { num: 17, name: 'Ayden Sunday',     slug: 'aydensundayyp1j',      pos: 'OF',      cls: 'Sophomore',    ht: '6-0',  wt: '185', b: 'R', t: 'R', bday: '',           home: 'Nederland, TX',    school: 'Lamar' },
-  { num: 19, name: 'Jack Garcille',    slug: 'jackgarcille9sq9',     pos: 'P',       cls: 'HS Senior',    ht: '6-6',  wt: '210', b: 'R', t: 'R', bday: '07/07/2008', home: 'Lake Charles, LA', school: 'McNeese State' },
+  { num: 17, name: 'Ayden Sunday',     slug: 'aydensundayyp1j',      pos: 'OF',      cls: 'Sophomore',    ht: '6-0',  wt: '185', b: 'R', t: 'R', bday: '09/07/2006', home: 'Nederland, TX',    school: 'Lamar' },
   { num: 21, name: 'Bankston Lembcke', slug: 'bankstonlembckeoxyb',  pos: 'IF',      cls: 'Junior',       ht: '5-11', wt: '205', b: 'R', t: 'R', bday: '11/14/2005', home: 'Klein, TX',        school: 'Bradley' },
-  { num: 22, name: 'Matthew McKinley', slug: 'matthewmckinleylgvq',  pos: 'Utility', cls: 'Sophomore',    ht: '5-11', wt: '205', b: 'L', t: 'L', bday: '12/14/2006', home: 'Brandon, MS',      school: 'Meridian CC' },
-  { num: 28, name: 'Andrew Ramos',     slug: 'andrewramos4y33',      pos: 'Utility', cls: 'Sophomore',    ht: '5-10', wt: '185', b: 'R', t: 'R', bday: '',           home: 'Deer Park, TX',    school: 'San Jacinto CC' },
+  { num: 28, name: 'Andrew Ramos',     slug: 'andrewramos4y33',      pos: 'Utility', cls: 'Sophomore',    ht: '5-10', wt: '185', b: 'R', t: 'R', bday: '10/19/2006', home: 'Deer Park, TX',    school: 'San Jacinto CC' },
   { num: 29, name: 'Sawyer Simmons',   slug: 'sawyersimmonss92p',    pos: 'P',       cls: 'Senior',       ht: '6-1',  wt: '193', b: 'R', t: 'L', bday: '03/30/2005', home: 'Bossier City, LA', school: 'Southeastern Louisiana' },
   // Added off the 6/28 gameday sheet; real Presto slug now set directly (was findSlug-matched by name).
   { num: 34, name: 'Brenyn Ebarb',     slug: 'brenynebarb6uqv',      pos: 'P',       cls: 'Graduate',     ht: '6-1',  wt: '195', b: 'R', t: 'R', bday: '05/04/2004', home: 'Zwolle, LA',       school: 'LSU-Alexandria', note: 'Recently added — season stats will appear after his first game.' },
   { num: 36, name: 'Jake Rider',       slug: 'jakeridergyu4',        pos: 'P',       cls: 'Junior',       ht: '6-4',  wt: '220', b: 'R', t: 'R', bday: '10/11/2005', home: 'Lake Charles, LA', school: 'Nunez CC' },
-  { num: 37, name: 'Landon Richards',  slug: 'landonrichards2fu3',   pos: 'P',       cls: 'Sophomore',    ht: '5-11', wt: '235', b: 'R', t: 'R', bday: '06/22/2007', home: 'Orange, TX',       school: 'Angelina College' },
   // Added off the 6/30 second-half roster; now playing, so his real Presto slug is set directly and stats flow.
-  { num: 38, name: 'Gabe Guidry',      slug: 'gabeguidryfktf',       pos: 'Utility', cls: 'R-Sophomore',  ht: '6-3',  wt: '200', b: 'R', t: 'R', bday: '',            home: 'Lake Charles, LA', school: 'Bossier Parish CC' },
-  { num: 40, name: 'Chris Melvin',     slug: 'chrismelvinnddm',      pos: 'P',       cls: 'R-Sophomore',  ht: '6-4',  wt: '220', b: 'L', t: 'R', bday: '09/12/2005', home: 'Waterloo, Ontario',school: 'Paris JC' },
-  { num: 41, name: 'Cole Flanagan',    slug: 'coleflanaganemnl',     pos: 'P',       cls: 'Freshman',     ht: '6-1',  wt: '230', b: 'L', t: 'L', bday: '',           home: 'Moss Bluff, LA',   school: 'Jacksonville State' },
+  { num: 38, name: 'Gabe Guidry',      slug: 'gabeguidryfktf',       pos: 'Utility', cls: 'R-Sophomore',  ht: '6-3',  wt: '200', b: 'R', t: 'R', bday: '01/26/2005',  home: 'Lake Charles, LA', school: 'Bossier Parish CC' },
+  { num: 41, name: 'Cole Flanagan',    slug: 'coleflanaganemnl',     pos: 'P',       cls: 'Freshman',     ht: '6-1',  wt: '230', b: 'L', t: 'L', bday: '11/24/2006', home: 'Moss Bluff, LA',   school: 'Jacksonville State' },
   { num: 42, name: 'Kale Cropper',     slug: 'kalecropperuden',      pos: 'P',       cls: 'Sophomore',    ht: '6-4',  wt: '210', b: 'R', t: 'R', bday: '08/25/2006', home: 'Port Neches, TX',  school: 'Hill College' },
   { num: 45, name: 'Cannon Faulk',     slug: 'cannonfaulk0l9x',      pos: 'P',       cls: 'R-Sophomore',  ht: '6-4',  wt: '225', b: 'L', t: 'L', bday: '12/02/2005', home: 'Port Neches, TX',  school: 'Angelina College' },
   // On the official roster and already pitching; real Presto slug set directly
   // (resolved from the Gators team roster page) so his season stats flow in.
-  { num: 47, name: 'Brayden Guillory', slug: 'braydenguilloryagcn',  pos: 'P',       cls: 'R-Freshman',   ht: '6-2',  wt: '200', b: 'R', t: 'R', bday: '',           home: 'Kinder, LA',       school: 'Southern University' },
+  { num: 47, name: 'Brayden Guillory', slug: 'braydenguilloryagcn',  pos: 'P',       cls: 'R-Freshman',   ht: '6-2',  wt: '200', b: 'R', t: 'R', bday: '11/17/2005', home: 'Kinder, LA',       school: 'Southern University' },
   // Assigned #39 on the 6/30 second-half roster; now playing, so his real Presto slug is
   // set directly and stats flow. Headshot populates once a photo is bundled.
-  { num: 39, name: 'Yuichiro Kumagami', slug: 'yuichirokumagamisa54', pos: 'C', cls: 'Sophomore', ht: '5-11', wt: '200', b: 'R', t: 'R', bday: '', home: 'Miyagi, Japan', school: 'Mt. Hood CC' },
+  { num: 39, name: 'Yuichiro Kumagami', slug: 'yuichirokumagamisa54', pos: 'C', cls: 'Junior', ht: '5-11', wt: '200', b: 'R', t: 'R', bday: '07/16/2005', home: 'Miyagi, Japan', school: 'Mount Hood CC' },
   // Added off the 7/3 official roster; the 7/4 sheet assigns #24 and lists him as a
   // pitcher (was catcher/TBD). Real Presto slug set directly (resolved from the
   // Gators team roster page); he has pitched, so his season stats flow in.
@@ -2012,6 +2009,17 @@ const ROSTER = [
   // Added off the 7/4 official roster; real Presto slug set directly (resolved from
   // the Gators team roster page). No game action yet, so the note shows for now.
   { num: 48, name: 'Marco Bandiero', slug: 'marcobandieroddnu', pos: 'IF', cls: 'Freshman', ht: '6-1', wt: '245', b: 'L', t: 'L', bday: '', home: 'Orange, TX', school: 'Angelina College', note: 'Recently added — season stats will appear after his first game.' },
+  // Added off the 7/7 official roster. The sheet listed Victorian at #28 (a duplicate of
+  // Andrew Ramos); Coach Carl confirmed his real number is #18. findSlug resolves his real
+  // Presto page by name once it exists, and the note shows until his first game.
+  { num: 18, name: 'Landon Victorian', slug: 'landonvictorian', pos: 'P', cls: 'Sophomore', ht: '6-3', wt: '180', b: 'R', t: 'R', bday: '11/02/2005', home: 'Lake Charles, LA', school: 'Louisiana Lafayette', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
+  // Added off the 7/7 official roster as unnumbered position players; jersey numbers per
+  // Coach Carl (Cooley #7, Beddoe #13); Sparks' number is still TBD. Bio details filled in
+  // from their college roster pages (LSU-Eunice, Pearl River CC, Lamar). findSlug resolves
+  // each real Presto page by name once it exists, and the note shows until their first game.
+  { num: 7,  name: 'Griffin Cooley', slug: 'griffincooley', pos: 'OF',      cls: 'R-Sophomore', ht: '6-2',  wt: '179', b: 'L', t: 'L', bday: '',           home: 'Kinder, LA',   school: 'LSU-Eunice',      findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
+  { num: 13, name: 'Jackson Beddoe', slug: 'jacksonbeddoe', pos: 'IF',      cls: 'Freshman',    ht: '5-11', wt: '185', b: 'R', t: 'R', bday: '',           home: 'Sulphur, LA',  school: 'Pearl River CC',  findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
+  { num: null, numTBD: true, name: 'Lane Sparks', slug: 'lanesparks', pos: 'OF', cls: 'Junior', ht: '6-0', wt: '175', b: 'L', t: 'L', bday: '12/28/2004', home: 'Brenham, TX', school: 'Lamar', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
 ];
 
 // Coaching staff (gumbeauxgators.com/coaches). Shown beneath the player roster;
@@ -2815,6 +2823,23 @@ function pitcherLineFromRow(head, row){
   const npCol=head.indexOf('#p')>=0 ? '#p' : 'np';
   return { key, name, np:NUM(g(npCol)), h:g('h'), r:g('r'), er:g('er'), bb:g('bb'), k:g('k') };
 }
+// Manual pitcher-rest outings, used when Presto never publishes a scrapeable box
+// score for a final Gators game — the box XML stays bot-gated past the day-of live
+// window, so the game would otherwise silently drop off the rest chart the next
+// day. Each entry is one game: the date (YYYYMMDD, Central), opponent short name,
+// whether the Gators were home, and every Gators pitcher's final pitch count (#P)
+// read off the box score. Only current-roster names are kept (same as the scraped
+// path). Deduped against scraped finals by date, so once Presto's box becomes
+// available the scraped data takes over and the manual entry self-suppresses —
+// remove it then.
+const MANUAL_REST_OUTINGS = [
+  { date: '20260708', oppShort: 'Cane Cutters', gatorsHome: true, pitchers: [
+    { name: 'Cade Robin',       np: 63 },
+    { name: 'Jake Rider',       np: 55 },
+    { name: 'Reed Dupre',       np: 8  },
+    { name: 'Brayden Guillory', np: 14 },
+  ] },
+];
 // Season pitcher-rest chart: for each current-roster Gators pitcher, every
 // appearance (date, opponent, pitch count) across all final games, plus a
 // per-game breakdown that mirrors the coach's hand-written pitch-count sheets for
@@ -2848,6 +2873,25 @@ async function computePitcherRest(){
     }
     if(gamePitchers.length) byGame.push({ id:g.id, date:g.date, dateLabel:g.dateLabel, oppShort, gatorsHome:!!g.gatorsHome, pitchers:gamePitchers });
   }
+  // Fold in any manually-entered games (MANUAL_REST_OUTINGS) whose Presto box never
+  // became scrapeable, so a real final still shows on the chart. Skip dates already
+  // covered by a scraped final so nothing double-counts.
+  const scrapedDates=new Set(byGame.map(b=>b.date));
+  let manualGames=0;
+  for(const mg of MANUAL_REST_OUTINGS){
+    if(scrapedDates.has(mg.date)) continue;
+    const dateLabel=ymdLabel(mg.date);
+    const gamePitchers=[];
+    for(const mp of mg.pitchers){
+      const key=nameKey(mp.name); const rp=ROSTER_BY_NAMEKEY[key];
+      if(!rp) continue;            // only current-roster pitchers, same as the scraped path
+      const outing={ id:'manual_'+mg.date, date:mg.date, dateLabel, oppShort:mg.oppShort, gatorsHome:!!mg.gatorsHome, np:mp.np };
+      const a=acc[key] || (acc[key]={ key, name:rp.name, num:rp.num, outings:[] });
+      a.outings.push(outing);
+      gamePitchers.push({ name:rp.name, num:rp.num, np:mp.np });
+    }
+    if(gamePitchers.length){ byGame.push({ id:'manual_'+mg.date, date:mg.date, dateLabel, oppShort:mg.oppShort, gatorsHome:!!mg.gatorsHome, pitchers:gamePitchers }); manualGames++; }
+  }
   const pitchers=Object.values(acc).map(p=>{
     p.outings.sort((x,y)=>x.date.localeCompare(y.date));
     for(let i=0;i<p.outings.length;i++) p.outings[i].restBefore = i>0 ? daysBetweenYmd(p.outings[i-1].date, p.outings[i].date) : null;
@@ -2858,7 +2902,7 @@ async function computePitcherRest(){
     return p;
   });
   byGame.sort((a,b)=>b.date.localeCompare(a.date));
-  return { computedAt:Date.now(), finals:finals.length, pitchers, byGame };
+  return { computedAt:Date.now(), finals:finals.length+manualGames, pitchers, byGame };
 }
 // Memoize the chart briefly — finals rarely change and box pages are cached, but
 // this avoids re-walking the season on every request. daysRest is applied later.
@@ -3267,24 +3311,39 @@ function parseStandings(html) {
 // { w, l, streak }. Applied to BOTH the name->record map (jumbo/scoreboard) and
 // the ordered rows (Standings tab) so every surface agrees; the second-half
 // record then derives from these totals minus FIRST_HALF_FINAL, exactly like the
-// feed. CLEAR an entry the moment the feed catches up to it.
+// feed.
+//
+// The override acts as a FLOOR, not a fixed pin: full-season W and L only ever
+// climb over a season, so the correction applies only while the feed still sits
+// BELOW it. The instant the feed ingests the confirmed result (or the team plays
+// on past it), the feed's own numbers meet/exceed the floor and win — the record
+// resumes updating automatically and the entry self-expires with no manual step.
+// That's the fix for the recurring "records frozen because a stale pin was left
+// behind" problem; a caught-up entry is harmless, but clearing it keeps this list
+// honest about what's actually still lagging.
 const MANUAL_STANDINGS_OVERRIDE = {
-  // The feed still hasn't ingested the 7/4 Gators 7–3 Brazos Valley final (as of
-  // 7/6 it shows the Gators 15–12 / 3–1 2H and the Bombers a loss short). Pin both
-  // sides of that game to the confirmed totals. CLEAR both the moment the feed
-  // catches up — verify against the live standings page first.
+  // The feed lagged the 7/4 Gators 7–3 Brazos Valley final (as of 7/6 it showed
+  // the Gators 15–12 / 3–1 2H and the Bombers a loss short). These floors carry
+  // both sides through until the feed catches up, after which they no-op.
   et1bt9sixrz5lnnl: { w: 16, l: 12, streak: 'W4' }, // Lake Charles Gumbeaux Gators (4-1 2H)
   z7w5th537gur3z15: { w: 13, l: 15, streak: 'L1' }, // Brazos Valley Bombers (3-2 2H)
 };
 // Patch a freshly parsed standings result in place so the overrides above flow
-// into both the record map and the rows before either is published.
+// into both the record map and the rows before either is published. Floor
+// semantics: never lower a feed number, and only stamp the manual streak while
+// we're actually lifting the record (feed still behind) so a caught-up team keeps
+// its live streak.
 function applyStandingsOverride(parsed) {
   for (const id in MANUAL_STANDINGS_OVERRIDE) {
     const o = MANUAL_STANDINGS_OVERRIDE[id], t = TEAMS[id]; if (!t) continue;
     const k = normName(t.name);
-    parsed.map[k] = { w: o.w, l: o.l, t: (parsed.map[k] && parsed.map[k].t) || 0 };
+    const feed = parsed.map[k];
+    const w = feed ? Math.max(feed.w, o.w) : o.w;
+    const l = feed ? Math.max(feed.l, o.l) : o.l;
+    const correcting = !feed || w > feed.w || l > feed.l;
+    parsed.map[k] = { w, l, t: (feed && feed.t) || 0 };
     const row = parsed.rows.find(x => x.id === id);
-    if (row) { row.w = o.w; row.l = o.l; if (o.streak != null) row.streak = o.streak; }
+    if (row) { row.w = w; row.l = l; if (correcting && o.streak != null) row.streak = o.streak; }
   }
 }
 async function pollStandings() {
@@ -3489,7 +3548,7 @@ function sendStatic(r, name, body, type) {
 app.get('/', (q, r) => { recordVisit(q); r.set('Cache-Control', 'no-store, must-revalidate'); sendStatic(r, 'app', APP_HTML, 'html'); });
 app.get('/sw.js', (_q, r) => { r.set('Cache-Control', 'no-cache, no-store, must-revalidate'); sendStatic(r, 'sw', SW, 'application/javascript'); });
 app.get('/manifest.json', (_q, r) => sendStatic(r, 'manifest', MANIFEST, 'application/json'));
-app.get('/health', (_q, r) => r.json({ ok: true, build: BUILD, games: games.length, featured: featured && featured.id, push: pushReady }));
+app.get('/health', (_q, r) => r.json({ ok: true, build: BUILD, games: games.length, featured: featured && featured.id, push: pushReady, mail: mailReady, texts: INNING_ALERT_TO.length ? (mailReady ? 'on' : 'misconfigured') : 'off' }));
 app.get('/api/version', (_q, r) => r.json(BUILD));
 app.get('/debug', (_q, r) => {
   const html = lastHtml || '';
@@ -4023,32 +4082,190 @@ app.get('/api/schedule', (_q, r) => {
   }
   r.type('application/json').send(_schedCache.json);
 });
-// Build the four-team playoff bracket from the computed standings rows. Seeds
-// 1-2 are the first-half champions (already clinched), ordered by first-half
-// final record; seeds 3-4 are the current top two second-half teams that
-// haven't clinched (rows arrive sorted by second-half pct), and stay
-// provisional until the second half ends. Matchups: 1v4 and 2v3, best-of-3.
-function buildPlayoffPicture(rows) {
-  if (!rows.length) return null;
+// ----- playoff race: league game log, run diff, head-to-head, tie-breakers ---
+// The standings feed only carries W/L/T + streak. Jared's TCL tie-breakers need
+// run differential and head-to-head, which we reconstruct from every DECIDED
+// game on the league schedule page (all eight teams, all dates). See
+// docs/tcl-playoff-rules.md for the rules this implements.
+//
+// Parse the schedule HTML into a flat log of finals: { id, date, regulation,
+// away:{id,score}, home:{id,score} }. Same chunking as parseLeagueScoreboard,
+// but across every date and keeping only finals with two known teams and a
+// score. A forfeit is a real W/L but not a "regulation" game (never played to
+// completion), so it's excluded from the last-regulation-game tie-break.
+function parseLeagueResults(html) {
+  if (!html) return [];
+  const re = /\/sports\/bsb\/\d{4}\/boxscores\/(\d{8})_([a-z0-9]+)\.xml/gi;
+  const links = []; let m;
+  while ((m = re.exec(html)) !== null) links.push({ id: m[1] + '_' + m[2], date: m[1], idx: m.index });
+  const out = []; let prevEnd = 0; const seen = new Set();
+  for (const link of links) {
+    const chunk = html.slice(prevEnd, link.idx); prevEnd = link.idx + 1;
+    if (seen.has(link.id)) continue;
+    const cls = classify(chunk);
+    if (cls.state !== 'final') continue;                       // decided games only
+    const t = teamsFromChunk(chunk); if (!t) continue;
+    const a = t.away, h = t.home;
+    if (!a.id || !h.id || !TEAMS[a.id] || !TEAMS[h.id]) continue;   // both known teams
+    if (a.score == null || h.score == null) continue;          // need a final score
+    seen.add(link.id);
+    out.push({ id: link.id, date: link.date, regulation: !/Forfeit/i.test(cls.status),
+      away: { id: a.id, score: a.score }, home: { id: h.id, score: h.score } });
+  }
+  return out;
+}
+// Roll the game log up into per-team run differential and pairwise head-to-head.
+//   rd[id]      = { rs, ra, w, l }                     season totals
+//   h2h[a][b]   = { w, l, rs, ra }                     a's record/runs vs b
+//   lastReg[a][b] = { date, winnerId }                 latest regulation meeting
+function computeLeagueMetrics(log) {
+  const rd = {}, h2h = {}, lastReg = {};
+  const team = id => (rd[id] || (rd[id] = { rs: 0, ra: 0, w: 0, l: 0 }));
+  const pair = (a, b) => { (h2h[a] || (h2h[a] = {})); return h2h[a][b] || (h2h[a][b] = { w: 0, l: 0, rs: 0, ra: 0 }); };
+  for (const g of log || []) {
+    const A = g.away, H = g.home;
+    const ta = team(A.id), th = team(H.id);
+    ta.rs += A.score; ta.ra += H.score; th.rs += H.score; th.ra += A.score;
+    const aWon = A.score > H.score, hWon = H.score > A.score;
+    if (aWon) { ta.w++; th.l++; } else if (hWon) { th.w++; ta.l++; }
+    const pa = pair(A.id, H.id), ph = pair(H.id, A.id);
+    pa.rs += A.score; pa.ra += H.score; ph.rs += H.score; ph.ra += A.score;
+    if (aWon) { pa.w++; ph.l++; } else if (hWon) { ph.w++; pa.l++; }
+    if (g.regulation && (aWon || hWon)) {
+      const winnerId = aWon ? A.id : H.id;
+      const prev = lastReg[A.id] && lastReg[A.id][H.id];
+      if (!prev || g.date >= prev.date) {              // keep the latest meeting
+        (lastReg[A.id] || (lastReg[A.id] = {}))[H.id] = { date: g.date, winnerId };
+        (lastReg[H.id] || (lastReg[H.id] = {}))[A.id] = { date: g.date, winnerId };
+      }
+    }
+  }
+  return { rd, h2h, lastReg };
+}
+const seasonDiff = (metrics, id) => { const r = metrics.rd[id]; return r ? r.rs - r.ra : 0; };
+const h2hRec = (metrics, a, b) => (metrics.h2h[a] && metrics.h2h[a][b]) || { w: 0, l: 0, rs: 0, ra: 0 };
+const fmtDiff = n => (n > 0 ? '+' : '') + n;
+// Two-team tie-break (Jared): games back → win% → H2H → run diff → run diff in
+// H2H → last regulation game. Returns { d, by, detail }: d<0 ranks `a` ahead.
+function cmpTwoTeam(a, b, metrics) {
+  const gb = (b.w2 - b.l2) - (a.w2 - a.l2);            // 1. games back (games over .500)
+  if (gb) return { d: gb, by: 'games back', detail: null };
+  if (a.pct !== b.pct) return { d: b.pct - a.pct, by: 'win percentage', detail: null };  // 2.
+  const ha = h2hRec(metrics, a.id, b.id);              // 3. head-to-head
+  if (ha.w !== ha.l) return { d: ha.l - ha.w, by: 'head-to-head', detail: ha.w + '-' + ha.l };
+  const da = seasonDiff(metrics, a.id), db = seasonDiff(metrics, b.id);  // 4. run differential
+  if (da !== db) return { d: db - da, by: 'run differential', detail: fmtDiff(da) + ' vs ' + fmtDiff(db) };
+  const hd = ha.rs - ha.ra;                            // 5. run diff in H2H games
+  if (hd) return { d: -hd, by: 'run differential (H2H)', detail: fmtDiff(hd) };
+  const lr = metrics.lastReg[a.id] && metrics.lastReg[a.id][b.id];       // 6. last regulation game
+  if (lr && lr.winnerId === a.id) return { d: -1, by: 'last regulation game', detail: null };
+  if (lr && lr.winnerId === b.id) return { d: 1, by: 'last regulation game', detail: null };
+  return { d: 0, by: null, detail: null };
+}
+// Three-or-more-team tie-break (Jared): H2H among the tied teams → run diff →
+// run diff in H2H among the tied teams. Returns teams ordered best-first plus a
+// human note describing how the knot was settled.
+function rankTiedGroup(group, metrics) {
+  const key = t => {
+    let w = 0, l = 0, hrd = 0;
+    for (const o of group) { if (o.id === t.id) continue; const h = h2hRec(metrics, t.id, o.id); w += h.w; l += h.l; hrd += h.rs - h.ra; }
+    return { id: t.id, hpct: (w + l) ? w / (w + l) : 0, hw: w, hl: l, diff: seasonDiff(metrics, t.id), hrd };
+  };
+  const keys = {}; group.forEach(t => { keys[t.id] = key(t); });
+  const ordered = group.slice().sort((a, b) => {
+    const ka = keys[a.id], kb = keys[b.id];
+    return kb.hpct - ka.hpct || kb.diff - ka.diff || kb.hrd - ka.hrd;
+  });
+  const ka = keys[ordered[0].id], kb = keys[ordered[1].id];
+  const by = ka.hpct !== kb.hpct ? 'head-to-head among tied teams'
+    : ka.diff !== kb.diff ? 'run differential'
+    : ka.hrd !== kb.hrd ? 'run differential in H2H games' : null;
+  const names = ordered.map(t => t.short || t.name).join(' › ');
+  return { ordered, note: by ? (names + ' — ' + by) : null };
+}
+// Fully rank the second-half standings, applying the tie-breakers within any set
+// of teams level on both games-over-.500 and win%. Returns the ordered rows and
+// a list of plain-language tie-break notes for the UI.
+function rankSecondHalf(rows, metrics) {
+  const base = rows.slice().sort((a, b) => (b.w2 - b.l2) - (a.w2 - a.l2) || b.pct - a.pct);
+  const out = [], notes = [];
+  for (let i = 0; i < base.length;) {
+    let j = i + 1;
+    while (j < base.length && (base[j].w2 - base[j].l2) === (base[i].w2 - base[i].l2) && base[j].pct === base[i].pct) j++;
+    const group = base.slice(i, j);
+    if (group.length === 1) { out.push(group[0]); }
+    else if (group.length === 2) {
+      const c = cmpTwoTeam(group[0], group[1], metrics);
+      const ord = c.d <= 0 ? group : [group[1], group[0]];
+      ord.forEach(x => out.push(x));
+      if (c.by) notes.push((ord[0].short || ord[0].name) + ' over ' + (ord[1].short || ord[1].name)
+        + ' — ' + c.by + (c.detail ? ' (' + c.detail + ')' : ''));
+    } else {
+      const r = rankTiedGroup(group, metrics);
+      r.ordered.forEach(x => out.push(x));
+      if (r.note) notes.push(r.note);
+    }
+    i = j;
+  }
+  return { rows: out, tiebreaks: notes };
+}
+// Build the four-team playoff bracket. Seeds 1-2 are the two first-half
+// qualifiers (clinched), ordered by first-half record. Seeds 3-4 are the top two
+// of the second half — but a team that placed top-2 in BOTH halves keeps its
+// first-half seed (overlap rule), and the second-half berth it vacates passes to
+// the best FULL-SEASON record among teams that didn't otherwise qualify. Ranked
+// rows arrive already tie-broken. Matchups: 1v4 and 2v3, best-of-3.
+function buildPlayoffPicture(ranked, metrics) {
+  if (!ranked.length) return null;
+  metrics = metrics || { rd: {}, h2h: {}, lastReg: {} };
   const pick = x => x ? { id: x.id, name: x.name, short: x.short, logo: x.logo || null, site: x.site || null } : null;
-  const champs = rows.filter(x => x.clinched).sort((a, b) => {
+  const champs = ranked.filter(x => x.clinched).sort((a, b) => {
     const fa = FIRST_HALF_FINAL[a.id] || { w: 0, l: 0 }, fb = FIRST_HALF_FINAL[b.id] || { w: 0, l: 0 };
     const pa = (fa.w + fa.l) ? fa.w / (fa.w + fa.l) : 0, pb = (fb.w + fb.l) ? fb.w / (fb.w + fb.l) : 0;
     return pb - pa || fb.w - fa.w;
   });
-  const field = rows.filter(x => !x.clinched);
+  const fhIds = new Set(champs.map(x => x.id));
+  const shTop2 = ranked.slice(0, 2);                          // top 2 of the second half
+  const genuine = shTop2.filter(x => !fhIds.has(x.id));       // ones not already in via 1H
+  const qualified = new Set([...fhIds, ...genuine.map(x => x.id)]);
+  const open = 2 - genuine.length;                            // berths vacated by overlap
+  const replacements = ranked.filter(x => !qualified.has(x.id))
+    .sort((a, b) => b.pctSeason - a.pctSeason || (b.ws - b.ls) - (a.ws - a.ls) || seasonDiff(metrics, b.id) - seasonDiff(metrics, a.id))
+    .slice(0, open);
+  const lower = [...genuine, ...replacements];                // seed 3 then seed 4
+  const lowNote = (x, i) => !x ? null
+    : genuine.indexOf(x) !== -1 ? (i === 0 ? 'Second-half leader' : 'Second-half runner-up')
+    : 'Best remaining full-season record';
   const seeds = [
     { seed: 1, team: pick(champs[0]), note: 'First-half champion', clinched: true },
     { seed: 2, team: pick(champs[1]), note: 'First-half champion', clinched: true },
-    { seed: 3, team: pick(field[0]), note: 'Second-half leader', provisional: true },
-    { seed: 4, team: pick(field[1]), note: 'Second-half runner-up', provisional: true },
+    { seed: 3, team: pick(lower[0]), note: lowNote(lower[0], 0), provisional: true },
+    { seed: 4, team: pick(lower[1]), note: lowNote(lower[1], 1), provisional: true },
   ];
-  return { format: 'Best-of-3', seeds, matchups: [[1, 4], [2, 3]] };
+  const notes = [];
+  if (open > 0 && replacements.length) {
+    const overlappers = shTop2.filter(x => fhIds.has(x.id)).map(x => x.short || x.name);
+    notes.push((overlappers.join(' & ') || 'A first-half qualifier')
+      + ' placed top-2 in both halves and keep' + (overlappers.length === 1 ? 's' : '') + ' a first-half seed, so '
+      + (open === 1 ? 'the open second-half berth goes' : 'both open second-half berths go')
+      + ' to the best remaining full-season record.');
+  }
+  return { format: 'Best-of-3', seeds, matchups: [[1, 4], [2, 3]], notes };
+}
+// Memoize the league metrics against the schedule fetch so we reparse only when
+// pollSchedule brings in fresh HTML.
+let _metricsCache = { at: -1, val: null };
+function leagueMetrics() {
+  if (_metricsCache.at !== lastFetchAt || !_metricsCache.val) {
+    _metricsCache = { at: lastFetchAt, val: computeLeagueMetrics(parseLeagueResults(lastHtml)) };
+  }
+  return _metricsCache.val;
 }
 app.get('/api/standings', (_q, r) => {
   r.set('Cache-Control', 'no-store');
   if (!standingsTable.length) pollStandings();
-  const rows = standingsTable.map(x => {
+  const metrics = leagueMetrics();
+  const enriched = standingsTable.map(x => {
     // The feed reports full-season W-L; the second half = season − first-half
     // final (clamped at 0). Ranking, PCT and GB run off the second-half race.
     const base = (x.id && FIRST_HALF_FINAL[x.id]) || { w: 0, l: 0 };
@@ -4059,13 +4276,17 @@ app.get('/api/standings', (_q, r) => {
       w2, l2, ws: sw, ls: sl,
       pct: g2 ? w2 / g2 : 0,                       // second-half pct (drives sort/GB)
       pctSeason: gs ? (sw + x.t * 0.5) / gs : 0,   // full-season pct (tiebreak)
+      diff: seasonDiff(metrics, x.id),             // season run differential
       site: TEAM_SITE[x.id] || null,
       clinched: (x.id && CLINCHED_PLAYOFF[x.id]) || null,
     });
-  }).sort((a, b) => b.pct - a.pct || b.pctSeason - a.pctSeason || b.ws - a.ws || a.ls - b.ls);
+  });
+  const ranked = rankSecondHalf(enriched, metrics);
+  const rows = ranked.rows;
   const lead = rows[0];
   for (const x of rows) x.gb = lead ? ((lead.w2 - x.w2) + (x.l2 - lead.l2)) / 2 : 0;
-  r.json({ updatedAt: standingsAt, gatorsId: GATORS_ID, half: SEASON_HALF, rows, playoffs: buildPlayoffPicture(rows), scoreboard: buildLeagueBoard() });
+  r.json({ updatedAt: standingsAt, gatorsId: GATORS_ID, half: SEASON_HALF, rows,
+    tiebreaks: ranked.tiebreaks, playoffs: buildPlayoffPicture(rows, metrics), scoreboard: buildLeagueBoard() });
 });
 app.get('/debug/extras', (_q, r) => {
   const sample = games.filter(g => g.state === 'live' || g.state === 'scheduled').slice(0, 4)
@@ -4330,6 +4551,21 @@ app.get('/api/test', (_q, r) => {
   notify('Test \uD83D\uDC0A', 'Push is working — you\u2019re all set', 'run');
   r.json({ ok: true, sentTo: subscribers.size });
 });
+// On-demand end-to-end test of the inning-text mailer, so a misconfigured
+// deploy can be verified in seconds instead of waiting for a live inning
+// boundary. Gated by REPORT_KEY (same as the other private pages) so it can't
+// be used to spam the recipients. Sends one real text to INNING_ALERT_TO and
+// returns the actual SMTP result — a wrong app password surfaces as the error.
+app.get('/debug/testtext', async (q, r) => {
+  if (!REPORT_KEY || String(q.query.key || '') !== REPORT_KEY) return r.status(403).json({ ok: false, error: 'set REPORT_KEY on the server and call with ?key=<REPORT_KEY>' });
+  if (!INNING_ALERT_TO.length) return r.json({ ok: false, error: 'INNING_ALERT_TO not set' });
+  const t = getMailer();
+  if (!t) return r.json({ ok: false, mailReady, error: 'mailer off — set GMAIL_USER and GMAIL_APP_PASSWORD on the server' });
+  try {
+    await t.sendMail({ from: 'Gators GameTracker <' + MAIL_USER + '>', to: INNING_ALERT_TO.join(', '), text: 'Gators GameTracker test — inning texts are wired up 🐊' });
+    r.json({ ok: true, recipients: INNING_ALERT_TO });
+  } catch (e) { r.json({ ok: false, error: String(e && e.message || e) }); }
+});
 app.get('/api/stream', (q, r) => {
   r.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
   r.flushHeaders(); r.write(':ok\n\n'); if (featured) r.write('data: ' + JSON.stringify({ type: 'game', game: featured }) + '\n\n');
@@ -4340,10 +4576,17 @@ app.get('/api/stream', (q, r) => {
 if (require.main === module) {
   loadCache(); // serve last-saved player stats instantly, then refresh below
   loadBoxCache(); // restore cached final box scores so we don't re-fetch them
-  app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '\n'); pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleRosterRefresh(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); setTimeout(pollStrikePct, 15000); setInterval(pollStrikePct, 3 * 60 * 60 * 1000); setTimeout(getPitcherRest, 20000); scheduleDailyStats(); });
+  app.listen(PORT, () => { console.log('\nGators cloud on http://localhost:' + PORT + '  push:' + (pushReady ? 'on' : 'off') + '  texts:' + (INNING_ALERT_TO.length ? (mailReady ? 'on' : 'MISCONFIGURED') : 'off') + '\n');
+    // Loud, actionable boot warning: recipients are set but the server has no
+    // Gmail creds, so inning/final texts would silently no-op (getMailer null).
+    // This is exactly the gap that hid a whole season of missing end-of-inning
+    // texts — surface it instead of failing quietly.
+    if (INNING_ALERT_TO.length && !mailReady) console.warn('[inning-alert] mailer NOT configured: INNING_ALERT_TO is set but GMAIL_USER/GMAIL_APP_PASSWORD are missing — no texts will send until they are set.');
+    pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleRosterRefresh(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); setTimeout(pollStrikePct, 15000); setInterval(pollStrikePct, 3 * 60 * 60 * 1000); setTimeout(getPitcherRest, 20000); scheduleDailyStats(); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, pitchersFromFeed, extractEventAuth,
-  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseTeamRosterSlugs, parseGameLog, boxRowsForPlayer, aggBat, aggPit, buildRecord, lineIsShowable, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, applyPitcherOverrides, pitchingTotals, strikeCounts, inningAlertText, finalAlertText, boxLooksComplete };
+  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, applyStandingsOverride, MANUAL_STANDINGS_OVERRIDE, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseTeamRosterSlugs, parseGameLog, boxRowsForPlayer, aggBat, aggPit, buildRecord, lineIsShowable, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, applyPitcherOverrides, pitchingTotals, strikeCounts, inningAlertText, finalAlertText,
+  parseLeagueResults, computeLeagueMetrics, cmpTwoTeam, rankTiedGroup, rankSecondHalf, buildPlayoffPicture, boxLooksComplete };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
@@ -4721,6 +4964,13 @@ body.noscroll{overflow:hidden;}
 .clinch{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;flex:none;font-size:14px;font-family:'Oswald',sans-serif;font-weight:700;color:var(--gold2);}
 .clinch small{font-size:8px;letter-spacing:.06em;margin-top:3px;}
 .stnote{margin-top:8px;font-size:10px;color:var(--mute);display:flex;align-items:center;gap:6px;font-family:'Oswald',sans-serif;letter-spacing:.01em;}
+.sttbl .stdiff{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--mute);text-align:right;}
+.sttbl .stdiff.pos{color:#41a913;}
+.sttbl .stdiff.neg{color:var(--away);}
+.sttb{margin-top:10px;background:var(--bayou2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;}
+.sttbh{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.06em;font-size:10px;color:var(--gold2);margin-bottom:6px;}
+.sttb ul{margin:0;padding-left:16px;color:var(--mute);font-size:11px;line-height:1.55;}
+.sttb li{margin-bottom:2px;}
 .poffwrap{background:var(--bayou2);border:1px solid var(--line);border-radius:12px;padding:14px;}
 .poffintro{font-size:12px;color:var(--mute);line-height:1.5;margin-bottom:13px;}
 .poffhd{display:flex;align-items:center;justify-content:space-between;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.08em;font-size:12px;color:var(--gold2);margin-bottom:10px;}
@@ -4736,6 +4986,7 @@ body.noscroll{overflow:hidden;}
 .poffl{width:24px;height:24px;border-radius:5px;object-fit:contain;background:transparent;flex:none;}
 .poffnm{flex:1;min-width:0;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.01em;color:var(--bone);white-space:normal;overflow-wrap:anywhere;line-height:1.15;}
 .poffslot.g .poffnm{color:var(--gator);}
+.poffwhy{display:block;margin-top:2px;font-size:9px;font-weight:400;letter-spacing:.03em;text-transform:uppercase;color:var(--mute);}
 .poffclinch{flex:none;display:inline-flex;flex-direction:column;align-items:center;line-height:1;font-size:14px;color:var(--gold2);}
 .poffclinch small{margin-top:2px;font-size:7.5px;font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--gold2);}
 .poffrules{margin:12px 0 0;padding-left:18px;color:var(--mute);font-size:11px;line-height:1.6;}
@@ -4747,28 +4998,31 @@ a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 .sbg.g{border-color:var(--purple);background:rgba(113,74,210,.10);}
 /* Upcoming games read as a legible matchup: full-strength team names, records
    kept subtle, and the start time as the one accent on the right. */
-.sbg.sched .sbn{color:var(--bone);}
-.sbg.sched .sbrec{opacity:1;color:#b9abe0;}
+.sbg.sbsched .sbn{color:var(--bone);}
+.sbg.sbsched .sbrec{opacity:1;color:#b9abe0;}
 .sbteams{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;}
 .sbrow{display:flex;align-items:center;gap:9px;}
 .sbl{width:30px;height:30px;border-radius:6px;object-fit:contain;background:transparent;flex:none;}
-.sbn{flex:0 1 auto;min-width:0;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.02em;color:var(--mute);line-height:1.18;overflow-wrap:anywhere;}
+/* One line always: a long name (e.g. "San Antonio River Monsters") ellipsizes
+   rather than wrapping, so its record stays aligned with the other rows. 14px
+   lets the longest name fit whole on phone-width screens; it only clips on the
+   narrowest. */
+.sbn{flex:0 1 auto;min-width:0;font-family:'Oswald',sans-serif;font-weight:600;font-size:14px;letter-spacing:.02em;color:var(--mute);line-height:1.18;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .sbrec{flex:none;margin-left:5px;font-weight:400;font-size:.82em;color:var(--mute);opacity:.85;white-space:nowrap;}
 .sbs{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:16px;color:var(--mute);min-width:20px;text-align:right;}
 .sbsc{display:flex;align-items:center;gap:6px;flex:none;margin-left:auto;}
 .sbtri{width:0;height:0;border-top:5px solid transparent;border-bottom:5px solid transparent;border-right:6px solid var(--gold2);}
 .sbrow.w .sbn{color:var(--bone);font-weight:700;}
 .sbrow.w .sbs{color:var(--gold2);}
-/* Status block: inning over outs over the bases diamond, top-aligned for live
-   games (like a standard scoreboard card); centered for finals/scheduled. */
+/* Status block: inning over outs, vertically centered so a live card is the
+   same height as a scheduled/final one (the bases diamond is its own column). */
 .sbstat{flex:none;align-self:stretch;min-width:66px;display:flex;flex-direction:column;justify-content:center;align-items:flex-end;gap:3px;}
-.sbstat.live{justify-content:flex-start;}
 .sbtime{font-family:'Oswald',sans-serif;font-weight:700;font-size:15px;letter-spacing:.01em;color:var(--gold2);white-space:nowrap;text-align:right;line-height:1.1;}
 .sbtz{font-family:'Oswald',sans-serif;font-weight:600;font-size:9px;letter-spacing:.12em;color:var(--mute);text-align:right;margin-top:2px;}
 .sbinn{font-family:'Oswald',sans-serif;font-weight:600;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--gator);text-align:right;}
-.sbstat.final .sbinn{color:var(--bone);}
+.sbstat.sbfinal .sbinn{color:var(--bone);}
 .sbouts{font-family:'Oswald',sans-serif;font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--mute);}
-.sbdia{display:block;margin-top:2px;}
+.sbdia{display:block;flex:none;align-self:center;}
 .sbdia rect{fill:rgba(154,140,196,.18);stroke:var(--gator);stroke-width:1.3;}
 .sbdia rect.on{fill:var(--gold2);stroke:var(--gold2);}
 .sitenotice{display:flex;align-items:flex-start;gap:9px;background:rgba(255,214,51,.1);border:1px solid var(--gold2);border-radius:12px;padding:11px 13px;margin-bottom:12px;font-family:'Oswald',sans-serif;font-size:12.5px;line-height:1.4;letter-spacing:.01em;color:var(--bone);}
@@ -4950,8 +5204,8 @@ function renderGame(g){
   var jl=$('jloc');if(jl)jl.textContent=g.location||'';
   var th=$('themeTag');if(th){if(g.theme&&g.status==='pregame'){th.textContent='🎉 '+g.theme+' Night';th.style.display='';}else{th.style.display='none';}}
   var sn=$('specialName'),sd=$('specialDetail');
-  if(sn&&sd){if(g.special&&g.status!=='final'&&g.status!=='cancelled'){sn.textContent=(g.special.emoji?g.special.emoji+' ':'')+g.special.name;sn.style.display='';if(g.special.detail){sd.textContent=g.special.detail;sd.style.display='';}else sd.style.display='none';}else{sn.style.display='none';sd.style.display='none';}}
-  var pr=$('promoTag');if(pr){if(g.promo&&g.status!=='final'&&g.status!=='cancelled'){pr.innerHTML=esc(g.promo.emoji)+' <b>'+esc(g.promo.name)+'</b> · '+esc(g.promo.detail);pr.style.display='';}else{pr.style.display='none';}}
+  if(sn&&sd){if(g.special&&g.status==='pregame'){sn.textContent=(g.special.emoji?g.special.emoji+' ':'')+g.special.name;sn.style.display='';if(g.special.detail){sd.textContent=g.special.detail;sd.style.display='';}else sd.style.display='none';}else{sn.style.display='none';sd.style.display='none';}}
+  var pr=$('promoTag');if(pr){if(g.promo&&g.status==='pregame'){pr.innerHTML=esc(g.promo.emoji)+' <b>'+esc(g.promo.name)+'</b> · '+esc(g.promo.detail);pr.style.display='';}else{pr.style.display='none';}}
   var wb=$('watchBtn');
   if(wb){
     // Live game: show the TCL stream pill. Upcoming games use the Buy Tickets
@@ -5287,7 +5541,7 @@ function renderSched(list){
       +row(g.away,g.away.id==='et1bt9sixrz5lnnl',aw)+row(g.home,g.home.id==='et1bt9sixrz5lnnl',hw)
       +(g.state==='scheduled'&&g.theme?('<div class="ctheme">🎉 '+esc(g.theme)+' Night</div>'):'')
       +(g.state==='scheduled'&&g.special?('<div class="ctheme">'+(g.special.emoji?esc(g.special.emoji)+' ':'')+esc(g.special.name)+'</div>'+(g.special.detail?('<div class="cpromo">'+esc(g.special.detail)+'</div>'):'')):'')
-      +(g.promo?('<div class="cpromo">'+esc(g.promo.emoji)+' <b>'+esc(g.promo.name)+'</b> · '+esc(g.promo.detail)+'</div>'):'')
+      +(g.state==='scheduled'&&g.promo?('<div class="cpromo">'+esc(g.promo.emoji)+' <b>'+esc(g.promo.name)+'</b> · '+esc(g.promo.detail)+'</div>'):'')
       +'<div class="cfoot"><span class="cloc">'+esc(g.location||'')+'</span>'
       +(g.state==='final'&&g.replayUrl?('<a class="watchmini replay" href="'+esc(g.replayUrl)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Replay</a>'):'')
       +(g.state==='scheduled'&&g.freeAdmission?('<span class="watchmini free">Free Admission</span>'):(g.state==='scheduled'&&g.ticketUrl?('<a class="watchmini tickets" href="'+esc(g.ticketUrl)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Tickets</a>'):''))
@@ -5417,7 +5671,9 @@ function renderStandings(d){
     var pos=rows.map(function(x,i){return (i>0&&rows[i-1].pct===x.pct)?null:i+1;});
     for(var pi=1;pi<pos.length;pi++){if(pos[pi]==null)pos[pi]=pos[pi-1];}
     var groupSize={};pos.forEach(function(p){groupSize[p]=(groupSize[p]||0)+1;});
-    var h='<div class="gltbl sttbl"><table><tr><th>#</th><th>Team</th><th title="Second-half W-L">2H</th><th>PCT</th><th>GB</th><th>STRK</th><th title="Full-season W-L">Season</th></tr>';
+    var haveDiff=rows.some(function(x){return x.diff!=null&&x.diff!==0;});
+    var h='<div class="gltbl sttbl"><table><tr><th>#</th><th>Team</th><th title="Second-half W-L">2H</th><th>PCT</th><th>GB</th>'
+      +(haveDiff?'<th title="Season run differential">DIFF</th>':'')+'<th>STRK</th><th title="Full-season W-L">Season</th></tr>';
     rows.forEach(function(x,i){
       var isG=x.id&&x.id===d.gatorsId;
       var lg=x.logo?'<img class="stlogo" src="'+esc(x.logo)+'" alt="">':'';
@@ -5430,12 +5686,20 @@ function renderStandings(d){
       var cls=[isG?'stg':'',x.clinched?'stclinch':''].filter(Boolean).join(' ');
       var wl2=(x.w2|0)+'-'+(x.l2|0), wls=(x.ws|0)+'-'+(x.ls|0);
       var rk=(groupSize[pos[i]]>1?'T-':'')+pos[i];
+      var dv=(x.diff==null)?0:x.diff;
+      var diffTd=haveDiff?('<td class="stdiff '+(dv>0?'pos':dv<0?'neg':'')+'">'+(dv>0?'+':'')+dv+'</td>'):'';
       h+='<tr'+(cls?' class="'+cls+'"':'')+'><td>'+rk+'</td>'
         +'<td>'+team+'</td>'
-        +'<td class="stwl2">'+wl2+'</td><td>'+fmtPct(x.pct)+'</td><td>'+fmtGb(x.gb)+'</td><td>'+sk+'</td><td class="stwls">'+wls+'</td></tr>';
+        +'<td class="stwl2">'+wl2+'</td><td>'+fmtPct(x.pct)+'</td><td>'+fmtGb(x.gb)+'</td>'+diffTd+'<td>'+sk+'</td><td class="stwls">'+wls+'</td></tr>';
     });
     h+='</table></div>';
     if(anyClinch)h+='<div class="stnote"><span class="clinch">🏆<small>1H</small></span> first-half champion — clinched a playoff spot</div>';
+    var tbs=(d&&d.tiebreaks)||[];
+    if(tbs.length){
+      h+='<div class="sttb"><div class="sttbh">Tiebreakers applied</div><ul>';
+      tbs.forEach(function(t){h+='<li>'+esc(t)+'</li>';});
+      h+='</ul></div>';
+    }
     $('standingsBody').innerHTML=h;
     $('stMeta').textContent=d.half===2?'Second-half standings':d.half===1?'First-half standings':'';
   }
@@ -5450,9 +5714,10 @@ function poffSlot(s,gatorsId){
   var lg=t&&t.logo?'<img class="poffl" src="'+esc(t.logo)+'" alt="">':'<span class="poffl"></span>';
   var nm=t?esc(t.name||t.short):'TBD';
   var badge=s.clinched?'<span class="poffclinch" title="First-half champion — clinched a playoff spot">🏆<small>1st half</small></span>':'';
+  var note=(t&&s.note)?'<span class="poffwhy">'+esc(s.note)+'</span>':'';
   return '<div class="poffslot'+(isG?' g':'')+(t?'':' tbd')+'">'
     +'<span class="poffseed'+(s.clinched?' clin':'')+'">'+s.seed+'</span>'
-    +lg+'<span class="poffnm">'+nm+'</span>'+badge+'</div>';
+    +lg+'<span class="poffnm">'+nm+note+'</span>'+badge+'</div>';
 }
 function renderPlayoffs(d){
   var host=$('poffBody');if(!host)return;
@@ -5469,6 +5734,7 @@ function renderPlayoffs(d){
   });
   h+='<ul class="poffrules"><li>Best-of-3 series — first to two wins advances.</li>'
     +'<li>Lower seed hosts Game 1; higher seed hosts Games 2 &amp; 3 (if needed).</li></ul>';
+  (p.notes||[]).forEach(function(n){h+='<div class="poffnote">'+esc(n)+'</div>';});
   if(provisional)h+='<div class="poffnote"><span class="poffprov">•</span> Seeds 3 &amp; 4 reflect the current second-half standings and can still change.</div>';
   h+='</div>';
   host.innerHTML=h;
@@ -5499,7 +5765,10 @@ function sbTeamRow(t,win,isGt,showScore,recById,fin){
   // Winner triangle only on finals (a live leader is shown bold, no arrow).
   var tri=(fin&&win)?'<span class="sbtri"></span>':'';
   var ct=t.city?'<span class="tcity">'+esc(t.city)+'</span> ':'';
-  return '<div class="sbrow'+(win?' w':'')+(isGt?' gt':'')+'">'+lg+'<span class="sbn">'+ct+esc(t.nick||t.short||'')+'</span>'+rec+'<span class="sbsc">'+tri+'<span class="sbs">'+sc+'</span></span></div>';
+  // Keep the record inside the name so it flows right after the last word and
+  // wraps with it — a long name like "San Antonio River Monsters" reads as one
+  // block instead of leaving the record floating beside a two-line name.
+  return '<div class="sbrow'+(win?' w':'')+(isGt?' gt':'')+'">'+lg+'<span class="sbn">'+ct+esc(t.nick||t.short||'')+rec+'</span><span class="sbsc">'+tri+'<span class="sbs">'+sc+'</span></span></div>';
 }
 function renderScoreboard(sb,gatorsId,recById){
   var games=(sb&&sb.games)||[];
@@ -5514,7 +5783,10 @@ function renderScoreboard(sb,gatorsId,recById){
     // Bold the winner (final) or the current leader (live); plain on ties.
     var aw=haveScores&&(fin||live)&&g.away.score>g.home.score;
     var hw=haveScores&&(fin||live)&&g.home.score>g.away.score;
-    var st=live?'live':fin?'final':'sched';
+    // Namespaced state class (sblive/sbfinal/sbsched) so the card doesn't pick
+    // up the global .live gamecast rule, which turned it into a tall bordered
+    // column and doubled the height when a game went live.
+    var st=live?'sblive':fin?'sbfinal':'sbsched';
     var showScore=fin||live;
     // Status block: scheduled games show the start time as time-over-zone so a
     // long team name keeps its room; live/final show compact inning, then outs +
@@ -5529,12 +5801,16 @@ function renderScoreboard(sb,gatorsId,recById){
       if(live){
         var topOrBot=/^(top|bot)/i.test(g.status||'');
         if(topOrBot&&g.outs!=null)stat+='<div class="sbouts">'+g.outs+' Out'+(g.outs===1?'':'s')+'</div>';
-        if(topOrBot&&g.bases)stat+=sbDiamond(g.bases);
       }
     }
+    // Bases diamond sits in its own column to the right of the scores (not
+    // stacked under the status), so a live game keeps the same card height as a
+    // scheduled/final one instead of growing when the diamond appears.
+    var dia=(live&&/^(top|bot)/i.test(g.status||'')&&g.bases)?sbDiamond(g.bases):'';
     var tag=g.url?'a':'div',attr=g.url?(' href="'+esc(g.url)+'" target="_blank" rel="noopener"'):'';
     h+='<'+tag+' class="sbg'+(g.isGators?' g':'')+' '+st+'"'+attr+'>'
       +'<div class="sbteams">'+sbTeamRow(g.away,aw,g.away.id===gatorsId,showScore,recById,fin)+sbTeamRow(g.home,hw,g.home.id===gatorsId,showScore,recById,fin)+'</div>'
+      +dia
       +'<div class="sbstat '+st+'">'+stat+'</div></'+tag+'>';
   });
   $('scoreboardBody').innerHTML=h;
