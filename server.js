@@ -4943,16 +4943,15 @@ a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 .sbtri{width:0;height:0;border-top:5px solid transparent;border-bottom:5px solid transparent;border-right:6px solid var(--gold2);}
 .sbrow.w .sbn{color:var(--bone);font-weight:700;}
 .sbrow.w .sbs{color:var(--gold2);}
-/* Status block: inning over outs over the bases diamond, top-aligned for live
-   games (like a standard scoreboard card); centered for finals/scheduled. */
+/* Status block: inning over outs, vertically centered so a live card is the
+   same height as a scheduled/final one (the bases diamond is its own column). */
 .sbstat{flex:none;align-self:stretch;min-width:66px;display:flex;flex-direction:column;justify-content:center;align-items:flex-end;gap:3px;}
-.sbstat.live{justify-content:flex-start;}
 .sbtime{font-family:'Oswald',sans-serif;font-weight:700;font-size:15px;letter-spacing:.01em;color:var(--gold2);white-space:nowrap;text-align:right;line-height:1.1;}
 .sbtz{font-family:'Oswald',sans-serif;font-weight:600;font-size:9px;letter-spacing:.12em;color:var(--mute);text-align:right;margin-top:2px;}
 .sbinn{font-family:'Oswald',sans-serif;font-weight:600;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--gator);text-align:right;}
 .sbstat.final .sbinn{color:var(--bone);}
 .sbouts{font-family:'Oswald',sans-serif;font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--mute);}
-.sbdia{display:block;margin-top:2px;}
+.sbdia{display:block;flex:none;align-self:center;}
 .sbdia rect{fill:rgba(154,140,196,.18);stroke:var(--gator);stroke-width:1.3;}
 .sbdia rect.on{fill:var(--gold2);stroke:var(--gold2);}
 .sitenotice{display:flex;align-items:flex-start;gap:9px;background:rgba(255,214,51,.1);border:1px solid var(--gold2);border-radius:12px;padding:11px 13px;margin-bottom:12px;font-family:'Oswald',sans-serif;font-size:12.5px;line-height:1.4;letter-spacing:.01em;color:var(--bone);}
@@ -5725,12 +5724,16 @@ function renderScoreboard(sb,gatorsId,recById){
       if(live){
         var topOrBot=/^(top|bot)/i.test(g.status||'');
         if(topOrBot&&g.outs!=null)stat+='<div class="sbouts">'+g.outs+' Out'+(g.outs===1?'':'s')+'</div>';
-        if(topOrBot&&g.bases)stat+=sbDiamond(g.bases);
       }
     }
+    // Bases diamond sits in its own column to the right of the scores (not
+    // stacked under the status), so a live game keeps the same card height as a
+    // scheduled/final one instead of growing when the diamond appears.
+    var dia=(live&&/^(top|bot)/i.test(g.status||'')&&g.bases)?sbDiamond(g.bases):'';
     var tag=g.url?'a':'div',attr=g.url?(' href="'+esc(g.url)+'" target="_blank" rel="noopener"'):'';
     h+='<'+tag+' class="sbg'+(g.isGators?' g':'')+' '+st+'"'+attr+'>'
       +'<div class="sbteams">'+sbTeamRow(g.away,aw,g.away.id===gatorsId,showScore,recById,fin)+sbTeamRow(g.home,hw,g.home.id===gatorsId,showScore,recById,fin)+'</div>'
+      +dia
       +'<div class="sbstat '+st+'">'+stat+'</div></'+tag+'>';
   });
   $('scoreboardBody').innerHTML=h;
