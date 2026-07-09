@@ -22,6 +22,20 @@ in `server.js`). Four teams make the playoffs.
   otherwise qualify then qualifies for the playoffs as the **4th seed** (or as the 3rd
   *and* 4th seed if both the first-half and second-half teams are the same).
 
+## Series format & hosting
+
+Source: **Jared**, confirmed 2026-07-09.
+
+Each playoff round is a **best-of-3 series** (first to two wins advances). The
+matchups are **1 vs 4** and **2 vs 3**. Hosting is split within the series:
+
+- The **lower seed hosts Game 1**.
+- The **higher seed hosts Games 2 and 3** (Game 3 only if needed).
+
+"Higher seed" here means the **better team** (the smaller seed number), so the 1 and 2
+seeds are the *away* team in Game 1 and host any remaining games. This mirrors the note
+already shown on the Playoff Picture card in `server.js`.
+
 ## Tie-breakers
 
 > Jared's recollection, prefaced "I believe it goes." Confirm before applying to a
