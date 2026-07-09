@@ -2006,16 +2006,17 @@ const ROSTER = [
   // the Gators team roster page). No game action yet, so the note shows for now.
   { num: 48, name: 'Marco Bandiero', slug: 'marcobandieroddnu', pos: 'IF', cls: 'Freshman', ht: '6-1', wt: '245', b: 'L', t: 'L', bday: '', home: 'Orange, TX', school: 'Angelina College', note: 'Recently added — season stats will appear after his first game.' },
   // Added off the 7/7 official roster. The sheet listed Victorian at #28 (a duplicate of
-  // Andrew Ramos); Coach Carl confirmed his real number is #18. findSlug resolves his real
-  // Presto page by name once it exists, and the note shows until his first game.
-  { num: 18, name: 'Landon Victorian', slug: 'landonvictorian', pos: 'P', cls: 'Sophomore', ht: '6-3', wt: '180', b: 'R', t: 'R', bday: '11/02/2005', home: 'Lake Charles, LA', school: 'Louisiana Lafayette', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
-  // Added off the 7/7 official roster as unnumbered position players; jersey numbers per
-  // Coach Carl (Cooley #7, Beddoe #13); Sparks' number is still TBD. Bio details filled in
-  // from their college roster pages (LSU-Eunice, Pearl River CC, Lamar). findSlug resolves
-  // each real Presto page by name once it exists, and the note shows until their first game.
-  { num: 7,  name: 'Griffin Cooley', slug: 'griffincooley', pos: 'OF',      cls: 'R-Sophomore', ht: '6-2',  wt: '179', b: 'L', t: 'L', bday: '',           home: 'Kinder, LA',   school: 'LSU-Eunice',      findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
-  { num: 13, name: 'Jackson Beddoe', slug: 'jacksonbeddoe', pos: 'IF',      cls: 'Freshman',    ht: '5-11', wt: '185', b: 'R', t: 'R', bday: '',           home: 'Sulphur, LA',  school: 'Pearl River CC',  findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
-  { num: null, numTBD: true, name: 'Lane Sparks', slug: 'lanesparks', pos: 'OF', cls: 'Junior', ht: '6-0', wt: '175', b: 'L', t: 'L', bday: '12/28/2004', home: 'Brenham, TX', school: 'Lamar', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
+  // Andrew Ramos); Coach Carl confirmed his real number is #18. Real Presto slug now set
+  // directly (resolved from the Gators team roster page) and his headshot is bundled; no
+  // game action yet, so the note shows until his first appearance.
+  { num: 18, name: 'Landon Victorian', slug: 'landonvictoriank052', pos: 'P', cls: 'Sophomore', ht: '6-3', wt: '180', b: 'R', t: 'R', bday: '11/02/2005', home: 'Lake Charles, LA', school: 'Louisiana Lafayette', note: 'Recently added — season stats will appear after his first game.' },
+  // Added off the 7/7 official roster as unnumbered position players; jersey numbers per the
+  // official roster (Cooley #7, Beddoe #13, Sparks #97). Real Presto slugs now set directly
+  // (resolved from the Gators team roster page) and headshots bundled. Cooley and Beddoe have
+  // played, so their season stats flow; Sparks hasn't yet, so his note shows until his first game.
+  { num: 7,  name: 'Griffin Cooley', slug: 'griffincooleymoh6', pos: 'OF',      cls: 'R-Sophomore', ht: '6-2',  wt: '179', b: 'L', t: 'L', bday: '',           home: 'Kinder, LA',   school: 'LSU-Eunice' },
+  { num: 13, name: 'Jackson Beddoe', slug: 'jacksonbeddoep18p', pos: 'IF',      cls: 'Freshman',    ht: '5-11', wt: '185', b: 'R', t: 'R', bday: '',           home: 'Sulphur, LA',  school: 'Pearl River CC' },
+  { num: 97, name: 'Lane Sparks', slug: 'lanesparksgmxd', pos: 'OF', cls: 'Junior', ht: '6-0', wt: '175', b: 'L', t: 'L', bday: '12/28/2004', home: 'Brenham, TX', school: 'Lamar', note: 'Recently added — season stats will appear after his first game.' },
 ];
 
 // Coaching staff (gumbeauxgators.com/coaches). Shown beneath the player roster;
