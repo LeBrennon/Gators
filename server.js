@@ -4927,8 +4927,8 @@ a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 .sbg.g{border-color:var(--purple);background:rgba(113,74,210,.10);}
 /* Upcoming games read as a legible matchup: full-strength team names, records
    kept subtle, and the start time as the one accent on the right. */
-.sbg.sched .sbn{color:var(--bone);}
-.sbg.sched .sbrec{opacity:1;color:#b9abe0;}
+.sbg.sbsched .sbn{color:var(--bone);}
+.sbg.sbsched .sbrec{opacity:1;color:#b9abe0;}
 .sbteams{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;}
 .sbrow{display:flex;align-items:center;gap:9px;}
 .sbl{width:30px;height:30px;border-radius:6px;object-fit:contain;background:transparent;flex:none;}
@@ -4949,7 +4949,7 @@ a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 .sbtime{font-family:'Oswald',sans-serif;font-weight:700;font-size:15px;letter-spacing:.01em;color:var(--gold2);white-space:nowrap;text-align:right;line-height:1.1;}
 .sbtz{font-family:'Oswald',sans-serif;font-weight:600;font-size:9px;letter-spacing:.12em;color:var(--mute);text-align:right;margin-top:2px;}
 .sbinn{font-family:'Oswald',sans-serif;font-weight:600;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--gator);text-align:right;}
-.sbstat.final .sbinn{color:var(--bone);}
+.sbstat.sbfinal .sbinn{color:var(--bone);}
 .sbouts{font-family:'Oswald',sans-serif;font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--mute);}
 .sbdia{display:block;flex:none;align-self:center;}
 .sbdia rect{fill:rgba(154,140,196,.18);stroke:var(--gator);stroke-width:1.3;}
@@ -5709,7 +5709,10 @@ function renderScoreboard(sb,gatorsId,recById){
     // Bold the winner (final) or the current leader (live); plain on ties.
     var aw=haveScores&&(fin||live)&&g.away.score>g.home.score;
     var hw=haveScores&&(fin||live)&&g.home.score>g.away.score;
-    var st=live?'live':fin?'final':'sched';
+    // Namespaced state class (sblive/sbfinal/sbsched) so the card doesn't pick
+    // up the global .live gamecast rule, which turned it into a tall bordered
+    // column and doubled the height when a game went live.
+    var st=live?'sblive':fin?'sbfinal':'sbsched';
     var showScore=fin||live;
     // Status block: scheduled games show the start time as time-over-zone so a
     // long team name keeps its room; live/final show compact inning, then outs +
