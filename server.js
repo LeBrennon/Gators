@@ -2819,6 +2819,23 @@ function pitcherLineFromRow(head, row){
   const npCol=head.indexOf('#p')>=0 ? '#p' : 'np';
   return { key, name, np:NUM(g(npCol)), h:g('h'), r:g('r'), er:g('er'), bb:g('bb'), k:g('k') };
 }
+// Manual pitcher-rest outings, used when Presto never publishes a scrapeable box
+// score for a final Gators game — the box XML stays bot-gated past the day-of live
+// window, so the game would otherwise silently drop off the rest chart the next
+// day. Each entry is one game: the date (YYYYMMDD, Central), opponent short name,
+// whether the Gators were home, and every Gators pitcher's final pitch count (#P)
+// read off the box score. Only current-roster names are kept (same as the scraped
+// path). Deduped against scraped finals by date, so once Presto's box becomes
+// available the scraped data takes over and the manual entry self-suppresses —
+// remove it then.
+const MANUAL_REST_OUTINGS = [
+  { date: '20260708', oppShort: 'Cane Cutters', gatorsHome: true, pitchers: [
+    { name: 'Cade Robin',       np: 63 },
+    { name: 'Jake Rider',       np: 55 },
+    { name: 'Reed Dupre',       np: 8  },
+    { name: 'Brayden Guillory', np: 14 },
+  ] },
+];
 // Season pitcher-rest chart: for each current-roster Gators pitcher, every
 // appearance (date, opponent, pitch count) across all final games, plus a
 // per-game breakdown that mirrors the coach's hand-written pitch-count sheets for
@@ -2852,6 +2869,25 @@ async function computePitcherRest(){
     }
     if(gamePitchers.length) byGame.push({ id:g.id, date:g.date, dateLabel:g.dateLabel, oppShort, gatorsHome:!!g.gatorsHome, pitchers:gamePitchers });
   }
+  // Fold in any manually-entered games (MANUAL_REST_OUTINGS) whose Presto box never
+  // became scrapeable, so a real final still shows on the chart. Skip dates already
+  // covered by a scraped final so nothing double-counts.
+  const scrapedDates=new Set(byGame.map(b=>b.date));
+  let manualGames=0;
+  for(const mg of MANUAL_REST_OUTINGS){
+    if(scrapedDates.has(mg.date)) continue;
+    const dateLabel=ymdLabel(mg.date);
+    const gamePitchers=[];
+    for(const mp of mg.pitchers){
+      const key=nameKey(mp.name); const rp=ROSTER_BY_NAMEKEY[key];
+      if(!rp) continue;            // only current-roster pitchers, same as the scraped path
+      const outing={ id:'manual_'+mg.date, date:mg.date, dateLabel, oppShort:mg.oppShort, gatorsHome:!!mg.gatorsHome, np:mp.np };
+      const a=acc[key] || (acc[key]={ key, name:rp.name, num:rp.num, outings:[] });
+      a.outings.push(outing);
+      gamePitchers.push({ name:rp.name, num:rp.num, np:mp.np });
+    }
+    if(gamePitchers.length){ byGame.push({ id:'manual_'+mg.date, date:mg.date, dateLabel, oppShort:mg.oppShort, gatorsHome:!!mg.gatorsHome, pitchers:gamePitchers }); manualGames++; }
+  }
   const pitchers=Object.values(acc).map(p=>{
     p.outings.sort((x,y)=>x.date.localeCompare(y.date));
     for(let i=0;i<p.outings.length;i++) p.outings[i].restBefore = i>0 ? daysBetweenYmd(p.outings[i-1].date, p.outings[i].date) : null;
@@ -2862,7 +2898,7 @@ async function computePitcherRest(){
     return p;
   });
   byGame.sort((a,b)=>b.date.localeCompare(a.date));
-  return { computedAt:Date.now(), finals:finals.length, pitchers, byGame };
+  return { computedAt:Date.now(), finals:finals.length+manualGames, pitchers, byGame };
 }
 // Memoize the chart briefly — finals rarely change and box pages are cached, but
 // this avoids re-walking the season on every request. daysRest is applied later.
