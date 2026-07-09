@@ -3471,7 +3471,7 @@ function sendStatic(r, name, body, type) {
 app.get('/', (q, r) => { recordVisit(q); r.set('Cache-Control', 'no-store, must-revalidate'); sendStatic(r, 'app', APP_HTML, 'html'); });
 app.get('/sw.js', (_q, r) => { r.set('Cache-Control', 'no-cache, no-store, must-revalidate'); sendStatic(r, 'sw', SW, 'application/javascript'); });
 app.get('/manifest.json', (_q, r) => sendStatic(r, 'manifest', MANIFEST, 'application/json'));
-app.get('/health', (_q, r) => r.json({ ok: true, build: BUILD, games: games.length, featured: featured && featured.id, push: pushReady }));
+app.get('/health', (_q, r) => r.json({ ok: true, build: BUILD, games: games.length, featured: featured && featured.id, push: pushReady, mail: mailReady, texts: INNING_ALERT_TO.length ? (mailReady ? 'on' : 'misconfigured') : 'off' }));
 app.get('/api/version', (_q, r) => r.json(BUILD));
 app.get('/debug', (_q, r) => {
   const html = lastHtml || '';
@@ -4280,6 +4280,21 @@ app.get('/api/test', (_q, r) => {
   if (!pushReady) return r.status(501).json({ ok: false, error: 'push not configured (set VAPID keys)' });
   notify('Test \uD83D\uDC0A', 'Push is working — you\u2019re all set', 'run');
   r.json({ ok: true, sentTo: subscribers.size });
+});
+// On-demand end-to-end test of the inning-text mailer, so a misconfigured
+// deploy can be verified in seconds instead of waiting for a live inning
+// boundary. Gated by REPORT_KEY (same as the other private pages) so it can't
+// be used to spam the recipients. Sends one real text to INNING_ALERT_TO and
+// returns the actual SMTP result — a wrong app password surfaces as the error.
+app.get('/debug/testtext', async (q, r) => {
+  if (!REPORT_KEY || String(q.query.key || '') !== REPORT_KEY) return r.status(403).json({ ok: false, error: 'set REPORT_KEY on the server and call with ?key=<REPORT_KEY>' });
+  if (!INNING_ALERT_TO.length) return r.json({ ok: false, error: 'INNING_ALERT_TO not set' });
+  const t = getMailer();
+  if (!t) return r.json({ ok: false, mailReady, error: 'mailer off — set GMAIL_USER and GMAIL_APP_PASSWORD on the server' });
+  try {
+    await t.sendMail({ from: 'Gators GameTracker <' + MAIL_USER + '>', to: INNING_ALERT_TO.join(', '), text: 'Gators GameTracker test — inning texts are wired up 🐊' });
+    r.json({ ok: true, recipients: INNING_ALERT_TO });
+  } catch (e) { r.json({ ok: false, error: String(e && e.message || e) }); }
 });
 app.get('/api/stream', (q, r) => {
   r.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
