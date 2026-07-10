@@ -2831,15 +2831,9 @@ function pitcherLineFromRow(head, row){
 // read off the box score. Only current-roster names are kept (same as the scraped
 // path). Deduped against scraped finals by date, so once Presto's box becomes
 // available the scraped data takes over and the manual entry self-suppresses —
-// remove it then.
-const MANUAL_REST_OUTINGS = [
-  { date: '20260708', oppShort: 'Cane Cutters', gatorsHome: true, pitchers: [
-    { name: 'Cade Robin',       np: 63 },
-    { name: 'Jake Rider',       np: 55 },
-    { name: 'Reed Dupre',       np: 8  },
-    { name: 'Brayden Guillory', np: 14 },
-  ] },
-];
+// remove it then. Currently empty: Presto is scraping the recent finals fine, so
+// no game needs a manual backfill.
+const MANUAL_REST_OUTINGS = [];
 // Season pitcher-rest chart: for each current-roster Gators pitcher, every
 // appearance (date, opponent, pitch count) across all final games, plus a
 // per-game breakdown that mirrors the coach's hand-written pitch-count sheets for
@@ -4003,11 +3997,11 @@ app.get('/api/rest', async (_q, r) => {
     r.status(500).json({ error: String(err && err.message || err) });
   }
 });
-// Private pitchers' rest chart page for the pitching coach — mirrors the layout
-// of their hand-written pitch-count sheets so numbers can be cross-checked.
-// Gated by REPORT_KEY like /stats.
+// Pitchers' rest chart page for the pitching coach — mirrors the layout of their
+// hand-written pitch-count sheets so numbers can be cross-checked. Open (unlike
+// /stats): the owner wants to pull it on demand without a key. A ?key= is still
+// accepted but ignored, so the post-game Action's keyed render keeps working.
 app.get('/rest', async (q, r) => {
-  if (reportLocked(q, r)) return;
   try {
     const data = restWithLive(await getPitcherRest());
     const today = todayCentralYmd();
