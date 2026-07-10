@@ -1919,6 +1919,10 @@ async function refreshFeatured() {
     norm.home.runs = null;
   }
   prevFeatured = featured; featured = norm;
+  // The instant a game is final, warm its box score in the background (retried on
+  // each schedule poll until the real tables land) so the "Box Score" button
+  // serves from a hot cache the moment someone taps it — see warmFinalBox.
+  if (norm.status === 'final' && finalIsFresh(norm, Date.now())) warmFinalBox(norm.id);
   // Snapshot the Gators' own game's live-feed pitching (live or just-final) so the
   // rest chart can keep showing tonight's outings after featured rotates away.
   if (norm && (norm.status === 'live' || norm.status === 'final') && Array.isArray(norm.pitchers)) {
@@ -3695,6 +3699,37 @@ async function fetchBoxPage(id) {
   job.finally(() => boxInflight.delete(id));
   return job;
 }
+// ---- Pre-warm a just-final game's box score ---------------------------------
+// Presto flips the schedule to "Final" (and our live feed calls the game over)
+// several minutes before it renders the finished box-score page — and gates that
+// page behind a bot challenge in the meantime. The "Box Score" button appears the
+// instant the game ends (buildFinal), so without pre-warming the first viewer to
+// tap it eats that lag on an empty or slow fetch. When a game goes final we poll
+// the box quietly in the background until the real tables land, so the cache is
+// hot before anyone taps. Bounded so a box that never posts (a gate that never
+// lifts, a game Presto never renders) can't hammer the source for hours.
+const boxWarmDone = new Set();      // ids whose real box has landed + cached
+const boxWarmInflight = new Set();  // ids with a warm fetch in flight
+const boxWarmTries = new Map();     // id -> attempts so far
+const BOX_WARM_MAX_TRIES = 60;      // ~15 min at the 15s schedule-poll cadence
+// A complete box has both teams' tables; a bot-gate stub parses to an empty box.
+const boxLooksComplete = d => !!(d && Array.isArray(d.box) && d.box.length >= 2);
+async function warmFinalBox(id) {
+  if (!id || boxWarmDone.has(id) || boxWarmInflight.has(id)) return;
+  if ((boxWarmTries.get(id) || 0) >= BOX_WARM_MAX_TRIES) return;
+  boxWarmInflight.add(id);
+  boxWarmTries.set(id, (boxWarmTries.get(id) || 0) + 1);
+  try {
+    // A prior pass may have cached a gate stub (empty box). Drop it so this pass
+    // actually re-hits Presto instead of reading the empty cache straight back.
+    const cached = boxCache.get(id);
+    if (cached && !boxLooksComplete(cached.data)) boxCache.delete(id);
+    const res = await fetchBoxPage(id);
+    if (res && res.ok && boxLooksComplete(res.data)) boxWarmDone.add(id); // hot + cached
+    else if (res && res.ok) boxCache.delete(id);   // gate still up — retry next poll
+  } catch (e) { logErr('warmFinalBox', e); }
+  finally { boxWarmInflight.delete(id); }
+}
 // ---- Box-score season-line fallback -----------------------------------------
 // A just-debuted player can have real box-score lines for a game or two while
 // Presto has not yet posted those games to their individual player page or the
@@ -4551,7 +4586,7 @@ if (require.main === module) {
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, pitchersFromFeed, extractEventAuth,
   dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, applyStandingsOverride, MANUAL_STANDINGS_OVERRIDE, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseTeamRosterSlugs, parseGameLog, boxRowsForPlayer, aggBat, aggPit, buildRecord, lineIsShowable, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, applyPitcherOverrides, pitchingTotals, strikeCounts, inningAlertText, finalAlertText,
-  parseLeagueResults, computeLeagueMetrics, cmpTwoTeam, rankTiedGroup, rankSecondHalf, buildPlayoffPicture };
+  parseLeagueResults, computeLeagueMetrics, cmpTwoTeam, rankTiedGroup, rankSecondHalf, buildPlayoffPicture, boxLooksComplete };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [

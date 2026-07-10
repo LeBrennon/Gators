@@ -26,3 +26,10 @@ Default vocabulary — `needs-triage`, `needs-info`, `ready-for-agent`, `ready-f
 
 Single-context — one `CONTEXT.md` + `docs/adr/` at the repo root (created lazily by the
 domain-modeling skill, not upfront). See `docs/agents/domain.md`.
+
+### Box-score PDF
+
+The branded one-page box-score PDF (`scripts/box-score.js`, `npm run report:box`) has a
+fixed set of generation steps and formatting conventions — proper-case names, indented
+substitutes with an alphabet legend, box notes, dual-position change notes, one-page fit,
+etc. Follow them for every game's box score. See `docs/agents/box-score-pdf.md`.
