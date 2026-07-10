@@ -17,7 +17,13 @@ const { spawn } = require('child_process');
 const PORT = Number(process.env.REST_PORT || 8991);
 const KEY = 'ci-rest-' + process.pid;
 const OUT_DIR = path.join(__dirname, '..', 'reports', 'rest');
-const BASE = 'http://localhost:' + PORT;
+// When REST_BASE is set (e.g. https://www.whatisthegatorscore.com), render the
+// chart from that already-deployed app instead of booting a transient local
+// server. The live deploy already has the scraped season data, so this avoids
+// re-scraping Presto from a CI runner (whose IP the source blocks). /rest is
+// public, so no report key is needed against an external base.
+const REST_BASE = (process.env.REST_BASE || '').replace(/\/$/, '');
+const BASE = REST_BASE || ('http://localhost:' + PORT);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // Reuse the postgame report's Chromium resolution so CI and local both work.
@@ -51,7 +57,9 @@ async function main() {
   const bin = findChromium();
   if (!bin) { console.error('[rest-chart] no Chromium found (set CHROMIUM_PATH).'); process.exit(1); }
 
-  const srv = spawn('node', [path.join(__dirname, '..', 'server.js')], {
+  // Boot a transient local server only when rendering locally; against REST_BASE
+  // the deployed app is used as-is.
+  const srv = REST_BASE ? null : spawn('node', [path.join(__dirname, '..', 'server.js')], {
     // Own port + throwaway report key; silence the outbound game-final dispatch so
     // booting this transient server never fires a duplicate post-game email.
     env: Object.assign({}, process.env, { PORT: String(PORT), REPORT_KEY: KEY, GH_DISPATCH_TOKEN: '' }),
@@ -60,18 +68,22 @@ async function main() {
 
   let browser;
   try {
-    if (!(await waitForData())) throw new Error('no final games appeared in time');
-    await sleep(6000);                          // let featured settle so tonight's live/final outings fold in
-    await getJson(BASE + '/api/rest');          // warm the season walk (caches final boxes to disk)
+    if (!REST_BASE) {
+      if (!(await waitForData())) throw new Error('no final games appeared in time');
+      await sleep(6000);                        // let featured settle so tonight's live/final outings fold in
+      await getJson(BASE + '/api/rest');        // warm the season walk (caches final boxes to disk)
+    }
     const rest = await getJson(BASE + '/api/rest');
     const ymd = rest.today;                      // YYYYMMDD in Central time
     const stem = ymd.slice(4, 6) + '-' + ymd.slice(6, 8) + '-' + ymd.slice(0, 4);
 
+    // /rest is public, so an external (deployed) base needs no report key.
+    const restUrl = BASE + '/rest' + (REST_BASE ? '' : ('?key=' + KEY));
     const { chromium } = require('playwright-core');
     browser = await chromium.launch({ executablePath: bin, args: ['--no-sandbox'] });
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
     const page = await ctx.newPage();
-    await page.goto(BASE + '/rest?key=' + KEY, { waitUntil: 'networkidle' });
+    await page.goto(restUrl, { waitUntil: 'networkidle' });
     await page.emulateMedia({ media: 'print' });
     await page.addStyleTag({ content: '@media print{*{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}}' });
     const h = await page.evaluate(() => document.documentElement.scrollHeight);
@@ -82,7 +94,7 @@ async function main() {
     console.log(file);                           // stdout = the artifact path for the workflow
   } finally {
     if (browser) { try { await browser.close(); } catch (e) {} }
-    try { srv.kill('SIGKILL'); } catch (e) {}
+    if (srv) { try { srv.kill('SIGKILL'); } catch (e) {} }
   }
 }
 

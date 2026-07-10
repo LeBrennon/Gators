@@ -52,6 +52,11 @@ jobs:
       - name: Build the pitchers' rest chart PDF
         id: restchart
         if: steps.gate.outputs.go == 'true'
+        env:
+          # Render from the live deploy (which already holds the scraped season
+          # data) rather than booting a local server that would re-scrape Presto
+          # from the runner — Presto blocks CI IPs, so the local path times out.
+          REST_BASE: https://www.whatisthegatorscore.com
         run: |
           export CHROMIUM_PATH="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
           PDF="$(node scripts/rest-chart.js)"
