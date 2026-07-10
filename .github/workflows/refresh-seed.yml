@@ -147,15 +147,20 @@ jobs:
           npm ci
           export CHROMIUM_PATH="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
           TARGET="${{ steps.plan.outputs.game_id }}"; [ -z "$TARGET" ] && TARGET="tonight"
-          for i in 1 2 3 4 5 6; do
+          # Poll tightly (every 15s) so the email fires within seconds of the box
+          # becoming available, not up to a couple minutes later. The live server
+          # pre-warms the box cache (warmFinalBox) the instant the game is final, so
+          # the first attempt often already succeeds; the window stays generous
+          # (~10 min) for the occasional slow Presto render.
+          for i in $(seq 1 40); do
             if node scripts/box-score.js "$TARGET" --pdf --strict; then
               PDF="$(ls -t reports/box/*.pdf | head -1)"
               echo "pdf=$PDF" >> "$GITHUB_OUTPUT"
-              echo "built the box score: $PDF"
+              echo "built the box score on attempt $i: $PDF"
               exit 0
             fi
-            echo "  box for '$TARGET' isn't fully rendered yet — waiting 120s ($i/6)"
-            sleep 120
+            echo "  box for '$TARGET' isn't fully rendered yet — retrying in 15s ($i/40)"
+            sleep 15
           done
           echo "::warning::box score for '$TARGET' never fully rendered in time"
 
