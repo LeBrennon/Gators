@@ -1981,13 +1981,11 @@ const ROSTER = [
   { num: 17, name: 'Ayden Sunday',     slug: 'aydensundayyp1j',      pos: 'OF',      cls: 'Sophomore',    ht: '6-0',  wt: '185', b: 'R', t: 'R', bday: '09/07/2006', home: 'Nederland, TX',    school: 'Lamar' },
   { num: 21, name: 'Bankston Lembcke', slug: 'bankstonlembckeoxyb',  pos: 'IF',      cls: 'Junior',       ht: '5-11', wt: '205', b: 'R', t: 'R', bday: '11/14/2005', home: 'Klein, TX',        school: 'Bradley' },
   { num: 28, name: 'Andrew Ramos',     slug: 'andrewramos4y33',      pos: 'Utility', cls: 'Sophomore',    ht: '5-10', wt: '185', b: 'R', t: 'R', bday: '10/19/2006', home: 'Deer Park, TX',    school: 'San Jacinto CC' },
-  { num: 29, name: 'Sawyer Simmons',   slug: 'sawyersimmonss92p',    pos: 'P',       cls: 'Senior',       ht: '6-1',  wt: '193', b: 'R', t: 'L', bday: '03/30/2005', home: 'Bossier City, LA', school: 'Southeastern Louisiana' },
   // Added off the 6/28 gameday sheet; real Presto slug now set directly (was findSlug-matched by name).
   { num: 34, name: 'Brenyn Ebarb',     slug: 'brenynebarb6uqv',      pos: 'P',       cls: 'Graduate',     ht: '6-1',  wt: '195', b: 'R', t: 'R', bday: '05/04/2004', home: 'Zwolle, LA',       school: 'LSU-Alexandria', note: 'Recently added — season stats will appear after his first game.' },
   { num: 36, name: 'Jake Rider',       slug: 'jakeridergyu4',        pos: 'P',       cls: 'Junior',       ht: '6-4',  wt: '220', b: 'R', t: 'R', bday: '10/11/2005', home: 'Lake Charles, LA', school: 'Nunez CC' },
   // Added off the 6/30 second-half roster; now playing, so his real Presto slug is set directly and stats flow.
   { num: 38, name: 'Gabe Guidry',      slug: 'gabeguidryfktf',       pos: 'Utility', cls: 'R-Sophomore',  ht: '6-3',  wt: '200', b: 'R', t: 'R', bday: '01/26/2005',  home: 'Lake Charles, LA', school: 'Bossier Parish CC' },
-  { num: 41, name: 'Cole Flanagan',    slug: 'coleflanaganemnl',     pos: 'P',       cls: 'Freshman',     ht: '6-1',  wt: '230', b: 'L', t: 'L', bday: '11/24/2006', home: 'Moss Bluff, LA',   school: 'Jacksonville State' },
   { num: 42, name: 'Kale Cropper',     slug: 'kalecropperuden',      pos: 'P',       cls: 'Sophomore',    ht: '6-4',  wt: '210', b: 'R', t: 'R', bday: '08/25/2006', home: 'Port Neches, TX',  school: 'Hill College' },
   { num: 45, name: 'Cannon Faulk',     slug: 'cannonfaulk0l9x',      pos: 'P',       cls: 'R-Sophomore',  ht: '6-4',  wt: '225', b: 'L', t: 'L', bday: '12/02/2005', home: 'Port Neches, TX',  school: 'Angelina College' },
   // On the official roster and already pitching; real Presto slug set directly
@@ -2014,12 +2012,18 @@ const ROSTER = [
   // Presto page by name once it exists, and the note shows until his first game.
   { num: 18, name: 'Landon Victorian', slug: 'landonvictorian', pos: 'P', cls: 'Sophomore', ht: '6-3', wt: '180', b: 'R', t: 'R', bday: '11/02/2005', home: 'Lake Charles, LA', school: 'Louisiana Lafayette', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
   // Added off the 7/7 official roster as unnumbered position players; jersey numbers per
-  // Coach Carl (Cooley #7, Beddoe #13); Sparks' number is still TBD. Bio details filled in
+  // Coach Carl (Cooley #7, Beddoe #13, Sparks #9). Bio details filled in
   // from their college roster pages (LSU-Eunice, Pearl River CC, Lamar). findSlug resolves
   // each real Presto page by name once it exists, and the note shows until their first game.
   { num: 7,  name: 'Griffin Cooley', slug: 'griffincooley', pos: 'OF',      cls: 'R-Sophomore', ht: '6-2',  wt: '179', b: 'L', t: 'L', bday: '',           home: 'Kinder, LA',   school: 'LSU-Eunice',      findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
   { num: 13, name: 'Jackson Beddoe', slug: 'jacksonbeddoe', pos: 'IF',      cls: 'Freshman',    ht: '5-11', wt: '185', b: 'R', t: 'R', bday: '',           home: 'Sulphur, LA',  school: 'Pearl River CC',  findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
-  { num: null, numTBD: true, name: 'Lane Sparks', slug: 'lanesparks', pos: 'OF', cls: 'Junior', ht: '6-0', wt: '175', b: 'L', t: 'L', bday: '12/28/2004', home: 'Brenham, TX', school: 'Lamar', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
+  { num: 9,  name: 'Lane Sparks', slug: 'lanesparks', pos: 'OF', cls: 'Junior', ht: '6-0', wt: '175', b: 'L', t: 'L', bday: '12/28/2004', home: 'Brenham, TX', school: 'Lamar', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
+  // Added off the 7/10 official roster (#26, position players). Catcher at Nunez CC (Nunez
+  // Pelicans, Chalmette LA); a Class of 2025 grad out of Alfred M. Barbe HS (Lake Charles),
+  // so 2025-26 is his freshman year. Bio (ht/wt, bats/throws, hometown, HS) from his Perfect
+  // Game profile; headshot cropped from his Nunez commitment announcement. No public DOB, so
+  // bday stays blank. findSlug resolves his real Presto page by name once it exists.
+  { num: 26, name: 'Shyler Smith', slug: 'shylersmith', pos: 'C', cls: 'Freshman', ht: '5-8', wt: '157', b: 'R', t: 'R', bday: '', home: 'Lake Charles, LA', school: 'Nunez CC', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
 ];
 
 // Coaching staff (gumbeauxgators.com/coaches). Shown beneath the player roster;
@@ -2671,7 +2675,13 @@ async function pollRoster() {
       for (const pl of ROSTER) {
         if (!pl.findSlug) continue;
         const real = nameSlugs[normPlayerName(pl.name)];
-        if (real && real !== pl.slug) { delete ROSTER_BY_SLUG[pl.slug]; pl.slug = real; ROSTER_BY_SLUG[real] = pl; delete pl.findSlug; }
+        if (real && real !== pl.slug) {
+          // Carry a headshot bundled under the placeholder slug over to the resolved
+          // real slug — photos are keyed by slug, so without this the picture would
+          // stop serving the moment findSlug swaps the slug.
+          if (playerPhotos[pl.slug] && !playerPhotos[real]) { playerPhotos[real] = playerPhotos[pl.slug]; delete playerPhotos[pl.slug]; }
+          delete ROSTER_BY_SLUG[pl.slug]; pl.slug = real; ROSTER_BY_SLUG[real] = pl; delete pl.findSlug;
+        }
       }
     } catch (e) {}
     // Fast seed: the league hitting + pitching pages cover most of the roster in
