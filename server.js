@@ -2020,10 +2020,11 @@ const ROSTER = [
   { num: 9,  name: 'Lane Sparks', slug: 'lanesparks', pos: 'OF', cls: 'Junior', ht: '6-0', wt: '175', b: 'L', t: 'L', bday: '12/28/2004', home: 'Brenham, TX', school: 'Lamar', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
   // Added off the 7/10 official roster (#26, position players). He committed to Nunez CC
   // (Nunez Pelicans, Chalmette LA) as a catcher; his headshot is cropped from that
-  // commitment announcement. The rest of his bio is still unknown — the Nunez/Presto
-  // roster pages block our IP — so those fields stay blank until reachable. findSlug
-  // resolves his real Presto page by name once it exists.
-  { num: 26, name: 'Shyler Smith', slug: 'shylersmith', pos: 'C', cls: '', ht: '', wt: '', b: '', t: '', bday: '', home: '', school: 'Nunez CC', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
+  // commitment announcement and his hometown is from Coach. The rest of his bio (class,
+  // ht/wt, bday, bats/throws) is still unknown — the Nunez/Presto roster pages block our
+  // IP — so those fields stay blank until reachable. findSlug resolves his real Presto
+  // page by name once it exists.
+  { num: 26, name: 'Shyler Smith', slug: 'shylersmith', pos: 'C', cls: '', ht: '', wt: '', b: '', t: '', bday: '', home: 'Lake Charles, LA', school: 'Nunez CC', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
 ];
 
 // Coaching staff (gumbeauxgators.com/coaches). Shown beneath the player roster;
