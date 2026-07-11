@@ -2014,12 +2014,12 @@ const ROSTER = [
   // Presto page by name once it exists, and the note shows until his first game.
   { num: 18, name: 'Landon Victorian', slug: 'landonvictorian', pos: 'P', cls: 'Sophomore', ht: '6-3', wt: '180', b: 'R', t: 'R', bday: '11/02/2005', home: 'Lake Charles, LA', school: 'Louisiana Lafayette', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
   // Added off the 7/7 official roster as unnumbered position players; jersey numbers per
-  // Coach Carl (Cooley #7, Beddoe #13); Sparks' number is still TBD. Bio details filled in
+  // Coach Carl (Cooley #7, Beddoe #13, Sparks #9). Bio details filled in
   // from their college roster pages (LSU-Eunice, Pearl River CC, Lamar). findSlug resolves
   // each real Presto page by name once it exists, and the note shows until their first game.
   { num: 7,  name: 'Griffin Cooley', slug: 'griffincooley', pos: 'OF',      cls: 'R-Sophomore', ht: '6-2',  wt: '179', b: 'L', t: 'L', bday: '',           home: 'Kinder, LA',   school: 'LSU-Eunice',      findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
   { num: 13, name: 'Jackson Beddoe', slug: 'jacksonbeddoe', pos: 'IF',      cls: 'Freshman',    ht: '5-11', wt: '185', b: 'R', t: 'R', bday: '',           home: 'Sulphur, LA',  school: 'Pearl River CC',  findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
-  { num: null, numTBD: true, name: 'Lane Sparks', slug: 'lanesparks', pos: 'OF', cls: 'Junior', ht: '6-0', wt: '175', b: 'L', t: 'L', bday: '12/28/2004', home: 'Brenham, TX', school: 'Lamar', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
+  { num: 9,  name: 'Lane Sparks', slug: 'lanesparks', pos: 'OF', cls: 'Junior', ht: '6-0', wt: '175', b: 'L', t: 'L', bday: '12/28/2004', home: 'Brenham, TX', school: 'Lamar', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
 ];
 
 // Coaching staff (gumbeauxgators.com/coaches). Shown beneath the player roster;
