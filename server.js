@@ -2018,13 +2018,12 @@ const ROSTER = [
   { num: 7,  name: 'Griffin Cooley', slug: 'griffincooley', pos: 'OF',      cls: 'R-Sophomore', ht: '6-2',  wt: '179', b: 'L', t: 'L', bday: '',           home: 'Kinder, LA',   school: 'LSU-Eunice',      findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
   { num: 13, name: 'Jackson Beddoe', slug: 'jacksonbeddoe', pos: 'IF',      cls: 'Freshman',    ht: '5-11', wt: '185', b: 'R', t: 'R', bday: '',           home: 'Sulphur, LA',  school: 'Pearl River CC',  findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
   { num: 9,  name: 'Lane Sparks', slug: 'lanesparks', pos: 'OF', cls: 'Junior', ht: '6-0', wt: '175', b: 'L', t: 'L', bday: '12/28/2004', home: 'Brenham, TX', school: 'Lamar', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
-  // Added off the 7/10 official roster (#26, position players). He committed to Nunez CC
-  // (Nunez Pelicans, Chalmette LA) as a catcher; his headshot is cropped from that
-  // commitment announcement and his hometown is from Coach. The rest of his bio (class,
-  // ht/wt, bday, bats/throws) is still unknown — the Nunez/Presto roster pages block our
-  // IP — so those fields stay blank until reachable. findSlug resolves his real Presto
-  // page by name once it exists.
-  { num: 26, name: 'Shyler Smith', slug: 'shylersmith', pos: 'C', cls: '', ht: '', wt: '', b: '', t: '', bday: '', home: 'Lake Charles, LA', school: 'Nunez CC', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
+  // Added off the 7/10 official roster (#26, position players). Catcher at Nunez CC (Nunez
+  // Pelicans, Chalmette LA); a Class of 2025 grad out of Alfred M. Barbe HS (Lake Charles),
+  // so 2025-26 is his freshman year. Bio (ht/wt, bats/throws, hometown, HS) from his Perfect
+  // Game profile; headshot cropped from his Nunez commitment announcement. No public DOB, so
+  // bday stays blank. findSlug resolves his real Presto page by name once it exists.
+  { num: 26, name: 'Shyler Smith', slug: 'shylersmith', pos: 'C', cls: 'Freshman', ht: '5-8', wt: '157', b: 'R', t: 'R', bday: '', home: 'Lake Charles, LA', school: 'Nunez CC', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
 ];
 
 // Coaching staff (gumbeauxgators.com/coaches). Shown beneath the player roster;
