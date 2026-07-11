@@ -2671,7 +2671,13 @@ async function pollRoster() {
       for (const pl of ROSTER) {
         if (!pl.findSlug) continue;
         const real = nameSlugs[normPlayerName(pl.name)];
-        if (real && real !== pl.slug) { delete ROSTER_BY_SLUG[pl.slug]; pl.slug = real; ROSTER_BY_SLUG[real] = pl; delete pl.findSlug; }
+        if (real && real !== pl.slug) {
+          // Carry a headshot bundled under the placeholder slug over to the resolved
+          // real slug — photos are keyed by slug, so without this the picture would
+          // stop serving the moment findSlug swaps the slug.
+          if (playerPhotos[pl.slug] && !playerPhotos[real]) { playerPhotos[real] = playerPhotos[pl.slug]; delete playerPhotos[pl.slug]; }
+          delete ROSTER_BY_SLUG[pl.slug]; pl.slug = real; ROSTER_BY_SLUG[real] = pl; delete pl.findSlug;
+        }
       }
     } catch (e) {}
     // Fast seed: the league hitting + pitching pages cover most of the roster in
