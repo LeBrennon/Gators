@@ -4245,7 +4245,7 @@ function rankSecondHalf(rows, metrics) {
         let detail = null;
         if (c.by === 'head-to-head') {
           const h = h2hRec(metrics, w.id, l.id);
-          detail = nm(w) + ' ' + h.w + ' - ' + nm(l) + ' ' + h.l;
+          detail = h.w + ' to ' + h.l;   // winner's record, e.g. "3 to 1"
         } else if (c.by === 'run differential') {
           detail = fmtDiff(seasonDiff(metrics, w.id)) + ' vs ' + fmtDiff(seasonDiff(metrics, l.id));
         } else if (c.by === 'run differential (H2H)') {
