@@ -5320,10 +5320,13 @@ function renderGame(g){
     // not on the first switch to this game, nor on a reset to 0-0 (new batter).
     var cv=document.getElementById('countVal');
     if(cv&&g.status==='live'&&g.live&&!g.live.holdEnd){
-      var nb=g.live.balls||0,ns=g.live.strikes||0;
+      // Compare the digits actually shown (which already reflect the 0-0-on-new-
+      // batter override above), not the raw feed count, so the two stay in step.
+      var cbEl=cv.querySelector('.cb'),csEl=cv.querySelector('.cs');
+      var nb=+(cbEl&&cbEl.textContent)||0,ns=+(csEl&&csEl.textContent)||0;
       if(g.id===lastCountGid){
-        if(nb>lastBalls)glowDigit(cv.querySelector('.cb'));
-        if(ns>lastStrikes)glowDigit(cv.querySelector('.cs'));
+        if(nb>lastBalls)glowDigit(cbEl);
+        if(ns>lastStrikes)glowDigit(csEl);
       }
       lastBalls=nb;lastStrikes=ns;lastCountGid=g.id;
     }
@@ -5353,7 +5356,11 @@ function buildLive(g){
   }else if(L){
     // Balls/strikes as separate spans so renderGame can glow just the digit that
     // ticked up on the latest pitch (see the count-glow block in renderGame).
-    var cb=L.balls||0,cs=L.strikes||0;
+    // The feed lags the count behind the batter change — it keeps showing the
+    // last batter's count until the new batter's first pitch — but abPitches
+    // resets to 0 the instant the new batter steps in, so zero pitches this
+    // at-bat means the count is 0-0 regardless of the stale balls/strikes.
+    var cb=L.abPitches?(L.balls||0):0,cs=L.abPitches?(L.strikes||0):0;
     sit='<div class="lsit">'+
       '<div class="lcell"><div class="lv count" id="countVal"><span class="cdig cb">'+esc(''+cb)+'</span><span class="csep">-</span><span class="cdig cs">'+esc(''+cs)+'</span></div><div class="ll">Count</div></div>'+
       baseDiamond(L.bases)+
