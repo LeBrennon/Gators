@@ -5627,7 +5627,7 @@ function showTab(which){$('tabBox').classList.toggle('on',which==='box');$('tabP
 $('tabBox').addEventListener('click',function(){showTab('box');});
 $('tabPbp').addEventListener('click',function(){showTab('pbp');});
 // ---- roster + player profiles ----
-var rosterData=null,rosterReq=false,rosterPolls=0;
+var rosterData=null,rosterReq=false,rosterPolls=0,rosterRendered=false;
 var standingsData=null,standingsReq=false,standingsPolls=0;
 var statCache={};            // slug -> {hit,pit,hitRanks,pitRanks}; survives refreshes
 var fillQueue=[],filling={},filled={},fillBusy=false;
@@ -5837,14 +5837,46 @@ function setView(v){
 function loadRoster(){
   if(rosterReq)return;rosterReq=true;
   fetch('/api/roster').then(function(r){return r.json();}).then(function(d){
-    rosterReq=false;rosterData=d.players||[];_gnSlug=null;mergeStats(rosterData);renderRoster(d);
+    rosterReq=false;rosterData=d.players||[];_gnSlug=null;mergeStats(rosterData);
+    // Full render only the first time. Re-polls (every 4s until stats + photos are in)
+    // must NOT rebuild rosterBody's innerHTML — that recreates every <img class="ppic">,
+    // forcing the browser to re-fetch/re-decode each headshot and making them flicker.
+    // Instead patch photos and stats onto the existing cards in place.
+    if(rosterRendered)patchRoster(d);else{renderRoster(d);rosterRendered=true;}
     // Re-render a live game so its lineup names pick up profile links now the roster is in.
     if(lastGame&&lastGame.status==='live')renderGame(lastGame);
     lazyFill();
     // Keep polling until stats are complete AND headshots have loaded, so a fast
     // (cached) stats response doesn't leave profiles photoless.
     if((!clientComplete()||!d.photos)&&rosterPolls<60){rosterPolls++;setTimeout(function(){loadRoster();},4000);}
-  }).catch(function(){rosterReq=false;$('rosterBody').innerHTML='<div class="spin">Could not load the roster. Tap Roster again to retry.</div>';});
+  }).catch(function(){rosterReq=false;if(!rosterRendered)$('rosterBody').innerHTML='<div class="spin">Could not load the roster. Tap Roster again to retry.</div>';});
+}
+// Fill freshly-arrived headshots and stats onto already-rendered cards without
+// touching img elements that are already in place (which is what caused the
+// flicker). Falls back to a full re-render only if the card set itself changed.
+function patchRoster(d){
+  var body=$('rosterBody');
+  if(!body||!body.querySelector('.pcard')){renderRoster(d);return;}
+  for(var i=0;i<rosterData.length;i++){var p=rosterData[i];
+    var card=body.querySelector('.pcard[data-slug="'+p.slug+'"]');
+    if(!card){renderRoster(d);return;} // roster membership changed — rebuild once
+    patchPhoto(card,p.photo,p.name);
+    updateCardStats(p);
+  }
+  if(d&&d.coaches){coachData=d.coaches;
+    for(var k=0;k<d.coaches.length;k++){var c=d.coaches[k];
+      var ccard=body.querySelector('.pcard.coach[data-coachnum="'+c.num+'"]');
+      if(ccard)patchPhoto(ccard,c.photo,c.name);
+    }
+  }
+  setRmeta(d);
+}
+// Swap a card's initials placeholder for its headshot once the photo arrives.
+// Leaves an existing <img> untouched so it never re-loads.
+function patchPhoto(card,photo,name){
+  if(!photo)return;
+  var box=card.querySelector('.pnum');if(!box||box.querySelector('img.ppic'))return;
+  box.innerHTML='<img class="ppic" loading="lazy" decoding="async" src="'+esc(photo)+'" alt="">';
 }
 // Safety net: individually pull any card still blank (same call a tap makes),
 // one at a time and gently, so the list finishes filling even if the poll lagged.
