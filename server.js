@@ -5185,6 +5185,33 @@ var lastPlayTx='',lastPlayGid=null; // track the live "Last play" text to flash 
 // Track the last count (per game) so renderGame can glow the digit that ticked
 // up on a new pitch. Re-add the class after a reflow so the animation restarts.
 var lastBalls=null,lastStrikes=null,lastCountGid=null;
+// Detect a genuinely fresh batter so the count resets and the last-play bubble
+// shows. The feed does NOT reliably reset abPitches (the per-at-bat pitch count)
+// when a batter changes — when the previous batter reaches base, the feed can keep
+// reporting his pitch count AND his balls/strikes for several polls until the new
+// batter's first pitch. So abPitches===0 alone is not a reliable "new batter" test
+// (it was: a stale non-zero count then showed for the incoming hitter, and his
+// arrival-on-base last-play bubble got suppressed as if mid-at-bat). We instead
+// latch per batter: on a batter change, if the feed's abPitches still equals the
+// value we last saw (carried over from the prior batter), it's stale → treat the
+// at-bat as 0 pitches (count 0-0) until abPitches diverges, confirming a real pitch.
+var abKey=null,abBaseline=0,abConfirmed=false,abLastNp=0;
+// Effective pitches thrown to the CURRENT batter: L.abPitches once we've confirmed
+// a real pitch this at-bat, else 0 (stale/unreset feed count for a fresh batter).
+function abLivePitches(g,L){
+  if(!g||!L||L.holdEnd)return 0;
+  var np=L.abPitches||0,key=g.id+'|'+(L.batter||'');
+  if(key!==abKey){
+    // New batter (or game). If the feed's abPitches carried over unchanged from the
+    // previous frame, it belongs to the prior batter (lag) → unconfirmed. If it
+    // already differs, the feed reset for this batter → trust it immediately.
+    abKey=key;abBaseline=np;abConfirmed=(np!==abLastNp);
+  }else if(!abConfirmed&&np!==abBaseline){
+    abConfirmed=true; // abPitches moved off the stale baseline: a real pitch landed.
+  }
+  abLastNp=np;
+  return (abConfirmed&&np>0)?np:0;
+}
 function glowDigit(el){if(!el)return;el.classList.remove('cglow');void el.offsetWidth;el.classList.add('cglow');}
 // Gators fireworks are deferred so they launch WITH the green "scored" bubble,
 // not before it: the run total ticks up a live-update frame or two ahead of the
@@ -5352,6 +5379,11 @@ function buildLive(g){
   // parts of the same feed. Render whatever parsed instead of hiding the whole
   // panel when only the situation block is missing.
   var L=g.live,sit='',bp='';
+  // Confirmed pitches to the current batter (0 for a fresh hitter even when the
+  // feed still reports the prior batter's stale count). Drives both the count
+  // reset and the last-play bubble below. Computed once so the per-batter latch
+  // advances exactly once per render.
+  var abp=abLivePitches(g,L);
   if(L&&L.holdEnd){
     // 3rd-out hold frame: the feed has already flipped to the next half, so its
     // count/bases/matchup belong to the new inning. Show only "inning over · 3
@@ -5360,11 +5392,12 @@ function buildLive(g){
   }else if(L){
     // Balls/strikes as separate spans so renderGame can glow just the digit that
     // ticked up on the latest pitch (see the count-glow block in renderGame).
-    // The feed lags the count behind the batter change — it keeps showing the
-    // last batter's count until the new batter's first pitch — but abPitches
-    // resets to 0 the instant the new batter steps in, so zero pitches this
-    // at-bat means the count is 0-0 regardless of the stale balls/strikes.
-    var cb=L.abPitches?(L.balls||0):0,cs=L.abPitches?(L.strikes||0):0;
+    // The feed lags the count behind the batter change — it keeps showing the last
+    // batter's count (and his abPitches) until the new batter's first pitch — so
+    // key off abLivePitches (confirmed pitches this at-bat, 0 for a fresh batter)
+    // rather than the raw, unreliably-reset L.abPitches: zero pitches this at-bat
+    // means the count is 0-0 regardless of the stale balls/strikes.
+    var cb=abp?(L.balls||0):0,cs=abp?(L.strikes||0):0;
     sit='<div class="lsit">'+
       '<div class="lcell"><div class="lv count" id="countVal"><span class="cdig cb">'+esc(''+cb)+'</span><span class="csep">-</span><span class="cdig cs">'+esc(''+cs)+'</span></div><div class="ll">Count</div></div>'+
       baseDiamond(L.bases)+
@@ -5381,8 +5414,8 @@ function buildLive(g){
   }
   // Surface the most recent play right under the count/bases/outs so you see the
   // at-bat result without scrolling to the play-by-play. It clears once the next
-  // batter sees a pitch (abPitches resets to 0 each batter and ticks up on the
-  // first pitch), and also clears when a new half-inning starts — the prior out
+  // batter sees a pitch (abp — confirmed pitches this at-bat — ticks up off 0 on
+  // the first pitch), and also clears when a new half-inning starts — the prior out
   // belongs to the other team, so we only keep it while the latest play is still
   // in the current half. Flashes on change (renderGame); scored plays go green.
   var lastPlay='';
@@ -5401,7 +5434,7 @@ function buildLive(g){
     // baserunning/scoring row (passed ball, wild pitch, steal, balk) that just
     // happened with the batter still up: otherwise a run scores with no cue on
     // the hero and you'd have to scroll to the play-by-play to see how.
-    var show=(!L||!L.abPitches)||!lp.isPa;
+    var show=(!L||!abp)||!lp.isPa;
     if(lp&&lp.text&&inHalf&&show)lastPlay='<div class="lastplay'+(lp.scored?' scored':'')+(lp.scored&&gBat?' gscore':'')+'" id="lastPlay"><span class="lplab">Last play</span><span class="lptx">'+esc(lp.text)+'</span></div>';}
   var line=buildLineScore(g);
   // Whose-up-next belongs to the new half; hide it during the finished-half hold.
