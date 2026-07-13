@@ -109,7 +109,7 @@ test('rankSecondHalf resolves a 3-team tie by head-to-head among the tied teams'
 test('rankSecondHalf note names the head-to-head record winner-first, not the loser', () => {
   // Two teams level at 6-5. GAT swept the season series 3-1 over BOM but sits
   // second in the input order, so the tie-break has to flip the pair. The note
-  // must read the winner's record (GAT 3 - BOM 1), never the loser's (1-3).
+  // must read the winner's record (3 to 1), never the loser's (1 to 3).
   const rows = [row(BOM, 6, 5), row(GAT, 6, 5)];
   const h2h = {
     [GAT]: { [BOM]: { w: 3, l: 1, rs: 0, ra: 0 } },
@@ -117,7 +117,7 @@ test('rankSecondHalf note names the head-to-head record winner-first, not the lo
   };
   const out = rankSecondHalf(rows, metricsWith(h2h));
   assert.deepEqual(out.rows.map(r => r.id), [GAT, BOM], 'GAT wins the head-to-head tie-break');
-  assert.equal(out.tiebreaks[0], GAT + ' over ' + BOM + ' — head-to-head (' + GAT + ' 3 - ' + BOM + ' 1)');
+  assert.equal(out.tiebreaks[0], GAT + ' over ' + BOM + ' — head-to-head (3 to 1)');
 });
 
 test('buildPlayoffPicture applies the both-halves overlap rule', () => {
