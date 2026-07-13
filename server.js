@@ -4720,6 +4720,10 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .lcell{text-align:center;min-width:46px;}
 .lcell .lv{font-family:'Oswald',sans-serif;font-weight:700;font-size:21px;color:var(--bone);line-height:1;display:flex;gap:6px;justify-content:center;align-items:center;min-height:21px;}
 .lcell .ll{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin-top:6px;}
+.lcell .lv.count{gap:0;}
+.cdig{display:inline-block;}
+.cdig.cglow{animation:cglow 1s ease;}
+@keyframes cglow{0%{color:var(--gold);text-shadow:0 0 11px rgba(255,214,51,.95),0 0 4px rgba(255,214,51,.85);}70%{color:var(--gold);text-shadow:0 0 6px rgba(255,214,51,.35);}100%{color:var(--bone);text-shadow:none;}}
 .diamond{width:58px;height:50px;flex:none;}
 .lastplay{display:flex;gap:9px;align-items:baseline;background:var(--bayou2);border:1px solid var(--line);border-left:3px solid var(--gold2);border-radius:9px;padding:7px 11px;margin:9px auto 0;max-width:420px;}
 .lastplay.scored{border-left-color:#7BD88F;background:rgba(123,216,143,.09);}
@@ -5174,6 +5178,10 @@ var FX=(function(){
 })();
 var prev={a:null,h:null};
 var lastPlayTx='',lastPlayGid=null; // track the live "Last play" text to flash only on change
+// Track the last count (per game) so renderGame can glow the digit that ticked
+// up on a new pitch. Re-add the class after a reflow so the animation restarts.
+var lastBalls=null,lastStrikes=null,lastCountGid=null;
+function glowDigit(el){if(!el)return;el.classList.remove('cglow');void el.offsetWidth;el.classList.add('cglow');}
 // Gators fireworks are deferred so they launch WITH the green "scored" bubble,
 // not before it: the run total ticks up a live-update frame or two ahead of the
 // play narrative, so we stash the pending run count here and fire when the
@@ -5307,6 +5315,18 @@ function renderGame(g){
       if(lpNew&&fxPending>0&&lpb.classList.contains('gscore'))fireFx();
       lastPlayTx=ntx;}
     lastPlayGid=g.id;
+    // Glow the count digit that just ticked up (a new ball or strike), so a new
+    // pitch outcome is easy to catch. Only on an increase for the same game —
+    // not on the first switch to this game, nor on a reset to 0-0 (new batter).
+    var cv=document.getElementById('countVal');
+    if(cv&&g.status==='live'&&g.live&&!g.live.holdEnd){
+      var nb=g.live.balls||0,ns=g.live.strikes||0;
+      if(g.id===lastCountGid){
+        if(nb>lastBalls)glowDigit(cv.querySelector('.cb'));
+        if(ns>lastStrikes)glowDigit(cv.querySelector('.cs'));
+      }
+      lastBalls=nb;lastStrikes=ns;lastCountGid=g.id;
+    }
   }
   lastGame=g;
 }
@@ -5331,9 +5351,11 @@ function buildLive(g){
     // outs" here; the play that ended the inning appears in the bubble below.
     sit='<div class="lsit lend"><div class="lcell"><div class="lv">'+outsDots(3)+'</div><div class="ll">Inning over · 3 outs</div></div></div>';
   }else if(L){
-    var count=L.count||((L.balls||0)+'-'+(L.strikes||0));
+    // Balls/strikes as separate spans so renderGame can glow just the digit that
+    // ticked up on the latest pitch (see the count-glow block in renderGame).
+    var cb=L.balls||0,cs=L.strikes||0;
     sit='<div class="lsit">'+
-      '<div class="lcell"><div class="lv">'+esc(count)+'</div><div class="ll">Count</div></div>'+
+      '<div class="lcell"><div class="lv count" id="countVal"><span class="cdig cb">'+esc(''+cb)+'</span><span class="csep">-</span><span class="cdig cs">'+esc(''+cs)+'</span></div><div class="ll">Count</div></div>'+
       baseDiamond(L.bases)+
       '<div class="lcell"><div class="lv">'+outsDots(L.outs)+'</div><div class="ll">'+((L.outs||0)===1?'Out':'Outs')+'</div></div>'+
       '</div>';
