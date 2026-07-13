@@ -409,7 +409,7 @@ function notesLine(notes) {
   if (!notes || typeof notes !== 'object') return '';
   const keys = [...NOTE_ORDER, ...Object.keys(notes).filter(k => !NOTE_ORDER.includes(k))];
   const seen = new Set(); const parts = [];
-  for (const k of keys) { if (seen.has(k)) continue; seen.add(k); const v = notes[k]; if (v != null && String(v).trim() !== '') parts.push(`<b>${esc(k)}</b> ${esc(v)}`); }
+  for (const k of keys) { if (seen.has(k)) continue; seen.add(k); const v = notes[k]; if (v != null && String(v).trim() !== '') parts.push(`<b>${esc(k)}</b> ${esc(fixNameCaps(String(v)))}`); }
   return parts.join(' &nbsp;·&nbsp; ');
 }
 
@@ -428,7 +428,7 @@ function teamBlock(t) {
     // substitute rows above (pinch-hit/ran/defensive replacements), matching the
     // in-app box score. Only rendered when this side actually made a substitution.
     if (t.legend && t.legend.length) {
-      const items = t.legend.map(s => `<span class='litem'><b>${esc(s.letter)}-</b> ${esc(s.text || ('for ' + (s.forName || '')))}</span>`).join('');
+      const items = t.legend.map(s => `<span class='litem'><b>${esc(s.letter)}-</b> ${esc(fixNameCaps(s.text || ('for ' + (s.forName || ''))))}</span>`).join('');
       sections.push(`<div class='sublegend'>${items}</div>`);
     }
     // Position changes: a player whose box position lists two spots (SS/3B) moved
@@ -478,7 +478,47 @@ function parseLineTeams(html) {
   return out.length >= 2 ? out : null;
 }
 
+// Build the runs-by-inning line score from the play-by-play when Presto hasn't
+// published its own line-score table yet (it lags the batting/pitching tables by
+// minutes). Every half-inning ends with an authoritative "Inning Summary: N Runs,
+// M Hits, E Errors" line, so the whole R/H/E-by-inning grid is recoverable: the
+// visitor bats the top halves, the home team the bottom; a team's errors are the
+// ones committed while fielding (the opponent's batting halves). Returns a table
+// in the same shape as Presto's line score, or '' if the feed can't supply it.
+function lineScoreFromPbp(data) {
+  const pbp = data.pbp || [];
+  const halves = []; let maxInn = 0;
+  for (const p of pbp) {
+    const title = txtOf(p.title || '');
+    const m = title.match(/(Top|Bottom)\s+of\s+(\d+)/i);
+    const team = title.replace(/\s+(Top|Bottom)\s+of\s+.*/i, '').trim();
+    if (!m || !team) continue;
+    const sum = txtOf(p.html).match(/Inning Summary:\s*(\d+)\s*Runs?\s*,\s*(\d+)\s*Hits?\s*,\s*(\d+)\s*Errors?/i);
+    const inn = +m[2]; maxInn = Math.max(maxInn, inn);
+    halves.push({ team, half: m[1].toLowerCase(), inn, r: sum ? +sum[1] : 0, h: sum ? +sum[2] : 0, e: sum ? +sum[3] : 0 });
+  }
+  if (!maxInn) return '';
+  const vName = (halves.find(x => x.half === 'top') || {}).team;
+  const hName = (halves.find(x => x.half === 'bottom') || {}).team;
+  if (!vName || !hName) return '';
+  const mk = name => ({ name, inn: Array.from({ length: maxInn }, () => null), r: 0, h: 0, e: 0 });
+  const V = mk(vName), H = mk(hName);
+  for (const x of halves) {
+    const bat = x.half === 'top' ? V : H, field = x.half === 'top' ? H : V;
+    bat.inn[x.inn - 1] = (bat.inn[x.inn - 1] || 0) + x.r;   // batting team's runs that inning
+    bat.r += x.r; bat.h += x.h; field.e += x.e;             // errors charge to the fielding side
+  }
+  const th = s => `<th>${esc(s)}</th>`;
+  let head = '<tr>' + th('Final');
+  for (let i = 1; i <= maxInn; i++) head += th(String(i));
+  head += th('R') + th('H') + th('E') + '</tr>';
+  const row = t => '<tr>' + th(t.name) + t.inn.map(v => `<td>${v == null ? 'X' : v}</td>`).join('') + `<td>${t.r}</td><td>${t.h}</td><td>${t.e}</td></tr>`;
+  return `<table>${head}${row(V)}${row(H)}</table>`;
+}
 function buildHtml(data) {
+  // Presto publishes the line score late; synthesize the runs-by-inning grid from
+  // the play-by-play in the meantime so the box always leads with it.
+  if (!(data.line && String(data.line).trim())) { const syn = lineScoreFromPbp(data); if (syn) data.line = syn; }
   const teams = groupTeams(data.box || []);
   // Remove relievers listed with an empty batting line (they never hit); a
   // pitcher who actually batted in the DH slot has real numbers and stays.
