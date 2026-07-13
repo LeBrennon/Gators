@@ -2605,11 +2605,26 @@ async function fetchPlayer(slug, batMap, pitMap, tries) {
 }
 const recHasData = rec => !!(rec && (rec.hit || rec.pit || rec.glBat.length || rec.glPit.length));
 // Whether a stat line has numbers actually worth showing on a card — real
-// batting (AB/AVG) or pitching (IP/ERA). Distinguishes a produced line from
-// Presto's placeholder {pa:0,tb:0} line for a player who has appeared in the box
-// scores but whose games Presto hasn't aggregated onto their page/leaderboard.
+// batting (AB/AVG) or pitching (real innings/counting stats). Distinguishes a
+// produced line from Presto's placeholder line for a player who has appeared in
+// the box scores but whose games Presto hasn't aggregated onto their page/
+// leaderboard. For hitting that placeholder is {pa:0,tb:0} — no ab/avg, so it
+// already reads as not-showable. For PITCHING the placeholder is ip "0.0" / era
+// "0.00" (with everything else zero); ip/era are present but meaningless, so a
+// bare "ip != null" wrongly counted it as showable — that let the box-score
+// fallback skip a just-debuted pitcher and pinned a phantom 0.00 ERA on his card
+// (e.g. Taylor Hollier, who had pitched but whose Presto page was still all
+// dashes). Require real innings or real counting stats instead.
+function pitLineShowable(p) {
+  if (!p) return false;
+  if (parseFloat(p.ip) > 0) return true;      // real innings pitched (0.1 = one out)
+  if (parseFloat(p.era) > 0) return true;      // a real (non-placeholder) ERA
+  const counts = ['h', 'r', 'er', 'bb', 'k']; // a rare 0-out appearance still logs these
+  for (const c of counts) if (Number(p[c]) > 0) return true;
+  return false;
+}
 const lineIsShowable = s => !!(s && ((s.hit && (s.hit.ab != null || s.hit.avg != null))
-  || (s.pit && (s.pit.ip != null || s.pit.era != null))));
+  || (s.pit && pitLineShowable(s.pit))));
 // A "full" record carries player-page detail (game logs + stats like SB), as
 // opposed to a league-leaderboard seed that only has headline card stats.
 const recIsFull = rec => !!(rec && ((rec.glBat && rec.glBat.length) || (rec.glPit && rec.glPit.length)));
