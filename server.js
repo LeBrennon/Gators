@@ -2020,11 +2020,14 @@ const ROSTER = [
   // pitcher (was catcher/TBD). Real Presto slug set directly (resolved from the
   // Gators team roster page); he has pitched, so his season stats flow in.
   { num: 24, name: 'Pierce Boles', slug: 'piercebolesgu20', pos: 'P', cls: 'Sophomore', ht: '6-2', wt: '190', b: 'R', t: 'R', bday: '', home: 'Mandeville, LA', school: 'LSU-Eunice' },
-  // Added off the 6/30 second-half roster. Hollier's earlier hardcoded slug pointed
-  // to a wrong/namesake page (no data even after he pitched); both real slugs are
-  // now set directly from the Gators team roster page. Hollier has pitched (stats
-  // flow); Degeyter hasn't yet, so his note shows until his first appearance.
-  { num: 12, name: 'Taylor Hollier',  slug: 'taylorhollierj0t9',  pos: 'P', cls: 'Freshman', ht: '6-0', wt: '155', b: 'L', t: 'L', bday: '', home: 'Opelousas, LA', school: 'Belhaven' },
+  // Added off the 6/30 second-half roster. Hollier has TWO namesake pages on the
+  // Gators team roster: an inactive #98 duplicate (taylorhollierj0t9, all dashes)
+  // and the active #12 page (taylorholliervl4b) that actually carries his season
+  // line and game log. An earlier fix picked the dashes-only #98 page, so his card
+  // stayed at a phantom 0.00 ERA / 0.0 IP even after he pitched — point the slug at
+  // the active #12 page so his real stats (ERA/IP/K) flow. Degeyter hasn't pitched
+  // yet, so his note shows until his first appearance.
+  { num: 12, name: 'Taylor Hollier',  slug: 'taylorholliervl4b',  pos: 'P', cls: 'Freshman', ht: '6-0', wt: '155', b: 'L', t: 'L', bday: '', home: 'Opelousas, LA', school: 'Belhaven' },
   { num: 43, name: 'Hunter Degeyter', slug: 'hunterdegeyterv7xl', pos: 'P', cls: 'HS Senior', ht: '6-1', wt: '170', b: 'R', t: 'R', bday: '', home: 'Lafayette, LA', school: 'Belhaven University', note: 'Recently added — season stats will appear after his first game.' },
   // Added off the 7/4 official roster; real Presto slug set directly (resolved from
   // the Gators team roster page). No game action yet, so the note shows for now.
