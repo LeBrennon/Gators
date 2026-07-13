@@ -59,6 +59,17 @@ const MANUAL_CANCEL = {
 const MANUAL_PITCHER_OVERRIDES = [
   { gameId: null, from: 'Emergency Player', name: 'Cameron Carlile', uni: '21' },
 ];
+// Manual doubleheader labels. The schedule feed lists both games of a same-day
+// doubleheader without saying which is game 1 vs game 2, and a seven-inning
+// doubleheader final can read as a plain "Final" instead of "Final/7". Pin the
+// game number (label) and, when the feed under-annotates it, the regulation
+// status by game id — both flow to the hero card and the schedule list. Order
+// is by which game was played first (game 1 finishes first). Clear entries once
+// the doubleheader is off the board.
+const MANUAL_DOUBLEHEADER = {
+  '20260712_85ki': { label: 'Doubleheader · Game 1', status: 'Final/7' },
+  '20260712_7mnj': { label: 'Doubleheader · Game 2', status: 'Final/7' },
+};
 const LIVE_POLL_MS = Number(process.env.LIVE_POLL_MS || 4000); // tight enough that the live count/score/pitch-count track pitch-by-pitch
 const SCHEDULE_URL = process.env.SCHEDULE_URL || 'https://texasleaguestats.prestosports.com/sports/bsb/2026/schedule';
 const SITE_URL     = (process.env.SITE_URL || 'https://whatisthegatorscore.com').replace(/\/$/, '');
@@ -1922,6 +1933,13 @@ async function refreshFeatured() {
     norm.away.runs = null;
     norm.home.runs = null;
   }
+  const dh = MANUAL_DOUBLEHEADER[norm.id];
+  if (dh) {
+    norm.dhLabel = dh.label;
+    // Only pin the shortened-final status once the game is actually final, so a
+    // still-live nightcap keeps its live inning label.
+    if (norm.status === 'final' && dh.status) norm.inningLabel = dh.status;
+  }
   prevFeatured = featured; featured = norm;
   // The instant a game is final, warm its box score in the background (retried on
   // each schedule poll until the real tables land) so the "Box Score" button
@@ -3455,7 +3473,7 @@ async function pollTickets() {
   } catch (e) { logErr('pollTickets', e); /* keep previous */ }
 }
 // Attaches the derived display fields a game needs on the client.
-function decorateGame(g) { return Object.assign({}, g, { away: Object.assign({}, g.away, { city: boardCity(g.away && g.away.id), nick: NICK[g.away && g.away.id] || (g.away && g.away.short) || '' }), home: Object.assign({}, g.home, { city: boardCity(g.home && g.home.id), nick: NICK[g.home && g.home.id] || (g.home && g.home.short) || '' }), location: gameLocation(g), watchUrl: watchUrlFor(g), replayUrl: replayUrlFor(g), ticketUrl: ticketIndex[g.id] || null, theme: THEMES[g.date] || null, freeAdmission: FREE_ADMISSION[g.date] || null, promo: promoFor(g), special: SPECIALS[g.date] || null }); }
+function decorateGame(g) { const dh = MANUAL_DOUBLEHEADER[g.id]; return Object.assign({}, g, { status: (dh && g.state === 'final' && dh.status) ? dh.status : g.status, dhLabel: dh ? dh.label : null, away: Object.assign({}, g.away, { city: boardCity(g.away && g.away.id), nick: NICK[g.away && g.away.id] || (g.away && g.away.short) || '' }), home: Object.assign({}, g.home, { city: boardCity(g.home && g.home.id), nick: NICK[g.home && g.home.id] || (g.home && g.home.short) || '' }), location: gameLocation(g), watchUrl: watchUrlFor(g), replayUrl: replayUrlFor(g), ticketUrl: ticketIndex[g.id] || null, theme: THEMES[g.date] || null, freeAdmission: FREE_ADMISSION[g.date] || null, promo: promoFor(g), special: SPECIALS[g.date] || null }); }
 
 // ----- server ---------------------------------------------------------------
 // ---- daily unique-visitor analytics ----------------------------------------
@@ -4839,6 +4857,7 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .card.gcancel{opacity:.5;}
 .card.pinned{outline:1px solid rgba(236,201,19,.4);}
 .ctop{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;}
+.cdh{margin:-2px 0 7px;font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:9.5px;color:var(--gator);}
 .cdate{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--mute);font-weight:700;}
 .cpill{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:999px;border:1px solid var(--line);color:var(--mute);display:flex;align-items:center;gap:5px;}
 .cpill.live{color:var(--gator);border-color:rgba(113,74,210,.4);background:rgba(113,74,210,.08);}
@@ -5282,7 +5301,7 @@ function renderGame(g){
   $('homeTm').classList.toggle('lose',haveRes&&g.home.runs<g.away.runs);
   prev={a:g.away.runs,h:g.home.runs};var pc=curId;curId=g.id;if(schedList&&pc!==curId)renderSched(schedList);
   var sp=$('statpill');sp.textContent=g.inningLabel;sp.classList.toggle('live',g.status==='live');
-  $('vs').textContent=g.dateLabel+(g.status==='pregame'?' · upcoming':'');
+  $('vs').textContent=g.dateLabel+(g.dhLabel?' · '+g.dhLabel:'')+(g.status==='pregame'?' · upcoming':'');
   var jl=$('jloc');if(jl)jl.textContent=g.location||'';
   var th=$('themeTag');if(th){if(g.theme&&g.status==='pregame'){th.textContent='🎉 '+g.theme+' Night';th.style.display='';}else{th.style.display='none';}}
   var sn=$('specialName'),sd=$('specialDetail');
@@ -5658,6 +5677,7 @@ function renderSched(list){
     function row(t,isG,won){var sc=(g.state==='live'||g.state==='final')&&t.score!=null?t.score:'';var ct=t.city?'<span class="tcity">'+esc(t.city)+'</span> ':'';return '<div class="crow'+(isG?' g':'')+(won?' w':'')+'"><img src="'+t.logo+'" alt=""><span class="n">'+ct+esc(t.nick||t.short)+'</span><span class="s">'+sc+'</span><span class="warrow" aria-label="'+(won?'Winner':'')+'">'+(won?'◀':'')+'</span></div>';}
     h+='<div class="card '+(g.state==='live'?'glive':g.state==='cancelled'?'gcancel':'')+(g.id===curId?' pinned':'')+'" data-state="'+g.state+'" data-id="'+g.id+'">'
       +'<div class="ctop"><span class="cdate">'+g.dateLabel+'</span>'+pill+'</div>'
+      +(g.dhLabel?('<div class="cdh">'+esc(g.dhLabel)+'</div>'):'')
       +row(g.away,g.away.id==='et1bt9sixrz5lnnl',aw)+row(g.home,g.home.id==='et1bt9sixrz5lnnl',hw)
       +(g.state==='scheduled'&&g.theme?('<div class="ctheme">🎉 '+esc(g.theme)+' Night</div>'):'')
       +(g.state==='scheduled'&&g.special?('<div class="ctheme">'+(g.special.emoji?esc(g.special.emoji)+' ':'')+esc(g.special.name)+'</div>'+(g.special.detail?('<div class="cpromo">'+esc(g.special.detail)+'</div>'):'')):'')
