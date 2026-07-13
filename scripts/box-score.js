@@ -510,7 +510,14 @@ function buildHtml(data) {
   if (lineHtml && lt) { const oTeam = lt.find(t => !t.gators); if (oTeam) { const oc = teamColor(oTeam.name); const safe = oTeam.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); lineHtml = lineHtml.replace(new RegExp('<th>(\\s*' + safe + '\\s*)</th>', 'i'), `<th style="background:${oc}">$1</th>`); } }
   const line = data.line ? `<div class='linewrap'>${lineHtml}</div>` : '';
   // Innings played = the line score's inning columns (a team row's <td>s minus R/H/E).
-  const innings = (() => { const rows = String(lineHtml || '').match(/<tr[\s\S]*?<\/tr>/gi) || []; for (const r of rows.slice(1)) { const n = (r.match(/<td[\s\S]*?<\/td>/gi) || []).length; if (n >= 4) return n - 3; } return 9; })();
+  // When the line score hasn't rendered yet, fall back to the highest inning in the
+  // play-by-play so a 7-inning game reads "F/7", not a wrong "F/9".
+  const innings = (() => {
+    const rows = String(lineHtml || '').match(/<tr[\s\S]*?<\/tr>/gi) || [];
+    for (const r of rows.slice(1)) { const n = (r.match(/<td[\s\S]*?<\/td>/gi) || []).length; if (n >= 4) return n - 3; }
+    let mx = 0; (data.pbp || []).forEach(h => { const m = String(h.title || '').match(/of (\d+)/i); if (m) mx = Math.max(mx, +m[1]); });
+    return mx || 9;
+  })();
   // Adaptive row density: the tallest column (batting + pitching rows) sets the
   // vertical cell padding so a long lineup + a deep bullpen still fit one page
   // without clipping the Totals row. Roomy for a normal box, tighter as rows grow.
