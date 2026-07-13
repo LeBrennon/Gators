@@ -4239,8 +4239,21 @@ function rankSecondHalf(rows, metrics) {
       const c = cmpTwoTeam(group[0], group[1], metrics);
       const ord = c.d <= 0 ? group : [group[1], group[0]];
       ord.forEach(x => out.push(x));
-      if (c.by) notes.push((ord[0].short || ord[0].name) + ' over ' + (ord[1].short || ord[1].name)
-        + ' — ' + c.by + (c.detail ? ' (' + c.detail + ')' : ''));
+      if (c.by) {
+        const w = ord[0], l = ord[1], nm = t => t.short || t.name;
+        // Detail is always oriented winner-first so it matches the "W over L" text.
+        let detail = null;
+        if (c.by === 'head-to-head') {
+          const h = h2hRec(metrics, w.id, l.id);
+          detail = nm(w) + ' ' + h.w + ' - ' + nm(l) + ' ' + h.l;
+        } else if (c.by === 'run differential') {
+          detail = fmtDiff(seasonDiff(metrics, w.id)) + ' vs ' + fmtDiff(seasonDiff(metrics, l.id));
+        } else if (c.by === 'run differential (H2H)') {
+          const h = h2hRec(metrics, w.id, l.id);
+          detail = fmtDiff(h.rs - h.ra);
+        }
+        notes.push(nm(w) + ' over ' + nm(l) + ' — ' + c.by + (detail ? ' (' + detail + ')' : ''));
+      }
     } else {
       const r = rankTiedGroup(group, metrics);
       r.ordered.forEach(x => out.push(x));
