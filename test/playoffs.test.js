@@ -106,6 +106,20 @@ test('rankSecondHalf resolves a 3-team tie by head-to-head among the tied teams'
   assert.ok(out.tiebreaks.length >= 1 && /head-to-head/.test(out.tiebreaks[0]));
 });
 
+test('rankSecondHalf note names the head-to-head record winner-first, not the loser', () => {
+  // Two teams level at 6-5. GAT swept the season series 3-1 over BOM but sits
+  // second in the input order, so the tie-break has to flip the pair. The note
+  // must read the winner's record (GAT 3 - BOM 1), never the loser's (1-3).
+  const rows = [row(BOM, 6, 5), row(GAT, 6, 5)];
+  const h2h = {
+    [GAT]: { [BOM]: { w: 3, l: 1, rs: 0, ra: 0 } },
+    [BOM]: { [GAT]: { w: 1, l: 3, rs: 0, ra: 0 } },
+  };
+  const out = rankSecondHalf(rows, metricsWith(h2h));
+  assert.deepEqual(out.rows.map(r => r.id), [GAT, BOM], 'GAT wins the head-to-head tie-break');
+  assert.equal(out.tiebreaks[0], GAT + ' over ' + BOM + ' — head-to-head (' + GAT + ' 3 - ' + BOM + ' 1)');
+});
+
 test('buildPlayoffPicture applies the both-halves overlap rule', () => {
   // Seeds 1-2: first-half qualifiers Victoria & Acadiana (clinched).
   // Victoria is ALSO the second-half leader -> it keeps its first-half seed, and
