@@ -148,6 +148,45 @@ const isPosToken = t => { const s = String(t).trim().toLowerCase(); return s.len
 // SHOUTED "BEDDOE" / "SALAZAR-SANCHEZ" is fixed but a real "LaCava"/"DeShields"
 // (which already carries a lowercase letter) is left untouched.
 const fixNameCaps = name => String(name).replace(/[A-Za-z][A-Za-z'’.]*/g, w => (/[a-z]/.test(w) || w.length < 2) ? w : (w[0] + w.slice(1).toLowerCase()));
+// ---- reconcile a stale Presto box against the live "game summary" feed --------
+// PrestoSports settles its box tables minutes after the last out, so a pitcher's
+// line can read short (Kotlarz showed 6.2 IP for a 7.0 complete game). The live
+// feed (/debug/live) is final at game end and lists EVERY pitcher, so we rebuild
+// the pitching table from it when it's ahead of Presto's. (Batting stays from
+// Presto: the feed only lists the current nine, dropping substituted starters, so
+// it isn't safe to rebuild batting from.)
+const ipToOuts = ip => { const m = String(ip == null ? '' : ip).match(/^(\d+)(?:\.([012]))?$/); return m ? (+m[1]) * 3 + (m[2] ? +m[2] : 0) : Math.round((parseFloat(ip) || 0) * 3); };
+const ipToDec = ip => ipToOuts(ip) / 3;
+const gameERA = (er, ip) => { const o = ipToOuts(ip); return o > 0 ? (er * 27 / o).toFixed(2) : '0.00'; };
+function feedPitchingTable(pit) {
+  const rows = pit.rows || [], T = pit.totals || {};
+  const td = v => `<td>${v == null ? '' : esc(String(v))}</td>`;
+  const line = p => `<tr><th>${esc(p.name)}${p.dec ? ' (' + esc(p.dec) + ')' : ''}</th>${td(p.ip)}${td(p.h)}${td(p.r)}${td(p.er)}${td(p.bb)}${td(p.k)}<td>${gameERA(p.er, p.ip)}</td>${td(p.np)}${td(p.sp)}</tr>`;
+  const head = '<tr><th>Pitchers</th><th>IP</th><th>H</th><th>R</th><th>ER</th><th>BB</th><th>K</th><th>ERA</th><th>#P</th><th>S%</th></tr>';
+  const tot = `<tr><th>Totals</th>${td(T.ip)}${td(T.h)}${td(T.r)}${td(T.er)}${td(T.bb)}${td(T.k)}<td>${gameERA(T.er, T.ip)}</td>${td(T.np)}${td(T.sp)}</tr>`;
+  return `<table><caption><h2>${esc(pit.name || '')} <span>Pitchers</span></h2></caption>${head}${rows.map(line).join('')}${tot}</table>`;
+}
+function boxPitchTotalIP(html) {
+  for (const r of String(html || '').match(/<tr[\s\S]*?<\/tr>/gi) || []) {
+    const cells = r.match(/<t[hd][\s\S]*?<\/t[hd]>/gi) || [];
+    if (cells.length && /^totals?$/i.test(txtOf(cells[0]))) return ipToDec(txtOf(cells[1] || ''));
+  }
+  return 0;
+}
+async function reconcileBoxWithFeed(data, id) {
+  if (!data || !Array.isArray(data.box) || !/^\d{8}_[a-z0-9]+$/i.test(String(id || ''))) return;
+  const feed = await fetchAppJSON('/debug/live?id=' + encodeURIComponent(id));
+  if (!feed || !Array.isArray(feed.pitchers)) return;
+  for (const sec of data.box) {
+    if (!/Pitching/i.test(sec.label || '')) continue;
+    const fp = feed.pitchers.find(t => !!t.isGators === /gator|gumbeaux/i.test(sec.label));
+    if (!fp || !(fp.rows && fp.rows.length)) continue;
+    if (ipToDec(fp.totals && fp.totals.ip) > boxPitchTotalIP(sec.html) + 0.05) {   // Presto's is short -> stale
+      sec.html = feedPitchingTable(fp);
+      console.error(`[box] pitching for "${sec.label}" was stale on Presto — rebuilt from the live feed (${fp.totals && fp.totals.ip} IP).`);
+    }
+  }
+}
 function normalizeNameCell(row) {
   return row.replace(/<th\b([^>]*)>([\s\S]*?)<\/th>/i, (full, attrs, inner) => {
     const plain = txtOf(inner);
@@ -742,6 +781,8 @@ async function main() {
   }
   const data = await getBox();
   if (!data || !data.box || !data.box.length) { console.error(`[box] no box score available${game ? ' for ' + game.id : ''} (offline? host not allowlisted? game not final yet?).`); process.exit(2); }
+  // Fix stale Presto pitching lines from the final live feed (see reconcileBoxWithFeed).
+  try { await reconcileBoxWithFeed(data, (game && game.id) || (BOX_DATA && BOX_DATA.game && BOX_DATA.game.id)); } catch (e) { /* keep Presto's box if the feed is unavailable */ }
   if (STRICT && !(data.line && String(data.line).trim())) {
     console.error(`[box] strict: the line score hasn't rendered yet${game ? ' for ' + game.id : ''} — the box is still finalizing. Retry shortly.`);
     process.exit(3);
