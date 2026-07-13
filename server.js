@@ -1151,6 +1151,10 @@ function summarizePlays(json) {
       const after = (i + 1 < rows.length) ? startOuts(rows[i + 1]) : (lastAfter == null ? before : lastAfter);
       const outsMade = Math.max(0, Math.min(3 - before, after - before));
       out.push({ inning: num, half: side, team, outs: before, outsMade,
+        // isPa marks a plate-appearance result (vs a baserunning/scoring row like
+        // a passed ball, wild pitch, steal, or balk). The live "Last play" bubble
+        // uses it to keep surfacing a mid-at-bat run even with the batter still up.
+        isPa: isPaLine(text),
         scored: /\bscored\b|homer|grand slam/i.test(text), text });
     }
   });
@@ -5387,12 +5391,18 @@ function buildLive(g){
     // when the hold started) — g.plays' newest entry may already be the next half.
     var hp=g._holdLp;
     lastPlay='<div class="lastplay hold'+(hp.scored?' scored':'')+'" id="lastPlay"><span class="lplab">3rd out</span><span class="lptx">'+esc(hp.text)+'</span></div>';
-  }else if((!L||!L.abPitches)&&g.plays&&g.plays.length){var lp=g.plays[g.plays.length-1];
+  }else if(g.plays&&g.plays.length){var lp=g.plays[g.plays.length-1];
     var inHalf=!L||(lp.inning===(+L.inning)&&lp.half===(L.half==='Top'?'top':'bot'));
     // gscore marks a Gators scoring play (their half + a "scored" narrative) so
     // the deferred fireworks fire the instant this bubble shows.
     var gBat=g.gatorsHome?(lp.half==='bot'):(lp.half==='top');
-    if(lp&&lp.text&&inHalf)lastPlay='<div class="lastplay'+(lp.scored?' scored':'')+(lp.scored&&gBat?' gscore':'')+'" id="lastPlay"><span class="lplab">Last play</span><span class="lptx">'+esc(lp.text)+'</span></div>';}
+    // Between batters (no pitch yet this at-bat) show the last plate-appearance
+    // result. Mid-at-bat, suppress that now-stale PA result — but still surface a
+    // baserunning/scoring row (passed ball, wild pitch, steal, balk) that just
+    // happened with the batter still up: otherwise a run scores with no cue on
+    // the hero and you'd have to scroll to the play-by-play to see how.
+    var show=(!L||!L.abPitches)||!lp.isPa;
+    if(lp&&lp.text&&inHalf&&show)lastPlay='<div class="lastplay'+(lp.scored?' scored':'')+(lp.scored&&gBat?' gscore':'')+'" id="lastPlay"><span class="lplab">Last play</span><span class="lptx">'+esc(lp.text)+'</span></div>';}
   var line=buildLineScore(g);
   // Whose-up-next belongs to the new half; hide it during the finished-half hold.
   var dueup=(L&&L.holdEnd)?'':buildDueUp(g);
