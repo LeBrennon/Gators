@@ -48,9 +48,15 @@ never on the website). Deliver the file to the user; don't commit it.
   looks stale, confirm with the user.
 - **Manual fallback (`BOX_DATA`):** only needed when the app is unreachable or the
   numbers are in hand but the box can't be fetched. JSON shape:
-  `{ game:{id,date,home,opp,gs,os,win}, record:{w,l}, line, box, pbp }` — `pbp` is
-  required for HBP, positions, subs, and position-change notes.
-  `BOX_DATA=/path/box.json node scripts/box-score.js --pdf`.
+  `{ game:{id,date,home,opp,gs,os,win,label}, record:{w,l}, line, box, pbp }` — `pbp`
+  is required for HBP, positions, subs, and position-change notes. Optional
+  `game.label` (e.g. `"G1"`/`"G2"`) tags a split doubleheader in the header
+  scoreboard footer (`FINAL · 7 INN · G1`). `BOX_DATA=/path/box.json node scripts/box-score.js --pdf`.
+- **Stale pitching after the fact (`BOX_FEED`):** the pitching self-correct
+  (`reconcileBoxWithFeed`) reads the live `/debug/live` feed, but once a game is
+  fully over that feed drops its pitcher rows — so a *late* regeneration can't fix
+  a stale Presto IP. Point `BOX_FEED` at a `/debug/live?id=…` snapshot captured
+  while the game was still live and it's used as the fallback. `BOX_FEED=/path/live.json`.
 - **Rendering:** local Chromium at `/opt/pw-browsers/chromium`, one US-letter page.
 - **Verify before sending:** render the HTML at *true letter pixel size*
   (`--window-size=816,1056`, i.e. 8.5×11 @ 96dpi) and eyeball it. A taller preview
