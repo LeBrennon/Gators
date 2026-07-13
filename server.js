@@ -4715,6 +4715,8 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .jloc:empty{display:none;}
 .live{margin-top:14px;padding-top:14px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:13px;}
 .lsit{display:flex;align-items:center;justify-content:center;gap:26px;}
+.lsit.lend .lcell{min-width:0;}
+.lsit.lend .ll{color:var(--gold2);}
 .lcell{text-align:center;min-width:46px;}
 .lcell .lv{font-family:'Oswald',sans-serif;font-weight:700;font-size:21px;color:var(--bone);line-height:1;display:flex;gap:6px;justify-content:center;align-items:center;min-height:21px;}
 .lcell .ll{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin-top:6px;}
@@ -5186,6 +5188,55 @@ function logoLink(id,t,isGators){
   if(!isGators&&t&&t.site){a.setAttribute('href',t.site);a.setAttribute('target','_blank');a.setAttribute('title',(t.name||t.short||'Opponent')+' — official site');}
   else{a.removeAttribute('href');a.removeAttribute('target');a.removeAttribute('title');}
 }
+// ---- 3rd-out hold ----------------------------------------------------------
+// The feed jumps to the next half-inning the instant the 3rd out is recorded, so
+// the out that ended the inning flashes past before you can read it. Freeze the
+// gamecast on the finished half — "inning over · 3 outs" plus the out's play
+// text — for 30s before letting the live feed through again, so you can see how
+// the inning ended without scrolling back to the previous half.
+var holdKey='',holdUntil=0,holdLp=null,holdRealG=null,holdTimer=0;
+function applyThirdOutHold(g){
+  // Only a live game with narrated plays can start or sustain a hold; anything
+  // else (pregame/final/no feed) clears any hold in progress.
+  if(!g||g.status!=='live'||!g.live||!g.plays||!g.plays.length){
+    holdKey='';holdUntil=0;holdLp=null;if(holdTimer){clearTimeout(holdTimer);holdTimer=0;}
+    return g;
+  }
+  holdRealG=g;
+  var L=g.live,liveInn=+L.inning||0,liveSide=(L.half==='Top')?'top':'bot';
+  var lp=g.plays[g.plays.length-1];
+  // A half just ended when the newest narrated play sits in an earlier half than
+  // the live situation AND that play brought the out count to 3.
+  var ended=(lp.inning<liveInn||(lp.inning===liveInn&&lp.half!==liveSide))
+    &&((lp.outs||0)+(lp.outsMade||0)>=3);
+  var now=Date.now();
+  if(ended){
+    var key=g.id+':'+lp.inning+':'+lp.half;
+    // Start a hold once per boundary: a fresh key that isn't already mid-hold.
+    if(key!==holdKey&&holdUntil<=now){holdKey=key;holdUntil=now+30000;holdLp=lp;}
+  }
+  if(holdUntil>now&&holdLp){
+    // Auto-release once the window elapses, even if no further poll arrives.
+    if(holdTimer)clearTimeout(holdTimer);
+    holdTimer=setTimeout(function(){holdTimer=0;if(holdRealG)renderGame(applyThirdOutHold(holdRealG));},holdUntil-now+60);
+    return frozenFrame(g);
+  }
+  holdUntil=0;
+  return g;
+}
+function frozenFrame(g){
+  // Shallow-clone the game (and its live block) so the real feed object stays
+  // intact for release; retarget the display to the finished half.
+  var lp=holdLp,fg={},k;
+  for(k in g)fg[k]=g[k];
+  var L={};for(k in g.live)L[k]=g.live[k];
+  L.inning=lp.inning;L.half=(lp.half==='top')?'Top':'Bottom';
+  L.outs=3;L.abPitches=0;L.holdEnd=true;
+  L.batter=null;L.pitcher=null;L.batterInfo=null;L.pitcherInfo=null;
+  fg.live=L;fg._holdLp=lp;
+  fg.inningLabel=(lp.half==='top'?'Top':'Bottom')+' of '+ord(lp.inning);
+  return fg;
+}
 function renderGame(g){
   var ah=!g.gatorsHome, hh=g.gatorsHome;
   $('awayTm').classList.toggle('gators',ah);$('homeTm').classList.toggle('gators',hh);
@@ -5274,7 +5325,12 @@ function buildLive(g){
   // parts of the same feed. Render whatever parsed instead of hiding the whole
   // panel when only the situation block is missing.
   var L=g.live,sit='',bp='';
-  if(L){
+  if(L&&L.holdEnd){
+    // 3rd-out hold frame: the feed has already flipped to the next half, so its
+    // count/bases/matchup belong to the new inning. Show only "inning over · 3
+    // outs" here; the play that ended the inning appears in the bubble below.
+    sit='<div class="lsit lend"><div class="lcell"><div class="lv">'+outsDots(3)+'</div><div class="ll">Inning over · 3 outs</div></div></div>';
+  }else if(L){
     var count=L.count||((L.balls||0)+'-'+(L.strikes||0));
     sit='<div class="lsit">'+
       '<div class="lcell"><div class="lv">'+esc(count)+'</div><div class="ll">Count</div></div>'+
@@ -5297,14 +5353,20 @@ function buildLive(g){
   // belongs to the other team, so we only keep it while the latest play is still
   // in the current half. Flashes on change (renderGame); scored plays go green.
   var lastPlay='';
-  if((!L||!L.abPitches)&&g.plays&&g.plays.length){var lp=g.plays[g.plays.length-1];
+  if(L&&L.holdEnd&&g._holdLp){
+    // During the hold, pin the bubble to the play that made the 3rd out (captured
+    // when the hold started) — g.plays' newest entry may already be the next half.
+    var hp=g._holdLp;
+    lastPlay='<div class="lastplay hold'+(hp.scored?' scored':'')+'" id="lastPlay"><span class="lplab">3rd out</span><span class="lptx">'+esc(hp.text)+'</span></div>';
+  }else if((!L||!L.abPitches)&&g.plays&&g.plays.length){var lp=g.plays[g.plays.length-1];
     var inHalf=!L||(lp.inning===(+L.inning)&&lp.half===(L.half==='Top'?'top':'bot'));
     // gscore marks a Gators scoring play (their half + a "scored" narrative) so
     // the deferred fireworks fire the instant this bubble shows.
     var gBat=g.gatorsHome?(lp.half==='bot'):(lp.half==='top');
     if(lp&&lp.text&&inHalf)lastPlay='<div class="lastplay'+(lp.scored?' scored':'')+(lp.scored&&gBat?' gscore':'')+'" id="lastPlay"><span class="lplab">Last play</span><span class="lptx">'+esc(lp.text)+'</span></div>';}
   var line=buildLineScore(g);
-  var dueup=buildDueUp(g);
+  // Whose-up-next belongs to the new half; hide it during the finished-half hold.
+  var dueup=(L&&L.holdEnd)?'':buildDueUp(g);
   var lineup=buildLineup(g);
   var pitching=buildPitching(g);
   var pbp=buildPbp(g);
@@ -5585,7 +5647,7 @@ function emo(tag){return tag==='lead'?'📣':tag==='final'?'🏁':tag==='run'?'�
 function loadSched(){fetch('/api/schedule',{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){renderSched(d.games||[]);}).catch(function(){});}
 function connect(){
   var sseOk=false,lastStatus='',pollTimer=null,schedTimer=null;
-  function applyGame(g){if(g&&g.home){lastStatus=g.status||'';renderGame(g);if($('viewStandings').style.display!=='none')silentStandings();}}
+  function applyGame(g){if(g&&g.home){lastStatus=g.status||'';renderGame(applyThirdOutHold(g));if($('viewStandings').style.display!=='none')silentStandings();}}
   function pollGame(){fetch('/api/game',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).then(applyGame).catch(function(){});}
   // SSE carries live changes as they happen, so the /api/game poll is only a
   // safety net for a stalled stream (e.g. a buffering proxy). Poll fast (5s) only
