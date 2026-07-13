@@ -639,11 +639,11 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
    in gold, a FINAL footer) so it reads as a scoreboard rather than loose text. */
 .badge{margin-left:auto;display:flex;flex-direction:column;justify-content:center;gap:2px;min-width:196px;padding:8px 14px;border-radius:10px;background:rgba(14,8,32,.34);border:1px solid rgba(255,214,51,.30);box-shadow:inset 0 0 0 1px rgba(255,255,255,.05);}
 .badge .sbrow{display:flex;align-items:baseline;justify-content:space-between;gap:22px;}
-.badge .snm{font-size:14px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#e4d9ff;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.5);}
-.badge .sval{font-size:24px;font-weight:900;line-height:1;color:#fff;font-variant-numeric:tabular-nums;text-shadow:0 2px 4px rgba(0,0,0,.5);}
+.badge .snm{font-size:14px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#e4d9ff;white-space:nowrap;}
+.badge .sval{font-size:24px;font-weight:900;line-height:1;color:#fff;font-variant-numeric:tabular-nums;}
 .badge .win .snm{color:#fff;}
 .badge .win .sval{color:#ffd633;}
-.badge .bstat{margin-top:4px;padding-top:5px;border-top:1px solid rgba(255,255,255,.16);text-align:center;font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#e7dcff;text-shadow:0 1px 2px rgba(0,0,0,.5);}
+.badge .bstat{margin-top:4px;padding-top:5px;border-top:1px solid rgba(255,255,255,.16);text-align:center;font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#e7dcff;}
 .linewrap{margin:11px 0 3px;}
 .linewrap table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;}
 .linewrap th,.linewrap td{border:1px solid #d9d2ec;padding:6px 10px;text-align:center;font-size:14px;}
