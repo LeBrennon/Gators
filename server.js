@@ -5263,18 +5263,42 @@ function flash(el){el.classList.remove('flash');void el.offsetWidth;el.classList
 // fired when the Gators' run total ticks up during a live game. Pointer-events
 // are off and it hides itself when the last spark fades, so it never blocks taps.
 var FX=(function(){
-  var cv,ctx,parts=[],rockets=[],raf=0,endAt=0,W=0,H=0,dpr=1;
+  var cv,ctx,parts=[],rockets=[],raf=0,endAt=0,W=0,H=0,dpr=1,bloom=0,banner=null;
   var COLORS=['#ecc913','#ffd633','#714ad2','#b9a6ee','#f0ede4'];
+  var GOLD=['#ecc913','#ffd633','#fff3b0']; // warm golds for drooping "willow" shells
   function size(){dpr=Math.min(window.devicePixelRatio||1,2);W=cv.clientWidth;H=cv.clientHeight;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);}
-  // A shell explodes into a ring of sparks plus a brief white core flash.
-  function burst(x,y,base){
+  // One spark. grav/drag tune how it falls and slows; trail draws a motion streak,
+  // flick twinkles it as it dies, flash is the shrinking white core.
+  function spark(x,y,vx,vy,col,decay,r,o){o=o||{};
+    parts.push({x:x,y:y,vx:vx,vy:vy,life:1,decay:decay,col:col,r:r,
+      grav:o.grav==null?0.045:o.grav,drag:o.drag==null?0.985:o.drag,
+      trail:o.trail?1:0,flick:o.flick?1:0,flash:o.flash?1:0});
+  }
+  // A shell explodes. type: 'ring' (the classic burst), 'willow' (drooping gold
+  // fronds), 'palm' (a few fat rising-then-falling tendrils), 'crackle' (a ring
+  // plus a delayed second pop of glitter). scale fattens the finale's big shells.
+  function burst(x,y,base,o){
+    o=o||{};var type=o.type||'ring',scale=o.scale||1;
     base=base||COLORS[Math.random()*COLORS.length|0];
-    var n=46+(Math.random()*44|0);
-    parts.push({x:x,y:y,vx:0,vy:0,life:1,decay:0.055,col:'#ffffff',r:5+Math.random()*4,flash:1});
-    for(var i=0;i<n;i++){
-      var a=(6.283*i)/n+Math.random()*0.24,sp=2.4+Math.random()*6.4;
-      parts.push({x:x,y:y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:1,decay:0.008+Math.random()*0.011,
-        col:Math.random()<0.3?COLORS[Math.random()*COLORS.length|0]:base,r:1.3+Math.random()*2});
+    // white core flash + a soft warm screen bloom so each burst reads as a flash.
+    parts.push({x:x,y:y,vx:0,vy:0,life:1,decay:0.055,col:'#ffffff',r:(5+Math.random()*4)*scale,flash:1,grav:0,drag:1,trail:0,flick:0});
+    bloom=Math.min(1.1,bloom+0.08*scale);
+    if(type==='willow'){
+      var nw=40+(Math.random()*26|0);
+      for(var i=0;i<nw;i++){var a=(6.283*i)/nw+Math.random()*0.3,sp=(1.8+Math.random()*3.2)*scale;
+        spark(x,y,Math.cos(a)*sp,Math.sin(a)*sp*0.8-1.2,GOLD[Math.random()*GOLD.length|0],0.006+Math.random()*0.006,1.5+Math.random()*1.8,{grav:0.075,drag:0.99,trail:1,flick:1});}
+    }else if(type==='palm'){
+      var np=10+(Math.random()*6|0);
+      for(var j=0;j<np;j++){var b=(6.283*j)/np+Math.random()*0.2,pd=(4.5+Math.random()*3.5)*scale;
+        spark(x,y,Math.cos(b)*pd,Math.sin(b)*pd-1.5,base,0.009+Math.random()*0.008,2.2+Math.random()*1.6,{grav:0.07,drag:0.985,trail:1});}
+    }else{ // 'ring' (also the first stage of 'crackle')
+      var n=46+(Math.random()*44|0);if(scale>1)n=(n*1.4|0);
+      for(var k=0;k<n;k++){var c=(6.283*k)/n+Math.random()*0.24,s=(2.4+Math.random()*6.4)*scale;
+        spark(x,y,Math.cos(c)*s,Math.sin(c)*s,Math.random()<0.3?COLORS[Math.random()*COLORS.length|0]:base,0.008+Math.random()*0.011,1.3+Math.random()*2,{trail:scale>1,flick:Math.random()<0.25});}
+      if(type==='crackle')(function(cx,cy){setTimeout(function(){if(!cv||cv.style.display==='none')return;
+        for(var m=0;m<26;m++){var e=Math.random()*6.283,g=1+Math.random()*3.4;
+          spark(cx,cy,Math.cos(e)*g,Math.sin(e)*g,Math.random()<0.5?'#fff3b0':base,0.02+Math.random()*0.03,1+Math.random()*1.4,{flick:1});}
+        bloom=Math.min(1.1,bloom+0.05);},220+Math.random()*160);})(x,y);
     }
   }
   // A rocket rises from the bottom to a target height anywhere across the width,
@@ -5282,42 +5306,97 @@ var FX=(function(){
   // reach from just under the top header (4%) down, and each rocket's launch speed
   // is derived from its target under gravity (0.12/frame) so it actually climbs
   // that high — the highest shells burst over the gold "Gumbeaux Gators" letters.
-  function launch(){
-    var ty=H*(0.04+Math.random()*0.56),rise=(H+8)-ty;
-    rockets.push({x:W*(0.05+Math.random()*0.9),y:H+8,ty:ty,
-      vy:-Math.sqrt(0.24*rise)*(0.99+Math.random()*0.05),col:COLORS[Math.random()*COLORS.length|0]});
+  // opt lets the finale pin a shell's x/target/type/scale; omit for a random one.
+  function launch(opt){opt=opt||{};
+    var ty=opt.ty!=null?opt.ty:H*(0.04+Math.random()*0.56),rise=(H+8)-ty;
+    rockets.push({x:opt.x!=null?opt.x:W*(0.05+Math.random()*0.9),y:H+8,ty:ty,
+      vy:-Math.sqrt(0.24*rise)*(0.99+Math.random()*0.05),col:opt.col||COLORS[Math.random()*COLORS.length|0],
+      type:opt.type,scale:opt.scale||1});
   }
   function tick(){
     raf=requestAnimationFrame(tick);ctx.clearRect(0,0,W,H);
+    // warm bloom that fades each frame — the whole sky brightens on a burst.
+    if(bloom>0.01){var bg=ctx.createRadialGradient(W/2,H*0.42,0,W/2,H*0.42,Math.max(W,H)*0.7);
+      bg.addColorStop(0,'rgba(255,214,51,'+(0.10*bloom).toFixed(3)+')');bg.addColorStop(1,'rgba(255,214,51,0)');
+      ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);bloom*=0.9;}
     for(var r=rockets.length-1;r>=0;r--){var k=rockets[r];
       k.y+=k.vy;k.vy+=0.12;
-      ctx.globalAlpha=0.9;ctx.fillStyle=k.col;ctx.beginPath();ctx.arc(k.x,k.y,2,0,6.283);ctx.fill();
-      ctx.globalAlpha=0.22;ctx.beginPath();ctx.arc(k.x,k.y+6,1.3,0,6.283);ctx.fill();
-      if(k.y<=k.ty||k.vy>=0){burst(k.x,k.y,k.col);rockets.splice(r,1);}
+      ctx.globalAlpha=0.35;ctx.strokeStyle=k.col;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(k.x,k.y);ctx.lineTo(k.x,k.y-k.vy*1.6);ctx.stroke();
+      ctx.globalAlpha=0.95;ctx.fillStyle=k.col;ctx.beginPath();ctx.arc(k.x,k.y,2.2,0,6.283);ctx.fill();
+      if(k.y<=k.ty||k.vy>=0){burst(k.x,k.y,k.col,{type:k.type,scale:k.scale});rockets.splice(r,1);}
     }
     for(var i=parts.length-1;i>=0;i--){var p=parts[i];
-      p.vy+=0.045;p.vx*=0.985;p.vy*=0.985;p.x+=p.vx;p.y+=p.vy;p.life-=p.decay;
+      p.vy+=p.grav;p.vx*=p.drag;p.vy*=p.drag;p.x+=p.vx;p.y+=p.vy;p.life-=p.decay;
       if(p.life<=0){parts.splice(i,1);continue;}
-      ctx.globalAlpha=p.life<0?0:(p.flash?p.life:Math.min(1,p.life*1.25));ctx.fillStyle=p.col;
+      var al=p.flash?p.life:Math.min(1,p.life*1.25);
+      if(p.flick&&p.life<0.6)al*=(0.4+Math.random()*0.6); // twinkle as they fade
+      ctx.globalAlpha=al<0?0:al;ctx.fillStyle=p.col;
+      if(p.trail){ctx.strokeStyle=p.col;ctx.lineWidth=p.r;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-p.vx*1.4,p.y-p.vy*1.4);ctx.stroke();}
       ctx.beginPath();ctx.arc(p.x,p.y,p.flash?p.r*p.life:p.r,0,6.283);ctx.fill();
     }
+    if(banner)drawBanner();
     ctx.globalAlpha=1;
-    if(!parts.length&&!rockets.length&&Date.now()>endAt){cancelAnimationFrame(raf);raf=0;cv.style.display='none';}
+    if(!parts.length&&!rockets.length&&!banner&&Date.now()>endAt){cancelAnimationFrame(raf);raf=0;cv.style.display='none';}
+  }
+  // The "GATORS WIN!" title for the finale — gold gradient with a purple outline,
+  // scales/fades in, holds with a soft pulse, then fades out.
+  function drawBanner(){
+    var t=Date.now()-banner.t;if(t>=banner.dur){banner=null;return;}
+    var p=t/banner.dur,appear=Math.min(1,t/280),fade=p>0.8?(1-(p-0.8)/0.2):1,
+        a=Math.max(0,Math.min(1,appear*fade)),y=H*0.30-(1-appear)*24,
+        fs=Math.min(W*0.13,74)*(1+0.03*Math.sin(t/90));
+    ctx.save();ctx.globalAlpha=a;ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.font='900 '+fs+'px Oswald, Arial, sans-serif';ctx.lineJoin='round';
+    ctx.shadowColor='rgba(0,0,0,.55)';ctx.shadowBlur=18;
+    ctx.lineWidth=fs*0.14;ctx.strokeStyle='#4e3191';ctx.strokeText('GATORS WIN!',W/2,y);ctx.shadowBlur=0;
+    var lg=ctx.createLinearGradient(0,y-fs*0.6,0,y+fs*0.6);
+    lg.addColorStop(0,'#fff3b0');lg.addColorStop(0.5,'#ffd633');lg.addColorStop(1,'#ecc913');
+    ctx.fillStyle=lg;ctx.fillText('GATORS WIN!',W/2,y);ctx.restore();
+  }
+  // Lazily grab the canvas, honor reduced-motion, and show/size it. Returns false
+  // when there's nothing to draw on or motion is suppressed.
+  function ready(){
+    if(!cv){cv=$('fx');if(!cv||!cv.getContext)return false;ctx=cv.getContext('2d');
+      window.addEventListener('resize',function(){if(cv.style.display!=='none')size();});}
+    if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)return false;
+    cv.style.display='block';if(!raf)size();return true;
   }
   function show(intensity){
-    if(!cv){cv=$('fx');if(!cv||!cv.getContext)return;ctx=cv.getContext('2d');
-      window.addEventListener('resize',function(){if(cv.style.display!=='none')size();});}
-    if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
-    cv.style.display='block';if(!raf)size();
+    if(!ready())return;
     // More runs -> a bigger show. Rockets fire in a staggered barrage across the
     // page; the barrage (and so the whole show) runs about twice as long as before.
     var shots=Math.max(16,Math.min(12+(intensity||1)*4,36));
     for(var s=0;s<shots;s++)(function(d){setTimeout(function(){if(cv.style.display!=='none')launch();},d);})(s*(150+Math.random()*130));
     endAt=Date.now()+shots*280+2600;if(!raf)tick();
   }
-  return {show:show};
+  // The win celebration: a long, dense, multi-type barrage that builds to an
+  // all-at-once grand-finale volley of big shells, under a gold "GATORS WIN!" title.
+  function finale(){
+    if(!ready())return;
+    var TYPES=['ring','ring','willow','palm','crackle'],t=0,last=0;
+    // Phase 1 — a rolling ~7s barrage: shells of every type scattered across the
+    // whole sky, often two on a beat.
+    for(var s=0;s<52;s++){t+=95+Math.random()*120;
+      (function(d){setTimeout(function(){if(cv.style.display==='none')return;
+        launch({type:TYPES[Math.random()*TYPES.length|0],scale:0.9+Math.random()*0.5});
+        if(Math.random()<0.5)launch({type:TYPES[Math.random()*TYPES.length|0],scale:0.9+Math.random()*0.5});
+      },t);})(t);last=t;}
+    // Phase 2 — the grand finale: three fast waves of big shells fired in near
+    // unison across the width, bursting high over the header.
+    for(var w=0;w<3;w++)(function(d){setTimeout(function(){if(cv.style.display==='none')return;
+      for(var q=0;q<8;q++)launch({x:W*(0.08+q*0.11+Math.random()*0.03),ty:H*(0.05+Math.random()*0.28),
+        type:Math.random()<0.5?'crackle':'ring',scale:1.5+Math.random()*0.7});
+      bloom=Math.min(1.1,bloom+0.5);},d);})(last+300+w*520);
+    banner={t:Date.now(),dur:4600};
+    endAt=last+300+2*520+4000;if(!raf)tick();
+  }
+  return {show:show,finale:finale};
 })();
 var prev={a:null,h:null};
+// Win finale bookkeeping: which game we've already celebrated, plus the status we
+// last rendered for a game — so the finale fires only on the live->final flip we
+// actually witnessed, not on every reload inside the 10-hour post-game window.
+var winFinaleGid=null,lastSeenGid=null,lastSeenStatus=null;
 var lastPlayTx='',lastPlayGid=null; // track the live "Last play" text to flash only on change
 // Track the last count (per game) so renderGame can glow the digit that ticked
 // up on a new pitch. Re-add the class after a reflow so the animation restarts.
@@ -5444,6 +5523,12 @@ function renderGame(g){
   $('awayTm').classList.toggle('lose',haveRes&&g.away.runs<g.home.runs);
   $('homeTm').classList.toggle('win',haveRes&&g.home.runs>g.away.runs);
   $('homeTm').classList.toggle('lose',haveRes&&g.home.runs<g.away.runs);
+  // Full finale when the Gators WIN — fire once, and only on the live->final flip
+  // we watched happen (lastSeenStatus was a non-final state for this same game), so
+  // it doesn't re-launch every time a finished win reloads in the post-game window.
+  var gWon=g.status==='final'&&g.away.runs!=null&&g.home.runs!=null&&(g.gatorsHome?g.home.runs>g.away.runs:g.away.runs>g.home.runs);
+  if(gWon&&winFinaleGid!==g.id&&lastSeenGid===g.id&&lastSeenStatus&&lastSeenStatus!=='final'){winFinaleGid=g.id;FX.finale();}
+  lastSeenGid=g.id;lastSeenStatus=g.status;
   prev={a:g.away.runs,h:g.home.runs};var pc=curId;curId=g.id;if(schedList&&pc!==curId)renderSched(schedList);
   var sp=$('statpill');sp.textContent=g.inningLabel;sp.classList.toggle('live',g.status==='live');
   $('vs').textContent=g.dateLabel+(g.dhLabel?' · '+g.dhLabel:'')+(g.status==='pregame'?' · upcoming':'');
