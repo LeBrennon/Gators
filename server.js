@@ -1279,6 +1279,10 @@ async function fetchLiveForGame(boxscoreId, wantRaw) {
       const shout = shoutingNames(feed.json);
       if (shout.length) out.plays.forEach(p => { p.text = deshoutPlayText(p.text, shout); });
     }
+    // Fill in each lineup substitute's legend ("a- pinch-hit for X in the 7th")
+    // from the (now de-SHOUTED) play narratives, so the live lineup carries the
+    // same alphabet substitution ledger as the box score.
+    if (out.lineups && out.plays) attachLineupSubLegend(out.lineups, out.plays);
     // Pull the opponent lineup's season AVGs from their own player pages (via
     // their team page) so non-leaderboard bats still show an average. Fire-and-
     // forget: the values land in rosterStats and the next poll's lineup shows them.
@@ -1317,8 +1321,14 @@ function lineupsFromFeed(json) {
     // Mark substitute batters so the lineup can indent them under the player
     // they replaced, like the box score: a batter is a sub if his lineup spot
     // already appeared above him (the starter or an earlier sub holds it) or
-    // he's flagged PH/PR.
+    // he's flagged PH/PR. Each sub also gets the box score's alphabet reference
+    // letter (a-, b-, …) and a legend seed keyed to it — the player he replaced
+    // is the one listed directly above him — so the live lineup shows the same
+    // MLB-style substitution ledger the box does. attachLineupSubLegend later
+    // fills in the play result + inning ("a- pinch-hit for X in the 7th").
     const seenSpot = new Set();
+    const legendSeed = [];
+    let subN = 0, prevFull = '';
     // The batting-order entry's name (o.name) is unreliable — some feeds send it
     // garbled ("B. ton Lembcke") or as a bare initial ("G."). The player record's
     // revname ("Lembcke, Bankston") is canonical (it's what the box-score notes
@@ -1358,9 +1368,20 @@ function lineupsFromFeed(json) {
       let sub = firstPos === 'PH' || firstPos === 'PR';
       if (spot != null) { if (seenSpot.has(spot)) sub = true; else seenSpot.add(spot); }
       const full = dispName(p, o.name);
+      // Alphabet reference letter for a substitute, seeded with a "for <player
+      // above>" fallback that attachLineupSubLegend enriches from the play-by-play.
+      let letter = '';
+      if (sub) {
+        letter = subN < 26 ? String.fromCharCode(97 + subN) : '+'; subN++;
+        const fp = firstPos.toLowerCase();
+        const verb = fp === 'ph' ? 'pinch-hit for' : fp === 'pr' ? 'pinch-ran for' : 'in for';
+        legendSeed.push({ letter, name: full, pos: fp, forName: prevFull, text: prevFull ? verb + ' ' + prevFull : verb });
+      }
+      prevFull = full;   // a later sub in this slot replaced this batter
       return {
         spot,
         pos,
+        letter,
         uni: o.uni != null ? String(o.uni) : (p.uni != null ? String(p.uni) : ''),
         // name = display ("F. Last", server-formatted); full = full name kept for
         // profile-link matching and current-batter highlighting on the client.
@@ -1394,8 +1415,49 @@ function lineupsFromFeed(json) {
     // Team batting totals (sum of every batter who came up, starters + subs).
     const sum = k => battingRows.reduce((a, r) => a + (r[k] || 0), 0);
     const totals = { ab: sum('ab'), runs: sum('runs'), hits: sum('hits'), rbi: sum('rbi'), bb: sum('bb'), k: sum('k') };
-    return { vh: t.vh, name: t.name, teamId: t.teamId, isGators: t.teamId === GATORS_ID, rows: battingRows, totals, notes };
+    return { vh: t.vh, name: t.name, teamId: t.teamId, isGators: t.teamId === GATORS_ID, rows: battingRows, totals, notes, subLegend: legendSeed };
   }).filter(t => t.rows.length);
+}
+// Enrich each live lineup's substitute legend with "<result> for <player> in the
+// <inning>th", read from the play narratives — the same MLB-style reference the
+// parsed box score shows (see bsAttachSubLegend), so the live lineup tells you
+// WHEN a pinch hitter/runner or defensive sub entered, not just that he did.
+// Works from the already-summarized plays (plain text) instead of box HTML.
+function attachLineupSubLegend(lineups, plays) {
+  if (!Array.isArray(lineups) || !Array.isArray(plays)) return lineups;
+  const POS = /^(?:1b|2b|3b|ss|lf|cf|rf|c|dh|of|ph|pr)$/i;
+  const ann = {};       // sub (normalized name) -> { repl, type, inn }
+  const paRows = [];     // every plate-appearance narrative, in order, for findPA
+  for (const p of plays) {
+    const tx = String(p.text || '').trim(); if (!tx) continue;
+    const inn = Number(p.inning) || 0;
+    paRows.push({ inn, tx });
+    let m = tx.match(/^(.+?) pinch hit for (.+?)\.?$/i); if (m) { ann[normPlayerName(m[1])] = { repl: m[2].trim(), type: 'ph', inn }; continue; }
+    m = tx.match(/^(.+?) pinch ran for (.+?)\.?$/i); if (m) { ann[normPlayerName(m[1])] = { repl: m[2].trim(), type: 'pr', inn }; continue; }
+    m = tx.match(/^(.+?) to ([a-z0-9]+) for (.+?)\.?$/i);
+    if (m && POS.test(m[2]) && /^[A-Z]/.test(m[3].trim())) ann[normPlayerName(m[1])] = { repl: m[3].trim(), type: 'def', inn };
+  }
+  // The sub's first plate appearance at or after he entered — its result becomes
+  // the legend verb ("singled for X in the 7th"), matching the box.
+  const findPA = (full, minInn) => {
+    for (const p of paRows) {
+      if (p.inn < minInn || p.tx.indexOf(full + ' ') !== 0) continue;
+      const rest = p.tx.slice(full.length).trim();
+      if (BS_PA_RE.test(rest)) return { inn: p.inn, res: bsNormRes(rest) };
+    }
+    return null;
+  };
+  for (const t of lineups) {
+    if (!t.subLegend || !t.subLegend.length) continue;
+    for (const it of t.subLegend) {
+      const a = ann[normPlayerName(it.name)]; if (!a) continue;   // no announcement -> keep seeded "for <player>"
+      if (a.type === 'pr') { it.text = 'ran for ' + a.repl + ' in the ' + bsOrd(a.inn); continue; }
+      const pa = findPA(it.name, a.inn);
+      it.text = pa ? pa.res + ' for ' + a.repl + ' in the ' + bsOrd(pa.inn)
+                   : (a.type === 'ph' ? 'pinch-hit for ' : 'in for ') + a.repl + ' in the ' + bsOrd(a.inn);
+    }
+  }
+  return lineups;
 }
 
 // Per-team pitching line for the live box: each pitcher who has taken the mound,
@@ -4675,7 +4737,7 @@ if (require.main === module) {
     if (INNING_ALERT_TO.length && !mailReady) console.warn('[inning-alert] mailer NOT configured: INNING_ALERT_TO is set but GMAIL_USER/GMAIL_APP_PASSWORD are missing — no texts will send until they are set.');
     pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleRosterRefresh(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); setTimeout(pollStrikePct, 15000); setInterval(pollStrikePct, 3 * 60 * 60 * 1000); setTimeout(getPitcherRest, 20000); scheduleDailyStats(); });
 }
-module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, pitchersFromFeed, extractEventAuth,
+module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, attachLineupSubLegend, pitchersFromFeed, extractEventAuth,
   dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, applyStandingsOverride, MANUAL_STANDINGS_OVERRIDE, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseTeamRosterSlugs, parseGameLog, boxRowsForPlayer, aggBat, aggPit, buildRecord, lineIsShowable, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, applyPitcherOverrides, pitchingTotals, strikeCounts, inningAlertText, finalAlertText,
   parseLeagueResults, computeLeagueMetrics, cmpTwoTeam, rankTiedGroup, rankSecondHalf, buildPlayoffPicture, boxLooksComplete };
 
@@ -4865,6 +4927,9 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .lutbl tr.cur td.lunm{color:var(--gold2);}
 .lutbl tr.lusub td{border-top:0;}
 .lutbl tr.lusub td.lunm{padding-left:22px;}
+.lutbl td.lunm .lusublet{color:var(--mute);font-weight:400;margin-right:2px;}
+.lusleg{display:flex;flex-wrap:wrap;gap:3px 14px;margin-top:10px;font-size:11px;color:var(--mute);line-height:1.45;}
+.lusleg .lusl b{color:var(--gold2);font-weight:700;margin-right:3px;}
 .lutbl td.lpn,.lutbl th.lpn{text-align:center;font-family:'JetBrains Mono',monospace;width:1%;white-space:nowrap;}
 .lutbl tr.pttot td{border-top:2px solid var(--line);font-weight:700;color:var(--mute);}
 .lutbl tr.pttot td.lunm{color:var(--bone);text-transform:uppercase;font-size:10px;letter-spacing:.06em;}
@@ -5683,10 +5748,13 @@ function buildLineup(g){
     var nmeCell=slug?('<a class="bxp" data-slug="'+esc(slug)+'">'+esc(r.name)+'</a>'):noAddr(r.name);
     // Substitutes (pinch hitters/runners) sit under the player they replaced and
     // share his spot, so drop the number and indent the name, like the box score.
+    // The alphabet reference letter (a-, b-…) prefixes the name and keys the sub
+    // legend below, so you can see when the pinch hit/sub happened.
     var cls=(cur?'cur':'')+(r.sub?(cur?' ':'')+'lusub':'');
+    var subLet=(r.sub&&r.letter)?'<span class="lusublet">'+esc(r.letter)+'-</span>':'';
     rows+='<tr'+(cls?' class="'+cls+'"':'')+'><td class="lus">'+esc(r.sub?'':String(r.spot||''))+'</td>'+
       '<td>'+esc(r.pos||'')+'</td><td class="luu">'+esc(String(r.uni||''))+'</td>'+
-      '<td class="lunm">'+nmeCell+'</td>'+
+      '<td class="lunm">'+subLet+nmeCell+'</td>'+
       sc(r.ab)+sc(r.runs)+sc(r.hits)+sc(r.rbi)+sc(r.bb)+sc(r.k)+
       (showAvg?'<td class="lpn lavg">'+esc(r.seasonAvg||'N/A')+'</td>':'')+'</tr>';
   });
@@ -5702,7 +5770,15 @@ function buildLineup(g){
     '<th class="lpn">AB</th><th class="lpn">R</th><th class="lpn">H</th><th class="lpn">RBI</th><th class="lpn">BB</th><th class="lpn">K</th>'+
     (showAvg?'<th class="lpn" title="Season batting average">AVG</th>':'')+'</tr>';
   return '<div class="lineup"><div class="luh">Lineup</div>'+tabs+
-    '<div class="lubox"><table class="lutbl">'+head+rows+'</table></div>'+lineupNotes(team)+'</div>';
+    '<div class="lubox"><table class="lutbl">'+head+rows+'</table></div>'+lineupSubLegend(team)+lineupNotes(team)+'</div>';
+}
+// Alphabet substitution ledger under the lineup — one line per pinch hitter/
+// runner or defensive sub, keyed to the a-/b- letters on the rows above and
+// telling you when he entered ("a- pinch-hit for X in the 7th"), like the box.
+function lineupSubLegend(team){
+  var L=team&&team.subLegend;if(!L||!L.length)return '';
+  var p=L.map(function(s){return '<span class="lusl"><b>'+esc(s.letter)+'-</b>'+esc(s.text||('for '+(s.forName||'')))+'</span>';});
+  return '<div class="lusleg">'+p.join('')+'</div>';
 }
 function lineupNotes(team){
   var n=team&&team.notes;if(!n)return '';
