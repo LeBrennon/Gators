@@ -2054,11 +2054,11 @@ const ROSTER = [
   // it by name once it does and the note shows until his first game.
   { num: 25, name: 'Reid Snider',   slug: 'reidsnider',   pos: 'Utility', cls: 'Junior',   ht: '6-4', wt: '210', b: 'R', t: 'R', bday: '08/30/2004', home: 'Lake Charles, LA', school: 'Louisiana Tech', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
   // Scott's row was name-only on the sheet. His real Presto slug + bio (OF, Freshman, 6-4/190,
-  // Lake Charles, DOB 07/17/2005) come from the official Presto team roster; his 2025-26 school
-  // (Northwest Florida State College, an NJCAA program in Niceville FL) is from the NWF Raiders
-  // roster — he's a Klein Oak HS / Texas transfer committed to McNeese, matched by the exact
-  // 07/17/2005 DOB shared across Presto and Baseball-Reference. Note shows until his first game.
-  { num: 22, name: 'Matthew Scott', slug: 'matthewscott79tr', pos: 'OF', cls: 'Freshman', ht: '6-4', wt: '190', b: 'R', t: 'R', bday: '07/17/2005', home: 'Lake Charles, LA', school: 'Northwest Florida State College', note: 'Recently added — season stats will appear after his first game.' },
+  // Lake Charles, DOB 07/17/2005) come from the official Presto team roster. He's a Klein Oak HS
+  // / Texas transfer (identity matched by the exact 07/17/2005 DOB shared across Presto and
+  // Baseball-Reference); his school is now McNeese State, where he's committed. Note shows until
+  // his first game.
+  { num: 22, name: 'Matthew Scott', slug: 'matthewscott79tr', pos: 'OF', cls: 'Freshman', ht: '6-4', wt: '190', b: 'R', t: 'R', bday: '07/17/2005', home: 'Lake Charles, LA', school: 'McNeese State', note: 'Recently added — season stats will appear after his first game.' },
 ];
 
 // Coaching staff (gumbeauxgators.com/coaches). Shown beneath the player roster;
