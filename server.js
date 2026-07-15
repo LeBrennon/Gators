@@ -4787,7 +4787,7 @@ const APP = `<!DOCTYPE html>
 <meta name="twitter:description" content="Live scores, schedule, and roster for the Lake Charles Gumbeaux Gators.">
 <meta name="twitter:image" content="${SITE_URL}/og.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@500;600;700&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@500;600;700&family=JetBrains+Mono:wght@700&family=Yellowtail&display=swap" rel="stylesheet">
 <style>
 :root{--bayou:#16102b;--bayou2:#1e1640;--panel:#2b1e5c;--line:#41327a;--gator:#b9a6ee;--gator2:#4e3191;--purple:#714ad2;--gold:#ecc913;--gold2:#ffd633;--bone:#f0ede4;--mute:#9a8cc4;--away:#e0524a;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -5263,7 +5263,8 @@ function flash(el){el.classList.remove('flash');void el.offsetWidth;el.classList
 // fired when the Gators' run total ticks up during a live game. Pointer-events
 // are off and it hides itself when the last spark fades, so it never blocks taps.
 var FX=(function(){
-  var cv,ctx,parts=[],rockets=[],raf=0,endAt=0,W=0,H=0,dpr=1,bloom=0,banner=null;
+  var cv,ctx,parts=[],rockets=[],raf=0,endAt=0,W=0,H=0,dpr=1,bloom=0,hero=null;
+  var logoImg=null,logoOk=false; // the Gumbeaux Gators wordmark, drawn as the finale centerpiece
   var COLORS=['#ecc913','#ffd633','#714ad2','#b9a6ee','#f0ede4'];
   var GOLD=['#ecc913','#ffd633','#fff3b0']; // warm golds for drooping "willow" shells
   function size(){dpr=Math.min(window.devicePixelRatio||1,2);W=cv.clientWidth;H=cv.clientHeight;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);}
@@ -5334,30 +5335,44 @@ var FX=(function(){
       if(p.trail){ctx.strokeStyle=p.col;ctx.lineWidth=p.r;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-p.vx*1.4,p.y-p.vy*1.4);ctx.stroke();}
       ctx.beginPath();ctx.arc(p.x,p.y,p.flash?p.r*p.life:p.r,0,6.283);ctx.fill();
     }
-    if(banner)drawBanner();
+    if(hero)drawHero();
     ctx.globalAlpha=1;
-    if(!parts.length&&!rockets.length&&!banner&&Date.now()>endAt){cancelAnimationFrame(raf);raf=0;cv.style.display='none';}
+    if(!parts.length&&!rockets.length&&!hero&&Date.now()>endAt){cancelAnimationFrame(raf);raf=0;cv.style.display='none';}
   }
-  // The "GATORS WIN!" title for the finale — gold gradient with a purple outline,
-  // scales/fades in, holds with a soft pulse, then fades out.
-  function drawBanner(){
-    var t=Date.now()-banner.t;if(t>=banner.dur){banner=null;return;}
-    var p=t/banner.dur,appear=Math.min(1,t/280),fade=p>0.8?(1-(p-0.8)/0.2):1,
-        a=Math.max(0,Math.min(1,appear*fade)),y=H*0.30-(1-appear)*24,
-        fs=Math.min(W*0.13,74)*(1+0.03*Math.sin(t/90));
+  // The finale centerpiece: the Gumbeaux Gators wordmark logo scales in with a gold
+  // glow over the fireworks, and "Gators Win!" is set below it in Yellowtail — the
+  // closest athletic script to the logo's own gold lettering — gold with a dark
+  // outline to match. Both pop in, hold with a soft bob/pulse, then fade out.
+  function drawHero(){
+    var t=Date.now()-hero.t;if(t>=hero.dur){hero=null;return;}
+    var p=t/hero.dur,appear=Math.min(1,t/380),fade=p>0.86?(1-(p-0.86)/0.14):1,
+        a=Math.max(0,Math.min(1,appear*fade)),
+        pop=1-Math.pow(1-appear,3),          // ease-out scale-in
+        bob=Math.sin(t/560)*4,cx=W/2,textY;
     ctx.save();ctx.globalAlpha=a;ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.font='900 '+fs+'px Oswald, Arial, sans-serif';ctx.lineJoin='round';
-    ctx.shadowColor='rgba(0,0,0,.55)';ctx.shadowBlur=18;
-    ctx.lineWidth=fs*0.14;ctx.strokeStyle='#4e3191';ctx.strokeText('GATORS WIN!',W/2,y);ctx.shadowBlur=0;
-    var lg=ctx.createLinearGradient(0,y-fs*0.6,0,y+fs*0.6);
-    lg.addColorStop(0,'#fff3b0');lg.addColorStop(0.5,'#ffd633');lg.addColorStop(1,'#ecc913');
-    ctx.fillStyle=lg;ctx.fillText('GATORS WIN!',W/2,y);ctx.restore();
+    // logo, centered in the upper third with a warm glow behind it
+    if(logoOk&&logoImg.width){
+      var lw=Math.min(W*0.74,340)*(0.7+0.3*pop),lh=lw*(logoImg.height/logoImg.width),ly=H*0.21+bob;
+      ctx.shadowColor='rgba(255,214,51,.6)';ctx.shadowBlur=36;
+      ctx.drawImage(logoImg,cx-lw/2,ly-lh/2,lw,lh);ctx.shadowBlur=0;
+      textY=ly+lh/2+Math.min(W*0.11,60)*0.5;
+    }else{textY=H*0.30+bob;}
+    // "Gators Win!" in the matching gold script
+    var fs=Math.min(W*0.15,82)*(0.7+0.3*pop)*(1+0.03*Math.sin(t/90));
+    ctx.font="400 "+fs+"px 'Yellowtail','Oswald',cursive";ctx.lineJoin='round';
+    ctx.shadowColor='rgba(0,0,0,.5)';ctx.shadowBlur=16;
+    ctx.lineWidth=fs*0.11;ctx.strokeStyle='#100a1e';ctx.strokeText('Gators Win!',cx,textY);ctx.shadowBlur=0;
+    var lg=ctx.createLinearGradient(0,textY-fs*0.6,0,textY+fs*0.6);
+    lg.addColorStop(0,'#fff3b0');lg.addColorStop(0.5,'#ffd633');lg.addColorStop(1,'#e0b207');
+    ctx.fillStyle=lg;ctx.fillText('Gators Win!',cx,textY);ctx.restore();
   }
   // Lazily grab the canvas, honor reduced-motion, and show/size it. Returns false
   // when there's nothing to draw on or motion is suppressed.
   function ready(){
     if(!cv){cv=$('fx');if(!cv||!cv.getContext)return false;ctx=cv.getContext('2d');
       window.addEventListener('resize',function(){if(cv.style.display!=='none')size();});}
+    // Warm the wordmark logo (same-origin, already in the header, so usually cached).
+    if(!logoImg){logoImg=new Image();logoImg.onload=function(){logoOk=true;};logoImg.src='/gg-logo.png';}
     if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)return false;
     cv.style.display='block';if(!raf)size();return true;
   }
@@ -5370,9 +5385,12 @@ var FX=(function(){
     endAt=Date.now()+shots*280+2600;if(!raf)tick();
   }
   // The win celebration: a long, dense, multi-type barrage that builds to an
-  // all-at-once grand-finale volley of big shells, under a gold "GATORS WIN!" title.
+  // all-at-once grand-finale volley of big shells, around the Gators wordmark logo
+  // and a gold "Gators Win!" script.
   function finale(){
     if(!ready())return;
+    // Kick off the Yellowtail webfont so it's ready before the script line draws.
+    if(document.fonts&&document.fonts.load){try{document.fonts.load("60px 'Yellowtail'");}catch(e){}}
     var TYPES=['ring','ring','willow','palm','crackle'],t=0,last=0;
     // Phase 1 — a rolling ~7s barrage: shells of every type scattered across the
     // whole sky, often two on a beat.
@@ -5387,8 +5405,10 @@ var FX=(function(){
       for(var q=0;q<8;q++)launch({x:W*(0.08+q*0.11+Math.random()*0.03),ty:H*(0.05+Math.random()*0.28),
         type:Math.random()<0.5?'crackle':'ring',scale:1.5+Math.random()*0.7});
       bloom=Math.min(1.1,bloom+0.5);},d);})(last+300+w*520);
-    banner={t:Date.now(),dur:4600};
-    endAt=last+300+2*520+4000;if(!raf)tick();
+    var dur=last+300+2*520+4000;
+    endAt=Date.now()+dur;
+    hero={t:Date.now(),dur:dur}; // logo + script hold across the whole show, then fade
+    if(!raf)tick();
   }
   return {show:show,finale:finale};
 })();
