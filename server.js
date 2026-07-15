@@ -3737,7 +3737,13 @@ function loadBoxCache() {
 // the result; persists finals. Returns { ok, data, types } or { ok:false }.
 async function fetchBoxPage(id) {
   const cached = boxCache.get(id);
-  if (cached && (boxIsFinal(id) || Date.now() - cached.at < BOX_TTL_MS)) return { ok: true, data: cached.data, cached: true };
+  // A final's box is permanent — but only once it's the REAL box. A transient
+  // bot-gate / rate-limit response (served as a 200) parses to an empty,
+  // incomplete box; never treat that stub as the permanent final copy, or it
+  // poisons the box display AND the box-score stat fallback until the process
+  // restarts. For an incomplete final, fall through and re-fetch (bounded by the
+  // in-progress TTL so we don't hammer the source) until the real tables land.
+  if (cached && ((boxIsFinal(id) && boxLooksComplete(cached.data)) || Date.now() - cached.at < BOX_TTL_MS)) return { ok: true, data: cached.data, cached: true };
   if (boxInflight.has(id)) return boxInflight.get(id);
   const job = (async () => {
     const url = boxscoreUrl(id) + '?view=plays';
@@ -3750,7 +3756,10 @@ async function fetchBoxPage(id) {
     const p = parseBoxscore(page.body);
     const data = { id, teams: p.teams, line: p.line, box: p.box, pbp: p.pbp, counts: p.counts };
     boxCache.set(id, { data, at: Date.now() });
-    if (boxIsFinal(id)) saveBoxCache();
+    // Only persist a final's box once it's complete, so a gate/throttle stub is
+    // never written to disk and restored on the next boot as a permanent
+    // (poisoned) final copy.
+    if (boxIsFinal(id) && boxLooksComplete(data)) saveBoxCache();
     return { ok: true, data, types: p.types };
   })();
   boxInflight.set(id, job);
@@ -3831,8 +3840,19 @@ async function fillStatsFromBoxes(players) {
   const targets = players.map(pl => ({ pl, norm: normPlayerName(pl.name), bat: [], pit: [] }));
   const finals = (games || []).filter(g => g.state === 'final' && isGatorsGame(g));
   for (const g of finals) {
-    let res; try { res = await fetchBoxPage(g.id); } catch (e) { continue; }
-    if (!res || !res.ok || !res.data) continue;
+    // A recent game's box can be transiently bot-gated or rate-limited (the poll
+    // fetches every final's box in quick succession, which is exactly what trips
+    // the source's limiter). Without a retry the scan silently skips that game —
+    // so a player whose only appearance is in it, and who has no Presto player
+    // page yet, never gets a line. Back off and retry a few times, and require a
+    // COMPLETE box (a stub parses to an empty one) before trusting it.
+    let res = null;
+    for (let a = 0; a < 4; a++) {
+      try { res = await fetchBoxPage(g.id); } catch (e) { res = null; }
+      if (res && res.ok && res.data && boxLooksComplete(res.data)) break;
+      await sleep(1200 * (a + 1));
+    }
+    if (!res || !res.ok || !res.data || !boxLooksComplete(res.data)) continue;
     for (const t of targets) { const r = boxRowsForPlayer(res.data, t.norm); t.bat.push(...r.bat); t.pit.push(...r.pit); }
     await sleep(150);
   }
