@@ -224,6 +224,7 @@ const SPECIALS = {
 const GATORS_LOGO_BUF = fs.readFileSync(__dirname + '/gators-logo.png');
 const TCL_LOGO_BUF = fs.readFileSync(__dirname + '/tcl-logo.png');
 const GG_LOGO_BUF = fs.readFileSync(__dirname + '/gg-logo.png');
+const GATORS_MASCOT_BUF = fs.readFileSync(__dirname + '/gators-mascot.png');
 // Preload the on-disk social/PWA images once at boot rather than fs.readFileSync
 // on every request (icon-512 is ~200 KB; reading it sync per hit blocks the loop).
 const readAssetSafe = f => { try { return fs.readFileSync(__dirname + '/' + f); } catch (e) { return null; } };
@@ -3772,6 +3773,8 @@ app.get(['/gators-logo.png','/gators-logo.jpg'], (_q, r) => {
 });
 app.get('/tcl-logo.png', (_q, r) => { r.set('Content-Type','image/png'); r.set('Cache-Control','public, max-age=604800'); r.send(TCL_LOGO_BUF); });
 app.get(['/gg-logo.png','/gg-logo.jpg'], (_q, r) => { r.set('Content-Type','image/png'); r.set('Cache-Control','public, max-age=604800'); r.send(GG_LOGO_BUF); });
+// Wordmark-free jester-gator mascot (cut from gg-logo.png) — the win-finale centerpiece.
+app.get('/gators-mascot.png', (_q, r) => { r.set('Content-Type','image/png'); r.set('Cache-Control','public, max-age=604800'); r.send(GATORS_MASCOT_BUF); });
 // Social/link-preview image (Gumbeaux Gators logo, 1200x628) for iMessage etc.
 app.get('/og.jpg', (_q, r) => { if (!OG_BUF) return r.status(404).end(); r.set('Content-Type','image/jpeg'); r.set('Cache-Control','public, max-age=604800'); r.send(OG_BUF); });
 // PWA / home-screen icons (also the notification icon the service worker uses).
@@ -5358,13 +5361,15 @@ var FX=(function(){
         pop=1-Math.pow(1-appear,3),          // ease-out scale-in
         bob=Math.sin(t/560)*4,cx=W/2,textY;
     ctx.save();ctx.globalAlpha=a;ctx.textAlign='center';ctx.textBaseline='middle';
-    // logo, centered in the upper third with a warm glow behind it
+    // mascot, large and centered in the upper third with a warm glow behind it
     if(logoOk&&logoImg.width){
-      var lw=Math.min(W*0.74,340)*(0.7+0.3*pop),lh=lw*(logoImg.height/logoImg.width),ly=H*0.21+bob;
-      ctx.shadowColor='rgba(255,214,51,.6)';ctx.shadowBlur=36;
+      var lw=Math.min(W*0.66,300)*(0.78+0.22*pop),lh=lw*(logoImg.height/logoImg.width);
+      var maxH=H*0.44;if(lh>maxH){lh=maxH;lw=lh*(logoImg.width/logoImg.height);} // keep it on-screen on short viewports
+      var ly=H*0.24+bob;
+      ctx.shadowColor='rgba(255,214,51,.55)';ctx.shadowBlur=38;
       ctx.drawImage(logoImg,cx-lw/2,ly-lh/2,lw,lh);ctx.shadowBlur=0;
-      textY=ly+lh/2+Math.min(W*0.11,60)*0.5;
-    }else{textY=H*0.30+bob;}
+      textY=ly+lh/2+Math.min(W*0.12,64)*0.55;
+    }else{textY=H*0.34+bob;}
     // "Gators Win!" in the matching gold script
     var fs=Math.min(W*0.15,82)*(0.7+0.3*pop)*(1+0.03*Math.sin(t/90));
     ctx.font="400 "+fs+"px 'Yellowtail','Oswald',cursive";ctx.lineJoin='round';
@@ -5380,7 +5385,7 @@ var FX=(function(){
     if(!cv){cv=$('fx');if(!cv||!cv.getContext)return false;ctx=cv.getContext('2d');
       window.addEventListener('resize',function(){if(cv.style.display!=='none')size();});}
     // Warm the wordmark logo (same-origin, already in the header, so usually cached).
-    if(!logoImg){logoImg=new Image();logoImg.onload=function(){logoOk=true;};logoImg.src='/gg-logo.png';}
+    if(!logoImg){logoImg=new Image();logoImg.onload=function(){logoOk=true;};logoImg.src='/gators-mascot.png';}
     if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)return false;
     cv.style.display='block';if(!raf)size();return true;
   }
