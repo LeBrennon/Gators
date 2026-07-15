@@ -4927,6 +4927,9 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .lutbl tr.cur td.lunm{color:var(--gold2);}
 .lutbl tr.lusub td{border-top:0;}
 .lutbl tr.lusub td.lunm{padding-left:22px;}
+/* Indent the sub's position + number along with his name, as one nested entry.
+   A relative shift (not padding) so the POS/# columns keep the starters' width. */
+.lutbl tr.lusub td .lucd{position:relative;left:20px;}
 .lutbl td.lunm .lusublet{color:var(--mute);font-weight:400;margin-right:2px;}
 .lusleg{display:flex;flex-wrap:wrap;gap:3px 14px;margin-top:10px;font-size:11px;color:var(--mute);line-height:1.45;}
 .lusleg .lusl b{color:var(--gold2);font-weight:700;margin-right:3px;}
@@ -5747,13 +5750,16 @@ function buildLineup(g){
     var slug=team.isGators?gatorSlug(full):null;
     var nmeCell=slug?('<a class="bxp" data-slug="'+esc(slug)+'">'+esc(r.name)+'</a>'):noAddr(r.name);
     // Substitutes (pinch hitters/runners) sit under the player they replaced and
-    // share his spot, so drop the number and indent the name, like the box score.
-    // The alphabet reference letter (a-, b-…) prefixes the name and keys the sub
-    // legend below, so you can see when the pinch hit/sub happened.
+    // share his spot, so drop the number and indent the whole entry — position,
+    // number, and name together — under the starter, like the box score. The
+    // alphabet reference letter (a-, b-…) prefixes the name and keys the sub
+    // legend below, so you can see when the pinch hit/sub happened. The POS and #
+    // are wrapped so their sub-row indent is a layout-neutral shift (see .lucd)
+    // that doesn't widen those columns for the starters above.
     var cls=(cur?'cur':'')+(r.sub?(cur?' ':'')+'lusub':'');
     var subLet=(r.sub&&r.letter)?'<span class="lusublet">'+esc(r.letter)+'-</span>':'';
     rows+='<tr'+(cls?' class="'+cls+'"':'')+'><td class="lus">'+esc(r.sub?'':String(r.spot||''))+'</td>'+
-      '<td>'+esc(r.pos||'')+'</td><td class="luu">'+esc(String(r.uni||''))+'</td>'+
+      '<td><span class="lucd">'+esc(r.pos||'')+'</span></td><td class="luu"><span class="lucd">'+esc(String(r.uni||''))+'</span></td>'+
       '<td class="lunm">'+subLet+nmeCell+'</td>'+
       sc(r.ab)+sc(r.runs)+sc(r.hits)+sc(r.rbi)+sc(r.bb)+sc(r.k)+
       (showAvg?'<td class="lpn lavg">'+esc(r.seasonAvg||'N/A')+'</td>':'')+'</tr>';
