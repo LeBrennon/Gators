@@ -2597,8 +2597,7 @@ function seasonAvgFor(name, teamId) {
   // Opponent: prefer his own Presto player page (fetched via the team roster) —
   // that covers bats the league leaderboard drops under its min-AB cutoff — then
   // fall back to the leaderboard, then a first-initial + last-name match on it.
-  const rs = teamId && teamRosterSlugs[teamId];
-  const slug = rs && rs.byName[key];
+  const slug = teamRosterSlugFor(teamId, name);
   const bySlug = slug ? (rosterStats[slug] || {}).hit : null;
   if (usable(bySlug)) return String(bySlug.avg);
   const hit = leagueHitterStats[key];
@@ -3995,6 +3994,36 @@ function parseTeamRosterSlugs(html) {
   }
   return out;
 }
+// Abbreviated-name index (firstInitial|lastname -> slug) over one team's roster,
+// mirroring hitterAbbrIndex for the leaderboard. The live lineup only knows a bat
+// by his feed name, which can arrive abbreviated or slightly variant (missing
+// revname, a nickname, a first-name spelling diff) — so an exact roster match
+// misses and, for a bat under the leaderboard's min-AB cutoff, his AVG reads N/A.
+// This lets him still resolve to his own Presto page. Built lazily and cached on
+// the roster record so repeat lookups stay cheap; first name wins on a collision.
+function teamRosterAbbr(rec) {
+  if (!rec || !rec.byName) return {};
+  if (rec.abbr) return rec.abbr;
+  const idx = {};
+  for (const key in rec.byName) {
+    const p = key.split(' '); if (p.length < 2) continue;
+    const li = p[0][0] + '|' + p[p.length - 1];
+    if (!(li in idx)) idx[li] = rec.byName[key];
+  }
+  rec.abbr = idx;
+  return idx;
+}
+// Resolve an opponent player's name to his Presto slug from the cached team
+// roster: exact normalized match first, then the first-initial + last-name
+// fallback above. Returns null when the team roster isn't loaded or has no match.
+function teamRosterSlugFor(teamId, name) {
+  const rec = teamId && teamRosterSlugs[teamId];
+  if (!rec || !rec.byName) return null;
+  const key = normPlayerName(name); if (!key) return null;
+  if (rec.byName[key]) return rec.byName[key];
+  const p = key.split(' '); if (p.length < 2) return null;
+  return teamRosterAbbr(rec)[p[0][0] + '|' + p[p.length - 1]] || null;
+}
 async function ensureTeamRoster(teamId) {
   if (!teamId || teamId === GATORS_ID) return null;
   const cur = teamRosterSlugs[teamId];
@@ -4022,7 +4051,7 @@ async function loadOpponentLineupAvgs(teamId, names) {
     const byName = await ensureTeamRoster(teamId);
     if (!byName) return;
     const slugs = new Set();
-    for (const nm of (names || [])) { const s = byName[normPlayerName(nm)]; if (s) slugs.add(s); }
+    for (const nm of (names || [])) { const s = teamRosterSlugFor(teamId, nm); if (s) slugs.add(s); }
     for (const s of slugs) if (!rosterStats[s] || !recFresh(playerCache[s])) netLimit(() => fetchOpponentAvg(s));
   } catch (e) { logErr('loadOpponentLineupAvgs', e); }
 }
