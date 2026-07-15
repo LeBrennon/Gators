@@ -2054,12 +2054,15 @@ const ROSTER = [
   // from the team roster page) so his bundled headshot shows and season stats flow in; the
   // note shows until his first game.
   { num: 25, name: 'Reid Snider',   slug: 'reidsnidern8g1',   pos: 'Utility', cls: 'Junior',   ht: '6-4', wt: '210', b: 'R', t: 'R', bday: '08/30/2004', home: 'Lake Charles, LA', school: 'Louisiana Tech', note: 'Recently added — season stats will appear after his first game.' },
-  // Scott's row was name-only on the sheet. His real Presto slug + bio (OF, Freshman, 6-4/190,
-  // Lake Charles, DOB 07/17/2005) come from the official Presto team roster. He's a Klein Oak HS
-  // / Texas transfer (identity matched by the exact 07/17/2005 DOB shared across Presto and
-  // Baseball-Reference); his school is now McNeese State, where he's committed. Note shows until
-  // his first game.
-  { num: 22, name: 'Matthew Scott', slug: 'matthewscott79tr', pos: 'OF', cls: 'Freshman', ht: '6-4', wt: '190', b: 'R', t: 'R', bday: '07/17/2005', home: 'Lake Charles, LA', school: 'McNeese State', note: 'Recently added — season stats will appear after his first game.' },
+  // Scott's row was name-only on the sheet; bio (OF, Freshman, 6-4/190, Lake Charles, DOB
+  // 07/17/2005) is from the official Presto team roster. He's a Klein Oak HS / Texas transfer
+  // committed to McNeese, identity matched by the exact 07/17/2005 DOB. He joined the Gators
+  // MID-SUMMER from the Brazos Valley Bombers, and Presto does NOT merge a transferred player's
+  // line — his Gators page (matthewscott79tr) is empty, while his full summer batting line lives
+  // on his Bombers page (slug mattscottjzw4, listed there as "Matt Scott" #8, now Inactive). So
+  // his stats slug points at the Bombers page; his bundled headshot is keyed to that slug too.
+  // (Gators live/box matching is by name, so this only changes where his season stats come from.)
+  { num: 22, name: 'Matthew Scott', slug: 'mattscottjzw4', pos: 'OF', cls: 'Freshman', ht: '6-4', wt: '190', b: 'R', t: 'R', bday: '07/17/2005', home: 'Lake Charles, LA', school: 'McNeese State' },
 ];
 
 // Coaching staff (gumbeauxgators.com/coaches). Shown beneath the player roster;
