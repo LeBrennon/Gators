@@ -2050,9 +2050,10 @@ const ROSTER = [
   // bday stays blank. findSlug resolves his real Presto page by name once it exists.
   { num: 26, name: 'Shyler Smith', slug: 'shylersmith', pos: 'C', cls: 'Freshman', ht: '5-8', wt: '157', b: 'R', t: 'R', bday: '', home: 'Lake Charles, LA', school: 'Nunez CC', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
   // Added off the 7/14 gameday sheet (position players). Snider's bio is per the sheet
-  // (Junior, Louisiana Tech, DOB); his Presto page doesn't exist yet, so findSlug resolves
-  // it by name once it does and the note shows until his first game.
-  { num: 25, name: 'Reid Snider',   slug: 'reidsnider',   pos: 'Utility', cls: 'Junior',   ht: '6-4', wt: '210', b: 'R', t: 'R', bday: '08/30/2004', home: 'Lake Charles, LA', school: 'Louisiana Tech', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
+  // (Junior, Louisiana Tech, DOB). Real Presto slug set directly (reidsnidern8g1, resolved
+  // from the team roster page) so his bundled headshot shows and season stats flow in; the
+  // note shows until his first game.
+  { num: 25, name: 'Reid Snider',   slug: 'reidsnidern8g1',   pos: 'Utility', cls: 'Junior',   ht: '6-4', wt: '210', b: 'R', t: 'R', bday: '08/30/2004', home: 'Lake Charles, LA', school: 'Louisiana Tech', note: 'Recently added — season stats will appear after his first game.' },
   // Scott's row was name-only on the sheet. His real Presto slug + bio (OF, Freshman, 6-4/190,
   // Lake Charles, DOB 07/17/2005) come from the official Presto team roster. He's a Klein Oak HS
   // / Texas transfer (identity matched by the exact 07/17/2005 DOB shared across Presto and
