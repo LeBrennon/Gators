@@ -1154,6 +1154,13 @@ function summarizePlays(json) {
     if (closed) lastAfter = 3;
     else if (live && live.complete) lastAfter = 3;
     else if (live && live.inning === num && live.side === side) lastAfter = live.outs;
+    // The feed flips the status block to the next half the instant the 3rd out
+    // lands — a beat before it appends that half to the play-by-play. During that
+    // beat this (just-finished) half is still the last in the array (not "closed"),
+    // yet the live situation already sits ahead of it, so it's over: its last out
+    // brought the count to 3. Without this the final out would score 0 outs-made.
+    else if (live && (live.inning * 2 + (live.side === 'bot' ? 1 : 0)) >
+                      (num * 2 + (side === 'bot' ? 1 : 0))) lastAfter = 3;
     for (let i = 0; i < rows.length; i++) {
       const p = rows[i];
       const text = (p.narrative && val(p.narrative.text)) ? String(val(p.narrative.text)).trim() : '';
@@ -4851,6 +4858,7 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .lsit{display:flex;align-items:center;justify-content:center;gap:26px;}
 .lsit.lend .lcell{min-width:0;}
 .lsit.lend .ll{color:var(--gold2);}
+.btwnote{text-align:center;color:var(--mute);font-size:11px;font-style:italic;letter-spacing:.04em;margin:8px auto 0;}
 .lcell{text-align:center;min-width:46px;}
 .lcell .lv{font-family:'Oswald',sans-serif;font-weight:700;font-size:21px;color:var(--bone);line-height:1;display:flex;gap:6px;justify-content:center;align-items:center;min-height:21px;}
 .lcell .ll{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin-top:6px;}
@@ -5381,10 +5389,14 @@ function applyThirdOutHold(g){
   holdRealG=g;
   var L=g.live,liveInn=+L.inning||0,liveSide=(L.half==='Top')?'top':'bot';
   var lp=g.plays[g.plays.length-1];
-  // A half just ended when the newest narrated play sits in an earlier half than
-  // the live situation AND that play brought the out count to 3.
-  var ended=(lp.inning<liveInn||(lp.inning===liveInn&&lp.half!==liveSide))
-    &&((lp.outs||0)+(lp.outsMade||0)>=3);
+  // A half ends only on the 3rd out, and the feed flips the live block to the next
+  // half the instant that out lands. So once the newest narrated play sits in an
+  // earlier half than the live situation, that play IS the inning-ending out — no
+  // separate out-count check needed. (Don't gate on outsMade here: in the beat
+  // before the feed adds the new half to its play-by-play, the just-finished half
+  // isn't yet "closed", so its final out can be scored as 0 outs-made and an "==3"
+  // test would miss the boundary — the bug that still let the last out flash past.)
+  var ended=(lp.inning<liveInn||(lp.inning===liveInn&&lp.half!==liveSide));
   var now=Date.now();
   if(ended){
     var key=g.id+':'+lp.inning+':'+lp.half;
@@ -5525,7 +5537,8 @@ function buildLive(g){
     // 3rd-out hold frame: the feed has already flipped to the next half, so its
     // count/bases/matchup belong to the new inning. Show only "inning over · 3
     // outs" here; the play that ended the inning appears in the bubble below.
-    sit='<div class="lsit lend"><div class="lcell"><div class="lv">'+outsDots(3)+'</div><div class="ll">Inning over · 3 outs</div></div></div>';
+    sit='<div class="lsit lend"><div class="lcell"><div class="lv">'+outsDots(3)+'</div><div class="ll">Inning over · 3 outs</div></div></div>'+
+      '<div class="btwnote">* in between innings</div>';
   }else if(L){
     // Balls/strikes as separate spans so renderGame can glow just the digit that
     // ticked up on the latest pitch (see the count-glow block in renderGame).
