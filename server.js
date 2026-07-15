@@ -2002,7 +2002,7 @@ const ROSTER = [
   { num: 16, name: 'Daniel Midkiff',   slug: 'danielmidkifffqkb',    pos: 'P',       cls: 'Sophomore',    ht: '6-2',  wt: '208', b: 'R', t: 'R', bday: '05/20/2007', home: 'Buna, TX',         school: 'Lamar' },
   { num: 17, name: 'Ayden Sunday',     slug: 'aydensundayyp1j',      pos: 'OF',      cls: 'Sophomore',    ht: '6-0',  wt: '185', b: 'R', t: 'R', bday: '09/07/2006', home: 'Nederland, TX',    school: 'Lamar' },
   { num: 21, name: 'Bankston Lembcke', slug: 'bankstonlembckeoxyb',  pos: 'IF',      cls: 'Junior',       ht: '5-11', wt: '205', b: 'R', t: 'R', bday: '11/14/2005', home: 'Klein, TX',        school: 'Bradley' },
-  { num: 28, name: 'Andrew Ramos',     slug: 'andrewramos4y33',      pos: 'Utility', cls: 'Sophomore',    ht: '5-10', wt: '185', b: 'R', t: 'R', bday: '10/19/2006', home: 'Deer Park, TX',    school: 'San Jacinto CC' },
+  // Dropped off the 7/14 gameday sheet (Andrew Ramos, #28) — removed to match the active roster.
   // Added off the 6/28 gameday sheet; real Presto slug now set directly (was findSlug-matched by name).
   { num: 34, name: 'Brenyn Ebarb',     slug: 'brenynebarb6uqv',      pos: 'P',       cls: 'Graduate',     ht: '6-1',  wt: '195', b: 'R', t: 'R', bday: '05/04/2004', home: 'Zwolle, LA',       school: 'LSU-Alexandria', note: 'Recently added — season stats will appear after his first game.' },
   { num: 36, name: 'Jake Rider',       slug: 'jakeridergyu4',        pos: 'P',       cls: 'Junior',       ht: '6-4',  wt: '220', b: 'R', t: 'R', bday: '10/11/2005', home: 'Lake Charles, LA', school: 'Nunez CC' },
@@ -2049,6 +2049,16 @@ const ROSTER = [
   // Game profile; headshot cropped from his Nunez commitment announcement. No public DOB, so
   // bday stays blank. findSlug resolves his real Presto page by name once it exists.
   { num: 26, name: 'Shyler Smith', slug: 'shylersmith', pos: 'C', cls: 'Freshman', ht: '5-8', wt: '157', b: 'R', t: 'R', bday: '', home: 'Lake Charles, LA', school: 'Nunez CC', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
+  // Added off the 7/14 gameday sheet (position players). Snider's bio is per the sheet
+  // (Junior, Louisiana Tech, DOB); his Presto page doesn't exist yet, so findSlug resolves
+  // it by name once it does and the note shows until his first game.
+  { num: 25, name: 'Reid Snider',   slug: 'reidsnider',   pos: 'Utility', cls: 'Junior',   ht: '6-4', wt: '210', b: 'R', t: 'R', bday: '08/30/2004', home: 'Lake Charles, LA', school: 'Louisiana Tech', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
+  // Scott's row was name-only on the sheet. His real Presto slug + bio (OF, Freshman, 6-4/190,
+  // Lake Charles, DOB 07/17/2005) come from the official Presto team roster; his 2025-26 school
+  // (Northwest Florida State College, an NJCAA program in Niceville FL) is from the NWF Raiders
+  // roster — he's a Klein Oak HS / Texas transfer committed to McNeese, matched by the exact
+  // 07/17/2005 DOB shared across Presto and Baseball-Reference. Note shows until his first game.
+  { num: 22, name: 'Matthew Scott', slug: 'matthewscott79tr', pos: 'OF', cls: 'Freshman', ht: '6-4', wt: '190', b: 'R', t: 'R', bday: '07/17/2005', home: 'Lake Charles, LA', school: 'Northwest Florida State College', note: 'Recently added — season stats will appear after his first game.' },
 ];
 
 // Coaching staff (gumbeauxgators.com/coaches). Shown beneath the player roster;
@@ -6142,7 +6152,7 @@ function renderRoster(d){
     h+='<div class="pcard" data-slug="'+p.slug+'">'+
        '<div class="pnum">'+box+'</div>'+
        '<div class="pmain"><div class="pname"><span class="pnametext">'+esc(p.name)+'</span><span class="pjersey">'+(p.numTBD?'TBD':'#'+p.num)+'</span></div>'+
-       '<div class="pmeta"><b>'+esc(posLabel(p))+'</b> · '+esc(p.cls)+' · '+esc(p.school)+'</div></div>'+
+       '<div class="pmeta"><b>'+esc(posLabel(p))+'</b>'+[p.cls,p.school].filter(Boolean).map(function(x){return ' · '+esc(x);}).join('')+'</div></div>'+
        cardStats(p)+'<div class="pchev">›</div></div>';
   }
   if(d&&d.coaches&&d.coaches.length){
@@ -6209,7 +6219,7 @@ function openPlayer(slug){
     im.onload=function(){ph.classList.add('hasimg');ph.innerHTML='';ph.appendChild(im);};
     im.src=p.photo;}
   $('plName').textContent=p.name;
-  $('plSub').textContent=posLabel(p)+' · '+p.cls+' · '+p.school;
+  $('plSub').textContent=[posLabel(p),p.cls,p.school].filter(Boolean).join(' · ');
   var bio='<div class="bio">'+bi('Bats / Throws',(p.b||'—')+' / '+(p.t||'—'))+
     bi('Ht / Wt',(p.ht||'—')+(p.wt?(' · '+p.wt):''))+
     bi('Hometown',p.home||'—')+bi('School',p.school||'—')+
