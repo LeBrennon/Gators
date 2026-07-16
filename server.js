@@ -2111,7 +2111,10 @@ const ROSTER = [
   // each real Presto page by name once it exists, and the note shows until their first game.
   { num: 7,  name: 'Griffin Cooley', slug: 'griffincooley', pos: 'OF',      cls: 'R-Sophomore', ht: '6-2',  wt: '179', b: 'L', t: 'L', bday: '',           home: 'Kinder, LA',   school: 'LSU-Eunice',      findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
   { num: 13, name: 'Jackson Beddoe', slug: 'jacksonbeddoe', pos: 'IF',      cls: 'Freshman',    ht: '5-11', wt: '185', b: 'R', t: 'R', bday: '',           home: 'Sulphur, LA',  school: 'Pearl River CC',  findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
-  { num: 9,  name: 'Lane Sparks', slug: 'lanesparks', pos: 'OF', cls: 'Junior', ht: '6-0', wt: '175', b: 'L', t: 'L', bday: '12/28/2004', home: 'Brenham, TX', school: 'Lamar', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
+  // Now playing; findSlug never stuck (his page is under "Lane Sparks" but the swap
+  // wasn't applying), so his card read N/A even though Presto has a real line for him.
+  // Pin his real Presto slug directly so his season stats (.167, 6 G through 7/14) flow.
+  { num: 9,  name: 'Lane Sparks', slug: 'lanesparksgmxd', pos: 'OF', cls: 'Junior', ht: '6-0', wt: '175', b: 'L', t: 'L', bday: '12/28/2004', home: 'Brenham, TX', school: 'Lamar' },
   // Added off the 7/10 official roster (#26, position players). Catcher at Nunez CC (Nunez
   // Pelicans, Chalmette LA); a Class of 2025 grad out of Alfred M. Barbe HS (Lake Charles),
   // so 2025-26 is his freshman year. Bio (ht/wt, bats/throws, hometown, HS) from his Perfect
