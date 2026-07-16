@@ -554,10 +554,58 @@ function lineScoreFromPbp(data) {
   const row = t => '<tr>' + th(t.name) + t.inn.map(v => `<td>${v == null ? 'X' : v}</td>`).join('') + `<td>${t.r}</td><td>${t.h}</td><td>${t.e}</td></tr>`;
   return `<table>${head}${row(V)}${row(H)}</table>`;
 }
+// When the line score hasn't rendered, parseBoxscore can't name the box sections
+// and labels them generically ("Team 1 — Batting"). Recover each section's real
+// team from the play-by-play: a half-inning's batters belong to the team named in
+// its title, so match each section's batters to the top (visitor) vs bottom (home)
+// name sets. Mutates the box labels in place; a no-op once real names are present.
+function resolveGenericLabels(data) {
+  const box = data.box || [], pbp = data.pbp || [];
+  const generic = [...new Set(box.map(e => teamOf(e.label)).filter(t => /^Team \d+$/i.test(t)))];
+  if (!generic.length) return;
+  const surs = s => new Set((String(s).match(/[A-Z][a-z]+\s+[A-Z][a-z]+/g) || []).map(x => x.trim().split(/\s+/).pop().toLowerCase()));
+  const top = new Set(), bot = new Set(); let vName = '', hName = '';
+  for (const p of pbp) {
+    const title = txtOf(p.title || ''); const m = title.match(/(Top|Bottom)\s+of\s+\d+/i); if (!m) continue;
+    const team = title.replace(/\s+(Top|Bottom)\s+of\s+.*/i, '').trim(); const isTop = /top/i.test(m[1]);
+    for (const s of surs(txtOf(p.html || ''))) (isTop ? top : bot).add(s);
+    if (isTop) vName = vName || team; else hName = hName || team;
+  }
+  if (!vName || !hName) return;
+  const sectionSurs = html => {
+    const out = new Set();
+    for (const r of (String(html || '').match(/<tr[\s\S]*?<\/tr>/gi) || []).slice(1)) {
+      const c = (r.match(/<t[hd][\s\S]*?<\/t[hd]>/i) || [])[0]; if (!c) continue;
+      const nm = txtOf(c).replace(/\s*\([^)]*\)/g, '').trim();
+      if (!nm || /^(totals?|hitters|pitchers)$/i.test(nm)) continue;
+      const parts = nm.split(/\s+/).filter(w => /^[A-Z]/.test(w));
+      if (parts.length) out.add(parts[parts.length - 1].toLowerCase());
+    }
+    return out;
+  };
+  const nameFor = {};
+  generic.forEach((g, i) => {
+    const bat = box.find(e => teamOf(e.label) === g && /Batting/i.test(e.label));
+    const bs = bat ? sectionSurs(bat.html) : new Set();
+    const t = [...bs].filter(x => top.has(x)).length, b = [...bs].filter(x => bot.has(x)).length;
+    nameFor[g] = t === b ? (i === 0 ? vName : hName) : (t > b ? vName : hName);
+  });
+  // If the batter match is inconclusive and sent both to the same team, fall back
+  // to document order (visitor's tables render before the home team's).
+  if (generic.length === 2 && nameFor[generic[0]] === nameFor[generic[1]]) { nameFor[generic[0]] = vName; nameFor[generic[1]] = hName; }
+  for (const e of box) { const t = teamOf(e.label); if (nameFor[t]) e.label = e.label.replace(t, nameFor[t]); }
+}
+// Presto renders the line score (and the team-named box captions) minutes after the
+// last out. Until then, synthesize the runs-by-inning grid from the play-by-play and
+// recover each section's real team, so a box built the instant a game ends still
+// leads with a full line score and correctly-named tables. Idempotent.
+function ensureLineScore(data) {
+  if (data.line && String(data.line).trim()) return;
+  const syn = lineScoreFromPbp(data);
+  if (syn) { data.line = syn; resolveGenericLabels(data); }
+}
 function buildHtml(data) {
-  // Presto publishes the line score late; synthesize the runs-by-inning grid from
-  // the play-by-play in the meantime so the box always leads with it.
-  if (!(data.line && String(data.line).trim())) { const syn = lineScoreFromPbp(data); if (syn) data.line = syn; }
+  ensureLineScore(data);
   const teams = groupTeams(data.box || []);
   // Remove relievers listed with an empty batting line (they never hit); a
   // pitcher who actually batted in the DH slot has real numbers and stays.
@@ -621,19 +669,19 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 /* Absolutely positioned so its size doesn't stretch the band — the band height
    stays driven by the text, and the logo is enlarged within it. */
 .band img{position:absolute;left:16px;top:50%;transform:translateY(-50%);width:78px;height:78px;}
-.k{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#ffd633;font-weight:800;text-shadow:0 1px 2px rgba(0,0,0,.5);}
-.band h1{font-size:21px;font-weight:900;line-height:1.05;margin:2px 0;text-shadow:0 2px 4px rgba(0,0,0,.55);white-space:nowrap;}
+.k{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#ffd633;font-weight:800;}
+.band h1{font-size:21px;font-weight:900;line-height:1.05;margin:2px 0;white-space:nowrap;}
 .band h1 .hdate{display:block;font-size:12.5px;font-weight:700;letter-spacing:.01em;color:#efe7ff;margin-bottom:1px;}
-.band .sub{font-size:12px;font-weight:700;color:#efe7ff;text-shadow:0 1px 2px rgba(0,0,0,.5);}
+.band .sub{font-size:12px;font-weight:700;color:#efe7ff;}
 /* Scoreboard card: a self-contained panel (team name left, score right, winner
    in gold, a FINAL footer) so it reads as a scoreboard rather than loose text. */
 .badge{margin-left:auto;display:flex;flex-direction:column;justify-content:center;gap:2px;min-width:196px;padding:8px 14px;border-radius:10px;background:rgba(14,8,32,.34);border:1px solid rgba(255,214,51,.30);box-shadow:inset 0 0 0 1px rgba(255,255,255,.05);}
 .badge .sbrow{display:flex;align-items:baseline;justify-content:space-between;gap:22px;}
-.badge .snm{font-size:14px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#e4d9ff;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.5);}
-.badge .sval{font-size:24px;font-weight:900;line-height:1;color:#fff;font-variant-numeric:tabular-nums;text-shadow:0 2px 4px rgba(0,0,0,.5);}
+.badge .snm{font-size:14px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#e4d9ff;white-space:nowrap;}
+.badge .sval{font-size:24px;font-weight:900;line-height:1;color:#fff;font-variant-numeric:tabular-nums;}
 .badge .win .snm{color:#fff;}
 .badge .win .sval{color:#ffd633;}
-.badge .bstat{margin-top:4px;padding-top:5px;border-top:1px solid rgba(255,255,255,.16);text-align:center;font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#e7dcff;text-shadow:0 1px 2px rgba(0,0,0,.5);}
+.badge .bstat{margin-top:4px;padding-top:5px;border-top:1px solid rgba(255,255,255,.16);text-align:center;font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#e7dcff;}
 .linewrap{margin:11px 0 3px;}
 .linewrap table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;}
 .linewrap th,.linewrap td{border:1px solid #d9d2ec;padding:6px 10px;text-align:center;font-size:14px;}
@@ -784,10 +832,15 @@ async function main() {
   }
   const data = await getBox();
   if (!data || !data.box || !data.box.length) { console.error(`[box] no box score available${game ? ' for ' + game.id : ''} (offline? host not allowlisted? game not final yet?).`); process.exit(2); }
+  // Build the line score from the play-by-play if Presto hasn't posted it yet, so
+  // --strict can pass on a just-finished game the moment its plays are in. This must
+  // run BEFORE reconcileBoxWithFeed: it recovers the real team names on the box
+  // sections, which the feed reconciliation matches on to slot each side's pitching.
+  ensureLineScore(data);
   // Fix stale Presto pitching lines from the final live feed (see reconcileBoxWithFeed).
   try { await reconcileBoxWithFeed(data, (game && game.id) || (BOX_DATA && BOX_DATA.game && BOX_DATA.game.id)); } catch (e) { /* keep Presto's box if the feed is unavailable */ }
   if (STRICT && !(data.line && String(data.line).trim())) {
-    console.error(`[box] strict: the line score hasn't rendered yet${game ? ' for ' + game.id : ''} — the box is still finalizing. Retry shortly.`);
+    console.error(`[box] strict: no line score yet${game ? ' for ' + game.id : ''} — the play-by-play isn't posted either. Retry shortly.`);
     process.exit(3);
   }
   if (!game) deriveMeta(data);
@@ -799,4 +852,4 @@ async function main() {
 }
 
 if (require.main === module) main();
-module.exports = { groupTeams, notesLine };
+module.exports = { groupTeams, notesLine, lineScoreFromPbp, resolveGenericLabels, ensureLineScore };
