@@ -5348,26 +5348,29 @@ var FX=(function(){
     ctx.globalAlpha=1;
     if(!parts.length&&!rockets.length&&!hero&&Date.now()>endAt){cancelAnimationFrame(raf);raf=0;cv.style.display='none';}
   }
-  // The finale centerpiece: the Gumbeaux Gators wordmark logo scales in with a gold
-  // glow over the fireworks, and "Gators Win!" is set below it in Kaushan Script —
-  // a bold, slanted athletic brush script close to the wordmark's own lettering —
-  // gold with a dark outline to match. Pop in, hold with a soft bob/pulse, then fade.
+  // The finale centerpiece: the Gumbeaux Gators wordmark logo and a gold "Gators
+  // Win!" in Kaushan Script — a bold, slanted athletic brush script close to the
+  // wordmark's own lettering, gold with a dark outline. The pair bursts OUT of the
+  // fireworks (see finale): a shell flashes where they sit, then they pop in with an
+  // overshoot on top of it, hold with a soft bob/pulse, and fade at the end.
   function drawHero(){
     var t=Date.now()-hero.t;if(t>=hero.dur){hero=null;return;}
-    var p=t/hero.dur,appear=Math.min(1,t/380),fade=p>0.86?(1-(p-0.86)/0.14):1,
-        a=Math.max(0,Math.min(1,appear*fade)),
-        pop=1-Math.pow(1-appear,3),          // ease-out scale-in
+    var p=t/hero.dur,appear=Math.min(1,t/440),fade=p>0.86?(1-(p-0.86)/0.14):1,
+        // easeOutBack: scale from nothing, overshoot past full size, then settle —
+        // a punchy "pop" so the pair springs out of the shell burst behind it.
+        c1=2.2,c3=c1+1,pop=1+c3*Math.pow(appear-1,3)+c1*Math.pow(appear-1,2),
+        a=Math.max(0,Math.min(1,appear*2))*fade,
         bob=Math.sin(t/560)*4,cx=W/2,textY;
     ctx.save();ctx.globalAlpha=a;ctx.textAlign='center';ctx.textBaseline='middle';
     // logo, centered in the upper third with a warm glow behind it
     if(logoOk&&logoImg.width){
-      var lw=Math.min(W*0.74,340)*(0.7+0.3*pop),lh=lw*(logoImg.height/logoImg.width),ly=H*0.21+bob;
+      var lw=Math.min(W*0.74,340)*pop,lh=lw*(logoImg.height/logoImg.width),ly=H*0.21+bob;
       ctx.shadowColor='rgba(255,214,51,.6)';ctx.shadowBlur=36;
       ctx.drawImage(logoImg,cx-lw/2,ly-lh/2,lw,lh);ctx.shadowBlur=0;
       textY=ly+lh/2+Math.min(W*0.11,60)*0.5;
     }else{textY=H*0.30+bob;}
     // "Gators Win!" in the matching gold script
-    var fs=Math.min(W*0.15,82)*(0.7+0.3*pop)*(1+0.03*Math.sin(t/90));
+    var fs=Math.min(W*0.15,82)*pop*(1+0.03*Math.sin(t/90));
     ctx.font="400 "+fs+"px 'Kaushan Script','Oswald',cursive";
     // Kaushan is a wider, heavier script than before — shrink to fit so
     // 'Gators Win!' never runs off a narrow phone.
@@ -5421,7 +5424,15 @@ var FX=(function(){
       bloom=Math.min(1.1,bloom+0.5);},d);})(last+300+w*520);
     var dur=last+300+2*520+4000;
     endAt=Date.now()+dur;
-    hero={t:Date.now(),dur:dur}; // logo + script hold across the whole show, then fade
+    // The logo + script burst OUT of the fireworks a beat after the show opens: let a
+    // few shells go up first, then flash a bright shell right where the pair sits and
+    // pop them in on top of it — so they read as springing out of the fireworks.
+    var HDLY=560;
+    setTimeout(function(){if(cv.style.display==='none')return;
+      burst(W/2,H*0.21,'#ffd633',{type:'ring',scale:1.9});    // flash behind the logo
+      burst(W/2,H*0.30,'#fff3b0',{type:'crackle',scale:1.3});  // sparkle over the lettering
+      bloom=Math.min(1.2,bloom+0.7);
+      hero={t:Date.now(),dur:dur-HDLY};},HDLY);
     if(!raf)tick();
   }
   return {show:show,finale:finale};
