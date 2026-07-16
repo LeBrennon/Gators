@@ -4,7 +4,8 @@
 // row list (used by the Standings tab).
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { parseStandings, applyStandingsOverride, MANUAL_STANDINGS_OVERRIDE } = require('../server');
+const { parseStandings, applyStandingsOverride, MANUAL_STANDINGS_OVERRIDE,
+  gatorsGameResult, gatorsSeasonWL, applyGatorsAutoFloor } = require('../server');
 
 // A trimmed standings table shaped like the PrestoSports page: a header row with
 // short W/L/T codes and a team-name cell that links to /teams/<id>.
@@ -153,4 +154,76 @@ test('applyStandingsOverride: preserves the feed tie count and leaves other team
     assert.equal(parsed.map.lakecharlesgumbeauxgators.t, 2); // tie count untouched
     assert.deepEqual(parsed.map.victoriagenerals, { w: 20, l: 8, t: 0 });
   });
+});
+
+// gatorsSeasonWL()/applyGatorsAutoFloor(): the auto-maintaining record floor. It
+// derives the Gators' full-season W-L from the app's own finished games (which
+// mark final seconds after the last out) and floors the standings feed with it,
+// so the record is right the instant a game ends — no hand-set override.
+const gGame = (id, gatHome, gatScore, oppScore, state) => {
+  const gat = { id: GATORS, score: gatScore };
+  const opp = { id: 'z10kgms3gvy1eszs', score: oppScore }; // Rougarou
+  return { id, state: state || 'final', home: gatHome ? gat : opp, away: gatHome ? opp : gat };
+};
+
+test('gatorsGameResult: W/L from either home or away side, null for non-finals & ties', () => {
+  assert.equal(gatorsGameResult(gGame('1', true, 5, 4)), 'W');   // home win
+  assert.equal(gatorsGameResult(gGame('2', false, 3, 7)), 'L');  // away loss
+  assert.equal(gatorsGameResult(gGame('3', true, 2, 2)), null);  // tie -> neither
+  assert.equal(gatorsGameResult(gGame('4', true, 5, 4, 'live')), null); // not final
+  assert.equal(gatorsGameResult({ state: 'final', home: { id: 'x', score: 1 }, away: { id: 'y', score: 2 } }), null); // no Gators
+  assert.equal(gatorsGameResult(gGame('5', true, 5, null)), null); // missing score
+});
+
+test('gatorsSeasonWL: tallies wins and losses across finished Gators games only', () => {
+  const games = [
+    gGame('a', true, 5, 4),           // W
+    gGame('b', false, 2, 6),          // L
+    gGame('c', true, 8, 1),           // W
+    gGame('d', true, 3, 3, 'live'),   // ignored (live)
+  ];
+  assert.deepEqual(gatorsSeasonWL(games), { w: 2, l: 1 });
+});
+
+test('gatorsSeasonWL: null when no finished Gators games are known', () => {
+  assert.equal(gatorsSeasonWL([]), null);
+  assert.equal(gatorsSeasonWL([gGame('a', true, 5, 4, 'scheduled')]), null);
+});
+
+test('applyGatorsAutoFloor: lifts a lagging feed to the app-known record (the 6-5/7-5 bug)', () => {
+  // Feed still reads the pre-final full-season 18-16 (2H 6-5); the app knows the
+  // just-won game, so its full-season is 19-16 (2H 7-5).
+  const parsed = parsedFor(18, 16, 0, 'L1');
+  applyGatorsAutoFloor(parsed, { w: 19, l: 16 });
+  assert.deepEqual(parsed.map.lakecharlesgumbeauxgators, { w: 19, l: 16, t: 0 });
+  assert.equal(parsed.rows[0].w, 19);
+  assert.equal(parsed.rows[0].l, 16);
+});
+
+test('applyGatorsAutoFloor: no-ops once the feed has caught up (self-expiring)', () => {
+  const parsed = parsedFor(19, 16, 0, 'W1');
+  applyGatorsAutoFloor(parsed, { w: 19, l: 16 });
+  assert.deepEqual(parsed.map.lakecharlesgumbeauxgators, { w: 19, l: 16, t: 0 });
+});
+
+test('applyGatorsAutoFloor: never lowers a feed that leads the computed floor', () => {
+  // A stale/incomplete app game list must not drag a correct feed backwards.
+  const parsed = parsedFor(20, 16, 0, 'W2');
+  applyGatorsAutoFloor(parsed, { w: 19, l: 16 });
+  assert.equal(parsed.map.lakecharlesgumbeauxgators.w, 20);
+  assert.equal(parsed.rows[0].w, 20);
+});
+
+test('applyGatorsAutoFloor: floors W and L independently and preserves the tie count', () => {
+  const parsed = parsedFor(19, 15, 1, 'W1'); // feed a loss short
+  applyGatorsAutoFloor(parsed, { w: 19, l: 16 });
+  assert.equal(parsed.map.lakecharlesgumbeauxgators.w, 19);
+  assert.equal(parsed.map.lakecharlesgumbeauxgators.l, 16); // lagging L lifted
+  assert.equal(parsed.map.lakecharlesgumbeauxgators.t, 1);  // tie count untouched
+});
+
+test('applyGatorsAutoFloor: null record is a no-op', () => {
+  const parsed = parsedFor(18, 16, 0, 'L1');
+  applyGatorsAutoFloor(parsed, null);
+  assert.deepEqual(parsed.map.lakecharlesgumbeauxgators, { w: 18, l: 16, t: 0 });
 });
