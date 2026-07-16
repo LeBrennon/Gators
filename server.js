@@ -4794,9 +4794,10 @@ const APP = `<!DOCTYPE html>
 <meta name="twitter:description" content="Live scores, schedule, and roster for the Lake Charles Gumbeaux Gators.">
 <meta name="twitter:image" content="${SITE_URL}/og.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@500;600;700&family=JetBrains+Mono:wght@700&family=Yellowtail&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@500;600;700&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
 <style>
 :root{--bayou:#16102b;--bayou2:#1e1640;--panel:#2b1e5c;--line:#41327a;--gator:#b9a6ee;--gator2:#4e3191;--purple:#714ad2;--gold:#ecc913;--gold2:#ffd633;--bone:#f0ede4;--mute:#9a8cc4;--away:#e0524a;}
+@font-face{font-family:'Kaushan Script';font-style:normal;font-weight:400;font-display:block;src:url(data:font/woff2;base64,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) format('woff2'),url(data:font/ttf;base64,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) format('truetype');}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html{margin:0;background:var(--bayou);}
 body{margin:0;font-family:'Inter',system-ui,sans-serif;color:var(--bone);min-height:100vh;
@@ -5347,27 +5348,35 @@ var FX=(function(){
     ctx.globalAlpha=1;
     if(!parts.length&&!rockets.length&&!hero&&Date.now()>endAt){cancelAnimationFrame(raf);raf=0;cv.style.display='none';}
   }
-  // The finale centerpiece: the Gumbeaux Gators wordmark logo scales in with a gold
-  // glow over the fireworks, and "Gators Win!" is set below it in Yellowtail — the
-  // closest athletic script to the logo's own gold lettering — gold with a dark
-  // outline to match. Both pop in, hold with a soft bob/pulse, then fade out.
+  // The finale centerpiece: the Gumbeaux Gators wordmark logo and a gold "Gators
+  // Win!" in Kaushan Script — a bold, slanted athletic brush script close to the
+  // wordmark's own lettering, gold with a dark outline. The pair bursts OUT of the
+  // fireworks (see finale): a shell flashes where they sit, then they pop in with an
+  // overshoot on top of it, hold with a soft bob/pulse, and fade at the end.
   function drawHero(){
     var t=Date.now()-hero.t;if(t>=hero.dur){hero=null;return;}
-    var p=t/hero.dur,appear=Math.min(1,t/380),fade=p>0.86?(1-(p-0.86)/0.14):1,
-        a=Math.max(0,Math.min(1,appear*fade)),
-        pop=1-Math.pow(1-appear,3),          // ease-out scale-in
+    var p=t/hero.dur,appear=Math.min(1,t/440),fade=p>0.86?(1-(p-0.86)/0.14):1,
+        // easeOutBack: scale from nothing, overshoot past full size, then settle —
+        // a punchy "pop" so the pair springs out of the shell burst behind it.
+        c1=2.2,c3=c1+1,pop=1+c3*Math.pow(appear-1,3)+c1*Math.pow(appear-1,2),
+        a=Math.max(0,Math.min(1,appear*2))*fade,
         bob=Math.sin(t/560)*4,cx=W/2,textY;
     ctx.save();ctx.globalAlpha=a;ctx.textAlign='center';ctx.textBaseline='middle';
     // logo, centered in the upper third with a warm glow behind it
     if(logoOk&&logoImg.width){
-      var lw=Math.min(W*0.74,340)*(0.7+0.3*pop),lh=lw*(logoImg.height/logoImg.width),ly=H*0.21+bob;
+      var lw=Math.min(W*0.74,340)*pop,lh=lw*(logoImg.height/logoImg.width),ly=H*0.21+bob;
       ctx.shadowColor='rgba(255,214,51,.6)';ctx.shadowBlur=36;
       ctx.drawImage(logoImg,cx-lw/2,ly-lh/2,lw,lh);ctx.shadowBlur=0;
       textY=ly+lh/2+Math.min(W*0.11,60)*0.5;
     }else{textY=H*0.30+bob;}
     // "Gators Win!" in the matching gold script
-    var fs=Math.min(W*0.15,82)*(0.7+0.3*pop)*(1+0.03*Math.sin(t/90));
-    ctx.font="400 "+fs+"px 'Yellowtail','Oswald',cursive";ctx.lineJoin='round';
+    var fs=Math.min(W*0.15,82)*pop*(1+0.03*Math.sin(t/90));
+    ctx.font="400 "+fs+"px 'Kaushan Script','Oswald',cursive";
+    // Kaushan is a wider, heavier script than before — shrink to fit so
+    // 'Gators Win!' never runs off a narrow phone.
+    var tw=ctx.measureText('Gators Win!').width,maxw=W*0.9;
+    if(tw>maxw){fs*=maxw/tw;ctx.font="400 "+fs+"px 'Kaushan Script','Oswald',cursive";}
+    ctx.lineJoin='round';
     ctx.shadowColor='rgba(0,0,0,.5)';ctx.shadowBlur=16;
     ctx.lineWidth=fs*0.11;ctx.strokeStyle='#100a1e';ctx.strokeText('Gators Win!',cx,textY);ctx.shadowBlur=0;
     var lg=ctx.createLinearGradient(0,textY-fs*0.6,0,textY+fs*0.6);
@@ -5397,12 +5406,14 @@ var FX=(function(){
   // and a gold "Gators Win!" script.
   function finale(){
     if(!ready())return;
-    // Kick off the Yellowtail webfont so it's ready before the script line draws.
-    if(document.fonts&&document.fonts.load){try{document.fonts.load("60px 'Yellowtail'");}catch(e){}}
+    // Kick off the self-hosted Kaushan Script webfont so it's ready before the line draws.
+    if(document.fonts&&document.fonts.load){try{document.fonts.load("60px 'Kaushan Script'");}catch(e){}}
     var TYPES=['ring','ring','willow','palm','crackle'],t=0,last=0;
-    // Phase 1 — a rolling ~7s barrage: shells of every type scattered across the
-    // whole sky, often two on a beat.
-    for(var s=0;s<52;s++){t+=95+Math.random()*120;
+    // Phase 1 — a rolling barrage that runs a guaranteed ~9s (a while loop on
+    // elapsed time, not a fixed shell count with random gaps that could finish
+    // early), so the whole celebration always lasts well over 10s. Shells of every
+    // type scattered across the sky, often two on a beat.
+    while(t<9000){t+=130+Math.random()*150;
       (function(d){setTimeout(function(){if(cv.style.display==='none')return;
         launch({type:TYPES[Math.random()*TYPES.length|0],scale:0.9+Math.random()*0.5});
         if(Math.random()<0.5)launch({type:TYPES[Math.random()*TYPES.length|0],scale:0.9+Math.random()*0.5});
@@ -5413,9 +5424,17 @@ var FX=(function(){
       for(var q=0;q<8;q++)launch({x:W*(0.08+q*0.11+Math.random()*0.03),ty:H*(0.05+Math.random()*0.28),
         type:Math.random()<0.5?'crackle':'ring',scale:1.5+Math.random()*0.7});
       bloom=Math.min(1.1,bloom+0.5);},d);})(last+300+w*520);
-    var dur=last+300+2*520+4000;
+    var dur=last+300+2*520+3400;
     endAt=Date.now()+dur;
-    hero={t:Date.now(),dur:dur}; // logo + script hold across the whole show, then fade
+    // The logo + script burst OUT of the fireworks a beat after the show opens: let a
+    // few shells go up first, then flash a bright shell right where the pair sits and
+    // pop them in on top of it — so they read as springing out of the fireworks.
+    var HDLY=560;
+    setTimeout(function(){if(cv.style.display==='none')return;
+      burst(W/2,H*0.21,'#ffd633',{type:'ring',scale:1.9});    // flash behind the logo
+      burst(W/2,H*0.30,'#fff3b0',{type:'crackle',scale:1.3});  // sparkle over the lettering
+      bloom=Math.min(1.2,bloom+0.7);
+      hero={t:Date.now(),dur:dur-HDLY};},HDLY);
     if(!raf)tick();
   }
   return {show:show,finale:finale};
