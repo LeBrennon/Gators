@@ -2130,8 +2130,13 @@ const ROSTER = [
   // line — his Gators page (matthewscott79tr) is empty, while his full summer batting line lives
   // on his Bombers page (slug mattscottjzw4, listed there as "Matt Scott" #8, now Inactive). So
   // his stats slug points at the Bombers page; his bundled headshot is keyed to that slug too.
-  // (Gators live/box matching is by name, so this only changes where his season stats come from.)
-  { num: 22, name: 'Matthew Scott', slug: 'mattscottjzw4', pos: 'OF', cls: 'Freshman', ht: '6-4', wt: '190', b: 'R', t: 'R', bday: '07/17/2005', home: 'Lake Charles, LA', school: 'McNeese State' },
+  // (Gators live/box matching is by name; the box/feed list him as "Matthew Scott",
+  // so that stays as an `aka` alias — registered in GATOR_BY_NORM / ROSTER_BY_NAMEKEY —
+  // while the roster card shows "Matt".)
+  { num: 22, name: 'Matt Scott', slug: 'mattscottjzw4', pos: 'OF', cls: 'Freshman', ht: '6-4', wt: '190', b: 'R', t: 'R', bday: '07/17/2005', home: 'Lake Charles, LA', school: 'McNeese State', aka: ['Matthew Scott'] },
+  // Added off the 7/16 gameday roster (pitchers). HS Senior committed to McNeese; bio
+  // per the gameday sheet. findSlug resolves his real Presto page by name once it exists.
+  { num: 19, name: 'Jack Garcille', slug: 'jackgarcille', pos: 'P', cls: 'HS Senior', ht: '6-6', wt: '210', b: 'R', t: 'R', bday: '', home: 'Lake Charles, LA', school: 'McNeese State', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
 ];
 
 // Coaching staff (gumbeauxgators.com/coaches). Shown beneath the player roster;
@@ -2394,7 +2399,7 @@ function normPlayerName(n) {
   if (s.includes(',')) { const p = s.split(','); s = (p[1] + ' ' + p[0]).trim(); }
   return s.toLowerCase().replace(/\b(jr|sr|ii|iii|iv)\b/g, '').replace(/[^a-z\s]/g, '').replace(/\s+/g, ' ').trim();
 }
-const GATOR_BY_NORM = {}; for (const p of ROSTER) GATOR_BY_NORM[normPlayerName(p.name)] = p;
+const GATOR_BY_NORM = {}; for (const p of ROSTER) { GATOR_BY_NORM[normPlayerName(p.name)] = p; for (const a of p.aka || []) GATOR_BY_NORM[normPlayerName(a)] = p; }
 // Abbreviated-name index (firstInitial|lastname -> {t,s,c}) over the committed
 // league roster, so an opponent the live feed names slightly differently than the
 // roster PDF (a nickname, or an extra middle name) still resolves to a school +
@@ -2941,7 +2946,7 @@ function parsePitchingBB(tableHtml){
 }
 // nameKey -> roster player, so a box-score pitcher line can adopt the canonical
 // roster name/number even when Presto abbreviates or reorders it.
-const ROSTER_BY_NAMEKEY={}; for(const _p of ROSTER) ROSTER_BY_NAMEKEY[nameKey(_p.name)]=_p;
+const ROSTER_BY_NAMEKEY={}; for(const _p of ROSTER){ ROSTER_BY_NAMEKEY[nameKey(_p.name)]=_p; for(const a of _p.aka||[]) ROSTER_BY_NAMEKEY[nameKey(a)]=_p; }
 // Whole calendar days between two YYYYMMDD dates (b - a), timezone-agnostic.
 function ymdToUTC(ymd){ return Date.UTC(+ymd.slice(0,4), +ymd.slice(4,6)-1, +ymd.slice(6,8)); }
 function daysBetweenYmd(a,b){ return Math.round((ymdToUTC(b)-ymdToUTC(a))/86400000); }
