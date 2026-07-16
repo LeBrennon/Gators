@@ -461,30 +461,6 @@ function injectHBP(teams, pbp) {
   teams.forEach(t => { if (t.pitching) t.pitching = addHbpColumn(t.pitching, t._hbp); });
 }
 
-// PrestoSports occasionally drops a batter's row from a box while still counting
-// the line in the Totals — e.g. the pitcher's spot that starts batting once a DH is
-// forfeited (Guidry DH->1B), which Presto lists in neither the box nor the live
-// lineup. The listed rows then don't add up to the Totals. Return the missing line
-// (Totals minus the sum of the player rows) so the box can surface it and the
-// Totals reconcile, or null when everything already sums. Idle-pitcher rows removed
-// upstream are 0-for-0, so dropping them never creates a phantom gap here.
-function omittedBatter(html) {
-  const rows = String(html || '').match(/<tr[\s\S]*?<\/tr>/gi) || [];
-  if (rows.length < 3) return null;
-  const head = (rows[0].match(/<t[hd][\s\S]*?<\/t[hd]>/gi) || []).map(txtOf);
-  const cols = ['AB', 'R', 'H', 'RBI', 'BB', 'K'];
-  const idx = {}; for (const c of cols) { idx[c] = head.findIndex(h => h.toUpperCase() === c); if (idx[c] < 0) return null; }
-  let totals = null; const players = [];
-  for (const r of rows.slice(1)) {
-    const cells = (r.match(/<t[hd][\s\S]*?<\/t[hd]>/gi) || []).map(txtOf);
-    if (/^totals?$/i.test(cells[0] || '')) totals = cells; else players.push(cells);
-  }
-  if (!totals) return null;
-  const num = v => { const n = parseInt(v, 10); return Number.isFinite(n) ? n : 0; };
-  const diff = {}; let any = false;
-  for (const c of cols) { const summed = players.reduce((a, p) => a + num(p[idx[c]]), 0); diff[c] = num(totals[idx[c]]) - summed; if (diff[c]) any = true; }
-  return any ? diff : null;
-}
 // Notes object -> compact "2B: ... · HR: ... · E: ..." string (skip empties).
 const NOTE_ORDER = ['2B', '3B', 'HR', 'HBP', 'SB', 'CS', 'SF', 'SH', 'GDP', 'DP', 'LOB', 'E', 'PB', 'WP'];
 function notesLine(notes) {
@@ -537,13 +513,6 @@ function teamBlock(t) {
     const oLine = notesLine(offensive); if (oLine) notesRows.push(`<div>${oLine}</div>`);
     const eLine = notesLine(errNotes); if (eLine) notesRows.push(`<div>${eLine}</div>`);
     if (notesRows.length) sections.push(`<div class='boxnotes'>${notesRows.join('')}</div>`);
-    // If the source dropped a batter's row but kept the line in the Totals (the
-    // pitcher's spot after a forfeited DH), show the missing line so the Totals add up.
-    const om = omittedBatter(t.batting);
-    if (om) {
-      const parts = ['AB', 'R', 'H', 'RBI', 'BB', 'K'].filter(c => om[c]).map(c => `${c} ${om[c]}`);
-      sections.push(`<div class='boxnotes'><div><b>Unlisted by source</b> ${esc(parts.join(' · '))} <span style='color:#8a6d00'>(in totals)</span></div></div>`);
-    }
   }
   if (t.pitching) sections.push(`<div class='tcap pit'>${cap} — PITCHING</div><div class='tbl pit' style='flex:${rc(t.pitching)} 1 0'>${t.pitching}</div>`);
   // Brand the column to the team's color (Gators purple by default).
@@ -902,4 +871,4 @@ async function main() {
 }
 
 if (require.main === module) main();
-module.exports = { groupTeams, notesLine, lineScoreFromPbp, resolveGenericLabels, ensureLineScore, omittedBatter };
+module.exports = { groupTeams, notesLine, lineScoreFromPbp, resolveGenericLabels, ensureLineScore };
