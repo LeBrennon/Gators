@@ -33,3 +33,10 @@ The branded one-page box-score PDF (`scripts/box-score.js`, `npm run report:box`
 fixed set of generation steps and formatting conventions — proper-case names, indented
 substitutes with an alphabet legend, box notes, dual-position change notes, one-page fit,
 etc. Follow them for every game's box score. See `docs/agents/box-score-pdf.md`.
+
+### Roster sync
+
+The daily roster sync keeps the `ROSTER` array in `server.js` matching Lake Charles's
+active roster off the league's "TCL Updates" email. The authoritative source is the
+gameday roster PDF, auto-saved to Drive by `scripts/gmail-to-drive-roster.gs` (Presto is
+the fallback). See `docs/agents/roster-sync.md`.
