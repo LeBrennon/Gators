@@ -3473,12 +3473,57 @@ function applyStandingsOverride(parsed) {
     if (row) { row.w = w; row.l = l; if (correcting && o.streak != null) row.streak = o.streak; }
   }
 }
+// The Gators' win/loss from a single decided game (our schedule list), or null
+// for a game that isn't a finished Gators game with two scores. Ties (never seen
+// in this league) count as neither.
+function gatorsGameResult(g) {
+  if (!g || g.state !== 'final') return null;
+  const gat = (g.home && g.home.id === GATORS_ID) ? g.home : (g.away && g.away.id === GATORS_ID) ? g.away : null;
+  const opp = gat ? (gat === g.home ? g.away : g.home) : null;
+  if (!gat || !opp || gat.score == null || opp.score == null) return null;
+  const gs = Number(gat.score), os = Number(opp.score);
+  if (!Number.isFinite(gs) || !Number.isFinite(os) || gs === os) return null;
+  return gs > os ? 'W' : 'L';
+}
+// The Gators' full-season W-L computed from the app's OWN record of finished
+// games (parseSchedule marks each Gators game final with its score seconds after
+// the last out — long before the external standings feed ingests it). Returns
+// { w, l } or null when no finals are known.
+function gatorsSeasonWL(list) {
+  let w = 0, l = 0;
+  for (const g of (list || [])) { const r = gatorsGameResult(g); if (r === 'W') w++; else if (r === 'L') l++; }
+  return (w + l) ? { w, l } : null;
+}
+// Self-maintaining version of MANUAL_STANDINGS_OVERRIDE for the Gators: floor the
+// parsed standings up to the app-known full-season record so the second-half
+// record on every surface (scoreboard, Standings tab, /api/game, and the box-score
+// PDF that reads it) is right the instant a game goes final — no hand-set override
+// after each win. Floor semantics match applyStandingsOverride: it only ever lifts
+// a lagging feed and never lowers one, so it no-ops the moment the feed catches up.
+// Gators only — the app can't know other teams' full-season records from its own
+// schedule, so they stay feed-driven (with MANUAL_STANDINGS_OVERRIDE as the escape
+// hatch).
+function applyGatorsAutoFloor(parsed, wl) {
+  if (!wl) return;
+  const t = TEAMS[GATORS_ID]; if (!t) return;
+  const k = normName(t.name);
+  const feed = parsed.map[k];
+  const w = feed ? Math.max(feed.w, wl.w) : wl.w;
+  const l = feed ? Math.max(feed.l, wl.l) : wl.l;
+  parsed.map[k] = { w, l, t: (feed && feed.t) || 0 };
+  const row = parsed.rows.find(x => x.id === GATORS_ID);
+  if (row) { row.w = w; row.l = l; }
+}
 async function pollStandings() {
   try {
     const r = await fetchText(STANDINGS_URL, SCHEDULE_URL);
     if (!r.ok || !r.body) return;
     const parsed = parseStandings(r.body);
-    if (Object.keys(parsed.map).length) { applyStandingsOverride(parsed); standings = parsed.map; standingsTable = parsed.rows; standingsAt = Date.now(); }
+    if (Object.keys(parsed.map).length) {
+      applyStandingsOverride(parsed);
+      applyGatorsAutoFloor(parsed, gatorsSeasonWL(games));
+      standings = parsed.map; standingsTable = parsed.rows; standingsAt = Date.now();
+    }
   } catch (e) { logErr('pollStandings', e); /* keep previous standings */ }
 }
 // Season strike% for the Gators staff: walk every finished Gators game's box-score
@@ -4763,7 +4808,8 @@ if (require.main === module) {
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, attachLineupSubLegend, pitchersFromFeed, extractEventAuth,
   dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, applyStandingsOverride, MANUAL_STANDINGS_OVERRIDE, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseTeamRosterSlugs, parseGameLog, boxRowsForPlayer, aggBat, aggPit, buildRecord, lineIsShowable, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, applyPitcherOverrides, pitchingTotals, strikeCounts, inningAlertText, finalAlertText,
-  parseLeagueResults, computeLeagueMetrics, cmpTwoTeam, rankTiedGroup, rankSecondHalf, buildPlayoffPicture, boxLooksComplete, boxErrorResponse };
+  parseLeagueResults, computeLeagueMetrics, cmpTwoTeam, rankTiedGroup, rankSecondHalf, buildPlayoffPicture, boxLooksComplete, boxErrorResponse,
+  gatorsGameResult, gatorsSeasonWL, applyGatorsAutoFloor };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
