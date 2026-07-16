@@ -173,6 +173,19 @@ function boxPitchTotalIP(html) {
   }
   return 0;
 }
+// Reorder the feed's pitcher rows to match the order they appear in Presto's box
+// (order of appearance — starter first). The feed lists pitchers arbitrarily, so
+// rebuilding straight from it can put a late reliever on top. Any pitcher Presto
+// doesn't list (a stale box missing a reliever) sorts to the end.
+function orderFeedRows(prestoHtml, feedRows) {
+  const order = [];
+  for (const r of (String(prestoHtml || '').match(/<tr[\s\S]*?<\/tr>/gi) || []).slice(1)) {
+    const nm = txtOf((r.match(/<t[hd][\s\S]*?<\/t[hd]>/i) || [])[0] || '').replace(/\s*\([^)]*\)\s*$/, '');
+    if (nm && !/^totals?$/i.test(nm)) order.push(normName(nm));
+  }
+  const rank = n => { const i = order.indexOf(normName(n)); return i < 0 ? 999 : i; };
+  return (feedRows || []).slice().sort((a, b) => rank(a.name) - rank(b.name));
+}
 async function reconcileBoxWithFeed(data, id) {
   if (!data || !Array.isArray(data.box) || !/^\d{8}_[a-z0-9]+$/i.test(String(id || ''))) return;
   const feed = await fetchAppJSON('/debug/live?id=' + encodeURIComponent(id));
@@ -181,9 +194,15 @@ async function reconcileBoxWithFeed(data, id) {
     if (!/Pitching/i.test(sec.label || '')) continue;
     const fp = feed.pitchers.find(t => !!t.isGators === /gator|gumbeaux/i.test(sec.label));
     if (!fp || !(fp.rows && fp.rows.length)) continue;
-    if (ipToDec(fp.totals && fp.totals.ip) > boxPitchTotalIP(sec.html) + 0.05) {   // Presto's is short -> stale
-      sec.html = feedPitchingTable(fp);
-      console.error(`[box] pitching for "${sec.label}" was stale on Presto — rebuilt from the live feed (${fp.totals && fp.totals.ip} IP).`);
+    // Rebuild the pitching table from the live game-summary feed whenever the feed
+    // is at least as complete as Presto's box (same or more innings pitched). The
+    // feed is final at the last out and carries an accurate #P + strike% for EVERY
+    // pitcher, while Presto's box-score page routinely ships a reliever with a blank
+    // strike% ("-") or a wrong one (e.g. a scoreless-inning arm shown at 40%). Only
+    // skip the feed while it's still behind Presto's inning count (mid-settle). Keep
+    // Presto's pitcher ORDER (order of appearance) — the feed lists them arbitrarily.
+    if (ipToDec(fp.totals && fp.totals.ip) + 0.05 >= boxPitchTotalIP(sec.html)) {
+      sec.html = feedPitchingTable(Object.assign({}, fp, { rows: orderFeedRows(sec.html, fp.rows) }));
     }
   }
 }
@@ -442,6 +461,30 @@ function injectHBP(teams, pbp) {
   teams.forEach(t => { if (t.pitching) t.pitching = addHbpColumn(t.pitching, t._hbp); });
 }
 
+// PrestoSports occasionally drops a batter's row from a box while still counting
+// the line in the Totals — e.g. the pitcher's spot that starts batting once a DH is
+// forfeited (Guidry DH->1B), which Presto lists in neither the box nor the live
+// lineup. The listed rows then don't add up to the Totals. Return the missing line
+// (Totals minus the sum of the player rows) so the box can surface it and the
+// Totals reconcile, or null when everything already sums. Idle-pitcher rows removed
+// upstream are 0-for-0, so dropping them never creates a phantom gap here.
+function omittedBatter(html) {
+  const rows = String(html || '').match(/<tr[\s\S]*?<\/tr>/gi) || [];
+  if (rows.length < 3) return null;
+  const head = (rows[0].match(/<t[hd][\s\S]*?<\/t[hd]>/gi) || []).map(txtOf);
+  const cols = ['AB', 'R', 'H', 'RBI', 'BB', 'K'];
+  const idx = {}; for (const c of cols) { idx[c] = head.findIndex(h => h.toUpperCase() === c); if (idx[c] < 0) return null; }
+  let totals = null; const players = [];
+  for (const r of rows.slice(1)) {
+    const cells = (r.match(/<t[hd][\s\S]*?<\/t[hd]>/gi) || []).map(txtOf);
+    if (/^totals?$/i.test(cells[0] || '')) totals = cells; else players.push(cells);
+  }
+  if (!totals) return null;
+  const num = v => { const n = parseInt(v, 10); return Number.isFinite(n) ? n : 0; };
+  const diff = {}; let any = false;
+  for (const c of cols) { const summed = players.reduce((a, p) => a + num(p[idx[c]]), 0); diff[c] = num(totals[idx[c]]) - summed; if (diff[c]) any = true; }
+  return any ? diff : null;
+}
 // Notes object -> compact "2B: ... · HR: ... · E: ..." string (skip empties).
 const NOTE_ORDER = ['2B', '3B', 'HR', 'HBP', 'SB', 'CS', 'SF', 'SH', 'GDP', 'DP', 'LOB', 'E', 'PB', 'WP'];
 function notesLine(notes) {
@@ -494,6 +537,13 @@ function teamBlock(t) {
     const oLine = notesLine(offensive); if (oLine) notesRows.push(`<div>${oLine}</div>`);
     const eLine = notesLine(errNotes); if (eLine) notesRows.push(`<div>${eLine}</div>`);
     if (notesRows.length) sections.push(`<div class='boxnotes'>${notesRows.join('')}</div>`);
+    // If the source dropped a batter's row but kept the line in the Totals (the
+    // pitcher's spot after a forfeited DH), show the missing line so the Totals add up.
+    const om = omittedBatter(t.batting);
+    if (om) {
+      const parts = ['AB', 'R', 'H', 'RBI', 'BB', 'K'].filter(c => om[c]).map(c => `${c} ${om[c]}`);
+      sections.push(`<div class='boxnotes'><div><b>Unlisted by source</b> ${esc(parts.join(' · '))} <span style='color:#8a6d00'>(in totals)</span></div></div>`);
+    }
   }
   if (t.pitching) sections.push(`<div class='tcap pit'>${cap} — PITCHING</div><div class='tbl pit' style='flex:${rc(t.pitching)} 1 0'>${t.pitching}</div>`);
   // Brand the column to the team's color (Gators purple by default).
@@ -852,4 +902,4 @@ async function main() {
 }
 
 if (require.main === module) main();
-module.exports = { groupTeams, notesLine, lineScoreFromPbp, resolveGenericLabels, ensureLineScore };
+module.exports = { groupTeams, notesLine, lineScoreFromPbp, resolveGenericLabels, ensureLineScore, omittedBatter };

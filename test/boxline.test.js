@@ -6,7 +6,7 @@
 // Gators (visitor) 2, Baton Rouge Rougarou (home) 9, home team not batting the 9th.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { lineScoreFromPbp, resolveGenericLabels, ensureLineScore } = require('../scripts/box-score');
+const { lineScoreFromPbp, resolveGenericLabels, ensureLineScore, omittedBatter } = require('../scripts/box-score');
 
 // A half-inning entry as /api/boxscore delivers it: a title with the batting team
 // + Top/Bottom + inning, and an html body ending in the "Inning Summary" line.
@@ -68,6 +68,28 @@ test('resolveGenericLabels: leaves already-named sections untouched', () => {
     box: [{ label: `${GATORS} — Batting`, html: '<table></table>' }] };
   resolveGenericLabels(data);
   assert.equal(data.box[0].label, `${GATORS} — Batting`);
+});
+
+test('omittedBatter: reports the Totals-minus-rows gap when the source drops a batter', () => {
+  // 2 listed hitters (AB 4+3=7, K 1+2=3) but Totals say AB 10, K 4 — one 3-AB, 1-K
+  // batter (the pitcher's spot after a forfeited DH) was dropped by the source.
+  const html = `<table>
+    <tr><th>Hitters</th><th>AB</th><th>R</th><th>H</th><th>RBI</th><th>BB</th><th>K</th><th>LOB</th></tr>
+    <tr><th>Lane Sparks</th><td>4</td><td>1</td><td>1</td><td>0</td><td>0</td><td>1</td><td>1</td></tr>
+    <tr><th>Shyler Smith</th><td>3</td><td>0</td><td>0</td><td>0</td><td>0</td><td>2</td><td>0</td></tr>
+    <tr><th>Totals</th><td>10</td><td>1</td><td>1</td><td>0</td><td>0</td><td>4</td><td>1</td></tr>
+  </table>`;
+  assert.deepEqual(omittedBatter(html), { AB: 3, R: 0, H: 0, RBI: 0, BB: 0, K: 1 });
+});
+
+test('omittedBatter: returns null when the rows already sum to the Totals', () => {
+  const html = `<table>
+    <tr><th>Hitters</th><th>AB</th><th>R</th><th>H</th><th>RBI</th><th>BB</th><th>K</th><th>LOB</th></tr>
+    <tr><th>Lane Sparks</th><td>4</td><td>1</td><td>1</td><td>0</td><td>0</td><td>1</td><td>1</td></tr>
+    <tr><th>Shyler Smith</th><td>3</td><td>0</td><td>0</td><td>0</td><td>0</td><td>2</td><td>0</td></tr>
+    <tr><th>Totals</th><td>7</td><td>1</td><td>1</td><td>0</td><td>0</td><td>3</td><td>1</td></tr>
+  </table>`;
+  assert.equal(omittedBatter(html), null);
 });
 
 test('ensureLineScore: fills a missing line score and resolves labels; no-op when one exists', () => {
