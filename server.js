@@ -3801,6 +3801,22 @@ function loadBoxCache() {
     if (d && d.walks) Object.assign(boxWalkCache, d.walks);
   } catch (e) { /* no cache yet */ }
 }
+// Map an upstream box-page failure to the API's error response. 429/503 (and a
+// bare 502 from the proxy) are Presto rate-limiting or briefly gating a cold
+// box — transient, so flag them retryable and answer 503 so the client backs
+// off and tries again rather than showing the viewer a raw "box page 429".
+function boxErrorResponse(status) {
+  const transient = status === 429 || status === 503 || status === 502;
+  return {
+    status: transient ? 503 : 502,
+    body: {
+      error: transient
+        ? 'Box score is still loading — please try again in a moment.'
+        : 'Box score is unavailable for this game.',
+      retry: transient,
+    },
+  };
+}
 // Fetch + parse one box score, sharing one network request across concurrent
 // callers (box-score view and walk enrichment), with 429/503 backoff. Caches
 // the result; persists finals. Returns { ok, data, types } or { ok:false }.
@@ -4061,7 +4077,8 @@ app.get('/api/boxscore', async (q, r) => {
       // Source is rate-limiting: serve the last good copy rather than failing.
       const cached = boxCache.get(id);
       if (cached) { r.set('Cache-Control', 'public, max-age=120'); return r.json(await boxWithSeasonAvg(cached.data)); }
-      return r.status(502).json({ error: 'box page ' + res.status });
+      const e = boxErrorResponse(res.status);
+      return r.status(e.status).json(e.body);
     }
     r.set('Cache-Control', 'public, max-age=300');
     const data = await boxWithSeasonAvg(res.data);
@@ -4746,7 +4763,7 @@ if (require.main === module) {
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, attachLineupSubLegend, pitchersFromFeed, extractEventAuth,
   dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, applyStandingsOverride, MANUAL_STANDINGS_OVERRIDE, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseTeamRosterSlugs, parseGameLog, boxRowsForPlayer, aggBat, aggPit, buildRecord, lineIsShowable, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, applyPitcherOverrides, pitchingTotals, strikeCounts, inningAlertText, finalAlertText,
-  parseLeagueResults, computeLeagueMetrics, cmpTwoTeam, rankTiedGroup, rankSecondHalf, buildPlayoffPicture, boxLooksComplete };
+  parseLeagueResults, computeLeagueMetrics, cmpTwoTeam, rankTiedGroup, rankSecondHalf, buildPlayoffPicture, boxLooksComplete, boxErrorResponse };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
@@ -6028,7 +6045,7 @@ function connect(){
   // Coming back to the foreground: refresh at once instead of waiting out the
   // paused interval.
   document.addEventListener('visibilitychange',function(){if(!document.hidden){pollGame();loadSched();}});}
-var _box=null,_boxDate='';
+var _box=null,_boxDate='',_boxSeq=0;
 function bsScoreFromLine(line){try{var rows=line.match(new RegExp('<tr[^]*?</tr>','gi'))||[];var rs=[];rows.forEach(function(r){var c=r.match(new RegExp('<t[dh][^]*?</t[dh]>','gi'))||[];if(c.length>3){var nm=c[0].replace(/<[^>]+>/g,'').trim();if(nm&&!/^final$/i.test(nm))rs.push(c[c.length-3].replace(/<[^>]+>/g,'').trim());}});return rs.length>=2?rs[0]+'\u2013'+rs[1]:'';}catch(e){return'';}}
 function openBox(id,tab){var m=$('bxModal');m.classList.add('show');m.style.zIndex=++modalZ;syncBg();
   if(!rosterData)loadRoster(); // so tapping a Gators name in the box can open their profile
@@ -6039,13 +6056,32 @@ function openBox(id,tab){var m=$('bxModal');m.classList.add('show');m.style.zInd
   // header so it's clear which game opened (e.g. from a profile game-log date tap).
   _boxDate=boxDate(id);$('bxDate').textContent=_boxDate;
   $('bxBody').innerHTML='<div class="spin">Loading\u2026</div>';
-  fetch('/api/boxscore?id='+encodeURIComponent(id)).then(function(r){return r.json();}).then(function(d){
-    if(d.error){$('bxBody').innerHTML='<div class="spin">'+esc(d.error)+'</div>';return;}
+  loadBoxData(id,tab,0,++_boxSeq);}
+// Presto rate-limits (429) or briefly gates a cold box, so a past game's first
+// tap can come back empty even though the box exists. Retry transient failures a
+// few times with backoff before giving up, and never surface a raw status code.
+// The seq guard drops a late retry once the viewer has closed or opened another box.
+function loadBoxData(id,tab,attempt,seq){
+  var retry=function(){setTimeout(function(){if(seq===_boxSeq)loadBoxData(id,tab,attempt+1,seq);},700*(attempt+1));};
+  fetch('/api/boxscore?id='+encodeURIComponent(id)).then(function(r){
+    return r.json().then(function(d){return{ok:r.ok,d:d};},function(){return{ok:r.ok,d:null};});
+  }).then(function(res){
+    if(seq!==_boxSeq)return;
+    var d=res.d;
+    if(!d||d.error){
+      if((!d||d.retry||!res.ok)&&attempt<4){retry();return;}
+      $('bxBody').innerHTML='<div class="spin">'+esc((d&&d.error)||'Box score is temporarily unavailable. Please try again in a moment.')+'</div>';
+      return;
+    }
     _box=d;
     if(d.teams&&d.teams.length>=2)$('bxTtl').textContent=oppShort(d.teams[0])+' @ '+oppShort(d.teams[1]);
     if(d.line){var sc=bsScoreFromLine(d.line);if(sc)$('bxScore').textContent=sc;}
     showTab(tab);
-  }).catch(function(){$('bxBody').innerHTML='<div class="spin">Could not load box score.</div>';});}
+  }).catch(function(){
+    if(seq!==_boxSeq)return;
+    if(attempt<4){retry();return;}
+    $('bxBody').innerHTML='<div class="spin">Could not load box score.</div>';
+  });}
 function boxNotes(n){if(!n)return '';var order=['2B','3B','HR','SB','CS','E'],p=[];for(var i=0;i<order.length;i++){var k=order[i];if(n[k])p.push('<span class="bxn"><b>'+k+'</b> '+esc(n[k])+'</span>');}return p.length?'<div class="bxnotes">'+p.join('')+'</div>':'';}
 function subLegend(L){if(!L||!L.length)return '';var p=L.map(function(s){return '<span class="bxl"><b>'+esc(s.letter)+'-</b>'+esc(s.text||'')+'</span>';});return '<div class="bxleg">'+p.join('')+'</div>';}
 function showTab(which){$('tabBox').classList.toggle('on',which==='box');$('tabPbp').classList.toggle('on',which==='pbp');

@@ -6,7 +6,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { parseBoxscore } = require('../server');
+const { parseBoxscore, boxErrorResponse } = require('../server');
 
 const DASH = '—'; // em dash used in box section labels
 const HTML = fs.readFileSync(path.join(__dirname, 'fixtures', 'boxscore.html'), 'utf8');
@@ -239,6 +239,24 @@ test('parseBoxscore: detects the line score when PrestoSports prefixes it with a
     'Sherman Shadowcats ' + DASH + ' Batting',
   ]);
   assert.ok(box.some(b => /gator/i.test(b.label)), 'Gators side identifiable by label');
+});
+
+test('boxErrorResponse: rate-limit/gate statuses are retryable 503s, never a raw code', () => {
+  for (const status of [429, 503, 502]) {
+    const e = boxErrorResponse(status);
+    assert.equal(e.status, 503, `status ${status} -> 503`);
+    assert.equal(e.body.retry, true, `status ${status} flagged retryable`);
+    // The viewer must never see a bare upstream status code in the message.
+    assert.doesNotMatch(e.body.error, new RegExp(String(status)));
+    assert.doesNotMatch(e.body.error, /box page/i);
+  }
+});
+
+test('boxErrorResponse: a genuine failure is a non-retryable 502', () => {
+  const e = boxErrorResponse(404);
+  assert.equal(e.status, 502);
+  assert.equal(e.body.retry, false);
+  assert.doesNotMatch(e.body.error, /404/);
 });
 
 test('parseBoxscore: attaches each batting section\'s hitter-name -> Presto-slug map (for opponents\' box-score AVG)', () => {
