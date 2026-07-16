@@ -5409,9 +5409,11 @@ var FX=(function(){
     // Kick off the self-hosted Kaushan Script webfont so it's ready before the line draws.
     if(document.fonts&&document.fonts.load){try{document.fonts.load("60px 'Kaushan Script'");}catch(e){}}
     var TYPES=['ring','ring','willow','palm','crackle'],t=0,last=0;
-    // Phase 1 — a rolling ~7s barrage: shells of every type scattered across the
-    // whole sky, often two on a beat.
-    for(var s=0;s<52;s++){t+=95+Math.random()*120;
+    // Phase 1 — a rolling barrage that runs a guaranteed ~9s (a while loop on
+    // elapsed time, not a fixed shell count with random gaps that could finish
+    // early), so the whole celebration always lasts well over 10s. Shells of every
+    // type scattered across the sky, often two on a beat.
+    while(t<9000){t+=130+Math.random()*150;
       (function(d){setTimeout(function(){if(cv.style.display==='none')return;
         launch({type:TYPES[Math.random()*TYPES.length|0],scale:0.9+Math.random()*0.5});
         if(Math.random()<0.5)launch({type:TYPES[Math.random()*TYPES.length|0],scale:0.9+Math.random()*0.5});
@@ -5422,7 +5424,7 @@ var FX=(function(){
       for(var q=0;q<8;q++)launch({x:W*(0.08+q*0.11+Math.random()*0.03),ty:H*(0.05+Math.random()*0.28),
         type:Math.random()<0.5?'crackle':'ring',scale:1.5+Math.random()*0.7});
       bloom=Math.min(1.1,bloom+0.5);},d);})(last+300+w*520);
-    var dur=last+300+2*520+4000;
+    var dur=last+300+2*520+3400;
     endAt=Date.now()+dur;
     // The logo + script burst OUT of the fireworks a beat after the show opens: let a
     // few shells go up first, then flash a bright shell right where the pair sits and
