@@ -175,7 +175,14 @@ function boxPitchTotalIP(html) {
 }
 async function reconcileBoxWithFeed(data, id) {
   if (!data || !Array.isArray(data.box) || !/^\d{8}_[a-z0-9]+$/i.test(String(id || ''))) return;
-  const feed = await fetchAppJSON('/debug/live?id=' + encodeURIComponent(id));
+  let feed = await fetchAppJSON('/debug/live?id=' + encodeURIComponent(id));
+  // Once a game is fully over, the LIVE feed can drop its pitcher rows, so a late
+  // regeneration can't reconcile stale Presto IP. Fall back to a cached feed
+  // snapshot (BOX_FEED=/path/live.json) captured while the game was still live.
+  const hasPitchers = f => f && Array.isArray(f.pitchers) && f.pitchers.some(p => p.rows && p.rows.length);
+  if (!hasPitchers(feed) && process.env.BOX_FEED) {
+    try { feed = JSON.parse(fs.readFileSync(process.env.BOX_FEED, 'utf8')); } catch (e) { /* keep the live feed */ }
+  }
   if (!feed || !Array.isArray(feed.pitchers)) return;
   for (const sec of data.box) {
     if (!/Pitching/i.test(sec.label || '')) continue;
@@ -583,6 +590,9 @@ function buildHtml(data) {
   const gName = (lt && lt.find(t => t.gators)) ? lt.find(t => t.gators).name : 'Lake Charles Gumbeaux Gators';
   const oName = (lt && lt.find(t => !t.gators)) ? lt.find(t => !t.gators).name : (game.opp || opp);
   const gShort = teamShort(gName), oShort = teamShort(oName);
+  // Optional game label (e.g. "G1"/"G2" for a split doubleheader) — surfaced in the
+  // scoreboard footer so the box says which game it is, matching the filename.
+  const gLabel = (game && game.label) ? ' &middot; ' + esc(String(game.label)) : '';
   // Tint the opponent's name cell in the line score to their team color (the
   // Gators' stays purple), matching their table headers.
   let lineHtml = cleanTable(data.line);
@@ -629,11 +639,11 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
    in gold, a FINAL footer) so it reads as a scoreboard rather than loose text. */
 .badge{margin-left:auto;display:flex;flex-direction:column;justify-content:center;gap:2px;min-width:196px;padding:8px 14px;border-radius:10px;background:rgba(14,8,32,.34);border:1px solid rgba(255,214,51,.30);box-shadow:inset 0 0 0 1px rgba(255,255,255,.05);}
 .badge .sbrow{display:flex;align-items:baseline;justify-content:space-between;gap:22px;}
-.badge .snm{font-size:14px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#e4d9ff;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.5);}
-.badge .sval{font-size:24px;font-weight:900;line-height:1;color:#fff;font-variant-numeric:tabular-nums;text-shadow:0 2px 4px rgba(0,0,0,.5);}
+.badge .snm{font-size:14px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#e4d9ff;white-space:nowrap;}
+.badge .sval{font-size:24px;font-weight:900;line-height:1;color:#fff;font-variant-numeric:tabular-nums;}
 .badge .win .snm{color:#fff;}
 .badge .win .sval{color:#ffd633;}
-.badge .bstat{margin-top:4px;padding-top:5px;border-top:1px solid rgba(255,255,255,.16);text-align:center;font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#e7dcff;text-shadow:0 1px 2px rgba(0,0,0,.5);}
+.badge .bstat{margin-top:4px;padding-top:5px;border-top:1px solid rgba(255,255,255,.16);text-align:center;font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#e7dcff;}
 .linewrap{margin:11px 0 3px;}
 .linewrap table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;}
 .linewrap th,.linewrap td{border:1px solid #d9d2ec;padding:6px 10px;text-align:center;font-size:14px;}
@@ -692,7 +702,7 @@ background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1p
 .tbl table tr:nth-child(2n) th,.tbl table tr:nth-child(2n) td{background:#f0eafa;}
 .tbl tr:last-child th,.tbl tr:last-child td{background:#faf8ff;font-weight:800;border-bottom:none;}
 </style></head><body>`);
-  H.push(`<div class='band'><img src='${S.gatorsLogoDataUri()}'><div><div class='k'>Gumbeaux Gators · Official Box Score</div><h1><span class='hdate'>${esc(game.date)}, 2026</span>${game.home ? 'vs' : 'at'} ${esc(opp)}</h1>${T ? `<div class='sub'>Record ${T.w}-${T.l}</div>` : ''}</div><div class='badge'><div class='sbrow${gs > os ? ' win' : ''}'><span class='snm'>${esc(gShort)}</span><span class='sval'>${gs}</span></div><div class='sbrow${os > gs ? ' win' : ''}'><span class='snm'>${esc(oShort)}</span><span class='sval'>${os}</span></div><div class='bstat'>${innings === 9 ? 'Final' : 'Final &middot; ' + innings + ' inn'}</div></div></div>`);
+  H.push(`<div class='band'><img src='${S.gatorsLogoDataUri()}'><div><div class='k'>Gumbeaux Gators · Official Box Score</div><h1><span class='hdate'>${esc(game.date)}, 2026</span>${game.home ? 'vs' : 'at'} ${esc(opp)}</h1>${T ? `<div class='sub'>Record ${T.w}-${T.l}</div>` : ''}</div><div class='badge'><div class='sbrow${gs > os ? ' win' : ''}'><span class='snm'>${esc(gShort)}</span><span class='sval'>${gs}</span></div><div class='sbrow${os > gs ? ' win' : ''}'><span class='snm'>${esc(oShort)}</span><span class='sval'>${os}</span></div><div class='bstat'>${innings === 9 ? 'Final' : 'Final &middot; ' + innings + ' inn'}${gLabel}</div></div></div>`);
   H.push(line);
   H.push(`<div class='cols'>${teams.map(teamBlock).join('')}</div>`);
   H.push(`</body></html>`);

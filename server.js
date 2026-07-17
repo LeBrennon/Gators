@@ -1211,6 +1211,65 @@ function teamLineScores(json) {
   }));
 }
 
+// ---- box-score pre-stage: retain the live pitching feed from the 8th inning ----
+// The finished-game box (scripts/box-score.js) rebuilds stale/late PrestoSports
+// pitching from the live feed. But the instant the last out is recorded, Presto
+// empties the live feed's pitcher rows — so a box built even a minute after the
+// final can't reach them. Once the Gators' game enters its 8th inning (two innings
+// from the scheduled end: the 8th of a 9-inning game, the 6th of a 7), keep the
+// last-good full pitching feed on disk so /debug/live can still serve it after the
+// feed goes dark, and the automated final box is correct + ready the moment the
+// game ends. (The box PAGE itself is still warmed at the final, not mid-game — a
+// mid-game box would be cached stale under BOX_TTL; only the feed is retained here.)
+const PREBUILD_FEED_FILE = (process.env.CACHE_DIR || '.') + '/prebuild-feed.json';
+const PREBUILD_FEED_KEEP = 8;   // retain the last handful of games; prune the rest
+const prebuildFeed = new Map(); // id -> { pitchers, lineScore, at }
+(function loadPrebuildFeed() {
+  try { const d = JSON.parse(fs.readFileSync(PREBUILD_FEED_FILE, 'utf8')); if (d) for (const k of Object.keys(d)) prebuildFeed.set(k, d[k]); } catch (e) {}
+})();
+function savePrebuildFeed() {
+  if (prebuildFeed.size > PREBUILD_FEED_KEEP) {   // keep the newest few by capture time
+    const stale = [...prebuildFeed.entries()].sort((a, b) => (a[1].at || 0) - (b[1].at || 0)).slice(0, prebuildFeed.size - PREBUILD_FEED_KEEP);
+    stale.forEach(([k]) => prebuildFeed.delete(k));
+  }
+  try { fs.writeFileSync(PREBUILD_FEED_FILE, JSON.stringify(Object.fromEntries(prebuildFeed))); } catch (e) {}
+}
+// A pitching feed is usable only if at least one side still carries pitcher rows.
+const feedHasPitching = p => Array.isArray(p) && p.some(t => t && Array.isArray(t.rows) && t.rows.length > 0);
+// Two innings from the scheduled end — the 8th of a 9-inning game, the 6th of a 7.
+function atBoxPrestage(norm) {
+  const inn = parseInt(norm && norm.inning, 10) || 0;
+  const reg = (norm && norm.live && norm.live.schedInn) || 9;
+  return inn >= reg - 1;
+}
+// Each live poll from the 8th on (and at the final): keep the last-good full
+// pitching feed so it survives the feed going dark at the last out.
+const prebuildStarted = new Set(); // ids we've logged the pre-stage start for
+function retainPrebuildFeed(norm) {
+  if (!norm || !norm.id) return;
+  if (!(norm.status === 'final' || atBoxPrestage(norm))) return;
+  if (!feedHasPitching(norm.pitchers)) return;   // never overwrite good data with an empty feed
+  if (!prebuildStarted.has(norm.id)) { prebuildStarted.add(norm.id); process.stdout.write('\n[prestage] retaining pitching feed for ' + norm.id + ' (box ready at the final)\n'); }
+  prebuildFeed.set(norm.id, { pitchers: norm.pitchers, lineScore: norm.lineScore || null, at: Date.now() });
+  savePrebuildFeed();
+}
+// Post-final fallback for /debug/live: once the game is over Presto empties the
+// live feed's pitcher rows (and, after a server restart, even gates the box page
+// so auth can't be re-obtained). Splice in the last-good pre-stage snapshot so a
+// box built after the final still reconciles to the real final pitching. Applied
+// at every fetchLiveForGame exit, including the no-auth early return.
+function servePrebuildFallback(out, id) {
+  if (!feedHasPitching(out.pitchers) && prebuildFeed.has(id)) {
+    const snap = prebuildFeed.get(id);
+    if (snap && feedHasPitching(snap.pitchers)) {
+      out.pitchers = snap.pitchers;
+      if ((!out.teams || !out.teams.length) && snap.lineScore) out.teams = snap.lineScore;
+      out.prebuildFallback = true;
+    }
+  }
+  return out;
+}
+
 // Event id + hash don't change during a game, so cache them per boxscore id —
 // the tight live poll then only needs the lightweight liveupdate JSON.
 const liveAuthCache = {};
@@ -1228,7 +1287,7 @@ async function fetchLiveForGame(boxscoreId, wantRaw) {
     if (auth.e) liveAuthCache[boxscoreId] = { e: auth.e, h: auth.h || null };
     if (!auth.e) {
       out.snippet = snippetAround(page.body, 'liveupdate') || snippetAround(page.body, 'eventId') || snippetAround(page.body, 'gamecenter');
-      return out;
+      return servePrebuildFallback(out, boxscoreId);
     }
   }
   const feed = await fetchLiveUpdate(auth.e, auth.h, boxUrl);
@@ -1308,7 +1367,7 @@ async function fetchLiveForGame(boxscoreId, wantRaw) {
     out.feedKeys = Object.keys(feed.json);
     if (wantRaw) out.raw = feed.json;
   }
-  return out;
+  return servePrebuildFallback(out, boxscoreId);
 }
 
 // Build each team's current batting-order lineup card: spot, position,
@@ -2024,6 +2083,10 @@ async function refreshFeatured() {
         gatorsHome: !!norm.gatorsHome, live: norm.status === 'live', rows: side.rows };
     }
   }
+  // Pre-stage the box score: from the 8th inning on, keep the full live pitching
+  // feed so the finished box reconciles correctly even after Presto empties the
+  // feed at the last out (see retainPrebuildFeed).
+  try { retainPrebuildFeed(norm); } catch (e) { logErr('retainPrebuildFeed', e); }
   diffAlert(norm);
   try { checkInningAlerts(norm); } catch (e) { logErr('checkInningAlerts', e); }
   // Only push to SSE clients when the game actually changed. During a slow
@@ -4809,7 +4872,7 @@ if (require.main === module) {
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, attachLineupSubLegend, pitchersFromFeed, extractEventAuth,
   dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, applyStandingsOverride, MANUAL_STANDINGS_OVERRIDE, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseTeamRosterSlugs, parseGameLog, boxRowsForPlayer, aggBat, aggPit, buildRecord, lineIsShowable, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, applyPitcherOverrides, pitchingTotals, strikeCounts, inningAlertText, finalAlertText,
   parseLeagueResults, computeLeagueMetrics, cmpTwoTeam, rankTiedGroup, rankSecondHalf, buildPlayoffPicture, boxLooksComplete, boxErrorResponse,
-  gatorsGameResult, gatorsSeasonWL, applyGatorsAutoFloor };
+  gatorsGameResult, gatorsSeasonWL, applyGatorsAutoFloor, feedHasPitching, atBoxPrestage };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
