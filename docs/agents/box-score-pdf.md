@@ -18,6 +18,22 @@ out the post-final gate lag before sending. So the owner gets the box in their
 inbox within a few minutes of the last out without asking. Generate by hand only
 for a re-run or a game that predates the automation.
 
+### 8th-inning pre-stage (why the pitching is always right)
+
+The moment the last out is recorded, PrestoSports **empties the live feed's
+pitcher rows**, so a box built even a minute after the final can't reach them —
+which is why a late/manual build needs the `BOX_FEED` snapshot. To make the
+automated final box correct on its own, the live server (`server.js`,
+`retainPrebuildFeed`) starts **retaining the full pitching feed once the Gators'
+game enters its 8th inning** — two innings from the scheduled end, so the 8th of a
+9-inning game or the 6th of a 7-inning doubleheader game. It keeps the last-good
+snapshot on disk (`prebuild-feed.json`), and `/debug/live?id=…` serves it after the
+feed goes dark (`prebuildFallback: true` in the response). Since `box-score.js`'s
+`reconcileBoxWithFeed` already reads `/debug/live`, the game-final build then
+reconciles to the real final pitching automatically — no `BOX_FEED` needed. Nothing
+is emailed mid-game; only the feed is captured. (The box *page* is still warmed at
+the final, not the 8th — a mid-game box would be cached stale under `BOX_TTL`.)
+
 ## Generating one
 
 **Right after a game ends — one command (the fast path):**
@@ -55,8 +71,11 @@ never on the website). Deliver the file to the user; don't commit it.
 - **Stale pitching after the fact (`BOX_FEED`):** the pitching self-correct
   (`reconcileBoxWithFeed`) reads the live `/debug/live` feed, but once a game is
   fully over that feed drops its pitcher rows — so a *late* regeneration can't fix
-  a stale Presto IP. Point `BOX_FEED` at a `/debug/live?id=…` snapshot captured
-  while the game was still live and it's used as the fallback. `BOX_FEED=/path/live.json`.
+  a stale Presto IP. The live server now retains the feed from the 8th inning and
+  keeps serving it via `/debug/live` (see the pre-stage note above), so the app
+  path handles this automatically. `BOX_FEED` is the **manual/offline** fallback:
+  point it at a `/debug/live?id=…` snapshot captured while the game was still live
+  and it's used when the app's feed comes back empty. `BOX_FEED=/path/live.json`.
 - **Rendering:** local Chromium at `/opt/pw-browsers/chromium`, one US-letter page.
 - **Verify before sending:** render the HTML at *true letter pixel size*
   (`--window-size=816,1056`, i.e. 8.5×11 @ 96dpi) and eyeball it. A taller preview
