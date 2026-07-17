@@ -2042,6 +2042,12 @@ function buildLeagueBoard() {
 // broadcast. Used by both the schedule poll and the tighter live poll.
 async function refreshFeatured() {
   noteFinals(games);
+  // Floor the Gators' live standings record up to the app-known W-L every poll —
+  // the same correction pollStandings applies, but that only runs every 30 min, so
+  // without this the record (recordStr -> /api/game -> the box-score PDF) lags a
+  // game for up to half an hour after a final. Only ever raises a lagging feed
+  // (never lowers), and no-ops once the feed catches up.
+  try { if (Object.keys(standings).length) applyGatorsAutoFloor({ map: standings, rows: standingsTable }, gatorsSeasonWL(games)); } catch (e) { logErr('autoFloorFeatured', e); }
   const chosen = pick(games);
   if (!chosen) return;
   const norm = normalizeFeatured(chosen);
