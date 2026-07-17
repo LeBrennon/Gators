@@ -151,8 +151,26 @@ const PLAYS = {
 test('summarizePlays: flattens narrated plays with inning/half and skips empties', () => {
   const p = summarizePlays(PLAYS);
   assert.equal(p.length, 3);
-  assert.deepEqual(p[0], { inning: 1, half: 'top', team: 'LAKE CHA', outs: 0, outsMade: 0, scored: false, text: 'Nathan McDonald singled to third base (2-2 KBKFB).' });
+  assert.deepEqual(p[0], { inning: 1, half: 'top', team: 'LAKE CHA', outs: 0, outsMade: 0, isPa: true, scored: false, text: 'Nathan McDonald singled to third base (2-2 KBKFB).' });
   assert.equal(p[2].half, 'bot');
+});
+
+test('summarizePlays: isPa marks plate appearances, not baserunning/scoring rows', () => {
+  // The live "Last play" bubble keys off isPa to keep showing a mid-at-bat run
+  // while the batter is still up, so a plate-appearance result and a baserunning
+  // row have to be told apart.
+  const feed = { plays: { format: 'summary', inning: [
+    { number: '1', batting: [
+      { vh: 'V', id: 'LAKE CHA', play: [
+        { seq: '1', outs: '0', narrative: { text: 'Reid Snider singled to left (1-1 BK).' } },   // plate appearance
+        { seq: '2', outs: '0', narrative: { text: 'Reid Snider stole second.' } },               // baserunning only
+      ] },
+    ] },
+  ] } };
+  const p = summarizePlays(feed);
+  assert.equal(p.length, 2);
+  assert.equal(p[0].isPa, true);   // the single
+  assert.equal(p[1].isPa, false);  // the steal
 });
 
 test('summarizePlays: outsMade counts the outs a play recorded (single vs out)', () => {
