@@ -2350,6 +2350,31 @@ function aggPit(gl) {
   return { app: String(gl.length), ip: outsToIp(outs), h: String(h), r: String(r), er: String(er), bb: String(bb), k: String(k),
     era: (er * 9 / ipDec).toFixed(2), whip: ((h + bb) / ipDec).toFixed(2) };
 }
+// Combine two season stat lines into one total — used for a mid-season transfer
+// whose season is split across two teams' separate Presto pages, so his headline
+// numbers are his real full-season totals. Counting stats add; rate stats (AVG,
+// OBP, SLG / ERA, WHIP) are recomputed from the summed totals, not averaged.
+const CN = v => { const n = Number(v); return isFinite(n) ? n : 0; };
+const f3 = x => x.toFixed(3).replace(/^0/, '');
+function combineHit(a, b) {
+  if (!a || !b) return a || b || null;
+  const s = k => CN(a[k]) + CN(b[k]);
+  const ab = s('ab'), h = s('h'), bb = s('bb'), hbp = s('hbp'), sf = s('sf'), tb = s('tb');
+  const obDen = ab + bb + hbp + sf;
+  const out = { gp: String(s('gp')), pa: String(s('pa')), ab: String(ab), r: String(s('r')), h: String(h),
+    hr: String(s('hr')), rbi: String(s('rbi')), bb: String(bb), k: String(s('k')), sb: String(s('sb')), tb: String(tb),
+    avg: ab ? f3(h / ab) : '.000', obp: obDen ? f3((h + bb + hbp) / obDen) : '.000', slg: ab ? f3(tb / ab) : '.000' };
+  const d2 = s('2b'), d3 = s('3b'), hb = s('hbp'); if (d2) out['2b'] = String(d2); if (d3) out['3b'] = String(d3); if (hb) out.hbp = String(hb);
+  return out;
+}
+function combinePit(a, b) {
+  if (!a || !b) return a || b || null;
+  const s = k => CN(a[k]) + CN(b[k]);
+  const outs = ipToOuts(a.ip) + ipToOuts(b.ip), er = s('er'), h = s('h'), bb = s('bb'), ipDec = outs / 3;
+  return { app: String(s('app')), gs: String(s('gs')), w: String(s('w')), l: String(s('l')), sv: String(s('sv')),
+    ip: outsToIp(outs), h: String(h), r: String(s('r')), er: String(er), bb: String(bb), k: String(s('k')),
+    era: ipDec ? (er * 9 / ipDec).toFixed(2) : '0.00', whip: ipDec ? ((h + bb) / ipDec).toFixed(2) : '0.00' };
+}
 
 // League hitting/pitching leaderboard (wide table) -> { slug: {col: val} } for Gators only.
 // NOTE: the pitching leaderboard renders its real columns (era/ip/w/l) via JavaScript;
@@ -3307,12 +3332,16 @@ function rosterPayload() {
       hitRanks: effectiveHitRanks(p.slug, s.hit, s.hitRanks),
       photo: playerPhotos[p.slug] ? ('/api/photo?slug=' + p.slug) : null,
     };
-    // Mid-season transfer: hand the card a compact prior-team line (labeled as
-    // that team's, not the Gators') so it can show a "prev." chip. Full detail —
-    // ranks and game logs — comes from /api/player when the profile is opened.
+    // Mid-season transfer: his card headline is his COMBINED full-season totals
+    // across both teams (his real AVG/HR/RBI, not just his Gators line). The
+    // prior-team line rides along so the card can tag the total as spanning two
+    // teams; the per-team breakdown + game logs come from /api/player on open.
     if (p.priorStint) {
       const pr = rosterStats[p.priorStint.slug];
       extra.prior = { team: p.priorStint.team, hit: (pr && pr.hit) || null, pit: (pr && pr.pit) || null };
+      extra.hit = combineHit(s.hit, pr && pr.hit);
+      extra.pit = combinePit(s.pit, pr && pr.pit);
+      extra.hitRanks = {}; // a cross-team total has no single league rank
     }
     return Object.assign({}, p, s, extra);
   });
@@ -4654,11 +4683,15 @@ app.get('/api/player', async (q, r) => {
         const pr = await getPlayer(pl.priorStint.slug);
         if (pr) {
           const strip = rows => (rows || []).map(g => Object.assign({}, g, { boxId: '', boxUrl: '' }));
-          out = Object.assign({}, out, { prior: {
-            team: pl.priorStint.team,
-            hit: pr.hit || null, pit: pr.pit || null,
-            glBat: strip(pr.glBat), glPit: strip(pr.glPit),
-          } });
+          out = Object.assign({}, out, {
+            // His real full-season totals across both teams, shown as the headline.
+            combined: { hit: combineHit(p && p.hit, pr.hit), pit: combinePit(p && p.pit, pr.pit) },
+            prior: {
+              team: pl.priorStint.team,
+              hit: pr.hit || null, pit: pr.pit || null,
+              glBat: strip(pr.glBat), glPit: strip(pr.glPit),
+            },
+          });
         }
       } catch (e) {}
     }
@@ -5282,6 +5315,7 @@ body.noscroll{overflow:hidden;}
 /* Transfer stint separators: a gold "current team" tag and a muted "previous team"
    tag that group the two labeled sets of stat blocks and game logs. */
 .teamtag{margin:16px 14px 0;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;font-size:11.5px;letter-spacing:.09em;color:var(--gold2);display:flex;flex-direction:column;gap:2px;}
+.teamtag.tot{color:var(--gold);}
 .teamtag.cur{color:var(--gold2);}
 .teamtag.prev{color:var(--mute);}
 .teamtag .tsub{font-weight:400;text-transform:none;letter-spacing:0;font-size:10.5px;color:var(--mute);}
@@ -6579,13 +6613,11 @@ function cardStats(p){
   if(p.hit){var hr=p.hit.hr;if(hr!=null&&hr!==''&&hr!=='-'&&Number(hr)>0)third=['hr','HR'];}
   var bat=(p.hit&&!cardPitcherOnly(p))?('<div class="pstline">'+sline(p.hit,[['avg','AVG'],third,['rbi','RBI']])+'</div>'):'';
   var pit=p.pit?('<div class="pstline pit">'+sline(p.pit,[['era','ERA'],['ip','IP'],['k','K']])+'</div>'):'';
-  // Mid-season transfer: show his previous team's line right below his Gators line,
-  // tagged with that team so it reads as prior-team stats, not Gators stats.
+  // Mid-season transfer: the line above is his COMBINED total across both teams,
+  // so tag it as spanning two teams (breakdown lives on his profile).
   var prev='';
   if(p.prior&&(p.prior.hit||p.prior.pit)){
-    var ph=p.prior.hit,pp=p.prior.pit;
-    var pv=ph?sline(ph,[['avg','AVG'],(ph.hr&&Number(ph.hr)>0?['hr','HR']:['h','H']),['rbi','RBI']]):(pp?sline(pp,[['era','ERA'],['ip','IP'],['k','K']]):'');
-    prev='<div class="pstprev"><span class="ptag">prev · '+esc(oppShort(p.prior.team))+'</span>'+(pv?'<span class="pv">'+pv+'</span>':'')+'</div>';
+    prev='<div class="pstprev"><span class="ptag">combined · incl. '+esc(oppShort(p.prior.team))+'</span></div>';
   }
   if(!bat&&!pit&&!prev)return '<div class="pstat"><span class="plimited">—</span></div>';
   return '<div class="pstat">'+bat+pit+prev+'</div>';
@@ -6697,24 +6729,36 @@ function openPlayer(slug){
     if(d.pit){m.pit=d.pit;m.pitRanks=d.pitRanks||p.pitRanks;}
     var ps=$('plStats');
     if(ps){
-      // Mid-season transfer: lead with his Gators line, then his labeled prior-team block.
-      var html=(d.prior?'<div class="teamtag cur">With the Gumbeaux Gators</div>':'')+statBlocks(m);
-      if(d.prior)html+=priorStatBlocks(d.prior);
-      ps.innerHTML=html;
+      if(d.combined||d.prior){
+        // Mid-season transfer: lead with his full-season TOTALS across both teams
+        // (his real AVG/HR/RBI/etc.), then the per-team breakdown so it's clear
+        // what he did where. Only the Gators split carries league ranks.
+        var prevTeam=(d.prior&&d.prior.team)||'his previous team';
+        var html='';
+        if(d.combined&&(d.combined.hit||d.combined.pit))
+          html+='<div class="teamtag tot">2026 Season Totals<span class="tsub">Gumbeaux Gators + '+esc(prevTeam)+' combined</span></div>'+labeledStatBlocks(d.combined.hit,d.combined.pit,null,null);
+        var hasRanks=(m.hitRanks&&Object.keys(m.hitRanks).length)||(m.pitRanks&&Object.keys(m.pitRanks).length);
+        html+='<div class="teamtag cur">With the Gumbeaux Gators</div>'+labeledStatBlocks(m.hit,m.pit,m.hitRanks,m.pitRanks);
+        if(hasRanks)html+='<div class="ranklegend">The <b>gold number</b> under each stat is its rank in the Texas Collegiate League.</div>';
+        if(d.prior&&(d.prior.hit||d.prior.pit))
+          html+='<div class="teamtag prev">Previously with '+esc(d.prior.team)+'<span class="tsub">2026 · before joining the Gators</span></div>'+labeledStatBlocks(d.prior.hit,d.prior.pit,null,null);
+        ps.innerHTML=html;
+      }else{
+        ps.innerHTML=statBlocks(m);
+      }
     }
     renderGameLog(d);
   }).catch(function(){var g=$('plGl');if(g)g.innerHTML='';});
 }
-// Season line for a transferred player's PREVIOUS team — same layout as his own
-// stat blocks, but with no league ranks (he isn't ranked as a Gator on this line)
-// and a caption making clear it's a different team, kept out of his Gators totals.
-function priorStatBlocks(pr){
-  if(!pr||(!pr.hit&&!pr.pit))return '';
+// One hitting + one pitching stat block for a given line, with optional ranks.
+// Used to compose a transferred player's totals + per-team breakdown (the plain
+// statBlocks() path handles everyone else, including the no-stats-yet note).
+function labeledStatBlocks(hit,pit,hitRanks,pitRanks){
   var hitDefs=[['avg','AVG'],['obp','OBP'],['slg','SLG'],['gp','G'],['ab','AB'],['h','H'],['hr','HR'],['rbi','RBI'],['r','R'],['bb','BB'],['k','K']];
-  if(pr.hit&&Number(pr.hit.sb)>0)hitDefs.push(['sb','SB']);
-  var bat=pr.hit?('<div class="statblock"><h4 class="bat">Hitting</h4>'+sgrid(pr.hit,null,hitDefs)+'</div>'):'';
-  var pit=pr.pit?('<div class="statblock"><h4>Pitching</h4>'+sgrid(pr.pit,null,[['era','ERA'],['whip','WHIP'],['ip','IP'],['w','W'],['l','L'],['sv','SV'],['app','APP'],['gs','GS'],['k','K'],['bb','BB'],['h','H'],['er','ER']])+'</div>'):'';
-  return '<div class="teamtag prev">Previously with '+esc(pr.team)+'<span class="tsub">2026 · before joining the Gators — not counted in his Gators totals</span></div>'+bat+pit;
+  if(hit&&Number(hit.sb)>0)hitDefs.push(['sb','SB']);
+  var bat=hit?('<div class="statblock"><h4 class="bat">Hitting</h4>'+sgrid(hit,hitRanks||null,hitDefs)+'</div>'):'';
+  var pit2=pit?('<div class="statblock"><h4>Pitching</h4>'+sgrid(pit,pitRanks||null,[['era','ERA'],['whip','WHIP'],['ip','IP'],['w','W'],['l','L'],['sv','SV'],['app','APP'],['gs','GS'],['k','K'],['bb','BB'],['h','H'],['er','ER']])+'</div>'):'';
+  return bat+pit2;
 }
 function glSection(bat,pit){
   var h='';
