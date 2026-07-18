@@ -2165,22 +2165,23 @@ const ROSTER = [
   // the Gators team roster page). No game action yet, so the note shows for now.
   { num: 48, name: 'Marco Bandiero', slug: 'marcobandieroddnu', pos: 'IF', cls: 'Freshman', ht: '6-1', wt: '245', b: 'L', t: 'L', bday: '', home: 'Orange, TX', school: 'Angelina College', note: 'Recently added — season stats will appear after his first game.' },
   // Added off the 7/7 official roster. The sheet listed Victorian at #28 (a duplicate of
-  // Andrew Ramos); Coach Carl confirmed his real number is #18. findSlug resolves his real
-  // Presto page by name once it exists, and the note shows until his first game.
-  { num: 18, name: 'Landon Victorian', slug: 'landonvictorian', pos: 'P', cls: 'Sophomore', ht: '6-3', wt: '180', b: 'R', t: 'R', bday: '11/02/2005', home: 'Lake Charles, LA', school: 'Louisiana Lafayette', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
+  // Andrew Ramos); Coach Carl confirmed his real number is #18. Now pitching, so his real
+  // Presto slug (resolved from the team roster page) is set directly and his season stats flow.
+  { num: 18, name: 'Landon Victorian', slug: 'landonvictoriank052', pos: 'P', cls: 'Sophomore', ht: '6-3', wt: '180', b: 'R', t: 'R', bday: '11/02/2005', home: 'Lake Charles, LA', school: 'Louisiana Lafayette' },
   // Added off the 7/7 official roster as unnumbered position players; jersey numbers per
   // Coach Carl (Cooley #7, Beddoe #13, Sparks #9). Bio details filled in
-  // from their college roster pages (LSU-Eunice, Pearl River CC, Lamar). findSlug resolves
-  // each real Presto page by name once it exists, and the note shows until their first game.
-  { num: 7,  name: 'Griffin Cooley', slug: 'griffincooley', pos: 'OF',      cls: 'R-Sophomore', ht: '6-2',  wt: '179', b: 'L', t: 'L', bday: '',           home: 'Kinder, LA',   school: 'LSU-Eunice',      findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
-  { num: 13, name: 'Jackson Beddoe', slug: 'jacksonbeddoe', pos: 'IF',      cls: 'Freshman',    ht: '5-11', wt: '185', b: 'R', t: 'R', bday: '',           home: 'Sulphur, LA',  school: 'Pearl River CC',  findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
-  { num: 9,  name: 'Lane Sparks', slug: 'lanesparks', pos: 'OF', cls: 'Junior', ht: '6-0', wt: '175', b: 'L', t: 'L', bday: '12/28/2004', home: 'Brenham, TX', school: 'Lamar', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
+  // from their college roster pages (LSU-Eunice, Pearl River CC, Lamar). All now playing, so
+  // their real Presto slugs (resolved from the team roster page) are set directly and stats flow.
+  { num: 7,  name: 'Griffin Cooley', slug: 'griffincooleymoh6', pos: 'OF',      cls: 'R-Sophomore', ht: '6-2',  wt: '179', b: 'L', t: 'L', bday: '',           home: 'Kinder, LA',   school: 'LSU-Eunice' },
+  { num: 13, name: 'Jackson Beddoe', slug: 'jacksonbeddoep18p', pos: 'IF',      cls: 'Freshman',    ht: '5-11', wt: '185', b: 'R', t: 'R', bday: '',           home: 'Sulphur, LA',  school: 'Pearl River CC' },
+  { num: 9,  name: 'Lane Sparks', slug: 'lanesparksgmxd', pos: 'OF', cls: 'Junior', ht: '6-0', wt: '175', b: 'L', t: 'L', bday: '12/28/2004', home: 'Brenham, TX', school: 'Lamar' },
   // Added off the 7/10 official roster (#26, position players). Catcher at Nunez CC (Nunez
   // Pelicans, Chalmette LA); a Class of 2025 grad out of Alfred M. Barbe HS (Lake Charles),
   // so 2025-26 is his freshman year. Bio (ht/wt, bats/throws, hometown, HS) from his Perfect
   // Game profile; headshot cropped from his Nunez commitment announcement. No public DOB, so
-  // bday stays blank. findSlug resolves his real Presto page by name once it exists.
-  { num: 26, name: 'Shyler Smith', slug: 'shylersmith', pos: 'C', cls: 'Freshman', ht: '5-8', wt: '157', b: 'R', t: 'R', bday: '', home: 'Lake Charles, LA', school: 'Nunez CC', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
+  // bday stays blank. Now playing, so his real Presto slug (resolved from the team roster page)
+  // is set directly and his season stats flow.
+  { num: 26, name: 'Shyler Smith', slug: 'shylersmithrt6s', pos: 'C', cls: 'Freshman', ht: '5-8', wt: '157', b: 'R', t: 'R', bday: '', home: 'Lake Charles, LA', school: 'Nunez CC' },
   // Added off the 7/14 gameday sheet (position players). Snider's bio is per the sheet
   // (Junior, Louisiana Tech, DOB). Real Presto slug set directly (reidsnidern8g1, resolved
   // from the team roster page) so his bundled headshot shows and season stats flow in; the
@@ -2190,16 +2191,22 @@ const ROSTER = [
   // 07/17/2005) is from the official Presto team roster. He's a Klein Oak HS / Texas transfer
   // committed to McNeese, identity matched by the exact 07/17/2005 DOB. He joined the Gators
   // MID-SUMMER from the Brazos Valley Bombers, and Presto does NOT merge a transferred player's
-  // line — his Gators page (matthewscott79tr) is empty, while his full summer batting line lives
-  // on his Bombers page (slug mattscottjzw4, listed there as "Matt Scott" #8, now Inactive). So
-  // his stats slug points at the Bombers page; his bundled headshot is keyed to that slug too.
+  // line — it keeps a separate page per team. Now that he's played for the Gators, his primary
+  // slug points at his GATORS page (matthewscott79tr) so his card and profile LEAD with his
+  // Gators line, like every other player, and his Gators games count toward team totals. His
+  // full pre-Gators summer with the Bombers lives on a separate page (mattscottjzw4, listed
+  // there as "Matt Scott" #8) and is surfaced via `priorStint`: the server warms that page and
+  // labels it as a "previously with Brazos Valley Bombers" block + game log on his profile (and
+  // a "prev." chip on his card), so it's shown but never mistaken for — or added into — his
+  // Gators stats. His bundled headshot is re-keyed to the Gators slug in photos/manifest.json.
   // (Gators live/box matching is by name; the box/feed list him as "Matthew Scott",
   // so that stays as an `aka` alias — registered in GATOR_BY_NORM / ROSTER_BY_NAMEKEY —
   // while the roster card shows "Matt".)
-  { num: 22, name: 'Matt Scott', slug: 'mattscottjzw4', pos: 'OF', cls: 'Freshman', ht: '6-4', wt: '190', b: 'R', t: 'R', bday: '07/17/2005', home: 'Lake Charles, LA', school: 'McNeese State', aka: ['Matthew Scott'] },
+  { num: 22, name: 'Matt Scott', slug: 'matthewscott79tr', pos: 'OF', cls: 'Freshman', ht: '6-4', wt: '190', b: 'R', t: 'R', bday: '07/17/2005', home: 'Lake Charles, LA', school: 'McNeese State', aka: ['Matthew Scott'], priorStint: { slug: 'mattscottjzw4', team: 'Brazos Valley Bombers' } },
   // Added off the 7/16 gameday roster (pitchers). HS Senior committed to McNeese; bio
-  // per the gameday sheet. findSlug resolves his real Presto page by name once it exists.
-  { num: 19, name: 'Jack Garcille', slug: 'jackgarcille', pos: 'P', cls: 'HS Senior', ht: '6-6', wt: '210', b: 'R', t: 'R', bday: '', home: 'Lake Charles, LA', school: 'McNeese State', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
+  // per the gameday sheet. Now pitching, so his real Presto slug (jackgarcille9sq9, resolved
+  // from the team roster page) is set directly so his bundled headshot shows and season stats flow.
+  { num: 19, name: 'Jack Garcille', slug: 'jackgarcille9sq9', pos: 'P', cls: 'HS Senior', ht: '6-6', wt: '210', b: 'R', t: 'R', bday: '', home: 'Lake Charles, LA', school: 'McNeese State' },
 ];
 
 // Coaching staff (gumbeauxgators.com/coaches). Shown beneath the player roster;
@@ -2944,6 +2951,17 @@ async function pollRoster() {
         return (s && s.fromBox) || !lineIsShowable(s);
       }));
     } catch (e) { logErr('fillStatsFromBoxes', e); }
+    // Transfer stints: a player who joined mid-season carries a `priorStint`
+    // pointing at his previous team's separate Presto page. Warm that page under
+    // its own slug so his old-team season line is ready for the card's "prev."
+    // chip and his profile's labeled prior-team block. It lives outside his roster
+    // slug, so it never leaks into his Gators line or the team aggregates.
+    for (const pl of ROSTER) {
+      const ps = pl.priorStint; if (!ps) continue;
+      if (rosterStats[ps.slug] && recFresh(playerCache[ps.slug])) continue;
+      try { storePlayer(ps.slug, await fetchPlayer(ps.slug, batMap, pitMap, 3)); await sleep(400); }
+      catch (e) { logErr('priorStint ' + ps.slug, e); }
+    }
     rosterUpdated = Date.now();
     saveCache();
   } catch (e) { logErr('pollRoster', e); /* keep previous */ }
@@ -3285,10 +3303,18 @@ function rosterPayload() {
     // Serve headshots through our own /api/photo proxy: the team site hotlink-
     // protects images (403 unless the referer is its own domain), so a browser
     // can't load them directly — the proxy fetches them with the right referer.
-    return Object.assign({}, p, s, {
+    const extra = {
       hitRanks: effectiveHitRanks(p.slug, s.hit, s.hitRanks),
       photo: playerPhotos[p.slug] ? ('/api/photo?slug=' + p.slug) : null,
-    });
+    };
+    // Mid-season transfer: hand the card a compact prior-team line (labeled as
+    // that team's, not the Gators') so it can show a "prev." chip. Full detail —
+    // ranks and game logs — comes from /api/player when the profile is opened.
+    if (p.priorStint) {
+      const pr = rosterStats[p.priorStint.slug];
+      extra.prior = { team: p.priorStint.team, hit: (pr && pr.hit) || null, pit: (pr && pr.pit) || null };
+    }
+    return Object.assign({}, p, s, extra);
   });
   const complete = ROSTER.every(p => { const s = rosterStats[p.slug]; return s && (s.hit != null || s.pit != null); });
   const coaches = COACHES.map(c => Object.assign({}, c, { photo: playerPhotos[c.slug] ? ('/api/photo?slug=' + c.slug) : null }));
@@ -4612,13 +4638,31 @@ app.get('/api/player', async (q, r) => {
   const slug = String((q.query && q.query.slug) || '');
   if (!/^[a-z0-9_]+$/i.test(slug)) return r.status(400).json({ error: 'bad slug' });
   try {
+    const pl = ROSTER.find(x => x.slug === slug);
     const p = await getPlayer(slug);
     if (p && p.glPit && p.glPit.length) {
-      const pl = ROSTER.find(x => x.slug === slug);
       await enrichPitchingWalks(pl ? pl.name : '', p.glPit);
     }
     if (p && p.hit) p.hitRanks = effectiveHitRanks(slug, p.hit, p.hitRanks);
-    r.json(p || {});
+    let out = p || {};
+    // Mid-season transfer: also surface his previous team's season line + game log,
+    // clearly labeled, so pre-Gators stats are never mistaken for Gators stats. Box
+    // links are stripped from prior rows — those games aren't in our box-score store,
+    // so their dates stay plain text instead of dead deep-links.
+    if (pl && pl.priorStint) {
+      try {
+        const pr = await getPlayer(pl.priorStint.slug);
+        if (pr) {
+          const strip = rows => (rows || []).map(g => Object.assign({}, g, { boxId: '', boxUrl: '' }));
+          out = Object.assign({}, out, { prior: {
+            team: pl.priorStint.team,
+            hit: pr.hit || null, pit: pr.pit || null,
+            glBat: strip(pr.glBat), glPit: strip(pr.glPit),
+          } });
+        }
+      } catch (e) {}
+    }
+    r.json(out);
   } catch (e) { r.status(502).json({ error: e.message }); }
 });
 app.get('/debug/walks', async (q, r) => {
@@ -5214,6 +5258,12 @@ body.noscroll{overflow:hidden;}
 .pstline{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;color:var(--gold2);white-space:nowrap;}
 .pstline.pit{color:var(--gator);}
 .pstline .k{color:var(--mute);margin-right:3px;}
+/* Card line for a transferred player's previous team — muted, tagged, sits under
+   his Gators line so it reads as prior-team stats, not Gators stats. */
+.pstprev{display:flex;flex-direction:column;align-items:flex-end;gap:1px;margin-top:1px;}
+.pstprev .ptag{font-size:8px;letter-spacing:.07em;text-transform:uppercase;color:var(--mute);}
+.pstprev .pv{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;color:var(--mute);white-space:nowrap;}
+.pstprev .pv .k{color:var(--mute);opacity:.7;margin-right:2px;}
 .pchev{flex:none;color:var(--mute);font-size:18px;}
 .csec{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.09em;font-size:12px;color:var(--gator);margin:20px 4px 11px;padding-top:15px;border-top:1px solid var(--line);}
 .pnum.coachico{font-size:14px;color:var(--gold2);letter-spacing:.02em;}
@@ -5229,6 +5279,12 @@ body.noscroll{overflow:hidden;}
 .bio .bi{font-size:12px;color:var(--bone);}
 .bio .bi span{color:var(--mute);display:block;font-size:9px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:2px;}
 .statblock{margin:12px 14px 0;}
+/* Transfer stint separators: a gold "current team" tag and a muted "previous team"
+   tag that group the two labeled sets of stat blocks and game logs. */
+.teamtag{margin:16px 14px 0;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;font-size:11.5px;letter-spacing:.09em;color:var(--gold2);display:flex;flex-direction:column;gap:2px;}
+.teamtag.cur{color:var(--gold2);}
+.teamtag.prev{color:var(--mute);}
+.teamtag .tsub{font-weight:400;text-transform:none;letter-spacing:0;font-size:10.5px;color:var(--mute);}
 .statblock h4{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;font-size:11px;letter-spacing:.1em;color:var(--gator);margin:0 0 9px;border-bottom:1px solid var(--line);padding-bottom:6px;}
 .statblock h4.bat{color:var(--gold2);}
 .sgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
@@ -6523,8 +6579,16 @@ function cardStats(p){
   if(p.hit){var hr=p.hit.hr;if(hr!=null&&hr!==''&&hr!=='-'&&Number(hr)>0)third=['hr','HR'];}
   var bat=(p.hit&&!cardPitcherOnly(p))?('<div class="pstline">'+sline(p.hit,[['avg','AVG'],third,['rbi','RBI']])+'</div>'):'';
   var pit=p.pit?('<div class="pstline pit">'+sline(p.pit,[['era','ERA'],['ip','IP'],['k','K']])+'</div>'):'';
-  if(!bat&&!pit)return '<div class="pstat"><span class="plimited">—</span></div>';
-  return '<div class="pstat">'+bat+pit+'</div>';
+  // Mid-season transfer: show his previous team's line right below his Gators line,
+  // tagged with that team so it reads as prior-team stats, not Gators stats.
+  var prev='';
+  if(p.prior&&(p.prior.hit||p.prior.pit)){
+    var ph=p.prior.hit,pp=p.prior.pit;
+    var pv=ph?sline(ph,[['avg','AVG'],(ph.hr&&Number(ph.hr)>0?['hr','HR']:['h','H']),['rbi','RBI']]):(pp?sline(pp,[['era','ERA'],['ip','IP'],['k','K']]):'');
+    prev='<div class="pstprev"><span class="ptag">prev · '+esc(oppShort(p.prior.team))+'</span>'+(pv?'<span class="pv">'+pv+'</span>':'')+'</div>';
+  }
+  if(!bat&&!pit&&!prev)return '<div class="pstat"><span class="plimited">—</span></div>';
+  return '<div class="pstat">'+bat+pit+prev+'</div>';
 }
 // Dormant: renders the team batting/pitching card. Currently no-ops because the
 // server withholds d.teamStats from /api/roster (kept for easy re-enable).
@@ -6631,15 +6695,45 @@ function openPlayer(slug){
     var m=Object.assign({},p);
     if(d.hit){m.hit=d.hit;m.hitRanks=d.hitRanks||p.hitRanks;}
     if(d.pit){m.pit=d.pit;m.pitRanks=d.pitRanks||p.pitRanks;}
-    var ps=$('plStats');if(ps)ps.innerHTML=statBlocks(m);
+    var ps=$('plStats');
+    if(ps){
+      // Mid-season transfer: lead with his Gators line, then his labeled prior-team block.
+      var html=(d.prior?'<div class="teamtag cur">With the Gumbeaux Gators</div>':'')+statBlocks(m);
+      if(d.prior)html+=priorStatBlocks(d.prior);
+      ps.innerHTML=html;
+    }
     renderGameLog(d);
   }).catch(function(){var g=$('plGl');if(g)g.innerHTML='';});
 }
-function renderGameLog(d){
-  var g=$('plGl');if(!g)return;var h='';
-  var bat=(d.glBat||[]).slice().reverse(),pit=(d.glPit||[]).slice().reverse();
+// Season line for a transferred player's PREVIOUS team — same layout as his own
+// stat blocks, but with no league ranks (he isn't ranked as a Gator on this line)
+// and a caption making clear it's a different team, kept out of his Gators totals.
+function priorStatBlocks(pr){
+  if(!pr||(!pr.hit&&!pr.pit))return '';
+  var hitDefs=[['avg','AVG'],['obp','OBP'],['slg','SLG'],['gp','G'],['ab','AB'],['h','H'],['hr','HR'],['rbi','RBI'],['r','R'],['bb','BB'],['k','K']];
+  if(pr.hit&&Number(pr.hit.sb)>0)hitDefs.push(['sb','SB']);
+  var bat=pr.hit?('<div class="statblock"><h4 class="bat">Hitting</h4>'+sgrid(pr.hit,null,hitDefs)+'</div>'):'';
+  var pit=pr.pit?('<div class="statblock"><h4>Pitching</h4>'+sgrid(pr.pit,null,[['era','ERA'],['whip','WHIP'],['ip','IP'],['w','W'],['l','L'],['sv','SV'],['app','APP'],['gs','GS'],['k','K'],['bb','BB'],['h','H'],['er','ER']])+'</div>'):'';
+  return '<div class="teamtag prev">Previously with '+esc(pr.team)+'<span class="tsub">2026 · before joining the Gators — not counted in his Gators totals</span></div>'+bat+pit;
+}
+function glSection(bat,pit){
+  var h='';
   if(pit.length)h+='<div class="statblock"><h4>Pitching — Game by Game</h4>'+glTable(pit,[['ip','IP'],['h','H'],['r','R'],['er','ER'],['bb','BB'],['k','K'],['era','ERA']])+'</div>';
   if(bat.length)h+='<div class="statblock"><h4 class="bat">Hitting — Game by Game</h4>'+glTable(bat,[['ab','AB'],['h','H'],['hr','HR'],['rbi','RBI'],['bb','BB'],['k','K'],['avg','AVG']])+'</div>';
+  return h;
+}
+function renderGameLog(d){
+  var g=$('plGl');if(!g)return;var h='';
+  var cur=glSection((d.glBat||[]).slice().reverse(),(d.glPit||[]).slice().reverse());
+  if(d.prior){
+    // Split the log by team so his Gators games and his previous-team games read
+    // as two clearly-separated stints rather than one blended history.
+    var prev=glSection((d.prior.glBat||[]).slice().reverse(),(d.prior.glPit||[]).slice().reverse());
+    if(cur)h+='<div class="teamtag cur">With the Gumbeaux Gators — Game by Game</div>'+cur;
+    if(prev)h+='<div class="teamtag prev">Previously with '+esc(d.prior.team)+' — Game by Game</div>'+prev;
+  }else{
+    h+=cur;
+  }
   g.innerHTML=h;
 }
 function glTable(rows,cols){
