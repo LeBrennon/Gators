@@ -2165,22 +2165,23 @@ const ROSTER = [
   // the Gators team roster page). No game action yet, so the note shows for now.
   { num: 48, name: 'Marco Bandiero', slug: 'marcobandieroddnu', pos: 'IF', cls: 'Freshman', ht: '6-1', wt: '245', b: 'L', t: 'L', bday: '', home: 'Orange, TX', school: 'Angelina College', note: 'Recently added — season stats will appear after his first game.' },
   // Added off the 7/7 official roster. The sheet listed Victorian at #28 (a duplicate of
-  // Andrew Ramos); Coach Carl confirmed his real number is #18. findSlug resolves his real
-  // Presto page by name once it exists, and the note shows until his first game.
-  { num: 18, name: 'Landon Victorian', slug: 'landonvictorian', pos: 'P', cls: 'Sophomore', ht: '6-3', wt: '180', b: 'R', t: 'R', bday: '11/02/2005', home: 'Lake Charles, LA', school: 'Louisiana Lafayette', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
+  // Andrew Ramos); Coach Carl confirmed his real number is #18. Now pitching, so his real
+  // Presto slug (resolved from the team roster page) is set directly and his season stats flow.
+  { num: 18, name: 'Landon Victorian', slug: 'landonvictoriank052', pos: 'P', cls: 'Sophomore', ht: '6-3', wt: '180', b: 'R', t: 'R', bday: '11/02/2005', home: 'Lake Charles, LA', school: 'Louisiana Lafayette' },
   // Added off the 7/7 official roster as unnumbered position players; jersey numbers per
   // Coach Carl (Cooley #7, Beddoe #13, Sparks #9). Bio details filled in
-  // from their college roster pages (LSU-Eunice, Pearl River CC, Lamar). findSlug resolves
-  // each real Presto page by name once it exists, and the note shows until their first game.
-  { num: 7,  name: 'Griffin Cooley', slug: 'griffincooley', pos: 'OF',      cls: 'R-Sophomore', ht: '6-2',  wt: '179', b: 'L', t: 'L', bday: '',           home: 'Kinder, LA',   school: 'LSU-Eunice',      findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
-  { num: 13, name: 'Jackson Beddoe', slug: 'jacksonbeddoe', pos: 'IF',      cls: 'Freshman',    ht: '5-11', wt: '185', b: 'R', t: 'R', bday: '',           home: 'Sulphur, LA',  school: 'Pearl River CC',  findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
-  { num: 9,  name: 'Lane Sparks', slug: 'lanesparks', pos: 'OF', cls: 'Junior', ht: '6-0', wt: '175', b: 'L', t: 'L', bday: '12/28/2004', home: 'Brenham, TX', school: 'Lamar', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
+  // from their college roster pages (LSU-Eunice, Pearl River CC, Lamar). All now playing, so
+  // their real Presto slugs (resolved from the team roster page) are set directly and stats flow.
+  { num: 7,  name: 'Griffin Cooley', slug: 'griffincooleymoh6', pos: 'OF',      cls: 'R-Sophomore', ht: '6-2',  wt: '179', b: 'L', t: 'L', bday: '',           home: 'Kinder, LA',   school: 'LSU-Eunice' },
+  { num: 13, name: 'Jackson Beddoe', slug: 'jacksonbeddoep18p', pos: 'IF',      cls: 'Freshman',    ht: '5-11', wt: '185', b: 'R', t: 'R', bday: '',           home: 'Sulphur, LA',  school: 'Pearl River CC' },
+  { num: 9,  name: 'Lane Sparks', slug: 'lanesparksgmxd', pos: 'OF', cls: 'Junior', ht: '6-0', wt: '175', b: 'L', t: 'L', bday: '12/28/2004', home: 'Brenham, TX', school: 'Lamar' },
   // Added off the 7/10 official roster (#26, position players). Catcher at Nunez CC (Nunez
   // Pelicans, Chalmette LA); a Class of 2025 grad out of Alfred M. Barbe HS (Lake Charles),
   // so 2025-26 is his freshman year. Bio (ht/wt, bats/throws, hometown, HS) from his Perfect
   // Game profile; headshot cropped from his Nunez commitment announcement. No public DOB, so
-  // bday stays blank. findSlug resolves his real Presto page by name once it exists.
-  { num: 26, name: 'Shyler Smith', slug: 'shylersmith', pos: 'C', cls: 'Freshman', ht: '5-8', wt: '157', b: 'R', t: 'R', bday: '', home: 'Lake Charles, LA', school: 'Nunez CC', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
+  // bday stays blank. Now playing, so his real Presto slug (resolved from the team roster page)
+  // is set directly and his season stats flow.
+  { num: 26, name: 'Shyler Smith', slug: 'shylersmithrt6s', pos: 'C', cls: 'Freshman', ht: '5-8', wt: '157', b: 'R', t: 'R', bday: '', home: 'Lake Charles, LA', school: 'Nunez CC' },
   // Added off the 7/14 gameday sheet (position players). Snider's bio is per the sheet
   // (Junior, Louisiana Tech, DOB). Real Presto slug set directly (reidsnidern8g1, resolved
   // from the team roster page) so his bundled headshot shows and season stats flow in; the
@@ -2198,8 +2199,9 @@ const ROSTER = [
   // while the roster card shows "Matt".)
   { num: 22, name: 'Matt Scott', slug: 'mattscottjzw4', pos: 'OF', cls: 'Freshman', ht: '6-4', wt: '190', b: 'R', t: 'R', bday: '07/17/2005', home: 'Lake Charles, LA', school: 'McNeese State', aka: ['Matthew Scott'] },
   // Added off the 7/16 gameday roster (pitchers). HS Senior committed to McNeese; bio
-  // per the gameday sheet. findSlug resolves his real Presto page by name once it exists.
-  { num: 19, name: 'Jack Garcille', slug: 'jackgarcille', pos: 'P', cls: 'HS Senior', ht: '6-6', wt: '210', b: 'R', t: 'R', bday: '', home: 'Lake Charles, LA', school: 'McNeese State', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
+  // per the gameday sheet. Now pitching, so his real Presto slug (jackgarcille9sq9, resolved
+  // from the team roster page) is set directly so his bundled headshot shows and season stats flow.
+  { num: 19, name: 'Jack Garcille', slug: 'jackgarcille9sq9', pos: 'P', cls: 'HS Senior', ht: '6-6', wt: '210', b: 'R', t: 'R', bday: '', home: 'Lake Charles, LA', school: 'McNeese State' },
 ];
 
 // Coaching staff (gumbeauxgators.com/coaches). Shown beneath the player roster;
