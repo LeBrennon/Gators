@@ -6731,18 +6731,15 @@ function openPlayer(slug){
     if(ps){
       if(d.combined||d.prior){
         // Mid-season transfer: lead with his full-season TOTALS across both teams
-        // (his real AVG/HR/RBI/etc.), then the per-team breakdown so it's clear
-        // what he did where. Only the Gators split carries league ranks.
+        // (his real AVG/HR/RBI/etc.), then his previous team's line for context. No
+        // separate Gators block — his Gators games are shown in the box scores.
         var prevTeam=(d.prior&&d.prior.team)||'his previous team';
         var html='';
         if(d.combined&&(d.combined.hit||d.combined.pit))
           html+='<div class="teamtag tot">2026 Season Totals<span class="tsub">Gumbeaux Gators + '+esc(prevTeam)+' combined</span></div>'+labeledStatBlocks(d.combined.hit,d.combined.pit,null,null);
-        var hasRanks=(m.hitRanks&&Object.keys(m.hitRanks).length)||(m.pitRanks&&Object.keys(m.pitRanks).length);
-        html+='<div class="teamtag cur">With the Gumbeaux Gators</div>'+labeledStatBlocks(m.hit,m.pit,m.hitRanks,m.pitRanks);
-        if(hasRanks)html+='<div class="ranklegend">The <b>gold number</b> under each stat is its rank in the Texas Collegiate League.</div>';
         if(d.prior&&(d.prior.hit||d.prior.pit))
           html+='<div class="teamtag prev">Previously with '+esc(d.prior.team)+'<span class="tsub">2026 · before joining the Gators</span></div>'+labeledStatBlocks(d.prior.hit,d.prior.pit,null,null);
-        ps.innerHTML=html;
+        ps.innerHTML=html||statBlocks(m);
       }else{
         ps.innerHTML=statBlocks(m);
       }
@@ -6768,15 +6765,14 @@ function glSection(bat,pit){
 }
 function renderGameLog(d){
   var g=$('plGl');if(!g)return;var h='';
-  var cur=glSection((d.glBat||[]).slice().reverse(),(d.glPit||[]).slice().reverse());
   if(d.prior){
-    // Split the log by team so his Gators games and his previous-team games read
-    // as two clearly-separated stints rather than one blended history.
+    // Transferred player: his Gators games are shown in the box scores, so his
+    // profile game log covers only his previous-team games (which aren't in our
+    // box-score store and have nowhere else to appear).
     var prev=glSection((d.prior.glBat||[]).slice().reverse(),(d.prior.glPit||[]).slice().reverse());
-    if(cur)h+='<div class="teamtag cur">With the Gumbeaux Gators — Game by Game</div>'+cur;
     if(prev)h+='<div class="teamtag prev">Previously with '+esc(d.prior.team)+' — Game by Game</div>'+prev;
   }else{
-    h+=cur;
+    h+=glSection((d.glBat||[]).slice().reverse(),(d.glPit||[]).slice().reverse());
   }
   g.innerHTML=h;
 }
