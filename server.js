@@ -5802,7 +5802,14 @@ function buildLive(g){
     // key off abLivePitches (confirmed pitches this at-bat, 0 for a fresh batter)
     // rather than the raw, unreliably-reset L.abPitches: zero pitches this at-bat
     // means the count is 0-0 regardless of the stale balls/strikes.
-    var cb=abp?(L.balls||0):0,cs=abp?(L.strikes||0):0;
+    // A live count can never carry a 4th ball or 3rd strike — either ends the
+    // at-bat — so an out-of-range count is definitionally not live. Between
+    // innings the feed briefly holds the previous half's terminal strikeout count
+    // (e.g. 2-3) before the new batter's first pitch, and the abPitches heuristic
+    // can misfire and let it through; guard against it so a stale, impossible
+    // count renders as 0-0 rather than the "2-3" that leaked into the gamecast.
+    var liveCount=abp&&(L.balls||0)<=3&&(L.strikes||0)<=2;
+    var cb=liveCount?(L.balls||0):0,cs=liveCount?(L.strikes||0):0;
     sit='<div class="lsit">'+
       '<div class="lcell"><div class="lv count" id="countVal"><span class="cdig cb">'+esc(''+cb)+'</span><span class="csep">-</span><span class="cdig cs">'+esc(''+cs)+'</span></div><div class="ll">Count</div></div>'+
       baseDiamond(L.bases)+
