@@ -622,9 +622,11 @@ function buildHtml(data) {
 *{box-sizing:border-box;margin:0;padding:0;}
 html{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
 /* Extra bottom padding: @page margin is 0, so content runs to the physical page
-   edge — 22px left the last row inside many printers' non-printable bottom band
-   and it clipped once printed. 40px keeps it clear. */
-body{font-family:'Helvetica Neue',Arial,sans-serif;color:#1b1e27;font-size:12px;padding:22px 34px 40px;height:100vh;display:flex;flex-direction:column;overflow:hidden;--padv:${padV}px;}
+   edge — the last row otherwise lands inside the printer's non-printable bottom
+   band and clips once printed (fine in print preview, which shows the whole
+   sheet). 22px clipped, then 40px still clipped on a deeper-margin printer, so
+   72px (~0.75in) keeps the Totals row clear of even a 0.5in non-printable band. */
+body{font-family:'Helvetica Neue',Arial,sans-serif;color:#1b1e27;font-size:12px;padding:22px 34px 72px;height:100vh;display:flex;flex-direction:column;overflow:hidden;--padv:${padV}px;}
 .band{position:relative;display:flex;align-items:center;gap:14px;color:#fff;padding:10px 20px 10px 112px;border-radius:12px;border:2px solid #ecc913;
 background:linear-gradient(rgba(22,16,43,.02),rgba(22,16,43,.16))${croc ? `,url('${croc}') center center / cover no-repeat` : ''};
 background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1px rgba(255,255,255,.08);}
