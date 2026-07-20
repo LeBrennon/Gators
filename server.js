@@ -3358,7 +3358,7 @@ function rosterPayload() {
     // can't load them directly — the proxy fetches them with the right referer.
     const extra = {
       hitRanks: effectiveHitRanks(p.slug, s.hit, s.hitRanks),
-      photo: playerPhotos[p.slug] ? ('/api/photo?slug=' + p.slug) : null,
+      photo: photoUrl(p.slug),
     };
     // Mid-season transfer: hand the card a compact prior-team line (labeled as
     // that team's, not the Gators') so it can show a "prev." chip. Full detail —
@@ -3370,7 +3370,7 @@ function rosterPayload() {
     return Object.assign({}, p, s, extra);
   });
   const complete = ROSTER.every(p => { const s = rosterStats[p.slug]; return s && (s.hit != null || s.pit != null); });
-  const coaches = COACHES.map(c => Object.assign({}, c, { photo: playerPhotos[c.slug] ? ('/api/photo?slug=' + c.slug) : null }));
+  const coaches = COACHES.map(c => Object.assign({}, c, { photo: photoUrl(c.slug) }));
   // teamStats (team batting + pitching-staff aggregates) is intentionally withheld
   // from the public /api/roster response — these weren't meant to be public. The
   // computeTeamStats() helper and the client-side teamStatsCard() are kept intact;
@@ -3524,6 +3524,7 @@ function replayUrlFor(g) {
 let playerPhotos = {};      // roster slug -> bundled filename
 let photosLoadedAt = 0;
 const photoBuffers = {};    // filename -> { buf, type } preloaded at boot (headshots never change mid-run)
+const photoVersions = {};   // filename -> short content hash, so /api/photo cache-busts when a bundled photo is swapped for a different one under the same filename
 const normName = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z]/g, '');
 const PHOTO_DIR = __dirname + '/photos';
 const PHOTO_TYPES = { webp: 'image/webp', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', avif: 'image/avif', gif: 'image/gif' };
@@ -3540,8 +3541,18 @@ function loadLocalPhotos() {
       const buf = fs.readFileSync(PHOTO_DIR + '/' + file);
       const ext = String(file).split('.').pop().toLowerCase();
       photoBuffers[file] = { buf, type: PHOTO_TYPES[ext] || 'image/jpeg' };
+      photoVersions[file] = crypto.createHash('md5').update(buf).digest('hex').slice(0, 8);
     } catch (e) { /* skip a missing file */ }
   }
+}
+// /api/photo URL for a slug, with a content-hash version param so a browser/CDN
+// that cached the old bytes (max-age=604800 below) re-fetches the instant the
+// bundled file actually changes, instead of serving a stale photo for a week.
+function photoUrl(slug) {
+  const file = playerPhotos[slug];
+  if (!file) return null;
+  const v = photoVersions[file];
+  return '/api/photo?slug=' + slug + (v ? '&v=' + v : '');
 }
 // ----- league standings (both teams' records on the jumbo + Standings tab) ---
 let standings = {};         // normName(teamName) -> { w, l, t }  (jumbo records)
