@@ -27,6 +27,9 @@ async function fetchJSON(pathname) {
 const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const goa = r => (r.w2 | 0) - (r.l2 | 0);                 // games over .500 — the primary 2H sort key
 const fmtGoa = n => (n > 0 ? '+' : '') + n;
+// Baseball-style PCT: three decimals, no leading zero (.588, not 0.588) — the
+// secondary 2H sort key, only reached as a tiebreak when GOA is exactly equal.
+const fmtPct = p => (p == null ? '' : p.toFixed(3).replace(/^0/, ''));
 
 // How many more games team A needs to win than team B, over N equal remaining
 // games each, to (a) force a tie on games-over-.500 and (b) finish strictly
@@ -126,7 +129,7 @@ function buildHtml({ rows, gatorsId, gRow, rank, holding, rivalLines, remaining,
     const out = r.eliminated ? '<span class="tag out">Out</span>' : '';
     return `<tr class="${isG ? 'g' : ''}${r.eliminated ? ' out' : ''}">
       <td>${i + 1}</td><td class="nm">${esc(r.short || r.name)}${clin}${out}</td>
-      <td>${(r.w2 | 0)}-${(r.l2 | 0)}</td><td class="goa">${fmtGoa(goa(r))}</td>
+      <td>${(r.w2 | 0)}-${(r.l2 | 0)}</td><td class="goa">${fmtGoa(goa(r))}</td><td>${fmtPct(r.pct)}</td>
       <td>${r.gb === 0 ? '&mdash;' : r.gb}</td><td>${(r.ws | 0)}-${(r.ls | 0)}</td><td>${r.gamesLeft}</td></tr>`;
   }).join('');
   const anyOut = rows.some(r => r.eliminated);
@@ -254,7 +257,7 @@ footer{margin-top:4px;padding-top:4px;border-top:1px solid #e6def7;font-size:8.5
 <div class="grid">
   <div class="col" style="flex:1.3">
     <h2 class="sec">Second-Half Standings</h2>
-    <table class="sttbl"><tr><th>#</th><th>Team</th><th>2H</th><th>GOA</th><th>GB</th><th>Season</th><th>GL</th></tr>${standingsRows}</table>
+    <table class="sttbl"><tr><th>#</th><th>Team</th><th>2H</th><th>GOA</th><th>PCT</th><th>GB</th><th>Season</th><th>GL</th></tr>${standingsRows}</table>
     ${anyOut ? '<div class="legend"><span class="tag out">Out</span> mathematically eliminated from the second-half race &middot; <span class="tag clinch">1H</span> clinched via first-half title</div>' : '<div class="legend"><span class="tag clinch">1H</span> clinched a playoff spot by winning the first half &middot; every other team is still mathematically alive</div>'}
   </div>
   <div class="col">
