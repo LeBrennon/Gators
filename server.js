@@ -6275,7 +6275,7 @@ function emo(tag){return tag==='lead'?'📣':tag==='final'?'🏁':tag==='run'?'�
 function loadSched(){fetch('/api/schedule',{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){renderSched(d.games||[]);}).catch(function(){});}
 function connect(){
   var sseOk=false,lastStatus='',pollTimer=null,schedTimer=null;
-  function applyGame(g){if(g&&g.home){lastStatus=g.status||'';renderGame(applyThirdOutHold(g));if($('viewStandings').style.display!=='none')silentStandings();}}
+  function applyGame(g){if(g&&g.home){lastStatus=g.status||'';renderGame(applyThirdOutHold(g));if($('viewStandings').style.display!=='none')silentStandings();if($('viewRoster').style.display!=='none')loadRoster();}}
   function pollGame(){fetch('/api/game',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).then(applyGame).catch(function(){});}
   // SSE carries live changes as they happen, so the /api/game poll is only a
   // safety net for a stalled stream (e.g. a buffering proxy). Poll fast (5s) only
