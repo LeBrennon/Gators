@@ -6,6 +6,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const {
   parseLeagueResults, computeLeagueMetrics, cmpTwoTeam, rankSecondHalf, buildPlayoffPicture,
+  remainingGamesByTeam, computeElimination,
 } = require('../server');
 
 // Real Presto team ids (must match server.js TEAMS).
@@ -141,4 +142,53 @@ test('buildPlayoffPicture applies the both-halves overlap rule', () => {
   assert.equal(bySeed[4].team.id, GAT, 'seed 4 = best remaining full-season record, not 2H #3');
   assert.match(bySeed[4].note, /full-season/i);
   assert.ok(p.notes.some(n => /both halves/i.test(n)), 'explains the overlap');
+});
+
+test('remainingGamesByTeam: counts not-yet-decided games, skips finals and cancellations', () => {
+  const html = '<table>'
+    + game('20260601', GAT, 7, BOM, 3, 'Final')          // decided -> doesn't count
+    + game('20260602', GAT, 0, ROU, 0, '7:00 PM')        // scheduled -> counts for both
+    + game('20260603', BIS, 0, GAT, 0, 'Delayed')        // live -> counts for both
+    + game('20260604', GAT, 0, BOM, 0, 'Cancelled')      // never happening -> doesn't count
+    + game('20260605', ROU, 0, BIS, 0, 'Postponed')      // presumed made up -> counts
+    + '</table>';
+  const rem = remainingGamesByTeam(html);
+  assert.equal(rem[GAT], 2, 'the scheduled game + the live game, not the final or the cancellation');
+  assert.equal(rem[ROU], 2, 'its scheduled game vs GAT + the postponed game vs BIS');
+  assert.equal(rem[BIS], 2, 'its live game vs GAT + the postponed game vs ROU');
+  assert.equal(rem[BOM], undefined, 'both of BOM\'s games were decided/cancelled');
+});
+
+function row2(id, w2, clinched) { return { id, w2, l2: 0, clinched: clinched || null }; }
+
+test('computeElimination: eliminates a team shut out of top-2 once both champions are themselves shut out', () => {
+  // ROU and GAT are both guaranteed (floor) more 2H wins than BOM's ceiling (3) —
+  // two blockers is enough to close BOM's door A. VIC and ACA (the two 1H
+  // champions) are themselves blocked the same way, closing door B for good.
+  const rows = [row2(VIC, 2, '1st-half champion'), row2(ACA, 1, '1st-half champion'), row2(ROU, 9), row2(GAT, 8), row2(BOM, 3)];
+  const remaining = { [VIC]: 0, [ACA]: 0, [ROU]: 0, [GAT]: 0, [BOM]: 1 };
+  const out = computeElimination(rows, remaining);
+  assert.equal(out[BOM], true, 'shut out of door A, and door B is fully closed');
+  assert.equal(out[VIC], false, 'a clinched champion is never shown eliminated');
+  assert.equal(out[ACA], false, 'a clinched champion is never shown eliminated');
+});
+
+test('computeElimination: a team with fewer than 2 guaranteed blockers is still alive', () => {
+  // Only ROU\'s floor (9) tops BIS\'s ceiling (8); GAT\'s floor (8) does not
+  // (needs to be strictly greater) — one blocker isn't enough to close door A.
+  const rows = [row2(VIC, 2, '1st-half champion'), row2(ACA, 1, '1st-half champion'), row2(ROU, 9), row2(GAT, 8), row2(BIS, 5)];
+  const remaining = { [VIC]: 0, [ACA]: 0, [ROU]: 0, [GAT]: 0, [BIS]: 3 };
+  const out = computeElimination(rows, remaining);
+  assert.equal(out[BIS], false);
+});
+
+test('computeElimination: door B safety valve — a team shut out of door A stays alive while a champion can still reach top-2', () => {
+  // GAT is shut out of door A the same way as above (ROU + BOM block it). But
+  // VIC (a clinched champion) still has a wide-open path to a literal top-2
+  // second-half finish, which could bump a genuine qualifier and hand GAT a
+  // backup berth on full-season record — so GAT must NOT be marked out yet.
+  const rows = [row2(VIC, 8, '1st-half champion'), row2(ACA, 1, '1st-half champion'), row2(ROU, 9), row2(BOM, 8), row2(GAT, 2)];
+  const remaining = { [VIC]: 5, [ACA]: 0, [ROU]: 0, [BOM]: 0, [GAT]: 1 };
+  const out = computeElimination(rows, remaining);
+  assert.equal(out[GAT], false, 'door B still plausible, so no false "OUT"');
 });

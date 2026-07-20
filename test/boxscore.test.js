@@ -6,7 +6,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { parseBoxscore, boxErrorResponse } = require('../server');
+const { parseBoxscore, boxErrorResponse, bsLinkGators } = require('../server');
 
 const DASH = '—'; // em dash used in box section labels
 const HTML = fs.readFileSync(path.join(__dirname, 'fixtures', 'boxscore.html'), 'utf8');
@@ -270,4 +270,31 @@ test('parseBoxscore: attaches each batting section\'s hitter-name -> Presto-slug
   assert.deepEqual(bat.slugs, { 'joey duran': 'joeyduran9x' });
   // The link itself is still stripped from the rendered table (bsClean runs as before).
   assert.doesNotMatch(bat.html, /<a\b/i);
+});
+
+test('bsLinkGators: links a Gators batter by his canonical roster name', () => {
+  const html = `<tr><th><div><span>cf</span> Ayden Sunday</div></th><td>4</td></tr>`;
+  const out = bsLinkGators(html);
+  assert.match(out, /<a class="bxp" data-slug="aydensundayyp1j">Ayden Sunday<\/a>/);
+});
+
+test('bsLinkGators: links a Gators batter by his box-score alias (aka), not just his roster display name', () => {
+  // Matt Scott's roster card shows "Matt", but Presto's box scores (and this
+  // league's feed) list him as "Matthew Scott" — the name has to resolve via
+  // his `aka` entry or the name in the box never becomes a link at all.
+  const html = `<tr><th><div><span>rf</span> Matthew Scott</div></th><td>3</td></tr>`;
+  const out = bsLinkGators(html);
+  assert.match(out, /<a class="bxp" data-slug="matthewscott79tr">Matthew Scott<\/a>/);
+});
+
+test('bsLinkGators: links a Gators pitcher\'s name, leaving a trailing decision untouched', () => {
+  const html = `<tr><th> John Munnerlyn (S, 1)</th><td>1.0</td></tr>`;
+  const out = bsLinkGators(html);
+  assert.match(out, /<a class="bxp" data-slug="johnmunnerlynzovp">John Munnerlyn<\/a> \(S, 1\)/);
+});
+
+test('bsLinkGators: leaves a non-Gators name unlinked', () => {
+  const html = `<tr><th><div><span>cf</span> Some Opponent</div></th><td>4</td></tr>`;
+  const out = bsLinkGators(html);
+  assert.doesNotMatch(out, /<a\b/i);
 });

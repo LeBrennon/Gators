@@ -547,7 +547,13 @@ function bsAddSeasonAvg(html, slugMap) {
 // ROSTER is defined later) and wraps it in an <a data-slug> the client handles.
 let _gatorNameSlug = null;
 function gatorNameSlug() {
-  if (!_gatorNameSlug) { _gatorNameSlug = {}; for (const p of ROSTER) _gatorNameSlug[p.name.toLowerCase().replace(/\s+/g, ' ').trim()] = p.slug; }
+  if (!_gatorNameSlug) {
+    _gatorNameSlug = {};
+    for (const p of ROSTER) {
+      _gatorNameSlug[p.name.toLowerCase().replace(/\s+/g, ' ').trim()] = p.slug;
+      for (const a of p.aka || []) _gatorNameSlug[a.toLowerCase().replace(/\s+/g, ' ').trim()] = p.slug;
+    }
+  }
   return _gatorNameSlug;
 }
 function bsLinkGators(tableHtml) {
@@ -896,6 +902,22 @@ function parseLeagueScoreboard(html, dateStr) {
       home: { id: t.home.id, short: t.home.short, logo: t.home.logo, score: t.home.score } });
   }
   return sortBoard(out);
+}
+// Each team's remaining (not yet decided) games, from the same full-league
+// schedule page — every date, every team, no Gators filter. SEASON_HALF is
+// already 2, so every game still unplayed is necessarily a second-half game;
+// this is exactly the count the second-half elimination math needs. Postponed/
+// suspended games are still counted (they're presumed to be made up later);
+// cancelled games are excluded, same as a final.
+function remainingGamesByTeam(html) {
+  const out = {};
+  const bump = id => { if (id) out[id] = (out[id] || 0) + 1; };
+  for (const g of parseLeagueScoreboard(html)) {
+    if (g.state === 'final' || g.state === 'cancelled') continue;
+    bump(g.away && g.away.id);
+    bump(g.home && g.home.id);
+  }
+  return out;
 }
 
 // ----- live situation feed --------------------------------------------------
@@ -2140,7 +2162,6 @@ const ROSTER = [
   { num: 36, name: 'Jake Rider',       slug: 'jakeridergyu4',        pos: 'P',       cls: 'Junior',       ht: '6-4',  wt: '220', b: 'R', t: 'R', bday: '10/11/2005', home: 'Lake Charles, LA', school: 'Nunez CC' },
   // Added off the 6/30 second-half roster; now playing, so his real Presto slug is set directly and stats flow.
   { num: 38, name: 'Gabe Guidry',      slug: 'gabeguidryfktf',       pos: 'Utility', cls: 'R-Sophomore',  ht: '6-3',  wt: '200', b: 'R', t: 'R', bday: '01/26/2005',  home: 'Lake Charles, LA', school: 'Bossier Parish CC' },
-  { num: 42, name: 'Kale Cropper',     slug: 'kalecropperuden',      pos: 'P',       cls: 'Sophomore',    ht: '6-4',  wt: '210', b: 'R', t: 'R', bday: '08/25/2006', home: 'Port Neches, TX',  school: 'Hill College' },
   { num: 45, name: 'Cannon Faulk',     slug: 'cannonfaulk0l9x',      pos: 'P',       cls: 'R-Sophomore',  ht: '6-4',  wt: '225', b: 'L', t: 'L', bday: '12/02/2005', home: 'Port Neches, TX',  school: 'Angelina College' },
   // On the official roster and already pitching; real Presto slug set directly
   // (resolved from the Gators team roster page) so his season stats flow in.
@@ -2148,10 +2169,11 @@ const ROSTER = [
   // Assigned #39 on the 6/30 second-half roster; now playing, so his real Presto slug is
   // set directly and stats flow. Headshot populates once a photo is bundled.
   { num: 39, name: 'Yuichiro Kumagami', slug: 'yuichirokumagamisa54', pos: 'C', cls: 'Junior', ht: '5-11', wt: '200', b: 'R', t: 'R', bday: '07/16/2005', home: 'Miyagi, Japan', school: 'Mount Hood CC' },
-  // Added off the 7/3 official roster; the 7/4 sheet assigns #24 and lists him as a
-  // pitcher (was catcher/TBD). Real Presto slug set directly (resolved from the
-  // Gators team roster page); he has pitched, so his season stats flow in.
-  { num: 24, name: 'Pierce Boles', slug: 'piercebolesgu20', pos: 'P', cls: 'Sophomore', ht: '6-2', wt: '190', b: 'R', t: 'R', bday: '', home: 'Mandeville, LA', school: 'LSU-Eunice' },
+  // Dropped off the 7/19 gameday sheet (Pierce Boles, #24) — removed to match the active roster.
+  // #24 now belongs to John Munnerlyn, added off that same sheet. He'd already been pitching
+  // all season without a ROSTER entry (his Presto slug/headshot were already on file); bio
+  // per the gameday sheet.
+  { num: 24, name: 'John Munnerlyn', slug: 'johnmunnerlynzovp', pos: 'P', cls: 'Redshirt Freshman', ht: '6-4', wt: '205', b: 'R', t: 'R', bday: '11/20/2006', home: 'Loreauville, LA', school: 'Bossier Parish CC' },
   // Added off the 6/30 second-half roster. Hollier has TWO namesake pages on the
   // Gators team roster: an inactive #98 duplicate (taylorhollierj0t9, all dashes)
   // and the active #12 page (taylorholliervl4b) that actually carries his season
@@ -2169,10 +2191,10 @@ const ROSTER = [
   // Presto slug (resolved from the team roster page) is set directly and his season stats flow.
   { num: 18, name: 'Landon Victorian', slug: 'landonvictoriank052', pos: 'P', cls: 'Sophomore', ht: '6-3', wt: '180', b: 'R', t: 'R', bday: '11/02/2005', home: 'Lake Charles, LA', school: 'Louisiana Lafayette' },
   // Added off the 7/7 official roster as unnumbered position players; jersey numbers per
-  // Coach Carl (Cooley #7, Beddoe #13, Sparks #9). Bio details filled in
-  // from their college roster pages (LSU-Eunice, Pearl River CC, Lamar). All now playing, so
-  // their real Presto slugs (resolved from the team roster page) are set directly and stats flow.
-  { num: 7,  name: 'Griffin Cooley', slug: 'griffincooleymoh6', pos: 'OF',      cls: 'R-Sophomore', ht: '6-2',  wt: '179', b: 'L', t: 'L', bday: '',           home: 'Kinder, LA',   school: 'LSU-Eunice' },
+  // Coach Carl (Beddoe #13, Sparks #9). Bio details filled in from their college roster
+  // pages (Pearl River CC, Lamar). Both now playing, so their real Presto slugs (resolved
+  // from the team roster page) are set directly and stats flow.
+  // Griffin Cooley (#7) dropped off the 7/19 gameday sheet — removed to match the active roster.
   { num: 13, name: 'Jackson Beddoe', slug: 'jacksonbeddoep18p', pos: 'IF',      cls: 'Freshman',    ht: '5-11', wt: '185', b: 'R', t: 'R', bday: '',           home: 'Sulphur, LA',  school: 'Pearl River CC' },
   { num: 9,  name: 'Lane Sparks', slug: 'lanesparksgmxd', pos: 'OF', cls: 'Junior', ht: '6-0', wt: '175', b: 'L', t: 'L', bday: '12/28/2004', home: 'Brenham, TX', school: 'Lamar' },
   // Added off the 7/10 official roster (#26, position players). Catcher at Nunez CC (Nunez
@@ -2206,7 +2228,20 @@ const ROSTER = [
   // Added off the 7/16 gameday roster (pitchers). HS Senior committed to McNeese; bio
   // per the gameday sheet. Now pitching, so his real Presto slug (jackgarcille9sq9, resolved
   // from the team roster page) is set directly so his bundled headshot shows and season stats flow.
-  { num: 19, name: 'Jack Garcille', slug: 'jackgarcille9sq9', pos: 'P', cls: 'HS Senior', ht: '6-6', wt: '210', b: 'R', t: 'R', bday: '', home: 'Lake Charles, LA', school: 'McNeese State' },
+  // Renumbered #19 -> #42 on the 7/19 gameday sheet (his old #19 wasn't reassigned).
+  { num: 42, name: 'Jack Garcille', slug: 'jackgarcille9sq9', pos: 'P', cls: 'HS Senior', ht: '6-6', wt: '210', b: 'R', t: 'R', bday: '', home: 'Lake Charles, LA', school: 'McNeese State' },
+  // Added off the 7/19 gameday sheet (position players, unnumbered on the sheet; #6 per
+  // Presto). Bio from his Louisiana Christian University roster page — he played there as
+  // a Sophomore utility infielder before joining the Gators mid-summer. Real Presto slug
+  // set directly (resolved from the team roster page); headshot cropped from his LCU
+  // roster photo. No game action yet, so the note shows until his first game.
+  { num: 6, name: 'Gavin Gary', slug: 'gavingaryhrlk', pos: 'Utility', cls: 'Sophomore', ht: '5-10', wt: '165', b: 'R', t: 'R', bday: '', home: 'DeQuincy, LA', school: 'Louisiana Christian', note: 'Recently added — season stats will appear after his first game.' },
+  // Added off the 7/19 gameday sheet (position players, unnumbered on the sheet; #37 per
+  // Presto). A 2025 Sulphur High grad (3B/1B, uncommitted per his recruiting profiles) with
+  // no prior college team, so bio is thin — no public DOB. Headshot is a Hudl photo (his only
+  // public one; it's from football, not baseball). Real Presto slug set directly (resolved
+  // from the team roster page). No game action yet, so the note shows until his first game.
+  { num: 37, name: 'Jay Michael Stelly', slug: 'jaymichaelstelly1o33', pos: 'Utility', cls: 'HS Senior', ht: '5-10', wt: '195', b: '', t: '', bday: '', home: 'Sulphur, LA', school: '', note: 'Recently added — season stats will appear after his first game.' },
 ];
 
 // Coaching staff (gumbeauxgators.com/coaches). Shown beneath the player roster;
@@ -4568,6 +4603,36 @@ function buildPlayoffPicture(ranked, metrics) {
   }
   return { format: 'Best-of-3', seeds, matchups: [[1, 4], [2, 3]], notes };
 }
+// Mathematical elimination from the second-half race (docs/tcl-playoff-rules.md).
+// A non-champion team reaches a berth by one of two doors:
+//   (A) finish top-2 of the second half outright, or
+//   (B) a first-half champion finishes top-2 of the second half anyway (it
+//       doesn't need the spot, having already clinched via 1H) and hands the
+//       now-redundant berth to the best remaining full-season record.
+// Door A is a standard ceiling/floor check: team X is shut out of it once at
+// least 2 OTHER teams are guaranteed (even if X wins every game left) to finish
+// with more second-half wins than X's best possible total.
+// Door B only ever opens if a champion is STILL capable of a top-2 second-half
+// finish. So it's fully, permanently closed the moment BOTH champions are
+// themselves shut out of Door A — and only then is a non-champion who has also
+// lost Door A truly, unconditionally eliminated. (Conservative by design: while
+// either champion could still land in the second-half top 2, no team is marked
+// out, even ones that are effectively hopeless — a false "OUT" would be worse
+// than a late one.)
+function computeElimination(rows, remaining) {
+  const ceil2 = {}, floor2 = {};
+  for (const x of rows) {
+    const rem = (remaining && remaining[x.id]) || 0;
+    ceil2[x.id] = x.w2 + rem;
+    floor2[x.id] = x.w2;
+  }
+  const canTop2 = id => rows.filter(y => y.id !== id && floor2[y.id] > ceil2[id]).length < 2;
+  const champIds = Object.keys(CLINCHED_PLAYOFF);
+  const doorBClosed = champIds.every(id => !rows.some(y => y.id === id) || !canTop2(id));
+  const out = {};
+  for (const x of rows) out[x.id] = !x.clinched && !canTop2(x.id) && doorBClosed;
+  return out;
+}
 // Memoize the league metrics against the schedule fetch so we reparse only when
 // pollSchedule brings in fresh HTML.
 let _metricsCache = { at: -1, val: null };
@@ -4601,6 +4666,9 @@ app.get('/api/standings', (_q, r) => {
   const rows = ranked.rows;
   const lead = rows[0];
   for (const x of rows) x.gb = lead ? ((lead.w2 - x.w2) + (x.l2 - lead.l2)) / 2 : 0;
+  const remaining = remainingGamesByTeam(lastHtml);
+  const eliminated = computeElimination(rows, remaining);
+  for (const x of rows) { x.gamesLeft = remaining[x.id] || 0; x.eliminated = !!eliminated[x.id]; }
   r.json({ updatedAt: standingsAt, gatorsId: GATORS_ID, half: SEASON_HALF, rows,
     tiebreaks: ranked.tiebreaks, playoffs: buildPlayoffPicture(rows, metrics), scoreboard: buildLeagueBoard() });
 });
@@ -4921,7 +4989,8 @@ if (require.main === module) {
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, attachLineupSubLegend, pitchersFromFeed, extractEventAuth,
   dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, applyStandingsOverride, MANUAL_STANDINGS_OVERRIDE, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseTeamRosterSlugs, parseGameLog, boxRowsForPlayer, aggBat, aggPit, buildRecord, lineIsShowable, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, applyPitcherOverrides, pitchingTotals, strikeCounts, inningAlertText, finalAlertText,
   parseLeagueResults, computeLeagueMetrics, cmpTwoTeam, rankTiedGroup, rankSecondHalf, buildPlayoffPicture, boxLooksComplete, boxErrorResponse,
-  gatorsGameResult, gatorsSeasonWL, applyGatorsAutoFloor, feedHasPitching, atBoxPrestage };
+  gatorsGameResult, gatorsSeasonWL, applyGatorsAutoFloor, feedHasPitching, atBoxPrestage, bsLinkGators,
+  parseLeagueScoreboard, remainingGamesByTeam, computeElimination };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
@@ -5224,8 +5293,8 @@ body.noscroll{overflow:hidden;}
 .bx td.bxavg{color:var(--gold2);font-family:'JetBrains Mono',monospace;}
 .bx th.bxavg{color:var(--gold2);}
 .bx .sublet{text-transform:none;color:var(--mute);font-weight:400;margin-right:1px;}
-.bx th a.bxp{color:var(--bone);text-decoration:none;cursor:pointer;}
-.bx th a.bxp:active{opacity:.6;}
+a.bxp{color:var(--bone);text-decoration:none;cursor:pointer;}
+a.bxp:active{opacity:.6;}
 .bx .dec{color:var(--gold2);font-weight:700;}
 .pbp table{margin-bottom:12px;border:1px solid var(--line);border-radius:10px;overflow:hidden;}
 .pbp tr:first-child th,.pbp tr:first-child td{background:var(--panel);color:var(--gold2);text-align:left;font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:11px;letter-spacing:.05em;font-weight:700;padding:8px 10px;white-space:normal;}
@@ -5325,7 +5394,12 @@ body.noscroll{overflow:hidden;}
 .strk.loss{color:var(--away);}
 .clinch{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;flex:none;font-size:14px;font-family:'Oswald',sans-serif;font-weight:700;color:var(--gold2);}
 .clinch small{font-size:8px;letter-spacing:.06em;margin-top:3px;}
+.sttbl tr.stout{opacity:.5;}
+.sttbl tr.stout .stlogo{filter:grayscale(1);}
+.outbadge{display:inline-flex;align-items:center;flex:none;font-size:8.5px;font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--mute);border:1px solid var(--line);border-radius:999px;padding:2px 7px;margin-left:2px;text-decoration:none;}
+.outswatch{display:inline-block;flex:none;width:14px;height:14px;border-radius:4px;background:var(--bayou2);opacity:.5;border:1px solid var(--line);}
 .stnote{margin-top:8px;font-size:10px;color:var(--mute);display:flex;align-items:center;gap:6px;font-family:'Oswald',sans-serif;letter-spacing:.01em;}
+.stnote+.stnote{margin-top:4px;}
 .sttbl .stdiff{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--mute);text-align:right;}
 .sttbl .stdiff.pos{color:#41a913;}
 .sttbl .stdiff.neg{color:var(--away);}
@@ -6052,7 +6126,8 @@ var _gnSlug=null;
 function gatorSlug(name){
   if(!rosterData)return null;
   if(!_gnSlug){_gnSlug={};for(var i=0;i<rosterData.length;i++){var p=rosterData[i];
-    if(p&&p.name)_gnSlug[String(p.name).toLowerCase().replace(/\s+/g,' ').trim()]=p.slug;}}
+    if(p&&p.name)_gnSlug[String(p.name).toLowerCase().replace(/\s+/g,' ').trim()]=p.slug;
+    if(p&&p.aka)for(var j=0;j<p.aka.length;j++)_gnSlug[String(p.aka[j]).toLowerCase().replace(/\s+/g,' ').trim()]=p.slug;}}
   return _gnSlug[String(name||'').toLowerCase().replace(/\s+/g,' ').trim()]||null;
 }
 function buildLineup(g){
@@ -6320,7 +6395,7 @@ function renderStandings(d){
   var recById={};rows.forEach(function(x){if(x.id)recById[x.id]=(x.w2|0)+'-'+(x.l2|0);});
   if(!rows.length){$('standingsBody').innerHTML='<div class="note">Standings aren’t available yet — check back shortly.</div>';$('stMeta').textContent='';}
   else{
-    var anyClinch=false;
+    var anyClinch=false,anyOut=false;
     // Standings position with ties: teams sharing the same second-half PCT hold
     // the same rank, shown as "T-N" (e.g. four teams at .667 are all "T-1").
     var pos=rows.map(function(x,i){return (i>0&&rows[i-1].pct===x.pct)?null:i+1;});
@@ -6336,9 +6411,12 @@ function renderStandings(d){
       var nm=esc(x.name||x.short);
       var clin=x.clinched?('<span class="clinch" title="Won the first half — clinched a playoff spot">🏆<small>1H</small></span>'):'';
       if(x.clinched)anyClinch=true;
-      var inner=lg+'<span class="stnm">'+nm+'</span>'+clin;
+      var gl=x.gamesLeft==null?'':(' — '+x.gamesLeft+' game'+(x.gamesLeft===1?'':'s')+' left');
+      var outb=x.eliminated?('<span class="outbadge" title="Mathematically eliminated from the second-half race'+esc(gl)+'">Out</span>'):'';
+      if(x.eliminated)anyOut=true;
+      var inner=lg+'<span class="stnm">'+nm+'</span>'+clin+outb;
       var team=x.site?('<a class="stteam" href="'+esc(x.site)+'" target="_blank" rel="noopener">'+inner+'</a>'):('<div class="stteam">'+inner+'</div>');
-      var cls=[isG?'stg':'',x.clinched?'stclinch':''].filter(Boolean).join(' ');
+      var cls=[isG?'stg':'',x.clinched?'stclinch':'',x.eliminated?'stout':''].filter(Boolean).join(' ');
       var wl2=(x.w2|0)+'-'+(x.l2|0), wls=(x.ws|0)+'-'+(x.ls|0);
       var rk=(groupSize[pos[i]]>1?'T-':'')+pos[i];
       var dv=(x.diff==null)?0:x.diff;
@@ -6349,6 +6427,7 @@ function renderStandings(d){
     });
     h+='</table></div>';
     if(anyClinch)h+='<div class="stnote"><span class="clinch">🏆<small>1H</small></span> first-half champion — clinched a playoff spot</div>';
+    if(anyOut)h+='<div class="stnote"><span class="outswatch"></span><span class="outbadge">Out</span> shaded row — mathematically eliminated from the second-half race</div>';
     var tbs=(d&&d.tiebreaks)||[];
     if(tbs.length){
       h+='<div class="sttb"><div class="sttbh">Tiebreakers applied</div><ul>';
