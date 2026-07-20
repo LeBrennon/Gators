@@ -276,7 +276,7 @@ footer{margin-top:4px;padding-top:4px;border-top:1px solid #e6def7;font-size:8.5
   <h3>If It Comes Down To A Tie</h3>
   <div class="tbcols">
     <div class="tbcol"><b>2 teams level:</b><ol><li>Games back</li><li>Win percentage</li><li>Head-to-head</li><li>Run differential</li><li>Run diff. in head-to-head games</li><li>Winner of the last regulation meeting</li></ol></div>
-    <div class="tbcol"><b>3+ teams level:</b><ol><li>Head-to-head among the tied teams</li><li>Run differential</li><li>Run diff. in head-to-head games among the tied teams</li></ol><div style="margin-top:8px">Full seeding rules, including the both-halves overlap rule, live in <b>docs/tcl-playoff-rules.md</b>.</div></div>
+    <div class="tbcol"><b>3+ teams level:</b><ol><li>Head-to-head among the tied teams</li><li>Run differential</li><li>Run diff. in head-to-head games among the tied teams</li></ol></div>
   </div>
 </div>
 
