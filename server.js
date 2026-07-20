@@ -2140,7 +2140,6 @@ const ROSTER = [
   { num: 36, name: 'Jake Rider',       slug: 'jakeridergyu4',        pos: 'P',       cls: 'Junior',       ht: '6-4',  wt: '220', b: 'R', t: 'R', bday: '10/11/2005', home: 'Lake Charles, LA', school: 'Nunez CC' },
   // Added off the 6/30 second-half roster; now playing, so his real Presto slug is set directly and stats flow.
   { num: 38, name: 'Gabe Guidry',      slug: 'gabeguidryfktf',       pos: 'Utility', cls: 'R-Sophomore',  ht: '6-3',  wt: '200', b: 'R', t: 'R', bday: '01/26/2005',  home: 'Lake Charles, LA', school: 'Bossier Parish CC' },
-  { num: 42, name: 'Kale Cropper',     slug: 'kalecropperuden',      pos: 'P',       cls: 'Sophomore',    ht: '6-4',  wt: '210', b: 'R', t: 'R', bday: '08/25/2006', home: 'Port Neches, TX',  school: 'Hill College' },
   { num: 45, name: 'Cannon Faulk',     slug: 'cannonfaulk0l9x',      pos: 'P',       cls: 'R-Sophomore',  ht: '6-4',  wt: '225', b: 'L', t: 'L', bday: '12/02/2005', home: 'Port Neches, TX',  school: 'Angelina College' },
   // On the official roster and already pitching; real Presto slug set directly
   // (resolved from the Gators team roster page) so his season stats flow in.
@@ -2148,10 +2147,11 @@ const ROSTER = [
   // Assigned #39 on the 6/30 second-half roster; now playing, so his real Presto slug is
   // set directly and stats flow. Headshot populates once a photo is bundled.
   { num: 39, name: 'Yuichiro Kumagami', slug: 'yuichirokumagamisa54', pos: 'C', cls: 'Junior', ht: '5-11', wt: '200', b: 'R', t: 'R', bday: '07/16/2005', home: 'Miyagi, Japan', school: 'Mount Hood CC' },
-  // Added off the 7/3 official roster; the 7/4 sheet assigns #24 and lists him as a
-  // pitcher (was catcher/TBD). Real Presto slug set directly (resolved from the
-  // Gators team roster page); he has pitched, so his season stats flow in.
-  { num: 24, name: 'Pierce Boles', slug: 'piercebolesgu20', pos: 'P', cls: 'Sophomore', ht: '6-2', wt: '190', b: 'R', t: 'R', bday: '', home: 'Mandeville, LA', school: 'LSU-Eunice' },
+  // Dropped off the 7/19 gameday sheet (Pierce Boles, #24) — removed to match the active roster.
+  // #24 now belongs to John Munnerlyn, added off that same sheet. He'd already been pitching
+  // all season without a ROSTER entry (his Presto slug/headshot were already on file); bio
+  // per the gameday sheet.
+  { num: 24, name: 'John Munnerlyn', slug: 'johnmunnerlynzovp', pos: 'P', cls: 'Redshirt Freshman', ht: '6-4', wt: '205', b: 'R', t: 'R', bday: '11/20/2006', home: 'Loreauville, LA', school: 'Bossier Parish CC' },
   // Added off the 6/30 second-half roster. Hollier has TWO namesake pages on the
   // Gators team roster: an inactive #98 duplicate (taylorhollierj0t9, all dashes)
   // and the active #12 page (taylorholliervl4b) that actually carries his season
@@ -2169,10 +2169,10 @@ const ROSTER = [
   // Presto slug (resolved from the team roster page) is set directly and his season stats flow.
   { num: 18, name: 'Landon Victorian', slug: 'landonvictoriank052', pos: 'P', cls: 'Sophomore', ht: '6-3', wt: '180', b: 'R', t: 'R', bday: '11/02/2005', home: 'Lake Charles, LA', school: 'Louisiana Lafayette' },
   // Added off the 7/7 official roster as unnumbered position players; jersey numbers per
-  // Coach Carl (Cooley #7, Beddoe #13, Sparks #9). Bio details filled in
-  // from their college roster pages (LSU-Eunice, Pearl River CC, Lamar). All now playing, so
-  // their real Presto slugs (resolved from the team roster page) are set directly and stats flow.
-  { num: 7,  name: 'Griffin Cooley', slug: 'griffincooleymoh6', pos: 'OF',      cls: 'R-Sophomore', ht: '6-2',  wt: '179', b: 'L', t: 'L', bday: '',           home: 'Kinder, LA',   school: 'LSU-Eunice' },
+  // Coach Carl (Beddoe #13, Sparks #9). Bio details filled in from their college roster
+  // pages (Pearl River CC, Lamar). Both now playing, so their real Presto slugs (resolved
+  // from the team roster page) are set directly and stats flow.
+  // Griffin Cooley (#7) dropped off the 7/19 gameday sheet — removed to match the active roster.
   { num: 13, name: 'Jackson Beddoe', slug: 'jacksonbeddoep18p', pos: 'IF',      cls: 'Freshman',    ht: '5-11', wt: '185', b: 'R', t: 'R', bday: '',           home: 'Sulphur, LA',  school: 'Pearl River CC' },
   { num: 9,  name: 'Lane Sparks', slug: 'lanesparksgmxd', pos: 'OF', cls: 'Junior', ht: '6-0', wt: '175', b: 'L', t: 'L', bday: '12/28/2004', home: 'Brenham, TX', school: 'Lamar' },
   // Added off the 7/10 official roster (#26, position players). Catcher at Nunez CC (Nunez
@@ -2206,7 +2206,20 @@ const ROSTER = [
   // Added off the 7/16 gameday roster (pitchers). HS Senior committed to McNeese; bio
   // per the gameday sheet. Now pitching, so his real Presto slug (jackgarcille9sq9, resolved
   // from the team roster page) is set directly so his bundled headshot shows and season stats flow.
-  { num: 19, name: 'Jack Garcille', slug: 'jackgarcille9sq9', pos: 'P', cls: 'HS Senior', ht: '6-6', wt: '210', b: 'R', t: 'R', bday: '', home: 'Lake Charles, LA', school: 'McNeese State' },
+  // Renumbered #19 -> #42 on the 7/19 gameday sheet (his old #19 wasn't reassigned).
+  { num: 42, name: 'Jack Garcille', slug: 'jackgarcille9sq9', pos: 'P', cls: 'HS Senior', ht: '6-6', wt: '210', b: 'R', t: 'R', bday: '', home: 'Lake Charles, LA', school: 'McNeese State' },
+  // Added off the 7/19 gameday sheet (position players, unnumbered on the sheet; #6 per
+  // Presto). Bio from his Louisiana Christian University roster page — he played there as
+  // a Sophomore utility infielder before joining the Gators mid-summer. Real Presto slug
+  // set directly (resolved from the team roster page); headshot cropped from his LCU
+  // roster photo. No game action yet, so the note shows until his first game.
+  { num: 6, name: 'Gavin Gary', slug: 'gavingaryhrlk', pos: 'Utility', cls: 'Sophomore', ht: '5-10', wt: '165', b: 'R', t: 'R', bday: '', home: 'DeQuincy, LA', school: 'Louisiana Christian', note: 'Recently added — season stats will appear after his first game.' },
+  // Added off the 7/19 gameday sheet (position players, unnumbered on the sheet; #37 per
+  // Presto). A 2025 Sulphur High grad (3B/1B, uncommitted per his recruiting profiles) with
+  // no prior college team, so bio is thin — no public DOB. Headshot is a Hudl photo (his only
+  // public one; it's from football, not baseball). Real Presto slug set directly (resolved
+  // from the team roster page). No game action yet, so the note shows until his first game.
+  { num: 37, name: 'Jay Michael Stelly', slug: 'jaymichaelstelly1o33', pos: 'Utility', cls: 'HS Senior', ht: '5-10', wt: '195', b: '', t: '', bday: '', home: 'Sulphur, LA', school: '', note: 'Recently added — season stats will appear after his first game.' },
 ];
 
 // Coaching staff (gumbeauxgators.com/coaches). Shown beneath the player roster;
