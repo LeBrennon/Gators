@@ -5383,7 +5383,7 @@ a.bxp:active{opacity:.6;}
 .ranklegend{margin-top:10px;font-size:10px;line-height:1.4;color:var(--mute);text-align:center;}
 .ranklegend b{color:var(--gold);font-weight:700;}
 .gltbl{overflow-x:auto;-webkit-overflow-scrolling:touch;}
-.gltbl a.gld{color:var(--gold2);text-decoration:none;font-weight:600;}
+.gltbl a.gld{color:var(--gold2);text-decoration:none;font-weight:600;cursor:pointer;}
 .gltbl a.gld:hover{text-decoration:underline;}
 .gltbl table{width:100%;border-collapse:collapse;font-size:10px;white-space:nowrap;}
 .gltbl th{color:var(--mute);font-weight:700;text-transform:uppercase;font-size:8.5px;padding:5px 3px;border-bottom:1px solid var(--line);}
