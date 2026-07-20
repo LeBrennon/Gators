@@ -4693,7 +4693,7 @@ app.get('/debug/extras', (_q, r) => {
     sampleGames: sample,
   });
 });
-app.get('/api/roster', (_q, r) => { if (!rosterPolling && Object.keys(rosterStats).length === 0) pollRoster(); r.json(rosterPayload()); });
+app.get('/api/roster', (_q, r) => { r.set('Cache-Control', 'no-store'); if (!rosterPolling && Object.keys(rosterStats).length === 0) pollRoster(); r.json(rosterPayload()); });
 // Headshots are bundled in photos/ and served from our own origin.
 app.get('/api/photo', (q, r) => {
   const slug = String((q.query && q.query.slug) || '');
@@ -4714,6 +4714,7 @@ app.get('/api/photo', (q, r) => {
   r.send(entry.buf);
 });
 app.get('/api/player', async (q, r) => {
+  r.set('Cache-Control', 'no-store');
   const slug = String((q.query && q.query.slug) || '');
   if (!/^[a-z0-9_]+$/i.test(slug)) return r.status(400).json({ error: 'bad slug' });
   try {
@@ -6577,7 +6578,7 @@ function setView(v){
 }
 function loadRoster(){
   if(rosterReq)return;rosterReq=true;
-  fetch('/api/roster').then(function(r){return r.json();}).then(function(d){
+  fetch('/api/roster',{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){
     rosterReq=false;rosterData=d.players||[];_gnSlug=null;mergeStats(rosterData);
     // Full render only the first time. Re-polls (every 4s until stats + photos are in)
     // must NOT rebuild rosterBody's innerHTML — that recreates every <img class="ppic">,
@@ -6631,7 +6632,7 @@ function lazyFill(){
 function pumpFill(){
   if(!fillQueue.length){fillBusy=false;return;}
   fillBusy=true;var slug=fillQueue.shift();
-  fetch('/api/player?slug='+encodeURIComponent(slug)).then(function(r){return r.json();}).then(function(d){
+  fetch('/api/player?slug='+encodeURIComponent(slug),{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){
     filled[slug]=1; // we've pulled the full record; don't keep re-queuing it
     if(!d||(!d.hit&&!d.pit))return;
     var c=statCache[slug]||(statCache[slug]={});
@@ -6780,7 +6781,7 @@ function openPlayer(slug){
     (p.bday?bi('Birthday',p.bday):'')+'</div>';
   $('plBody').innerHTML=bio+'<div id="plStats">'+statBlocks(p)+'</div><div id="plGl"><div class="spin" style="padding:16px">Loading game log…</div></div>';
   $('plModal').classList.add('show');$('plModal').style.zIndex=++modalZ;syncBg();
-  fetch('/api/player?slug='+encodeURIComponent(slug)).then(function(r){return r.json();}).then(function(d){
+  fetch('/api/player?slug='+encodeURIComponent(slug),{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){
     if(plCur!==slug)return;
     var m=Object.assign({},p);
     if(d.hit){m.hit=d.hit;m.hitRanks=d.hitRanks||p.hitRanks;}
