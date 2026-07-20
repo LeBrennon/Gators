@@ -2255,11 +2255,12 @@ const ROSTER = [
   // roster photo. No game action yet, so the note shows until his first game.
   { num: 6, name: 'Gavin Gary', slug: 'gavingaryhrlk', pos: 'Utility', cls: 'Sophomore', ht: '5-10', wt: '165', b: 'R', t: 'R', bday: '', home: 'DeQuincy, LA', school: 'Louisiana Christian', note: 'Recently added — season stats will appear after his first game.' },
   // Added off the 7/19 gameday sheet (position players, unnumbered on the sheet; #37 per
-  // Presto). A 2025 Sulphur High grad (3B/1B, uncommitted per his recruiting profiles) with
-  // no prior college team, so bio is thin — no public DOB. Headshot is a Hudl photo (his only
-  // public one; it's from football, not baseball). Real Presto slug set directly (resolved
-  // from the team roster page). No game action yet, so the note shows until his first game.
-  { num: 37, name: 'Jay Michael Stelly', slug: 'jaymichaelstelly1o33', pos: 'Utility', cls: 'HS Senior', ht: '5-10', wt: '195', b: '', t: '', bday: '', home: 'Sulphur, LA', school: 'Baton Rouge CC', note: 'Recently added — season stats will appear after his first game.' },
+  // Presto). A 2025 Sulphur High grad (3B/1B) who played at Baton Rouge CC — no public DOB.
+  // Headshot is his BRCC Bears baseball photo (an earlier Hudl football photo was bundled
+  // by mistake and has been replaced). Real Presto slug set directly (resolved from the
+  // team roster page). He's since played his first game, so the "recently added" note is
+  // dropped — his season line shows instead.
+  { num: 37, name: 'Jay Michael Stelly', slug: 'jaymichaelstelly1o33', pos: 'Utility', cls: 'HS Senior', ht: '5-10', wt: '195', b: 'R', t: 'R', bday: '', home: 'Sulphur, LA', school: 'Baton Rouge CC' },
 ];
 
 // Coaching staff (gumbeauxgators.com/coaches). Shown beneath the player roster;
