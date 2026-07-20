@@ -79,3 +79,24 @@ league schedule page:
 Season run differential shows as a **DIFF** column on the standings table; the playoff
 picture shows each seed's reason and any overlap note. Tests live in
 `test/playoffs.test.js`.
+
+## Mathematical elimination
+
+`computeElimination(rows, remaining)` marks a non-champion team **Out** on the
+Standings tab once it's provably dead for both ways into a berth:
+
+- **Door A** — finish top-2 of the second half outright. Closed for a team once at
+  least 2 *other* teams are guaranteed a higher second-half win total than that team
+  could reach even by winning out (a standard ceiling/floor check).
+- **Door B** — the overlap rule above: a first-half champion finishes top-2 of the
+  second half anyway (it doesn't need the berth) and hands the now-redundant slot to
+  the best remaining full-season record. This door only exists while a champion can
+  still reach a literal top-2 second-half finish, so it's permanently shut the moment
+  **both** champions are themselves shut out of door A.
+
+A team is only shown **Out** once both doors are shut. This is deliberately
+conservative: while either champion could still land in the second-half top 2, no
+team is marked out, even one that's already effectively hopeless — a false "Out"
+would be worse than a late one. `remainingGamesByTeam(html)` supplies each team's
+games-left count (every not-yet-decided game on the schedule page, since the whole
+season is past its first half by the time `SEASON_HALF` is 2).

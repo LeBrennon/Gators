@@ -903,6 +903,22 @@ function parseLeagueScoreboard(html, dateStr) {
   }
   return sortBoard(out);
 }
+// Each team's remaining (not yet decided) games, from the same full-league
+// schedule page — every date, every team, no Gators filter. SEASON_HALF is
+// already 2, so every game still unplayed is necessarily a second-half game;
+// this is exactly the count the second-half elimination math needs. Postponed/
+// suspended games are still counted (they're presumed to be made up later);
+// cancelled games are excluded, same as a final.
+function remainingGamesByTeam(html) {
+  const out = {};
+  const bump = id => { if (id) out[id] = (out[id] || 0) + 1; };
+  for (const g of parseLeagueScoreboard(html)) {
+    if (g.state === 'final' || g.state === 'cancelled') continue;
+    bump(g.away && g.away.id);
+    bump(g.home && g.home.id);
+  }
+  return out;
+}
 
 // ----- live situation feed --------------------------------------------------
 const val = x => Array.isArray(x) ? x[0] : x;            // status fields arrive as 1-element arrays
@@ -4587,6 +4603,36 @@ function buildPlayoffPicture(ranked, metrics) {
   }
   return { format: 'Best-of-3', seeds, matchups: [[1, 4], [2, 3]], notes };
 }
+// Mathematical elimination from the second-half race (docs/tcl-playoff-rules.md).
+// A non-champion team reaches a berth by one of two doors:
+//   (A) finish top-2 of the second half outright, or
+//   (B) a first-half champion finishes top-2 of the second half anyway (it
+//       doesn't need the spot, having already clinched via 1H) and hands the
+//       now-redundant berth to the best remaining full-season record.
+// Door A is a standard ceiling/floor check: team X is shut out of it once at
+// least 2 OTHER teams are guaranteed (even if X wins every game left) to finish
+// with more second-half wins than X's best possible total.
+// Door B only ever opens if a champion is STILL capable of a top-2 second-half
+// finish. So it's fully, permanently closed the moment BOTH champions are
+// themselves shut out of Door A — and only then is a non-champion who has also
+// lost Door A truly, unconditionally eliminated. (Conservative by design: while
+// either champion could still land in the second-half top 2, no team is marked
+// out, even ones that are effectively hopeless — a false "OUT" would be worse
+// than a late one.)
+function computeElimination(rows, remaining) {
+  const ceil2 = {}, floor2 = {};
+  for (const x of rows) {
+    const rem = (remaining && remaining[x.id]) || 0;
+    ceil2[x.id] = x.w2 + rem;
+    floor2[x.id] = x.w2;
+  }
+  const canTop2 = id => rows.filter(y => y.id !== id && floor2[y.id] > ceil2[id]).length < 2;
+  const champIds = Object.keys(CLINCHED_PLAYOFF);
+  const doorBClosed = champIds.every(id => !rows.some(y => y.id === id) || !canTop2(id));
+  const out = {};
+  for (const x of rows) out[x.id] = !x.clinched && !canTop2(x.id) && doorBClosed;
+  return out;
+}
 // Memoize the league metrics against the schedule fetch so we reparse only when
 // pollSchedule brings in fresh HTML.
 let _metricsCache = { at: -1, val: null };
@@ -4620,6 +4666,9 @@ app.get('/api/standings', (_q, r) => {
   const rows = ranked.rows;
   const lead = rows[0];
   for (const x of rows) x.gb = lead ? ((lead.w2 - x.w2) + (x.l2 - lead.l2)) / 2 : 0;
+  const remaining = remainingGamesByTeam(lastHtml);
+  const eliminated = computeElimination(rows, remaining);
+  for (const x of rows) { x.gamesLeft = remaining[x.id] || 0; x.eliminated = !!eliminated[x.id]; }
   r.json({ updatedAt: standingsAt, gatorsId: GATORS_ID, half: SEASON_HALF, rows,
     tiebreaks: ranked.tiebreaks, playoffs: buildPlayoffPicture(rows, metrics), scoreboard: buildLeagueBoard() });
 });
@@ -4940,7 +4989,8 @@ if (require.main === module) {
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, attachLineupSubLegend, pitchersFromFeed, extractEventAuth,
   dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, applyStandingsOverride, MANUAL_STANDINGS_OVERRIDE, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseTeamRosterSlugs, parseGameLog, boxRowsForPlayer, aggBat, aggPit, buildRecord, lineIsShowable, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, applyPitcherOverrides, pitchingTotals, strikeCounts, inningAlertText, finalAlertText,
   parseLeagueResults, computeLeagueMetrics, cmpTwoTeam, rankTiedGroup, rankSecondHalf, buildPlayoffPicture, boxLooksComplete, boxErrorResponse,
-  gatorsGameResult, gatorsSeasonWL, applyGatorsAutoFloor, feedHasPitching, atBoxPrestage, bsLinkGators };
+  gatorsGameResult, gatorsSeasonWL, applyGatorsAutoFloor, feedHasPitching, atBoxPrestage, bsLinkGators,
+  parseLeagueScoreboard, remainingGamesByTeam, computeElimination };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
@@ -5344,7 +5394,12 @@ a.bxp:active{opacity:.6;}
 .strk.loss{color:var(--away);}
 .clinch{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;flex:none;font-size:14px;font-family:'Oswald',sans-serif;font-weight:700;color:var(--gold2);}
 .clinch small{font-size:8px;letter-spacing:.06em;margin-top:3px;}
+.sttbl tr.stout{opacity:.5;}
+.sttbl tr.stout .stlogo{filter:grayscale(1);}
+.sttbl tr.stout .stteam{text-decoration:line-through;text-decoration-color:var(--mute);}
+.outbadge{display:inline-flex;align-items:center;flex:none;font-size:8.5px;font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--mute);border:1px solid var(--line);border-radius:999px;padding:2px 7px;margin-left:2px;text-decoration:none;}
 .stnote{margin-top:8px;font-size:10px;color:var(--mute);display:flex;align-items:center;gap:6px;font-family:'Oswald',sans-serif;letter-spacing:.01em;}
+.stnote+.stnote{margin-top:4px;}
 .sttbl .stdiff{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--mute);text-align:right;}
 .sttbl .stdiff.pos{color:#41a913;}
 .sttbl .stdiff.neg{color:var(--away);}
@@ -6340,7 +6395,7 @@ function renderStandings(d){
   var recById={};rows.forEach(function(x){if(x.id)recById[x.id]=(x.w2|0)+'-'+(x.l2|0);});
   if(!rows.length){$('standingsBody').innerHTML='<div class="note">Standings aren’t available yet — check back shortly.</div>';$('stMeta').textContent='';}
   else{
-    var anyClinch=false;
+    var anyClinch=false,anyOut=false;
     // Standings position with ties: teams sharing the same second-half PCT hold
     // the same rank, shown as "T-N" (e.g. four teams at .667 are all "T-1").
     var pos=rows.map(function(x,i){return (i>0&&rows[i-1].pct===x.pct)?null:i+1;});
@@ -6356,9 +6411,12 @@ function renderStandings(d){
       var nm=esc(x.name||x.short);
       var clin=x.clinched?('<span class="clinch" title="Won the first half — clinched a playoff spot">🏆<small>1H</small></span>'):'';
       if(x.clinched)anyClinch=true;
-      var inner=lg+'<span class="stnm">'+nm+'</span>'+clin;
+      var gl=x.gamesLeft==null?'':(' — '+x.gamesLeft+' game'+(x.gamesLeft===1?'':'s')+' left');
+      var outb=x.eliminated?('<span class="outbadge" title="Mathematically eliminated from the second-half race'+esc(gl)+'">Out</span>'):'';
+      if(x.eliminated)anyOut=true;
+      var inner=lg+'<span class="stnm">'+nm+'</span>'+clin+outb;
       var team=x.site?('<a class="stteam" href="'+esc(x.site)+'" target="_blank" rel="noopener">'+inner+'</a>'):('<div class="stteam">'+inner+'</div>');
-      var cls=[isG?'stg':'',x.clinched?'stclinch':''].filter(Boolean).join(' ');
+      var cls=[isG?'stg':'',x.clinched?'stclinch':'',x.eliminated?'stout':''].filter(Boolean).join(' ');
       var wl2=(x.w2|0)+'-'+(x.l2|0), wls=(x.ws|0)+'-'+(x.ls|0);
       var rk=(groupSize[pos[i]]>1?'T-':'')+pos[i];
       var dv=(x.diff==null)?0:x.diff;
@@ -6369,6 +6427,7 @@ function renderStandings(d){
     });
     h+='</table></div>';
     if(anyClinch)h+='<div class="stnote"><span class="clinch">🏆<small>1H</small></span> first-half champion — clinched a playoff spot</div>';
+    if(anyOut)h+='<div class="stnote"><span class="outbadge">Out</span> mathematically eliminated from the second-half race</div>';
     var tbs=(d&&d.tiebreaks)||[];
     if(tbs.length){
       h+='<div class="sttb"><div class="sttbh">Tiebreakers applied</div><ul>';
