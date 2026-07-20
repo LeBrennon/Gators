@@ -6392,7 +6392,11 @@ var fillQueue=[],filling={},filled={},fillBusy=false;
 // line; everyone else needs only one. The league seed gives a two-way player
 // their hitting stats, so without this they'd look "done" and never pull pitching.
 function needsBoth(p){return !!(p&&p.pos&&/two.?way/i.test(p.pos));}
-function pHasStats(p){return needsBoth(p)?!!((p.hit&&p.pit)||filled[p.slug]):!!(p.hit||p.pit);}
+// A box-score-derived line (fromBox) is a rough same-day stand-in, not the real
+// player-page/leaderboard stats it's meant to be replaced by — treat it as "not
+// yet complete" so the fill queue keeps chasing the real number instead of
+// treating a possibly-wrong line (e.g. all zeros) as done just because it exists.
+function pHasStats(p){if(p&&p.fromBox)return false;return needsBoth(p)?!!((p.hit&&p.pit)||filled[p.slug]):!!(p.hit||p.pit);}
 // Re-apply any stats we've already learned (server or lazy-fill) onto a fresh payload,
 // and absorb newly-arrived ones, so a refresh never blanks a card we'd filled.
 function mergeStats(list){
@@ -6648,17 +6652,30 @@ function lazyFill(){
   });
   if(!fillBusy)pumpFill();
 }
+// Apply a fresh /api/player result to the shared roster data + statCache and
+// repaint that player's list card, so a fetch made anywhere (the fill queue,
+// or a tapped-open profile) keeps the roster list in sync instead of letting
+// it revert to whatever placeholder/box-derived line the card started with.
+function applyFetchedStats(slug,d){
+  if(!d||(!d.hit&&!d.pit))return null;
+  var c=statCache[slug]||(statCache[slug]={});
+  if(d.hit){c.hit=d.hit;c.hitRanks=d.hitRanks||{};}
+  if(d.pit){c.pit=d.pit;c.pitRanks=d.pitRanks||{};}
+  var p=null;for(var i=0;i<rosterData.length;i++)if(rosterData[i].slug===slug)p=rosterData[i];
+  if(p){
+    if(d.hit){p.hit=d.hit;p.hitRanks=d.hitRanks||p.hitRanks;}
+    if(d.pit){p.pit=d.pit;p.pitRanks=d.pitRanks||p.pitRanks;}
+    delete p.fromBox; // a real player-page fetch supersedes the box-score fallback
+    updateCardStats(p);setRmeta();
+  }
+  return p;
+}
 function pumpFill(){
   if(!fillQueue.length){fillBusy=false;return;}
   fillBusy=true;var slug=fillQueue.shift();
   fetch('/api/player?slug='+encodeURIComponent(slug),{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){
     filled[slug]=1; // we've pulled the full record; don't keep re-queuing it
-    if(!d||(!d.hit&&!d.pit))return;
-    var c=statCache[slug]||(statCache[slug]={});
-    if(d.hit){c.hit=d.hit;c.hitRanks=d.hitRanks||{};}
-    if(d.pit){c.pit=d.pit;c.pitRanks=d.pitRanks||{};}
-    var p=null;for(var i=0;i<rosterData.length;i++)if(rosterData[i].slug===slug)p=rosterData[i];
-    if(p){if(d.hit){p.hit=d.hit;p.hitRanks=d.hitRanks||p.hitRanks;}if(d.pit){p.pit=d.pit;p.pitRanks=d.pitRanks||p.pitRanks;}updateCardStats(p);setRmeta();}
+    applyFetchedStats(slug,d);
   }).catch(function(){}).then(function(){setTimeout(pumpFill,600);});
 }
 function updateCardStats(p){
@@ -6801,10 +6818,11 @@ function openPlayer(slug){
   $('plBody').innerHTML=bio+'<div id="plStats">'+statBlocks(p)+'</div><div id="plGl"><div class="spin" style="padding:16px">Loading game log…</div></div>';
   $('plModal').classList.add('show');$('plModal').style.zIndex=++modalZ;syncBg();
   fetch('/api/player?slug='+encodeURIComponent(slug),{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){
+    // Sync the shared roster-card data too, so the list doesn't revert to a
+    // stale/box-derived line once this modal closes.
+    applyFetchedStats(slug,d);
     if(plCur!==slug)return;
     var m=Object.assign({},p);
-    if(d.hit){m.hit=d.hit;m.hitRanks=d.hitRanks||p.hitRanks;}
-    if(d.pit){m.pit=d.pit;m.pitRanks=d.pitRanks||p.pitRanks;}
     var ps=$('plStats');
     if(ps){
       // Mid-season transfer: lead with his Gators line, then his labeled prior-team block.
