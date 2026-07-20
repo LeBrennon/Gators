@@ -547,7 +547,13 @@ function bsAddSeasonAvg(html, slugMap) {
 // ROSTER is defined later) and wraps it in an <a data-slug> the client handles.
 let _gatorNameSlug = null;
 function gatorNameSlug() {
-  if (!_gatorNameSlug) { _gatorNameSlug = {}; for (const p of ROSTER) _gatorNameSlug[p.name.toLowerCase().replace(/\s+/g, ' ').trim()] = p.slug; }
+  if (!_gatorNameSlug) {
+    _gatorNameSlug = {};
+    for (const p of ROSTER) {
+      _gatorNameSlug[p.name.toLowerCase().replace(/\s+/g, ' ').trim()] = p.slug;
+      for (const a of p.aka || []) _gatorNameSlug[a.toLowerCase().replace(/\s+/g, ' ').trim()] = p.slug;
+    }
+  }
   return _gatorNameSlug;
 }
 function bsLinkGators(tableHtml) {
@@ -4934,7 +4940,7 @@ if (require.main === module) {
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, attachLineupSubLegend, pitchersFromFeed, extractEventAuth,
   dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, applyStandingsOverride, MANUAL_STANDINGS_OVERRIDE, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseTeamRosterSlugs, parseGameLog, boxRowsForPlayer, aggBat, aggPit, buildRecord, lineIsShowable, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, applyPitcherOverrides, pitchingTotals, strikeCounts, inningAlertText, finalAlertText,
   parseLeagueResults, computeLeagueMetrics, cmpTwoTeam, rankTiedGroup, rankSecondHalf, buildPlayoffPicture, boxLooksComplete, boxErrorResponse,
-  gatorsGameResult, gatorsSeasonWL, applyGatorsAutoFloor, feedHasPitching, atBoxPrestage };
+  gatorsGameResult, gatorsSeasonWL, applyGatorsAutoFloor, feedHasPitching, atBoxPrestage, bsLinkGators };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
@@ -5237,8 +5243,8 @@ body.noscroll{overflow:hidden;}
 .bx td.bxavg{color:var(--gold2);font-family:'JetBrains Mono',monospace;}
 .bx th.bxavg{color:var(--gold2);}
 .bx .sublet{text-transform:none;color:var(--mute);font-weight:400;margin-right:1px;}
-.bx th a.bxp{color:var(--bone);text-decoration:none;cursor:pointer;}
-.bx th a.bxp:active{opacity:.6;}
+a.bxp{color:var(--bone);text-decoration:none;cursor:pointer;}
+a.bxp:active{opacity:.6;}
 .bx .dec{color:var(--gold2);font-weight:700;}
 .pbp table{margin-bottom:12px;border:1px solid var(--line);border-radius:10px;overflow:hidden;}
 .pbp tr:first-child th,.pbp tr:first-child td{background:var(--panel);color:var(--gold2);text-align:left;font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:11px;letter-spacing:.05em;font-weight:700;padding:8px 10px;white-space:normal;}
@@ -6065,7 +6071,8 @@ var _gnSlug=null;
 function gatorSlug(name){
   if(!rosterData)return null;
   if(!_gnSlug){_gnSlug={};for(var i=0;i<rosterData.length;i++){var p=rosterData[i];
-    if(p&&p.name)_gnSlug[String(p.name).toLowerCase().replace(/\s+/g,' ').trim()]=p.slug;}}
+    if(p&&p.name)_gnSlug[String(p.name).toLowerCase().replace(/\s+/g,' ').trim()]=p.slug;
+    if(p&&p.aka)for(var j=0;j<p.aka.length;j++)_gnSlug[String(p.aka[j]).toLowerCase().replace(/\s+/g,' ').trim()]=p.slug;}}
   return _gnSlug[String(name||'').toLowerCase().replace(/\s+/g,' ').trim()]||null;
 }
 function buildLineup(g){
