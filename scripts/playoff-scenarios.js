@@ -142,15 +142,29 @@ function buildHtml({ rows, gatorsId, gRow, rank, holding, rivalLines, remaining,
 
   const remRows = remaining.map(g => `<tr><td>${esc(g.dateLabel)}</td><td>${esc(fmtOpp(g))}</td><td class="mute">${esc(g.status || '')}</td></tr>`).join('');
 
+  // If the Gators and a rival finish level on games-over-.500 AND PCT (the two
+  // teams truly tied, not just close), the next tie-break step is head-to-head
+  // (docs/tcl-playoff-rules.md). Spell out which way that actually breaks —
+  // this is the difference between finishing 2nd (in) and 3rd (out), not just
+  // seeding, when only one spot separates two teams.
+  function tieBreakNote(row, series) {
+    const stillToPlay = remaining.some(g => g.opponent.short === row.short);
+    const locked = stillToPlay ? '' : ' &mdash; locked in, they don’t play again this season';
+    if (!series.games) return `They haven’t played this season, so a tie would fall straight to run differential.`;
+    if (series.w > series.l) return `In a tie, head-to-head decides it: Gators lead the season series ${series.w}-${series.l}${locked}, so the tie breaks <b>for</b> the Gators &mdash; they'd finish 2nd, ${esc(row.short)} 3rd.`;
+    if (series.w < series.l) return `In a tie, head-to-head decides it: ${esc(row.short)} lead the season series ${series.l}-${series.w}${locked}, so the tie breaks <b>against</b> the Gators &mdash; they'd finish 3rd, ${esc(row.short)} 2nd.`;
+    return `The season series is even (${series.w}-${series.w}), so a tie would fall to run differential next.`;
+  }
+
   const rivalCards = rivalLines.map(({ row, wd, series, equalGL }) => {
     const verb = holding ? 'holding off' : 'catching';
     let math;
     if (!equalGL) {
       math = `Games-left counts differ (Gators ${gRow.gamesLeft} vs ${row.short} ${row.gamesLeft}) &mdash; ${row.gb} GB, no clean win-for-win comparison.`;
     } else if (wd.gap <= 0) {
-      math = `Gators are already level or ahead on games-over-.500 &mdash; one more win than ${esc(row.short)} the rest of the way clears them outright.`;
+      math = `Gators are already level or ahead on games-over-.500 &mdash; one more win than ${esc(row.short)} the rest of the way clears them outright. ${tieBreakNote(row, series)}`;
     } else if (wd.tie != null) {
-      math = `Win at least <b>${wd.tie}</b> more of their last games than ${esc(row.short)} does to force a tie (tiebreakers: head-to-head, then run differential) &mdash; <b>${wd.pass}</b>+ to clinch outright, no tiebreaker needed.`;
+      math = `Win at least <b>${wd.tie}</b> more of their last games than ${esc(row.short)} does to force a tie &mdash; <b>${wd.pass}</b>+ to clinch outright, no tiebreaker needed. ${tieBreakNote(row, series)}`;
     } else {
       math = `Must out-win ${esc(row.short)} by at least <b>${wd.pass}</b> game${wd.pass === 1 ? '' : 's'} over the stretch to pass them &mdash; a tie on games-over-.500 isn't mathematically possible between these two.`;
     }
@@ -207,14 +221,14 @@ table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;}
 .bracketfoot{font-size:9.5px;color:#6a6480;margin-top:3px;line-height:1.5;}
 .hostrule{font-size:9.5px;color:#4a416e;margin-top:6px;padding-top:6px;border-top:1px dashed #e6def7;line-height:1.5;}
 .hostrule b{color:#3a2480;}
-.path{border:1px solid #e6def7;border-top:none;border-radius:0 0 7px 7px;padding:11px;}
-.pathstatus{font-size:14px;margin-bottom:11px;}
+.path{border:1px solid #e6def7;border-top:none;border-radius:0 0 7px 7px;padding:9px 11px;}
+.pathstatus{font-size:13px;margin-bottom:8px;}
 .pathstatus b{color:#3a2480;}
 .rivals{display:flex;gap:12px;}
-.rival{flex:1;border:1px solid #e6def7;border-radius:9px;padding:10px 12px;background:#faf8ff;}
-.rivalhead{font-size:12.5px;margin-bottom:5px;}
-.rivalmath{font-size:12px;line-height:1.5;}
-.rivalseries{font-size:10.5px;margin-top:5px;}
+.rival{flex:1;border:1px solid #e6def7;border-radius:9px;padding:8px 11px;background:#faf8ff;}
+.rivalhead{font-size:12px;margin-bottom:4px;}
+.rivalmath{font-size:11px;line-height:1.42;}
+.rivalseries{font-size:10px;margin-top:4px;}
 .schedwrap{display:flex;gap:16px;margin-top:0;}
 .sched{flex:1;}
 .sched table{border:1px solid #e6def7;border-radius:7px;overflow:hidden;}
