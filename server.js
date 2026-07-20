@@ -2953,9 +2953,10 @@ async function pollRoster() {
     } catch (e) { logErr('fillStatsFromBoxes', e); }
     // Transfer stints: a player who joined mid-season carries a `priorStint`
     // pointing at his previous team's separate Presto page. Warm that page under
-    // its own slug so his old-team season line is ready for the card's "prev."
-    // chip and his profile's labeled prior-team block. It lives outside his roster
-    // slug, so it never leaks into his Gators line or the team aggregates.
+    // its own slug so his old-team season line is ready to fold into his
+    // full-season totals (card + profile summary) and to render his prior-team
+    // game log. It lives outside his roster slug, so it never leaks into the
+    // Gators-only game log or the team aggregates.
     for (const pl of ROSTER) {
       const ps = pl.priorStint; if (!ps) continue;
       if (rosterStats[ps.slug] && recFresh(playerCache[ps.slug])) continue;
@@ -6568,27 +6569,23 @@ function posLabel(p){
   if(p.pos&&/^p$/i.test(String(p.pos).trim()))return String(p.t||'').toUpperCase()==='L'?'LHP':'RHP';
   return p.pos;
 }
-function cardPitcherOnly(p){
+function cardPitcherOnly(p,hit){
   if(!p.pos||!/^p$/i.test(String(p.pos).trim()))return false;
-  var ab=p.hit&&p.hit.ab;return (ab==null?0:Number(ab)||0)<10;
+  var ab=hit&&hit.ab;return (ab==null?0:Number(ab)||0)<10;
 }
 function cardStats(p){
+  // Mid-season transfer: fold his prior-team line into his Gators line so the card
+  // shows full-season totals, matching the profile — no separate prior-team chip.
+  var hit=(p.prior&&p.prior.hit)?combineHit(p.hit,p.prior.hit):p.hit;
+  var pit=(p.prior&&p.prior.pit)?combinePit(p.pit,p.prior.pit):p.pit;
   // Third stat is HR when the hitter has one, otherwise Hits — so every hitter
   // shows three stats instead of dropping to two when HR is 0.
   var third=['h','H'];
-  if(p.hit){var hr=p.hit.hr;if(hr!=null&&hr!==''&&hr!=='-'&&Number(hr)>0)third=['hr','HR'];}
-  var bat=(p.hit&&!cardPitcherOnly(p))?('<div class="pstline">'+sline(p.hit,[['avg','AVG'],third,['rbi','RBI']])+'</div>'):'';
-  var pit=p.pit?('<div class="pstline pit">'+sline(p.pit,[['era','ERA'],['ip','IP'],['k','K']])+'</div>'):'';
-  // Mid-season transfer: show his previous team's line right below his Gators line,
-  // tagged with that team so it reads as prior-team stats, not Gators stats.
-  var prev='';
-  if(p.prior&&(p.prior.hit||p.prior.pit)){
-    var ph=p.prior.hit,pp=p.prior.pit;
-    var pv=ph?sline(ph,[['avg','AVG'],(ph.hr&&Number(ph.hr)>0?['hr','HR']:['h','H']),['rbi','RBI']]):(pp?sline(pp,[['era','ERA'],['ip','IP'],['k','K']]):'');
-    prev='<div class="pstprev"><span class="ptag">prev · '+esc(oppShort(p.prior.team))+'</span>'+(pv?'<span class="pv">'+pv+'</span>':'')+'</div>';
-  }
-  if(!bat&&!pit&&!prev)return '<div class="pstat"><span class="plimited">—</span></div>';
-  return '<div class="pstat">'+bat+pit+prev+'</div>';
+  if(hit){var hr=hit.hr;if(hr!=null&&hr!==''&&hr!=='-'&&Number(hr)>0)third=['hr','HR'];}
+  var bat=(hit&&!cardPitcherOnly(p,hit))?('<div class="pstline">'+sline(hit,[['avg','AVG'],third,['rbi','RBI']])+'</div>'):'';
+  var pitL=pit?('<div class="pstline pit">'+sline(pit,[['era','ERA'],['ip','IP'],['k','K']])+'</div>'):'';
+  if(!bat&&!pitL)return '<div class="pstat"><span class="plimited">—</span></div>';
+  return '<div class="pstat">'+bat+pitL+'</div>';
 }
 // Dormant: renders the team batting/pitching card. Currently no-ops because the
 // server withholds d.teamStats from /api/roster (kept for easy re-enable).
@@ -6695,26 +6692,52 @@ function openPlayer(slug){
     var m=Object.assign({},p);
     if(d.hit){m.hit=d.hit;m.hitRanks=d.hitRanks||p.hitRanks;}
     if(d.pit){m.pit=d.pit;m.pitRanks=d.pitRanks||p.pitRanks;}
+    // Mid-season transfer: the profile summary shows FULL-SEASON totals — his Gators
+    // line and his prior-team line combined into one — so it reads as one season, not
+    // two halves. The game-by-game logs below still split by team. A combined
+    // cross-team line matches no single league leaderboard row, so ranks drop off it.
+    if(d.prior&&d.prior.hit){m.hit=combineHit(m.hit,d.prior.hit);m.hitRanks={};}
+    if(d.prior&&d.prior.pit){m.pit=combinePit(m.pit,d.prior.pit);m.pitRanks={};}
     var ps=$('plStats');
-    if(ps){
-      // Mid-season transfer: lead with his Gators line, then his labeled prior-team block.
-      var html=(d.prior?'<div class="teamtag cur">With the Gumbeaux Gators</div>':'')+statBlocks(m);
-      if(d.prior)html+=priorStatBlocks(d.prior);
-      ps.innerHTML=html;
-    }
+    if(ps)ps.innerHTML=statBlocks(m);
     renderGameLog(d);
   }).catch(function(){var g=$('plGl');if(g)g.innerHTML='';});
 }
-// Season line for a transferred player's PREVIOUS team — same layout as his own
-// stat blocks, but with no league ranks (he isn't ranked as a Gator on this line)
-// and a caption making clear it's a different team, kept out of his Gators totals.
-function priorStatBlocks(pr){
-  if(!pr||(!pr.hit&&!pr.pit))return '';
-  var hitDefs=[['avg','AVG'],['obp','OBP'],['slg','SLG'],['gp','G'],['ab','AB'],['h','H'],['hr','HR'],['rbi','RBI'],['r','R'],['bb','BB'],['k','K']];
-  if(pr.hit&&Number(pr.hit.sb)>0)hitDefs.push(['sb','SB']);
-  var bat=pr.hit?('<div class="statblock"><h4 class="bat">Hitting</h4>'+sgrid(pr.hit,null,hitDefs)+'</div>'):'';
-  var pit=pr.pit?('<div class="statblock"><h4>Pitching</h4>'+sgrid(pr.pit,null,[['era','ERA'],['whip','WHIP'],['ip','IP'],['w','W'],['l','L'],['sv','SV'],['app','APP'],['gs','GS'],['k','K'],['bb','BB'],['h','H'],['er','ER']])+'</div>'):'';
-  return '<div class="teamtag prev">Previously with '+esc(pr.team)+'<span class="tsub">2026 · before joining the Gators — not counted in his Gators totals</span></div>'+bat+pit;
+// Full-season combine for a mid-season transfer: fold his Gators line together
+// with his prior-team line into one season line. Counting stats sum; rate stats
+// (AVG/OBP/SLG, ERA/WHIP) can't be added, so they're recomputed from the totals.
+// Used by both the profile summary and the roster card so a move mid-year reads as
+// one season, not two halves. The game-by-game logs stay split by team elsewhere.
+function cNum(v){var n=Number(v);return isFinite(n)?n:0;}
+function cHas(a,b,k){return (a&&a[k]!=null&&a[k]!==''&&a[k]!=='-')||(b&&b[k]!=null&&b[k]!==''&&b[k]!=='-');}
+function ipOuts(ip){var m=String(ip==null?'':ip).match(/^(\d+)(?:\.(\d))?$/);return m?cNum(m[1])*3+cNum(m[2]):0;}
+function combineHit(a,b){
+  if(!a)return b||null;if(!b)return a;
+  var f3=function(x){return x.toFixed(3).replace(/^0/,'');};
+  // Total bases drives SLG; use the reported TB, or reconstruct it from SLG×AB.
+  var tbOf=function(x){if(x.tb!=null&&x.tb!==''&&x.tb!=='-')return cNum(x.tb);var s=Number(String(x.slg).replace(/^\./,'0.'));return isFinite(s)?Math.round(s*cNum(x.ab)):cNum(x.h);};
+  var ab=cNum(a.ab)+cNum(b.ab),h=cNum(a.h)+cNum(b.h);
+  var bb=cNum(a.bb)+cNum(b.bb),hbp=cNum(a.hbp)+cNum(b.hbp),sf=cNum(a.sf)+cNum(b.sf),tb=tbOf(a)+tbOf(b);
+  var o={gp:String(cNum(a.gp)+cNum(b.gp)),ab:String(ab),h:String(h),
+    hr:String(cNum(a.hr)+cNum(b.hr)),rbi:String(cNum(a.rbi)+cNum(b.rbi)),
+    r:String(cNum(a.r)+cNum(b.r)),bb:String(bb),k:String(cNum(a.k)+cNum(b.k)),tb:tb,hbp:hbp,sf:sf,
+    avg:ab?f3(h/ab):'.000',
+    obp:(ab+bb+hbp+sf)?f3((h+bb+hbp)/(ab+bb+hbp+sf)):'.000',
+    slg:ab?f3(tb/ab):'.000'};
+  if(cHas(a,b,'sb'))o.sb=String(cNum(a.sb)+cNum(b.sb));
+  return o;
+}
+function combinePit(a,b){
+  if(!a)return b||null;if(!b)return a;
+  var outs=ipOuts(a.ip)+ipOuts(b.ip),ipDec=outs/3;
+  var h=cNum(a.h)+cNum(b.h),er=cNum(a.er)+cNum(b.er),bb=cNum(a.bb)+cNum(b.bb);
+  var o={ip:Math.floor(outs/3)+'.'+(outs%3),h:String(h),r:String(cNum(a.r)+cNum(b.r)),
+    er:String(er),bb:String(bb),k:String(cNum(a.k)+cNum(b.k)),
+    era:ipDec?(er*9/ipDec).toFixed(2):'0.00',whip:ipDec?((bb+h)/ipDec).toFixed(2):'0.00'};
+  // Only carry counts that at least one stint actually reported, so a clean 0 box
+  // (e.g. W/L/SV/GS the player never recorded) doesn't appear out of nowhere.
+  ['app','gs','w','l','sv'].forEach(function(k){if(cHas(a,b,k))o[k]=String(cNum(a[k])+cNum(b[k]));});
+  return o;
 }
 function glSection(bat,pit){
   var h='';
