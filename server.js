@@ -2100,13 +2100,20 @@ async function refreshFeatured() {
   // each schedule poll until the real tables land) so the "Box Score" button
   // serves from a hot cache the moment someone taps it — see warmFinalBox.
   if (norm.status === 'final' && finalIsFresh(norm, Date.now())) warmFinalBox(norm.id);
-  // The moment the game goes final, re-scrape the roster once so anyone who
-  // just recorded his first stats of the day shows up right away (via the
-  // player-page fetch or the box-score fallback) rather than waiting for the
-  // next scheduled half-day poll.
+  // The moment the game goes final, run just the box-score stat fallback (not
+  // the full pollRoster) so anyone who just recorded his first stats of the
+  // day shows up right away instead of waiting for the next scheduled
+  // half-day poll. fillStatsFromBoxes only reads the box page already being
+  // warmed above (no netLimit calls) — the full pollRoster's per-player pass
+  // shares netLimit with box-score season-avg lookups, and firing it at the
+  // exact moment everyone taps "Box Score" for the game that just ended was
+  // starving those lookups and made box scores slow to load.
   if (norm.status === 'final' && finalIsFresh(norm, Date.now()) && !rosterFinalDone.has(norm.id)) {
     rosterFinalDone.add(norm.id);
-    pollRoster().catch(e => logErr('pollRoster(final)', e));
+    fillStatsFromBoxes(ROSTER.filter(pl => {
+      const s = rosterStats[pl.slug];
+      return (s && s.fromBox) || !lineIsShowable(s);
+    })).then(saveCache).catch(e => logErr('fillStatsFromBoxes(final)', e));
   }
   // Snapshot the Gators' own game's live-feed pitching (live or just-final) so the
   // rest chart can keep showing tonight's outings after featured rotates away.
