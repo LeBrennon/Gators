@@ -2134,9 +2134,7 @@ const leagueStatsUrl = pos => SPORT_BASE + '/players?view=&r=0&pos=' + pos + '&s
 
 const ROSTER = [
   { num: 2,  name: 'Jaxon Landreneau', slug: 'jaxonlandreneautqp8',  pos: 'Utility', cls: 'Junior',       ht: '5-10', wt: '190', b: 'R', t: 'R', bday: '10/20/2004', home: 'Lake Charles, LA', school: 'LSU-Eunice' },
-  // Recently activated (6/25 sheet); placeholder slug until his Presto player page
-  // exists, so the `note` shows on his profile instead of stats until his first game.
-  { num: 3,  name: 'Griffin Hebert',   slug: 'griffinhebertqmlk',    pos: 'Utility', cls: 'Sophomore',    ht: '5-11', wt: '200', b: 'L', t: 'R', bday: '12/30/2006',   home: 'Lake Charles, LA', school: 'Lamar', note: 'Recently activated — season stats will appear after his first game.' },
+  // Griffin Hebert (#3) is no longer with the team — removed to match the active roster.
   { num: 5,  name: 'Davis Duhon',      slug: 'davisduhons0vw',       pos: 'P',       cls: 'Junior',       ht: '6-0',  wt: '185', b: 'L', t: 'L', bday: '03/12/2005', home: 'Katy, TX',         school: 'Louisiana Christian' },
   // Added off the 6/28 gameday sheet; real Presto slug now set directly (was findSlug-matched by name).
   { num: 8,  name: 'Cade Robin',       slug: 'caderobinnu4m',        pos: 'P',       cls: 'Junior',       ht: '6-1',  wt: '200', b: 'R', t: 'R', bday: '03/15/2005', home: 'Arnaudville, LA',  school: 'LSU-Shreveport' },
