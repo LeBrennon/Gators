@@ -1211,16 +1211,17 @@ function teamLineScores(json) {
   }));
 }
 
-// ---- box-score pre-stage: retain the live pitching feed from the 8th inning ----
+// ---- box-score pre-stage: retain the live pitching feed from the mid-8th -------
 // The finished-game box (scripts/box-score.js) rebuilds stale/late PrestoSports
 // pitching from the live feed. But the instant the last out is recorded, Presto
 // empties the live feed's pitcher rows — so a box built even a minute after the
-// final can't reach them. Once the Gators' game enters its 8th inning (two innings
-// from the scheduled end: the 8th of a 9-inning game, the 6th of a 7), keep the
-// last-good full pitching feed on disk so /debug/live can still serve it after the
-// feed goes dark, and the automated final box is correct + ready the moment the
-// game ends. (The box PAGE itself is still warmed at the final, not mid-game — a
-// mid-game box would be cached stale under BOX_TTL; only the feed is retained here.)
+// final can't reach them. Once the Gators' game reaches the bottom of its 8th
+// inning (the middle of the 8th of a 9-inning game, the 6th of a 7 — see
+// atBoxPrestage), keep the last-good full pitching feed on disk so /debug/live can
+// still serve it after the feed goes dark, and the automated final box is correct
+// + ready the moment the game ends. (The box PAGE itself is still warmed at the
+// final, not mid-game — a mid-game box would be cached stale under BOX_TTL; only
+// the feed is retained here.)
 const PREBUILD_FEED_FILE = (process.env.CACHE_DIR || '.') + '/prebuild-feed.json';
 const PREBUILD_FEED_KEEP = 8;   // retain the last handful of games; prune the rest
 const prebuildFeed = new Map(); // id -> { pitchers, lineScore, at }
@@ -1236,11 +1237,17 @@ function savePrebuildFeed() {
 }
 // A pitching feed is usable only if at least one side still carries pitcher rows.
 const feedHasPitching = p => Array.isArray(p) && p.some(t => t && Array.isArray(t.rows) && t.rows.length > 0);
-// Two innings from the scheduled end — the 8th of a 9-inning game, the 6th of a 7.
+// The middle of the second-to-last scheduled inning on — the bottom of the 8th in
+// a 9-inning game, the bottom of the 6th in a 7. Waiting for the bottom half (not
+// just the inning starting) means the pre-stage snapshot is taken with the game
+// further along and less likely to need a second capture before the final.
 function atBoxPrestage(norm) {
   const inn = parseInt(norm && norm.inning, 10) || 0;
   const reg = (norm && norm.live && norm.live.schedInn) || 9;
-  return inn >= reg - 1;
+  const trigger = reg - 1;
+  if (inn > trigger) return true;          // into the final scheduled inning or extras
+  if (inn === trigger) return norm.half === 'bottom';
+  return false;
 }
 // Each live poll from the 8th on (and at the final): keep the last-good full
 // pitching feed so it survives the feed going dark at the last out.
@@ -2042,6 +2049,12 @@ function buildLeagueBoard() {
 // broadcast. Used by both the schedule poll and the tighter live poll.
 async function refreshFeatured() {
   noteFinals(games);
+  // Floor the Gators' live standings record up to the app-known W-L every poll —
+  // the same correction pollStandings applies, but that only runs every 30 min, so
+  // without this the record (recordStr -> /api/game -> the box-score PDF) lags a
+  // game for up to half an hour after a final. Only ever raises a lagging feed
+  // (never lowers), and no-ops once the feed catches up.
+  try { if (Object.keys(standings).length) applyGatorsAutoFloor({ map: standings, rows: standingsTable }, gatorsSeasonWL(games)); } catch (e) { logErr('autoFloorFeatured', e); }
   const chosen = pick(games);
   if (!chosen) return;
   const norm = normalizeFeatured(chosen);
@@ -2083,9 +2096,9 @@ async function refreshFeatured() {
         gatorsHome: !!norm.gatorsHome, live: norm.status === 'live', rows: side.rows };
     }
   }
-  // Pre-stage the box score: from the 8th inning on, keep the full live pitching
-  // feed so the finished box reconciles correctly even after Presto empties the
-  // feed at the last out (see retainPrebuildFeed).
+  // Pre-stage the box score: from the middle of the 8th inning on, keep the full
+  // live pitching feed so the finished box reconciles correctly even after Presto
+  // empties the feed at the last out (see retainPrebuildFeed).
   try { retainPrebuildFeed(norm); } catch (e) { logErr('retainPrebuildFeed', e); }
   diffAlert(norm);
   try { checkInningAlerts(norm); } catch (e) { logErr('checkInningAlerts', e); }

@@ -173,6 +173,28 @@ function boxPitchTotalIP(html) {
   }
   return 0;
 }
+// Surname key for cross-matching a pitcher between the Presto box (often "D.
+// Corrales") and the live feed ("Diego Corrales") — last alphabetic word, lowercased.
+function surnameKey(name) {
+  const w = String(name || '').replace(/[^A-Za-z .'’-]/g, ' ').trim().split(/\s+/).filter(Boolean);
+  return w.length ? w[w.length - 1].toLowerCase().replace(/[^a-z]/g, '') : '';
+}
+// Pick the feed team a pitching section belongs to by pitcher-name overlap. The
+// section's own pitcher surnames (the starter is almost always present) are matched
+// against each feed team's rows; the team with any overlap wins. Label-independent,
+// so it's right even when Presto left the section a generic "Team 1/2".
+function matchFeedTeam(sec, feedTeams) {
+  const cells = String(sec.html || '').match(/<th\b[^>]*>[\s\S]*?<\/th>/gi) || [];
+  const secKeys = new Set(cells.map(th => txtOf(th)).filter(n => n && !/^(pitchers|totals?)$/i.test(n)).map(surnameKey).filter(Boolean));
+  let best = null, bestHits = 0;
+  for (const t of (feedTeams || [])) {
+    if (!(t.rows && t.rows.length)) continue;
+    let hits = 0;
+    for (const r of t.rows) if (secKeys.has(surnameKey(r.name))) hits++;
+    if (hits > bestHits) { bestHits = hits; best = t; }
+  }
+  return bestHits > 0 ? best : null;
+}
 async function reconcileBoxWithFeed(data, id) {
   if (!data || !Array.isArray(data.box) || !/^\d{8}_[a-z0-9]+$/i.test(String(id || ''))) return;
   let feed = await fetchAppJSON('/debug/live?id=' + encodeURIComponent(id));
@@ -186,7 +208,11 @@ async function reconcileBoxWithFeed(data, id) {
   if (!feed || !Array.isArray(feed.pitchers)) return;
   for (const sec of data.box) {
     if (!/Pitching/i.test(sec.label || '')) continue;
-    const fp = feed.pitchers.find(t => !!t.isGators === /gator|gumbeaux/i.test(sec.label));
+    // Match the section to a feed team by pitcher-name overlap, NOT by the label:
+    // before the box finalizes Presto sometimes leaves it a generic "Team 1/2", and
+    // keying the Gators test off that label fills the wrong side's pitching. A
+    // starter's surname is label-independent and never shared across both teams.
+    const fp = matchFeedTeam(sec, feed.pitchers);
     if (!fp || !(fp.rows && fp.rows.length)) continue;
     if (ipToDec(fp.totals && fp.totals.ip) > boxPitchTotalIP(sec.html) + 0.05) {   // Presto's is short -> stale
       sec.html = feedPitchingTable(fp);
@@ -622,9 +648,11 @@ function buildHtml(data) {
 *{box-sizing:border-box;margin:0;padding:0;}
 html{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
 /* Extra bottom padding: @page margin is 0, so content runs to the physical page
-   edge — 22px left the last row inside many printers' non-printable bottom band
-   and it clipped once printed. 40px keeps it clear. */
-body{font-family:'Helvetica Neue',Arial,sans-serif;color:#1b1e27;font-size:12px;padding:22px 34px 40px;height:100vh;display:flex;flex-direction:column;overflow:hidden;--padv:${padV}px;}
+   edge — the last row otherwise lands inside the printer's non-printable bottom
+   band and clips once printed (fine in print preview, which shows the whole
+   sheet). 22px clipped, then 40px still clipped on a deeper-margin printer, so
+   72px (~0.75in) keeps the Totals row clear of even a 0.5in non-printable band. */
+body{font-family:'Helvetica Neue',Arial,sans-serif;color:#1b1e27;font-size:12px;padding:22px 34px 72px;height:100vh;display:flex;flex-direction:column;overflow:hidden;--padv:${padV}px;}
 .band{position:relative;display:flex;align-items:center;gap:14px;color:#fff;padding:10px 20px 10px 112px;border-radius:12px;border:2px solid #ecc913;
 background:linear-gradient(rgba(22,16,43,.02),rgba(22,16,43,.16))${croc ? `,url('${croc}') center center / cover no-repeat` : ''};
 background-color:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1px rgba(255,255,255,.08);}

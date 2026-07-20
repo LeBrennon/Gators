@@ -23,24 +23,27 @@ test('feedHasPitching: false for empty / degenerate feeds (never overwrite good 
   assert.equal(feedHasPitching([{ rows: [] }, { rows: [] }]), false); // post-final: feed went dark
 });
 
-test('atBoxPrestage: a 9-inning game starts retaining in the 8th', () => {
-  const g = inn => ({ inning: inn, live: { schedInn: 9 } });
-  assert.equal(atBoxPrestage(g(7)), false);
-  assert.equal(atBoxPrestage(g(8)), true);
-  assert.equal(atBoxPrestage(g(9)), true);
-  assert.equal(atBoxPrestage(g(10)), true); // extra innings
+test('atBoxPrestage: a 9-inning game starts retaining at the bottom (middle) of the 8th', () => {
+  const g = (inn, half) => ({ inning: inn, half, live: { schedInn: 9 } });
+  assert.equal(atBoxPrestage(g(7, 'bottom')), false);
+  assert.equal(atBoxPrestage(g(8, 'top')), false);     // top of 8th: not yet the middle
+  assert.equal(atBoxPrestage(g(8, 'bottom')), true);   // bottom of 8th: the middle
+  assert.equal(atBoxPrestage(g(9, 'top')), true);      // into the final scheduled inning
+  assert.equal(atBoxPrestage(g(10, 'top')), true);     // extra innings
 });
 
-test('atBoxPrestage: a 7-inning game (doubleheader) starts in the 6th', () => {
-  const g = inn => ({ inning: inn, live: { schedInn: 7 } });
-  assert.equal(atBoxPrestage(g(5)), false);
-  assert.equal(atBoxPrestage(g(6)), true);
-  assert.equal(atBoxPrestage(g(7)), true);
+test('atBoxPrestage: a 7-inning game (doubleheader) starts at the bottom of the 6th', () => {
+  const g = (inn, half) => ({ inning: inn, half, live: { schedInn: 7 } });
+  assert.equal(atBoxPrestage(g(5, 'bottom')), false);
+  assert.equal(atBoxPrestage(g(6, 'top')), false);
+  assert.equal(atBoxPrestage(g(6, 'bottom')), true);
+  assert.equal(atBoxPrestage(g(7, 'top')), true);
 });
 
 test('atBoxPrestage: defaults to a 9-inning game when schedInn is unknown', () => {
-  assert.equal(atBoxPrestage({ inning: 8 }), true);
-  assert.equal(atBoxPrestage({ inning: 7 }), false);
+  assert.equal(atBoxPrestage({ inning: 8, half: 'bottom' }), true);
+  assert.equal(atBoxPrestage({ inning: 8, half: 'top' }), false);
+  assert.equal(atBoxPrestage({ inning: 7, half: 'bottom' }), false);
   assert.equal(atBoxPrestage({}), false);      // pregame / no inning
   assert.equal(atBoxPrestage(null), false);
 });
