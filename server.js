@@ -2259,7 +2259,7 @@ const ROSTER = [
   // no prior college team, so bio is thin — no public DOB. Headshot is a Hudl photo (his only
   // public one; it's from football, not baseball). Real Presto slug set directly (resolved
   // from the team roster page). No game action yet, so the note shows until his first game.
-  { num: 37, name: 'Jay Michael Stelly', slug: 'jaymichaelstelly1o33', pos: 'Utility', cls: 'HS Senior', ht: '5-10', wt: '195', b: '', t: '', bday: '', home: 'Sulphur, LA', school: 'Baton Rouge CC', note: 'Recently added — season stats will appear after his first game.' },
+  { num: 37, name: 'Jay Michael Stelly', slug: 'jaymichaelstelly1o33', pos: 'Utility', cls: 'HS Senior', ht: '5-10', wt: '195', b: 'R', t: 'R', bday: '', home: 'Sulphur, LA', school: 'Baton Rouge CC', note: 'Recently added — season stats will appear after his first game.' },
 ];
 
 // Coaching staff (gumbeauxgators.com/coaches). Shown beneath the player roster;
