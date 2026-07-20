@@ -5396,8 +5396,8 @@ a.bxp:active{opacity:.6;}
 .clinch small{font-size:8px;letter-spacing:.06em;margin-top:3px;}
 .sttbl tr.stout{opacity:.5;}
 .sttbl tr.stout .stlogo{filter:grayscale(1);}
-.sttbl tr.stout .stteam{text-decoration:line-through;text-decoration-color:var(--mute);}
 .outbadge{display:inline-flex;align-items:center;flex:none;font-size:8.5px;font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--mute);border:1px solid var(--line);border-radius:999px;padding:2px 7px;margin-left:2px;text-decoration:none;}
+.outswatch{display:inline-block;flex:none;width:14px;height:14px;border-radius:4px;background:var(--bayou2);opacity:.5;border:1px solid var(--line);}
 .stnote{margin-top:8px;font-size:10px;color:var(--mute);display:flex;align-items:center;gap:6px;font-family:'Oswald',sans-serif;letter-spacing:.01em;}
 .stnote+.stnote{margin-top:4px;}
 .sttbl .stdiff{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--mute);text-align:right;}
@@ -6427,7 +6427,7 @@ function renderStandings(d){
     });
     h+='</table></div>';
     if(anyClinch)h+='<div class="stnote"><span class="clinch">🏆<small>1H</small></span> first-half champion — clinched a playoff spot</div>';
-    if(anyOut)h+='<div class="stnote"><span class="outbadge">Out</span> mathematically eliminated from the second-half race</div>';
+    if(anyOut)h+='<div class="stnote"><span class="outswatch"></span><span class="outbadge">Out</span> shaded row — mathematically eliminated from the second-half race</div>';
     var tbs=(d&&d.tiebreaks)||[];
     if(tbs.length){
       h+='<div class="sttb"><div class="sttbh">Tiebreakers applied</div><ul>';
