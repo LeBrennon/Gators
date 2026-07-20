@@ -1944,6 +1944,11 @@ async function pollSchedule() {
 // Fresh-final Gators games we've already pulled the feed for (to capture final
 // pitch counts once), so we don't re-fetch every schedule poll for 10 hours.
 const finalFeedDone = new Set();
+// Fresh-final Gators games we've already kicked a roster re-scrape for. Without
+// this, a player's first stats (or a pitcher's box-score-derived line) wait for
+// the twice-daily noon/midnight poll — up to ~12h after he actually played —
+// instead of landing within moments of the game ending.
+const rosterFinalDone = new Set();
 async function enrichLive(norm) {
   // Always enrich a live game. Also pull the feed ONCE for a just-final Gators
   // game so the rest chart gets its final pitch counts — Presto gates the final
@@ -2095,6 +2100,14 @@ async function refreshFeatured() {
   // each schedule poll until the real tables land) so the "Box Score" button
   // serves from a hot cache the moment someone taps it — see warmFinalBox.
   if (norm.status === 'final' && finalIsFresh(norm, Date.now())) warmFinalBox(norm.id);
+  // The moment the game goes final, re-scrape the roster once so anyone who
+  // just recorded his first stats of the day shows up right away (via the
+  // player-page fetch or the box-score fallback) rather than waiting for the
+  // next scheduled half-day poll.
+  if (norm.status === 'final' && finalIsFresh(norm, Date.now()) && !rosterFinalDone.has(norm.id)) {
+    rosterFinalDone.add(norm.id);
+    pollRoster().catch(e => logErr('pollRoster(final)', e));
+  }
   // Snapshot the Gators' own game's live-feed pitching (live or just-final) so the
   // rest chart can keep showing tonight's outings after featured rotates away.
   if (norm && (norm.status === 'live' || norm.status === 'final') && Array.isArray(norm.pitchers)) {
