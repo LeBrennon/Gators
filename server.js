@@ -2174,6 +2174,12 @@ const ROSTER = [
   { num: 16, name: 'Daniel Midkiff',   slug: 'danielmidkifffqkb',    pos: 'P',       cls: 'Sophomore',    ht: '6-2',  wt: '208', b: 'R', t: 'R', bday: '05/20/2007', home: 'Buna, TX',         school: 'Lamar' },
   { num: 17, name: 'Ayden Sunday',     slug: 'aydensundayyp1j',      pos: 'OF',      cls: 'Sophomore',    ht: '6-0',  wt: '185', b: 'R', t: 'R', bday: '09/07/2006', home: 'Nederland, TX',    school: 'Lamar' },
   { num: 21, name: 'Bankston Lembcke', slug: 'bankstonlembckeoxyb',  pos: 'IF',      cls: 'Junior',       ht: '5-11', wt: '205', b: 'R', t: 'R', bday: '11/14/2005', home: 'Klein, TX',        school: 'Bradley' },
+  // Dropped off the 7/10 sheet, now back on the 7/19 gameday sheet per the transaction
+  // tracker. His real Presto page (sawyersimmonss92p) still exists — carried his season
+  // stats through his absence (7 app, 2-2, 24.0 IP) — so it's set directly and picks right
+  // back up, no findSlug/note needed. Class/hometown refreshed from the current official
+  // Presto team roster (Jr, Plain Dealing LA — was Senior/Bossier City on the old entry).
+  { num: 29, name: 'Sawyer Simmons',   slug: 'sawyersimmonss92p',    pos: 'P',       cls: 'Junior',       ht: '6-1',  wt: '193', b: 'R', t: 'L', bday: '03/30/2005', home: 'Plain Dealing, LA', school: 'Southeastern Louisiana' },
   // Dropped off the 7/14 gameday sheet (Andrew Ramos, #28) — removed to match the active roster.
   // Added off the 6/28 gameday sheet; real Presto slug now set directly (was findSlug-matched by name).
   { num: 34, name: 'Brenyn Ebarb',     slug: 'brenynebarb6uqv',      pos: 'P',       cls: 'Graduate',     ht: '6-1',  wt: '195', b: 'R', t: 'R', bday: '05/04/2004', home: 'Zwolle, LA',       school: 'LSU-Alexandria', note: 'Recently added — season stats will appear after his first game.' },
@@ -2261,6 +2267,13 @@ const ROSTER = [
   // team roster page). He's since played his first game, so the "recently added" note is
   // dropped — his season line shows instead.
   { num: 37, name: 'Jay Michael Stelly', slug: 'jaymichaelstelly1o33', pos: 'Utility', cls: 'HS Senior', ht: '5-10', wt: '195', b: 'R', t: 'R', bday: '', home: 'Sulphur, LA', school: 'Baton Rouge CC' },
+  // Added off the 7/19 gameday sheet (#20, position player on the sheet but a two-way
+  // arm in college); the sheet's info blocks were blank, so bio is from his National
+  // Park College (Nighthawks, NJCAA) roster page: RHP, Sophomore, 6-1/180, R/R,
+  // Choudrant, LA. No public DOB. His Presto page doesn't exist yet, so findSlug
+  // resolves it by name once it does and the note shows until his first game.
+  // Headshot cropped from his Choudrant HS signing-day photo (Ruston Daily Leader).
+  { num: 20, name: 'Landon Hennen', slug: 'landonhennen', pos: 'P', cls: 'Sophomore', ht: '6-1', wt: '180', b: 'R', t: 'R', bday: '', home: 'Choudrant, LA', school: 'National Park College', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
 ];
 
 // Coaching staff (gumbeauxgators.com/coaches). Shown beneath the player roster;
