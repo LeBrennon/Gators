@@ -4416,7 +4416,7 @@ app.get('/rest', async (q, r) => {
       + '.rmeta .lv{color:var(--gold2);font-weight:800;}'
       + '</style>';
     body += '<div class="rh"><div class="rt">Pitchers’ Rest</div></div>'
-      + '<div class="rd">' + repEsc(ymdLabel(today)) + ' · ' + data.finals + ' games'
+      + '<div class="rd">' + repEsc(ymdLabel(today))
       + (data.liveGame ? ' · <span style="color:var(--gold2);font-weight:700">' + (data.liveGame.live ? 'LIVE ' : 'FINAL ') + repEsc(vs(data.liveGame.gatorsHome) + data.liveGame.oppShort) + '</span>' : '') + '</div>';
     const pitchers = data.pitchers.map(p => Object.assign({}, p, { daysRest: daysBetweenYmd(p.lastDate, today) }))
       .sort((a, b) => b.lastDate.localeCompare(a.lastDate) || (b.lastNp || 0) - (a.lastNp || 0));
