@@ -4424,14 +4424,14 @@ app.get('/rest', async (q, r) => {
       + '.rrd{flex:0 0 auto;min-width:36px;text-align:right;font-size:19px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;}'
       + '.rrd i{font-size:10px;font-weight:700;color:var(--mute);font-style:normal;margin-left:1px;}'
       + '.rrd.hot{color:var(--loss);}.rrd.warm{color:var(--bone);}.rrd.cool{color:var(--win);}'
-      + '.rlgd{color:var(--mute);font-size:11px;text-align:center;margin:7px 2px 0;line-height:1.4;}'
-      + '.rlgd .hot{color:var(--loss);font-weight:700;}.rlgd .cool{color:var(--win);font-weight:700;}'
+      + '.rd .hot{color:var(--loss);font-weight:700;}.rd .cool{color:var(--win);font-weight:700;}'
       + '.rlive{display:inline-block;font-size:9px;font-weight:800;letter-spacing:.06em;color:#16102b;background:var(--gold2);border-radius:4px;padding:1px 4px;vertical-align:1px;}'
       + '.rmeta .lv{color:var(--gold2);font-weight:800;}'
       + '</style>';
     body += '<div class="rh"><div class="rt">Pitchers’ Rest</div></div>'
       + '<div class="rd">' + repEsc(ymdLabel(today))
-      + (data.liveGame ? ' · <span style="color:var(--gold2);font-weight:700">' + (data.liveGame.live ? 'LIVE ' : 'FINAL ') + repEsc(vs(data.liveGame.gatorsHome) + data.liveGame.oppShort) + '</span>' : '') + '</div>';
+      + (data.liveGame ? ' · <span style="color:var(--gold2);font-weight:700">' + (data.liveGame.live ? 'LIVE ' : 'FINAL ') + repEsc(vs(data.liveGame.gatorsHome) + data.liveGame.oppShort) + '</span>' : '')
+      + ' · <span class="hot">red=just threw</span> · <span class="cool">green=rested</span></div>';
     const pitchers = data.pitchers.map(p => Object.assign({}, p, { daysRest: daysBetweenYmd(p.lastDate, today) }))
       .sort((a, b) => b.lastDate.localeCompare(a.lastDate) || (b.lastNp || 0) - (a.lastNp || 0));
     if (!pitchers.length) {
@@ -4443,7 +4443,6 @@ app.get('/rest', async (q, r) => {
         + '<span class="rnm">' + repEsc(p.name) + (p.lastLive ? ' <span class="rlive">LIVE</span>' : '') + '</span>'
         + '<span class="rmeta"><b>' + (p.lastNp || 0) + 'p</b> · ' + (p.lastDate === today ? '<span class="lv">tonight</span>' : repEsc(mmdd(p.lastDate))) + '</span>'
         + '<span class="rrd ' + restClass(p.daysRest) + '">' + p.daysRest + '<i>d</i></span></li>').join('') + '</ul>';
-      body += '<div class="rlgd">Big number = <b>days of rest</b>. <span class="hot">≤1 just threw</span> · <span class="cool">4+ rested</span> · <b style="color:var(--gold2)">Np</b> = pitches, last outing.</div>';
       // Per-game pitch counts (for cross-checking hand-written sheets) are opt-in
       // via ?games=1 so the default view stays a single mobile screen.
       // Per-game pitch counts are opt-in via ?games=1 so the default view stays a
