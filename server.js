@@ -1949,6 +1949,13 @@ const finalFeedDone = new Set();
 // the twice-daily noon/midnight poll — up to ~12h after he actually played —
 // instead of landing within moments of the game ending.
 const rosterFinalDone = new Set();
+// Gators finals whose participants' own Presto player-page stats we've already
+// refreshed (see refreshFinalParticipantStats). Kept separate from
+// rosterFinalDone, which is keyed off whichever game happens to be currently
+// featured — this one is checked against every recent Gators final in `games`
+// directly, so it still fires even when a different (non-Gators) game is
+// featured at the moment ours flips to final.
+const rosterParticipantsDone = new Set();
 async function enrichLive(norm) {
   // Always enrich a live game. Also pull the feed ONCE for a just-final Gators
   // game so the rest chart gets its final pitch counts — Presto gates the final
@@ -2069,6 +2076,9 @@ function buildLeagueBoard() {
 // broadcast. Used by both the schedule poll and the tighter live poll.
 async function refreshFeatured() {
   noteFinals(games);
+  // Fire-and-forget: catch up any just-finished Gators game's real per-player
+  // stats without blocking this poll or the live SSE broadcast below.
+  refreshFinalParticipantStats().catch(e => logErr('refreshFinalParticipantStats', e));
   const chosen = pick(games);
   if (!chosen) return;
   const norm = normalizeFeatured(chosen);
@@ -4176,6 +4186,44 @@ async function fillStatsFromBoxes(players) {
     const hit = t.bat.length ? aggBat(t.bat) : null;
     const pit = t.pit.length ? aggPit(t.pit) : null;
     if (hit || pit) rosterStats[t.pl.slug] = { kind: pit ? 'pitching' : 'batting', hit, pit, hitRanks: {}, pitRanks: {}, fromBox: true };
+  }
+}
+// Once a Gators game goes final, refresh the REAL Presto player-page stats
+// (not the box-derived approximation fillStatsFromBoxes produces) for just the
+// players who appeared in it. Without this, an established player's
+// roster-tab preview card keeps showing whatever line was scraped at the last
+// scheduled half-day poll — up to ~12h stale — until someone happens to open
+// his full profile, which does its own on-demand fetch (see getPlayer). Bounded
+// to one game's worth of participants, not the whole roster, so it's cheap
+// enough to run right after the game ends.
+async function refreshFinalParticipantStats() {
+  const finals = (games || []).filter(g => g.state === 'final' && isGatorsGame(g) && finalIsFresh(g, Date.now()));
+  for (const g of finals) {
+    if (rosterParticipantsDone.has(g.id)) continue;
+    let res = null;
+    for (let a = 0; a < 4; a++) {
+      try { res = await fetchBoxPage(g.id); } catch (e) { res = null; }
+      if (res && res.ok && res.data && boxLooksComplete(res.data)) break;
+      await sleep(1200 * (a + 1));
+    }
+    if (!res || !res.ok || !res.data || !boxLooksComplete(res.data)) continue; // retry next poll
+    rosterParticipantsDone.add(g.id);
+    const names = new Set();
+    for (const sec of res.data.box || []) {
+      if (!/Gator/i.test(sec.label || '') || !/Batting|Pitching/i.test(sec.label || '')) continue;
+      for (const row of rowsOf(sec.html)) {
+        const cells = cellsOf(row); if (!cells.length) continue;
+        const nm = normPlayerName(bsBatterName(cells[0]));
+        if (nm) names.add(nm);
+      }
+    }
+    const participants = ROSTER.filter(pl => names.has(normPlayerName(pl.name)));
+    for (const pl of participants) {
+      try { storePlayer(pl.slug, await fetchPlayer(pl.slug, null, null, 2)); }
+      catch (e) { logErr('refreshFinalParticipantStats ' + pl.slug, e); }
+      await sleep(300);
+    }
+    if (participants.length) saveCache();
   }
 }
 // Gmail transport, shared by the daily visitor-analytics digest.
