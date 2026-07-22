@@ -41,6 +41,92 @@ function winDiffNeeded(goaA, goaB) {
   return { gap, tie: evenGap ? gap / 2 : null, pass: Math.floor(gap / 2) + 1 };
 }
 
+// Every way the Gators' remaining games can go, and what each combination
+// means for the 2nd-half race. Games against a rival still alive for one of
+// the 2 open spots are branched by win count (0..k) — order doesn't change
+// the final standings math, so a 2-game set collapses to 3 outcomes, not 4.
+// Games against a team that's clinched or already eliminated only move the
+// Gators' own total, not the race, so they're folded into a +/-1-per-game
+// range instead of a separate branch. Rivals not on the Gators' remaining
+// schedule get the same win-out/lose-out range, held constant across every
+// branch. This is the same conservative ceiling/floor idea as the app's own
+// computeElimination (server.js) — just in GOA terms, to match how
+// rankSecondHalf actually sorts the second-half race.
+function buildScenarioTree({ rows, gatorsId, gRow, remaining }) {
+  const rivalRows = rows.filter(r => r.id !== gatorsId && !r.clinched && !r.eliminated);
+  if (!rivalRows.length) return null;
+
+  const byOpp = new Map(); // opponent short -> { row, count }
+  for (const g of remaining) {
+    const row = rivalRows.find(r => (r.short || r.name) === g.opponent.short);
+    if (!row) continue;
+    const e = byOpp.get(g.opponent.short) || { row, count: 0 };
+    e.count++; byOpp.set(g.opponent.short, e);
+  }
+  const tracked = [...byOpp.values()].sort((a, b) => b.count - a.count);
+  const trackedGames = tracked.reduce((s, o) => s + o.count, 0);
+
+  // Cap the branch count so the table stays readable: keep adding tracked
+  // opponents (highest game count first) while the combined outcome count
+  // stays reasonable; fold anything past that into the neutral range.
+  const branchOpp = [], foldedOpp = [];
+  let product = 1;
+  for (const o of tracked) {
+    const next = product * (o.count + 1);
+    if (branchOpp.length === 0 || next <= 30) { branchOpp.push(o); product = next; }
+    else foldedOpp.push(o);
+  }
+  const extraNeutral = (remaining.length - trackedGames) + foldedOpp.reduce((s, o) => s + o.count, 0);
+
+  const staticRivals = rivalRows
+    .filter(r => !branchOpp.some(o => o.row === r))
+    .map(r => ({ row: r, lo: goa(r) - r.gamesLeft, hi: goa(r) + r.gamesLeft }));
+
+  function* combos(list, i = 0, acc = []) {
+    if (i === list.length) { yield acc; return; }
+    for (let w = 0; w <= list[i].count; w++) yield* combos(list, i + 1, [...acc, w]);
+  }
+
+  const branches = [];
+  for (const wins of combos(branchOpp)) {
+    const totalWins = wins.reduce((s, w) => s + w, 0);
+    const rivalDelta = 2 * totalWins - trackedGames; // Gators' wins-minus-losses in these games
+    const gLow = goa(gRow) + rivalDelta - extraNeutral;
+    const gHigh = goa(gRow) + rivalDelta + extraNeutral;
+
+    const branchRivals = branchOpp.map((o, i) => {
+      const oppWins = o.count - wins[i], oppLosses = wins[i]; // opponent's own record in this head-to-head
+      const otherGames = o.row.gamesLeft - o.count;
+      const base = goa(o.row) + (oppWins - oppLosses);
+      return { row: o.row, lo: base - otherGames, hi: base + otherGames };
+    });
+    const allRivals = [...branchRivals, ...staticRivals];
+
+    // Worst case for the Gators (gLow) vs. each rival's best case (hi): anyone
+    // who could still pass them is a live threat. Best case for the Gators
+    // (gHigh) vs. each rival's floor (lo): anyone guaranteed ahead regardless.
+    const threats = allRivals.filter(r => r.hi > gLow);
+    const guaranteedAhead = allRivals.filter(r => r.lo > gHigh);
+    const nm = r => esc(r.row.short || r.row.name);
+    let status, note;
+    if (guaranteedAhead.length >= 2) {
+      status = 'out';
+      note = guaranteedAhead.map(nm).join(' and ') + ' finish ahead no matter what happens the rest of the way.';
+    } else if (threats.length <= 1) {
+      status = 'clinch';
+      note = threats.length
+        ? `Only ${nm(threats[0])} could still catch them, and even then the Gators hold the 2nd spot.`
+        : 'Locks a spot no matter what else happens.';
+    } else {
+      status = 'alive';
+      note = threats.map(nm).join(', ') + ' still mathematically in it.';
+    }
+    branches.push({ wins, gLow, gHigh, status, note });
+  }
+  branches.sort((a, b) => b.gHigh - a.gHigh || b.gLow - a.gLow);
+  return { branchOpp, extraNeutral, branches };
+}
+
 // This season's Gators results against one opponent, from the Gators' own
 // schedule feed (already the full season, not just what's left).
 function seasonSeriesVs(games, oppShort) {
@@ -82,10 +168,12 @@ async function main() {
     return { row: r, wd, series, equalGL };
   });
 
+  const scenarioTree = buildScenarioTree({ rows, gatorsId, gRow, remaining });
+
   const asOf = new Date(standings.updatedAt || Date.now());
   const asOfStr = asOf.toLocaleString('en-US', { timeZone: 'America/Chicago', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' });
 
-  const html = buildHtml({ rows, gatorsId, gRow, rank, holding, rivalLines, remaining, playoffs: standings.playoffs, asOfStr });
+  const html = buildHtml({ rows, gatorsId, gRow, rank, holding, rivalLines, remaining, playoffs: standings.playoffs, asOfStr, scenarioTree });
   const outDir = path.join(__dirname, '..', 'reports', 'playoffs');
   fs.mkdirSync(outDir, { recursive: true });
   const stem = 'Playoff Picture ' + new Date().toISOString().slice(0, 10);
@@ -122,7 +210,7 @@ function renderPdf(html, outPath) {
 
 function fmtOpp(g) { return (g.gatorsHome ? 'vs ' : 'at ') + g.opponent.short; }
 
-function buildHtml({ rows, gatorsId, gRow, rank, holding, rivalLines, remaining, playoffs, asOfStr }) {
+function buildHtml({ rows, gatorsId, gRow, rank, holding, rivalLines, remaining, playoffs, asOfStr, scenarioTree }) {
   const standingsRows = rows.map((r, i) => {
     const isG = r.id === gatorsId;
     const clin = r.clinched ? '<span class="tag clinch">1H</span>' : '';
@@ -186,11 +274,40 @@ function buildHtml({ rows, gatorsId, gRow, rank, holding, rivalLines, remaining,
     ? `Bottom line: the Gators are in a playoff spot right now. Win the games in front of them and the ${rivalLines.map(r => esc(r.row.short)).join(' / ')} chase becomes someone else's problem.`
     : `Bottom line: the Gators can't play their way past ${rivalLines.map(r => esc(r.row.short)).join(' or ')} on the field again this season &mdash; win out at home and on the road, then watch the scoreboard.`;
 
+  const scenarioPage = (() => {
+    if (!scenarioTree) {
+      return `<h2 class="sec">Scenario Tree</h2>
+        <div class="path"><div class="pathstatus">Nobody else in the second-half race is still mathematically alive to contest these two spots &mdash; there's no branching left to show.</div></div>`;
+    }
+    const { branchOpp, extraNeutral, branches } = scenarioTree;
+    const branchGames = branchOpp.reduce((s, o) => s + o.count, 0);
+    const branchSummary = branchOpp.map(o => `${o.count} vs ${esc(o.row.short || o.row.name)}`).join(' and ');
+    const oppHeaders = branchOpp.map(o => `<th>vs ${esc(o.row.short || o.row.name)}</th>`).join('');
+    const bodyRows = branches.map(b => {
+      const oppCells = branchOpp.map((o, i) => `<td>${b.wins[i]}-${o.count - b.wins[i]}</td>`).join('');
+      const goaCell = b.gLow === b.gHigh ? fmtGoa(b.gLow) : `${fmtGoa(b.gLow)} to ${fmtGoa(b.gHigh)}`;
+      const badge = b.status === 'clinch' ? '<span class="stbadge st-clinch">Clinches</span>'
+        : b.status === 'out' ? '<span class="stbadge st-out">Eliminated</span>'
+        : '<span class="stbadge st-alive">Still Alive</span>';
+      return `<tr class="st-${b.status}">${oppCells}<td class="goa">${goaCell}</td><td>${badge}</td><td class="stnote">${b.note}</td></tr>`;
+    }).join('');
+    const neutralNote = extraNeutral
+      ? `The other ${extraNeutral} game${extraNeutral === 1 ? '' : 's'} left on the schedule ${extraNeutral === 1 ? "doesn't" : "don't"} change anyone else's position (already-clinched or already-eliminated opponents), so each row's GOA is a range depending on how ${extraNeutral === 1 ? 'that one goes' : 'those go'}.`
+      : `Every remaining game is accounted for above &mdash; no other games left to swing the range.`;
+    return `<h2 class="sec">Scenario Tree &mdash; The Final Stretch</h2>
+    <div class="stintro">Of the Gators' ${branchGames + extraNeutral} games left, <b>${branchSummary}</b> decide the second-half race directly &mdash; both teams' positions move together on those games. Every combination of how they go is broken out below, best case first. ${neutralNote}</div>
+    <table class="sttree"><tr>${oppHeaders}<th>Gators GOA</th><th>Status</th><th>What It Means</th></tr>${bodyRows}</table>
+    <div class="legend" style="margin-top:6px;"><span class="stbadge st-clinch">Clinches</span> a spot no matter what else happens &middot; <span class="stbadge st-alive">Still Alive</span> in the mix, outcome depends on other results &middot; <span class="stbadge st-out">Eliminated</span> mathematically done in that branch</div>`;
+  })();
+
   return `<!doctype html><html><head><meta charset="utf-8"><style>
 @page{size:letter;margin:0;}
 *{box-sizing:border-box;margin:0;padding:0;}
 html{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-body{font-family:'Helvetica Neue',Arial,sans-serif;color:#1b1e27;font-size:13.5px;padding:20px 40px 14px;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+body{font-family:'Helvetica Neue',Arial,sans-serif;color:#1b1e27;font-size:13.5px;}
+.page{padding:20px 40px 14px;}
+.page1{height:100vh;display:flex;flex-direction:column;overflow:hidden;page-break-after:always;}
+.page2{display:flex;flex-direction:column;}
 .band{display:flex;align-items:center;gap:16px;color:#fff;padding:14px 22px 14px 116px;border-radius:14px;border:2px solid #ecc913;position:relative;
   background:#3a2480;box-shadow:0 3px 11px rgba(58,36,128,.3),inset 0 0 0 1px rgba(255,255,255,.08);}
 .band img{position:absolute;left:18px;top:50%;transform:translateY(-50%);width:78px;height:78px;}
@@ -247,7 +364,20 @@ table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;}
 .tbcol ol{margin-left:15px;}
 .bottomline{margin-top:7px;text-align:center;font-size:12px;font-weight:700;color:#3a2480;background:#f6f2fc;border:1px dashed #c9b8ef;border-radius:9px;padding:6px 14px;}
 footer{margin-top:4px;padding-top:4px;border-top:1px solid #e6def7;font-size:8.5px;color:#8a84a0;display:flex;justify-content:space-between;}
+.stintro{font-size:11.5px;line-height:1.5;background:#faf8ff;border:1px solid #e6def7;border-radius:9px;padding:9px 12px;margin-top:8px;}
+.sttree{margin-top:9px;border:1px solid #e6def7;border-radius:7px;overflow:hidden;}
+.sttree th,.sttree td{padding:6px 9px;font-size:11px;text-align:center;border-bottom:1px solid #efeaf9;}
+.sttree th{background:#3a2480;color:#fff;font-size:9px;text-transform:uppercase;letter-spacing:.03em;}
+.sttree td.goa{font-weight:700;font-variant-numeric:tabular-nums;}
+.sttree td.stnote{text-align:left;font-size:10.5px;color:#3a2480;}
+.sttree tr:nth-child(2n) td{background:#f6f2fc;}
+.sttree tr.st-out td{opacity:.55;}
+.stbadge{display:inline-block;font-size:9px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;border-radius:999px;padding:2px 8px;white-space:nowrap;}
+.st-clinch{color:#1c7a3f;background:#e4f6ea;border:1px solid #bfe8cc;}
+.st-alive{color:#a3790c;background:#fff8e0;border:1px solid #ecc913;}
+.st-out{color:#8a1a4c;background:#fbe6ef;border:1px solid #eec0d6;}
 </style></head><body>
+<div class="page page1">
 <div class="band"><img src="${S.gatorsLogoDataUri()}">
   <div><div class="k">Gumbeaux Gators &middot; Path to the Playoffs</div>
   <h1>2026 Second-Half Race</h1>
@@ -300,6 +430,11 @@ footer{margin-top:4px;padding-top:4px;border-top:1px solid #e6def7;font-size:8.5
 <div class="bottomline">${bottomLine}</div>
 
 <footer><span>Data as of ${esc(asOfStr)} &middot; source: texasleaguestats.prestosports.com</span><span>whatisthegatorscore.com &middot; docs/tcl-playoff-rules.md</span></footer>
+</div>
+<div class="page page2">
+${scenarioPage}
+<footer style="margin-top:auto;"><span>Data as of ${esc(asOfStr)} &middot; source: texasleaguestats.prestosports.com</span><span>whatisthegatorscore.com &middot; docs/tcl-playoff-rules.md</span></footer>
+</div>
 </body></html>`;
 }
 
