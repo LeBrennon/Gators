@@ -10,7 +10,8 @@
     "report:season:pdf": "node scripts/season-report.js --pdf",
     "report:game": "node scripts/postgame-report.js",
     "report:pdf": "node scripts/postgame-report.js latest --pdf",
-    "report:box": "node scripts/box-score.js latest --pdf"
+    "report:box": "node scripts/box-score.js latest --pdf",
+    "report:rest": "node scripts/rest-chart-image.js --force"
   },
   "engines": {
     "node": ">=18"
