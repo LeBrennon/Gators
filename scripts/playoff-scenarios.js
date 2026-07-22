@@ -267,9 +267,6 @@ function buildHtml({ rows, gatorsId, gRow, rank, holding, rivalLines, remaining,
       <div class="rivalmath">${math}</div><div class="rivalseries mute">${esc(seriesLine)}</div></div>`;
   }).join('');
 
-  const oppSet = [...new Set(remaining.map(g => g.opponent.short))];
-  const noRivalGames = rivalLines.every(({ row }) => !oppSet.includes(row.short));
-
   const bottomLine = holding
     ? `Bottom line: the Gators are in a playoff spot right now. Win the games in front of them and the ${rivalLines.map(r => esc(r.row.short)).join(' / ')} chase becomes someone else's problem.`
     : `Bottom line: the Gators can't play their way past ${rivalLines.map(r => esc(r.row.short)).join(' or ')} on the field again this season &mdash; win out at home and on the road, then watch the scoreboard.`;
@@ -349,14 +346,10 @@ table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;}
 .rivalhead{font-size:12px;margin-bottom:4px;}
 .rivalmath{font-size:11px;line-height:1.42;}
 .rivalseries{font-size:10px;margin-top:4px;}
-.schedwrap{display:flex;gap:16px;margin-top:0;}
-.sched{flex:1;}
 .sched table{border:1px solid #e6def7;border-radius:7px;overflow:hidden;}
 .sched th,.sched td{padding:5px 9px;font-size:11.5px;text-align:left;border-bottom:1px solid #efeaf9;}
 .sched th{background:#3a2480;color:#fff;font-size:9px;text-transform:uppercase;letter-spacing:.03em;}
 .sched tr:nth-child(2n) td{background:#f6f2fc;}
-.note{flex:1;font-size:11.5px;line-height:1.55;background:#fff8e0;border:1px solid #ecc913;border-radius:9px;padding:11px 13px;}
-.note b{color:#a3790c;}
 .tiebreak{margin-top:9px;border:1px solid #e6def7;border-radius:9px;padding:8px 14px;background:#faf8ff;}
 .tiebreak h3{font-size:9.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#3a2480;margin-bottom:4px;}
 .tbcols{display:flex;gap:18px;}
@@ -407,16 +400,9 @@ footer{margin-top:4px;padding-top:4px;border-top:1px solid #e6def7;font-size:8.5
   <div class="rivals">${rivalCards}</div>
 </div>
 
-<div class="schedwrap">
-  <div class="sched">
-    <h2 class="sec">Remaining Schedule (${remaining.length})</h2>
-    <table><tr><th>Date</th><th>Opponent</th><th>Time</th></tr>${remRows}</table>
-  </div>
-  <div class="note">
-    ${noRivalGames
-      ? `<b>The Gators don’t play ${rivalLines.map(r=>esc(r.row.short)).join(' or ')} again this season</b> &mdash; every game above is against a team currently ${holding ? 'behind' : 'below'} them in the 2H race. There’s no head-to-head shortcut: the Gators have to take care of their own games and hope the race above shifts their way.`
-      : `The Gators still play a team directly in this race &mdash; those head-to-head games are worth more than the standings alone suggest.`}
-  </div>
+<div class="sched">
+  <h2 class="sec">Remaining Schedule (${remaining.length})</h2>
+  <table><tr><th>Date</th><th>Opponent</th><th>Time</th></tr>${remRows}</table>
 </div>
 
 <div class="tiebreak">
