@@ -1,0 +1,18 @@
+name: Keep-alive ping
+
+# Render's free plan spins the service down after ~15 min with no traffic, which
+# shows visitors the "Application loading / service waking up" cold-start page
+# on their next request. Ping /health often enough that Render never sees that
+# much idle time, so the live site stays warm for real visitors.
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hit /health
+        run: curl -fsS --max-time 20 https://whatisthegatorscore.com/health
