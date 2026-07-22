@@ -3621,11 +3621,9 @@ function parseStandings(html) {
 // behind" problem; a caught-up entry is harmless, but clearing it keeps this list
 // honest about what's actually still lagging.
 const MANUAL_STANDINGS_OVERRIDE = {
-  // The feed lagged the 7/4 Gators 7–3 Brazos Valley final (as of 7/6 it showed
-  // the Gators 15–12 / 3–1 2H and the Bombers a loss short). These floors carry
-  // both sides through until the feed catches up, after which they no-op.
-  et1bt9sixrz5lnnl: { w: 16, l: 12, streak: 'W4' }, // Lake Charles Gumbeaux Gators (4-1 2H)
-  z7w5th537gur3z15: { w: 13, l: 15, streak: 'L1' }, // Brazos Valley Bombers (3-2 2H)
+  // (empty) — the live feed has caught up on the 7/4 Gators-Bombers final it was
+  // covering (Gators 22-18, Bombers 21-18 as of 7/22), so that floor self-expired
+  // and was cleared. Re-add an entry only when a confirmed final outpaces the feed.
 };
 // Patch a freshly parsed standings result in place so the overrides above flow
 // into both the record map and the rows before either is published. Floor
