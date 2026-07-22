@@ -2267,13 +2267,16 @@ const ROSTER = [
   // team roster page). He's since played his first game, so the "recently added" note is
   // dropped — his season line shows instead.
   { num: 37, name: 'Jay Michael Stelly', slug: 'jaymichaelstelly1o33', pos: 'Utility', cls: 'HS Senior', ht: '5-10', wt: '195', b: 'R', t: 'R', bday: '', home: 'Sulphur, LA', school: 'Baton Rouge CC' },
-  // Added off the 7/19 gameday sheet (#20, position player on the sheet but a two-way
-  // arm in college); the sheet's info blocks were blank, so bio is from his National
-  // Park College (Nighthawks, NJCAA) roster page: RHP, Sophomore, 6-1/180, R/R,
-  // Choudrant, LA. No public DOB. His Presto page doesn't exist yet, so findSlug
-  // resolves it by name once it does and the note shows until his first game.
-  // Headshot cropped from his Choudrant HS signing-day photo (Ruston Daily Leader).
-  { num: 20, name: 'Landon Hennen', slug: 'landonhennen', pos: 'P', cls: 'Sophomore', ht: '6-1', wt: '180', b: 'R', t: 'R', bday: '', home: 'Choudrant, LA', school: 'National Park College', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
+  // Added off the 7/19 gameday sheet (#20, position player — confirmed against the
+  // 7/21 sheet, which lists him blank under POSITION PLAYERS, not PITCHERS). His
+  // college role at National Park College (Nighthawks, NJCAA) is a two-way RHP, but
+  // the team lists him as a position player, so pos stays Utility (matches Gavin
+  // Gary/Jay Michael Stelly's blank-sheet convention) rather than P — keeps him off
+  // the pitchers' rest chart. Bio (ht/wt, bats/throws, hometown) from his NPC roster
+  // page; no public DOB. His Presto page doesn't exist yet, so findSlug resolves it
+  // by name once it does and the note shows until his first game. Headshot cropped
+  // from his Choudrant HS signing-day photo (Ruston Daily Leader).
+  { num: 20, name: 'Landon Hennen', slug: 'landonhennen', pos: 'Utility', cls: 'Sophomore', ht: '6-1', wt: '180', b: 'R', t: 'R', bday: '', home: 'Choudrant, LA', school: 'National Park College', findSlug: true, note: 'Recently added — season stats will appear after his first game.' },
 ];
 
 // Coaching staff (gumbeauxgators.com/coaches). Shown beneath the player roster;
