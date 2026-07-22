@@ -65,18 +65,35 @@ jobs:
       - name: Rebuild seed from the live deploy
         run: node scripts/build-seed.js || true
 
+      - name: Rebuild box-score seed from the live deploy
+        run: node scripts/build-box-seed.js || true
+
       - name: Commit the refreshed seed (scheduled run only)
         if: github.event_name == 'schedule'
         run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           if git diff --quiet -- roster-seed.json; then
             echo "roster-seed.json unchanged — nothing to commit"
           else
-            git config user.name  "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add roster-seed.json
             git commit -m "Auto-refresh roster-seed.json"
-            git push
           fi
+          # git diff alone misses a brand-new untracked file (its first run), so
+          # stage it first and check what's actually staged instead. build-box-seed.js
+          # may not have written the file at all if it bailed early (e.g. schedule
+          # fetch failed) — skip in that case rather than erroring on git add.
+          if [ -f box-seed.json ]; then
+            git add box-seed.json
+            if git diff --cached --quiet -- box-seed.json; then
+              echo "box-seed.json unchanged — nothing to commit"
+            else
+              git commit -m "Auto-refresh box-seed.json"
+            fi
+          else
+            echo "box-seed.json was not produced this run — skipping"
+          fi
+          git push
 
       - name: Build the post-game report (waits for stats to post)
         id: build
