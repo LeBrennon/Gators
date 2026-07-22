@@ -4005,6 +4005,15 @@ const BOX_TTL_MS = 60 * 60 * 1000; // re-fetch window only for a still-in-progre
 // A box score is "final" (never changes) once its game date is before today.
 const boxIsFinal = id => /^\d{8}/.test(String(id)) && String(id).slice(0, 8) < todayCentralYmd();
 const BOX_CACHE_FILE = (process.env.CACHE_DIR || '.') + '/box-cache.json';
+// Committed warm-boot seed of final box scores (rebuilt with
+// scripts/build-box-seed.js, same pattern as roster-seed.json/SEED_FILE). The
+// runtime BOX_CACHE_FILE lives on the app's disk, which isn't guaranteed to
+// survive a redeploy — without this, a fresh deploy has to re-walk the whole
+// season against PrestoSports, and its bot gate can't be re-scraped in one
+// burst, so most of the season silently drops off the rest chart until Presto
+// relents game by game. Loaded only to fill in finals the runtime cache is
+// missing, so a fresher on-disk copy always wins.
+const BOX_SEED_FILE = __dirname + '/box-seed.json';
 let boxSaveTimer = null;
 function saveBoxCache() {
   if (boxSaveTimer) return;
@@ -4018,6 +4027,10 @@ function loadBoxCache() {
     if (d && d.boxes) for (const k in d.boxes) boxCache.set(k, d.boxes[k]);
     if (d && d.walks) Object.assign(boxWalkCache, d.walks);
   } catch (e) { /* no cache yet */ }
+  try {
+    const seed = JSON.parse(fs.readFileSync(BOX_SEED_FILE, 'utf8'));
+    if (seed && seed.boxes) for (const k in seed.boxes) if (!boxCache.has(k)) boxCache.set(k, seed.boxes[k]);
+  } catch (e) { /* no committed seed yet */ }
 }
 // Map an upstream box-page failure to the API's error response. 429/503 (and a
 // bare 502 from the proxy) are Presto rate-limiting or briefly gating a cold
