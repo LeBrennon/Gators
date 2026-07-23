@@ -184,9 +184,24 @@ async function reconcileBoxWithFeed(data, id) {
     try { feed = JSON.parse(fs.readFileSync(process.env.BOX_FEED, 'utf8')); } catch (e) { /* keep the live feed */ }
   }
   if (!feed || !Array.isArray(feed.pitchers)) return;
+  // Match each box pitching section to a feed team by pitcher-name overlap, not
+  // by the section's label — Presto often leaves sections labeled generically
+  // "Team 1/2" before it resolves real team names, so the label text can't say
+  // which side is the Gators. A pitcher's identity is label-independent and
+  // never shared across teams, so use that instead.
+  const boxPitcherNames = html => new Set(
+    (String(html || '').match(/<tr\b[\s\S]*?<\/tr>/gi) || [])
+      .map(r => { const thm = r.match(/<th\b[^>]*>([\s\S]*?)<\/th>/i); return thm ? normName(txtOf(thm[1])) : ''; })
+      .filter(n => n && n !== 'pitchers' && n !== 'totals')
+  );
   for (const sec of data.box) {
     if (!/Pitching/i.test(sec.label || '')) continue;
-    const fp = feed.pitchers.find(t => !!t.isGators === /gator|gumbeaux/i.test(sec.label));
+    const boxNames = boxPitcherNames(sec.html);
+    let fp = null, bestScore = 0;
+    for (const t of feed.pitchers) {
+      const score = (t.rows || []).filter(r => boxNames.has(normName(r.name))).length;
+      if (score > bestScore) { bestScore = score; fp = t; }
+    }
     if (!fp || !(fp.rows && fp.rows.length)) continue;
     if (ipToDec(fp.totals && fp.totals.ip) > boxPitchTotalIP(sec.html) + 0.05) {   // Presto's is short -> stale
       sec.html = feedPitchingTable(fp);
