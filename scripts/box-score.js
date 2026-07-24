@@ -626,10 +626,27 @@ function buildHtml(data) {
   // vertical cell padding so a long lineup + a deep bullpen still fit one page
   // without clipping the Totals row. Roomy for a normal box, tighter as rows grow.
   const rcount = html => (String(html || '').match(/<tr/gi) || []).length || 1;
+  // A wild, error/steal-heavy game can pile up a long sub legend, a position-
+  // change line, and a wrapped notes paragraph (e.g. a 7-name SB list) — text
+  // the row-count budget below doesn't see. Estimate its wrapped-line count
+  // (~150 chars/line at the notes block's 9px font over the column width) and
+  // fold it in as fractional extra rows so a note-heavy team also tightens the
+  // padding, not just a team with a physically long lineup/bullpen.
+  const estWrapLines = (s, cpl) => { const t = txtOf(s || ''); return t ? Math.max(1, Math.ceil(t.length / cpl)) : 0; };
+  const noteOverheadRows = t => {
+    let lines = 0;
+    if (t.legend && t.legend.length) lines += t.legend.length;
+    if (t.posChanges && t.posChanges.length) lines += 1;
+    const offensive = {}, errNotes = {};
+    for (const k in (t.notes || {})) { (String(k).toUpperCase() === 'E' ? errNotes : offensive)[k] = t.notes[k]; }
+    lines += estWrapLines(notesLine(offensive), 150);
+    lines += estWrapLines(notesLine(errNotes), 150);
+    return lines * 0.5;   // a 9px note line runs roughly half a table row's height
+  };
   // Budget accounts for the per-column fixed overhead the rows share the page
   // with — two section captions, the sub legend, and the notes block — so a tall
   // lineup + bullpen still lands its Totals rows on the page instead of clipping.
-  const maxRows = Math.max(1, ...teams.map(t => rcount(t.batting) + rcount(t.pitching)));
+  const maxRows = Math.max(1, ...teams.map(t => rcount(t.batting) + rcount(t.pitching) + noteOverheadRows(t)));
   const padV = Math.max(3, Math.min(7, Math.floor((540 / maxRows - 15) / 2)));
   const H = [];
   H.push(`<!doctype html><html><head><meta charset='utf-8'><style>
