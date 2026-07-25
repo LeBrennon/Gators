@@ -4670,24 +4670,36 @@ function buildPlayoffPicture(ranked, metrics) {
 // least 2 OTHER teams are guaranteed (even if X wins every game left) to finish
 // with more second-half wins than X's best possible total.
 // Door B only ever opens if a champion is STILL capable of a top-2 second-half
-// finish. So it's fully, permanently closed the moment BOTH champions are
-// themselves shut out of Door A — and only then is a non-champion who has also
-// lost Door A truly, unconditionally eliminated. (Conservative by design: while
-// either champion could still land in the second-half top 2, no team is marked
-// out, even ones that are effectively hopeless — a false "OUT" would be worse
-// than a late one.)
+// finish, and even then it hands the berth out by full-season record, not
+// 2nd-half finish — so a non-champion who has lost Door A is ALSO safe from
+// Door B if the champion path is closed, OR if 2+ other non-champions are
+// already guaranteed more full-season wins than it could ever reach (at most
+// one non-champion can be excluded from that redirect pool at a time, so one
+// of the 2+ always survives to out-rank it). Only once both doors are shut is
+// a team truly, unconditionally eliminated. (Conservative by design: a false
+// "OUT" would be worse than a late one.)
 function computeElimination(rows, remaining) {
-  const ceil2 = {}, floor2 = {};
+  const ceil2 = {}, floor2 = {}, ceilS = {}, floorS = {};
   for (const x of rows) {
     const rem = (remaining && remaining[x.id]) || 0;
     ceil2[x.id] = x.w2 + rem;
     floor2[x.id] = x.w2;
+    ceilS[x.id] = x.ws + rem;
+    floorS[x.id] = x.ws;
   }
   const canTop2 = id => rows.filter(y => y.id !== id && floor2[y.id] > ceil2[id]).length < 2;
   const champIds = Object.keys(CLINCHED_PLAYOFF);
-  const doorBClosed = champIds.every(id => !rows.some(y => y.id === id) || !canTop2(id));
+  const doorBOpen = champIds.some(id => rows.some(y => y.id === id) && canTop2(id));
+  // Door B hands its berth out by FULL-SEASON record, not 2nd-half finish, and
+  // at most one non-champion can ever be pulled out of that redirect pool (the
+  // other 2nd-half top-2 finisher, when only one champion is the overlap). So
+  // even while door B is technically open, a team is still safe from it once
+  // 2+ OTHER non-champions are already guaranteed (by current full-season
+  // wins) to out-total its full-season ceiling — one of them always survives
+  // the single possible exclusion and out-ranks it for the redirect.
+  const cantWinDoorB = id => rows.filter(y => y.id !== id && !y.clinched && floorS[y.id] > ceilS[id]).length >= 2;
   const out = {};
-  for (const x of rows) out[x.id] = !x.clinched && !canTop2(x.id) && doorBClosed;
+  for (const x of rows) out[x.id] = !x.clinched && !canTop2(x.id) && (!doorBOpen || cantWinDoorB(x.id));
   return out;
 }
 // Memoize the league metrics against the schedule fetch so we reparse only when

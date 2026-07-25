@@ -192,3 +192,22 @@ test('computeElimination: door B safety valve — a team shut out of door A stay
   const out = computeElimination(rows, remaining);
   assert.equal(out[GAT], false, 'door B still plausible, so no false "OUT"');
 });
+
+function row3(id, w2, ws, clinched) { return { id, w2, l2: 0, ws, ls: 0, clinched: clinched || null }; }
+
+test('computeElimination: shut out of door A AND provably unable to win door B\'s full-season redirect, even while door B is open', () => {
+  // ROU is shut out of door A (GAT + BOM's 2H floors beat its 2H ceiling), same
+  // as the door-A-only cases above. Door B is technically open (VIC, a
+  // champion, can still reach a literal top-2 second-half finish). But door B
+  // only ever redirects the berth by FULL-SEASON record, and GAT + BOM already
+  // have more full-season wins locked in than ROU could ever reach — at most
+  // one non-champion can be excluded from that redirect pool, so one of GAT/BOM
+  // always survives to out-rank ROU. ROU is truly done, not just door-A-dead.
+  const rows = [
+    row3(VIC, 2, 1, '1st-half champion'), row3(ACA, 1, 1, '1st-half champion'),
+    row3(GAT, 9, 25), row3(BOM, 8, 22), row3(ROU, 2, 19),
+  ];
+  const remaining = { [VIC]: 10, [ACA]: 0, [GAT]: 0, [BOM]: 0, [ROU]: 1 };
+  const out = computeElimination(rows, remaining);
+  assert.equal(out[ROU], true, 'door A shut, and 2+ others already out-total its full-season ceiling');
+});
