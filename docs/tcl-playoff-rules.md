@@ -90,13 +90,20 @@ Standings tab once it's provably dead for both ways into a berth:
   could reach even by winning out (a standard ceiling/floor check).
 - **Door B** — the overlap rule above: a first-half champion finishes top-2 of the
   second half anyway (it doesn't need the berth) and hands the now-redundant slot to
-  the best remaining full-season record. This door only exists while a champion can
-  still reach a literal top-2 second-half finish, so it's permanently shut the moment
-  **both** champions are themselves shut out of door A.
+  the best remaining **full-season** record (not 2nd-half record) among teams that
+  didn't otherwise qualify. This door only exists while a champion can still reach a
+  literal top-2 second-half finish, so it's permanently shut the moment **both**
+  champions are themselves shut out of door A.
 
-A team is only shown **Out** once both doors are shut. This is deliberately
-conservative: while either champion could still land in the second-half top 2, no
-team is marked out, even one that's already effectively hopeless — a false "Out"
-would be worse than a late one. `remainingGamesByTeam(html)` supplies each team's
-games-left count (every not-yet-decided game on the schedule page, since the whole
-season is past its first half by the time `SEASON_HALF` is 2).
+A team is only shown **Out** once both doors are shut for it. Door A shutting is the
+same ceiling/floor check as above, run on 2nd-half wins. Door B is closed for a team
+either because the champion path itself is closed (both champions shut out of door A),
+or — even while a champion could still trigger it — because 2+ *other* non-champions
+already have more full-season wins guaranteed (by their current total) than that team
+could ever reach. The latter holds because a redirect can exclude at most one
+non-champion from its pool (the other 2nd-half top-2 finisher, when only one champion
+is the overlap), so with 2+ such teams, one always survives to out-rank it. This is
+still deliberately conservative: a false "Out" would be worse than a late one.
+`remainingGamesByTeam(html)` supplies each team's games-left count (every
+not-yet-decided game on the schedule page, since the whole season is past its first
+half by the time `SEASON_HALF` is 2).
