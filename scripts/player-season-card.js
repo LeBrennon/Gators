@@ -101,15 +101,15 @@ const photo = findPhoto(DATA.photoSlug || (DATA.name || '').toLowerCase().replac
 const seasonTiles = DATA.season.map(([k, v]) => `<div class="stat"><div class="sv">${esc(v)}</div><div class="sl">${esc(k)}</div></div>`).join('');
 const headCells = DATA.logCols.map((c, i) => `<th${i < 3 ? ' class="l"' : ''}>${esc(c)}</th>`).join('');
 const bodyRows = DATA.log.map(r => {
-  const wl = /^W/i.test(r[2]) ? 'w' : /^L/i.test(r[2]) ? 'l' : 't';
   const cells = r.map((v, i) => {
     if (i < 2) return `<td class="l">${esc(v)}</td>`;
-    if (i === 2) return `<td class="l ${wl}">${esc(v)}</td>`;
+    if (i === 2) return `<td class="l res">${esc(v)}</td>`;
     if (i === r.length - 1) return `<td><b>${esc(v)}</b></td>`;
     return `<td>${esc(v)}</td>`;
   }).join('');
   return `<tr>${cells}</tr>`;
 }).join('');
+const labCells = DATA.logCols.map((c, i) => i < 3 ? '<td></td>' : `<td>${esc(c)}</td>`).join('');
 const totCells = DATA.totals.map((v, i) => {
   if (i < 3) return `<td class="l">${esc(v)}</td>`;
   if (i === DATA.totals.length - 1) return `<td><b>${esc(v)}</b></td>`;
@@ -127,7 +127,7 @@ body { margin: 0; padding: 0; font-family: "Helvetica Neue", Arial, sans-serif; 
 .band img.texture { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 35%; }
 .band .shade { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(22,16,43,.38); }
 .band .inner { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; padding: 0 45px; }
-.band img.mark { width: 72px; height: 72px; object-fit: contain; margin-right: 23px; }
+.band img.mark { width: 104px; height: 104px; object-fit: contain; margin-right: 23px; }
 .band .org { font-family: Georgia, serif; font-weight: 800; font-size: 23px; color: #ecc913; letter-spacing: 1.2px; }
 .band .sub { font-size: 11px; color: #cfc6ea; letter-spacing: 2.2px; text-transform: uppercase; margin-top: 6px; }
 .goldline { height: 6px; background: linear-gradient(90deg, #ecc913, #ffd633 55%, #b89b0e); }
@@ -151,9 +151,9 @@ th { background: #4e3191; color: #fff; font-size: 9.8px; letter-spacing: 1px; te
 th.l, td.l { text-align: left; }
 td { padding: 11.3px 6.8px; border-bottom: .9px solid #d9d4e8; text-align: right; }
 tr:nth-child(even) td { background: #ece9f6; }
-td.l.w { color: #1e7a34; font-weight: 700; }
-td.l.l { color: #b03030; font-weight: 700; }
+td.res { color: #16102b; font-weight: 700; }
 tr.tot td { background: #16102b; color: #ffd633; font-weight: 800; border-bottom: none; }
+tr.totlab td { color: #714ad2; font-size: 9px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; border-bottom: none; padding-top: 4px; }
 .note { margin: 11px 45px 0; font-size: 10.5px; color: #6d6391; }
 .foot { position: absolute; bottom: 0; left: 0; width: 100%; height: 42px; overflow: hidden; }
 .foot img { width: 100%; height: 100%; object-fit: cover; object-position: center 70%; }
@@ -193,7 +193,7 @@ tr.tot td { background: #16102b; color: #ffd633; font-weight: 800; border-bottom
 <h2>${esc(DATA.logTitle)}</h2>
 <table>
 <thead><tr>${headCells}</tr></thead>
-<tbody>${bodyRows}<tr class="tot">${totCells}</tr></tbody>
+<tbody>${bodyRows}<tr class="tot">${totCells}</tr><tr class="totlab">${labCells}</tr></tbody>
 </table>
 <div class="note">${esc(DATA.note)}</div>
 </div>
