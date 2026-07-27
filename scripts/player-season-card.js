@@ -12,7 +12,7 @@
  * and run it. Everything below DATA is generic — do not edit it per player.
  * Counting stats come from the official box scores; advanced metrics
  * (BF, K%/BB%, AVG/OBP/SLG/OPS against, BABIP, extra-base hits allowed,
- * FPS%, SwStr%, GB/FB/LD/PU) are computed from TCL play-by-play text.
+ * FPS%, GB/FB/LD/PU) are computed from TCL play-by-play text.
  * FIP uses the FanGraphs formula ((13*HR + 3*(BB+HBP) - 2*K)/IP + 3.10).
  *
  *   node scripts/player-season-card.js                 # -> reports/players/
@@ -220,10 +220,6 @@ const DATA = {
           "60.0"
         ],
         [
-          "SwStr%",
-          "7.9"
-        ],
-        [
           "P/IP",
           "19.3"
         ],
@@ -247,7 +243,7 @@ const DATA = {
     ["FIP", "fielding independent pitching"], ["AVG / OBP / SLG / OPS", "hitters' slash line against"],
     ["ISO", "isolated power (SLG − AVG)"], ["BABIP", "batting avg on balls in play"],
     ["#P", "total pitches"], ["S%", "strike percentage"], ["FPS%", "first-pitch strikes"],
-    ["SwStr%", "swinging strikes per pitch"], ["P/IP · P/BF", "pitches per inning / batter"],
+    ["P/IP · P/BF", "pitches per inning / batter"],
     ["GB / FB / LD / PU", "ground ball / fly ball / line drive / popup % (outs)"],
   ],
   "logTitle": "Game by Game",
@@ -388,7 +384,7 @@ const DATA = {
     "52",
     "14.73"
   ],
-  "note": "BF (batters faced), K%/BB% (per BF), AVG/OBP/SLG/OPS/ISO against, BABIP, 2B/3B/HR allowed, FPS% (first-pitch strike), SwStr% (swinging strikes per pitch) and the GB/FB/LD/PU profile are computed from official TCL play-by-play text; FIP uses the FanGraphs formula ((13·HR + 3·(BB+HBP) − 2·K)/IP + 3.10). IP, H/R/ER/BB/K, #P and S% are the scorer's official box-score figures. Statcast-only metrics (exit velocity, spin rate, barrels) are not captured at this level."
+  "note": "BF (batters faced), K%/BB% (per BF), AVG/OBP/SLG/OPS/ISO against, BABIP, 2B/3B/HR allowed, FPS% (first-pitch strike) and the GB/FB/LD/PU profile are computed from official TCL play-by-play text; FIP uses the FanGraphs formula ((13·HR + 3·(BB+HBP) − 2·K)/IP + 3.10). IP, H/R/ER/BB/K, #P and S% are the scorer's official box-score figures. Statcast-only metrics (exit velocity, spin rate, barrels) are not captured at this level."
 };
 // ===========================================================================
 
