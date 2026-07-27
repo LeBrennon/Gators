@@ -1914,6 +1914,25 @@ function checkInningAlerts(norm) {
   if (isFinal && !inningAlertSent.has(fkey))
     dispatchInningAlert(norm, fkey, finalAlertText(norm), 'final');
 }
+// Adaptive schedule polling: the schedule page only moves fast on game days,
+// so hammering it every POLL_MS around the clock wastes upstream requests and
+// risks a rate-limit from the league's host (we've been throttled before).
+// Fast lane = a game is live, or it's a game day from 4pm Central until the
+// game goes final. Everything else polls on the slow lane.
+const IDLE_POLL_MS = Number(process.env.IDLE_POLL_MS || 5 * 60 * 1000);
+function schedulePollDelay() {
+  try {
+    if (featured && featured.status === 'live') return POLL_MS;
+    const today = games.find(g => g.date === todayCentralYmd());
+    if (!today) return IDLE_POLL_MS;
+    if (today.state === 'live') return POLL_MS;
+    if (today.state === 'scheduled') {
+      const hour = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', hour: 'numeric', hour12: false }).format(new Date()));
+      return hour >= 16 ? POLL_MS : IDLE_POLL_MS;   // first pitch ~7pm; open the fast lane at 4pm
+    }
+    return IDLE_POLL_MS;   // final / postponed / cancelled / suspended — nothing moving today
+  } catch (e) { return POLL_MS; }
+}
 async function pollSchedule() {
   try {
     const res = await fetch(SCHEDULE_URL, { headers: {
@@ -5054,7 +5073,7 @@ if (require.main === module) {
     // This is exactly the gap that hid a whole season of missing end-of-inning
     // texts — surface it instead of failing quietly.
     if (INNING_ALERT_TO.length && !mailReady) console.warn('[inning-alert] mailer NOT configured: INNING_ALERT_TO is set but GMAIL_USER/GMAIL_APP_PASSWORD are missing — no texts will send until they are set.');
-    pollSchedule(); setInterval(pollSchedule, POLL_MS); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleRosterRefresh(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); setTimeout(pollStrikePct, 15000); setInterval(pollStrikePct, 3 * 60 * 60 * 1000); setTimeout(getPitcherRest, 20000); scheduleDailyStats(); });
+    (function scheduleLoop() { pollSchedule().catch(e => logErr('pollSchedule', e)).finally(() => setTimeout(scheduleLoop, schedulePollDelay())); })(); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleRosterRefresh(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); setTimeout(pollStrikePct, 15000); setInterval(pollStrikePct, 3 * 60 * 60 * 1000); setTimeout(getPitcherRest, 20000); scheduleDailyStats(); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, attachLineupSubLegend, pitchersFromFeed, extractEventAuth,
   dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, applyStandingsOverride, MANUAL_STANDINGS_OVERRIDE, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseTeamRosterSlugs, parseGameLog, boxRowsForPlayer, aggBat, aggPit, buildRecord, lineIsShowable, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, applyPitcherOverrides, pitchingTotals, strikeCounts, inningAlertText, finalAlertText,

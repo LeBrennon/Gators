@@ -19,7 +19,7 @@
   "dependencies": {
     "compression": "^1.8.1",
     "cors": "^2.8.5",
-    "express": "^4.19.2",
+    "express": "^4.22.2",
     "nodemailer": "^9.0.3",
     "web-push": "^3.6.7"
   },
