@@ -417,7 +417,8 @@ const logo = b64('gg-logo.png', 'image/png');
 const croc = b64('scripts/assets/croc-band.jpg', 'image/jpeg');   // hue-locked croc band
 const photo = findPhoto(DATA.photoSlug || (DATA.name || '').toLowerCase().replace(/[^a-z]/g, ''));
 
-const seasonTiles = DATA.season.map(([k, v]) => `<div class="stat"><div class="sv">${esc(v)}</div><div class="sl">${esc(k)}</div></div>`).join('');
+// Relievers never start — hide the GS tile entirely when it's 0.
+const seasonTiles = DATA.season.filter(([k, v]) => !(k === 'GS' && String(v) === '0')).map(([k, v]) => `<div class="stat"><div class="sv">${esc(v)}</div><div class="sl">${esc(k)}</div></div>`).join('');
 const keyRow = (DATA.key || []).length
   ? `<div class="keytitle">Advanced Metrics Key</div><div class="key">` +
     DATA.key.map(([a, m]) => `<span class="ki"><b>${esc(a)}</b> ${esc(m)}</span>`).join('<span class="ksep">&middot;</span>') + `</div>`
