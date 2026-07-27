@@ -515,6 +515,7 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #1610
 .strip .sl { font-size: 8.5px; color: #cfc6ea; letter-spacing: 1.2px; margin-top: 3px; }
 .keytitle { margin: 7px 45px 0; font-size: 8px; font-weight: 800; letter-spacing: 2px; color: #714ad2; text-transform: uppercase; }
 .key { margin: 2.5px 45px 0; font-size: 8.8px; color: #443a66; line-height: 1.55; }
+.key .ki { white-space: nowrap; }
 .key .ki b { color: #4e3191; letter-spacing: .3px; }
 .key .ksep { color: #b9aede; margin: 0 5px; font-weight: 800; }
 .grid { display: flex; flex-wrap: wrap; margin: 5px 40px 0; }
