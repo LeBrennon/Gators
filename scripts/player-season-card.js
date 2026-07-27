@@ -239,12 +239,54 @@ const DATA = {
     ]
   ],
   "key": [
-    ["BF", "batters faced"], ["K% / BB%", "strikeouts / walks per BF"], ["K/9 · BB/9 · H/9 · HR/9", "per 9 innings"],
-    ["FIP", "fielding independent pitching"], ["AVG / OBP / SLG / OPS", "hitters' slash line against"],
-    ["ISO", "isolated power (SLG − AVG)"], ["BABIP", "batting avg on balls in play"],
-    ["#P", "total pitches"], ["S%", "strike percentage"], ["FPS%", "first-pitch strikes"],
-    ["P/IP · P/BF", "pitches per inning / batter"],
-    ["GB / FB / LD / PU", "ground ball / fly ball / line drive / popup % (outs)"],
+    [
+      "BF",
+      "batters faced"
+    ],
+    [
+      "K% / BB%",
+      "strikeouts / walks per BF"
+    ],
+    [
+      "K/9 · BB/9 · H/9 · HR/9",
+      "per 9 innings"
+    ],
+    [
+      "FIP",
+      "fielding independent pitching"
+    ],
+    [
+      "AVG / OBP / SLG / OPS",
+      "hitters' slash line against"
+    ],
+    [
+      "ISO",
+      "isolated power (SLG − AVG)"
+    ],
+    [
+      "BABIP",
+      "batting avg on balls in play"
+    ],
+    [
+      "#P",
+      "total pitches"
+    ],
+    [
+      "S%",
+      "strike percentage"
+    ],
+    [
+      "FPS%",
+      "first-pitch strikes"
+    ],
+    [
+      "P/IP · P/BF",
+      "pitches per inning / batter"
+    ],
+    [
+      "GB / FB / LD / PU",
+      "ground ball / fly ball / line drive / popup % (outs)"
+    ]
   ],
   "logTitle": "Game by Game",
   "logCols": [
@@ -383,8 +425,7 @@ const DATA = {
     "212",
     "52",
     "14.73"
-  ],
-  "note": "BF (batters faced), K%/BB% (per BF), AVG/OBP/SLG/OPS/ISO against, BABIP, 2B/3B/HR allowed, FPS% (first-pitch strike) and the GB/FB/LD/PU profile are computed from official TCL play-by-play text; FIP uses the FanGraphs formula ((13·HR + 3·(BB+HBP) − 2·K)/IP + 3.10). IP, H/R/ER/BB/K, #P and S% are the scorer's official box-score figures. Statcast-only metrics (exit velocity, spin rate, barrels) are not captured at this level."
+  ]
 };
 // ===========================================================================
 
@@ -437,6 +478,7 @@ const bodyRows = DATA.log.map(r => {
   }).join('');
   return `<tr>${cells}</tr>`;
 }).join('');
+const labCells = DATA.logCols.map((c, i) => i < 3 ? '<td></td>' : `<td>${esc(c)}</td>`).join('');
 const totCells = DATA.totals.map((v, i) => {
   if (i < 3) return `<td class="l">${esc(v)}</td>`;
   if (i === DATA.totals.length - 1) return `<td><b>${esc(v)}</b></td>`;
@@ -491,7 +533,7 @@ td { padding: 6.5px 4px; border-bottom: .9px solid #d9d4e8; text-align: right; f
 tr:nth-child(even) td { background: #ece9f6; }
 td.res { font-weight: 700; }
 tr.tot td { background: #16102b; color: #ffd633; font-weight: 800; border-bottom: none; }
-.note { margin: 8px 45px 0; font-size: 8.6px; color: #6d6391; line-height: 1.5; }
+tr.totlab td { color: #714ad2; font-size: 7.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; border-bottom: none; padding-top: 3px; }
 .foot { position: absolute; bottom: 0; left: 0; width: 100%; height: 40px; overflow: hidden; }
 .foot img { width: 100%; height: 100%; object-fit: cover; object-position: center 70%; }
 .foot .shade { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(22,16,43,.5); display: flex; align-items: center; justify-content: center; }
@@ -531,9 +573,8 @@ ${keyRow}<div class="grid">${panels}</div>
 <h2>${esc(DATA.logTitle)}</h2>
 <table>
 <thead><tr>${headCells}</tr></thead>
-<tbody>${bodyRows}<tr class="tot">${totCells}</tr></tbody>
+<tbody>${bodyRows}<tr class="tot">${totCells}</tr><tr class="totlab">${labCells}</tr></tbody>
 </table>
-<div class="note">${esc(DATA.note)}</div>
 </div>
 <div class="foot">
   <img src="${croc}" alt="">
