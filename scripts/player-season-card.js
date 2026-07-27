@@ -462,7 +462,7 @@ const photo = findPhoto(DATA.photoSlug || (DATA.name || '').toLowerCase().replac
 const seasonTiles = DATA.season.filter(([k, v]) => !(k === 'GS' && String(v) === '0')).map(([k, v]) => `<div class="stat"><div class="sv">${esc(v)}</div><div class="sl">${esc(k)}</div></div>`).join('');
 const keyRow = (DATA.key || []).length
   ? `<div class="keytitle">Advanced Metrics Key</div><div class="key">` +
-    DATA.key.map(([a, m]) => `<span class="ki"><b>${esc(a)}</b> ${esc(m)}</span>`).join('<span class="ksep">&middot;</span>') + `</div>`
+    DATA.key.map(([a, m]) => `<span class="ki"><b>${esc(a)}</b> ${esc(m)}</span>`).join('<span class="ksep">&middot;</span> ') + `</div>`
   : '';
 const panels = (DATA.groups || []).map(([title, rows]) =>
   `<div class="panel"><div class="ptitle">${esc(title)}</div><div class="sg">` +
