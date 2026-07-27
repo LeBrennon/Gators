@@ -242,6 +242,14 @@ const DATA = {
       ]
     ]
   ],
+  "key": [
+    ["BF", "batters faced"], ["K% / BB%", "strikeouts / walks per BF"], ["K/9 · BB/9 · H/9 · HR/9", "per 9 innings"],
+    ["FIP", "fielding independent pitching"], ["AVG / OBP / SLG / OPS", "hitters' slash line against"],
+    ["ISO", "isolated power (SLG − AVG)"], ["BABIP", "batting avg on balls in play"],
+    ["#P", "total pitches"], ["S%", "strike percentage"], ["FPS%", "first-pitch strikes"],
+    ["SwStr%", "swinging strikes per pitch"], ["P/IP · P/BF", "pitches per inning / batter"],
+    ["GB / FB / LD / PU", "ground ball / fly ball / line drive / popup % (outs)"],
+  ],
   "logTitle": "Game by Game",
   "logCols": [
     "Date",
@@ -414,6 +422,10 @@ const croc = b64('scripts/assets/croc-band.jpg', 'image/jpeg');   // hue-locked 
 const photo = findPhoto(DATA.photoSlug || (DATA.name || '').toLowerCase().replace(/[^a-z]/g, ''));
 
 const seasonTiles = DATA.season.map(([k, v]) => `<div class="stat"><div class="sv">${esc(v)}</div><div class="sl">${esc(k)}</div></div>`).join('');
+const keyRow = (DATA.key || []).length
+  ? `<div class="keytitle">Advanced Metrics Key</div><div class="key">` +
+    DATA.key.map(([a, m]) => `<span class="ki"><b>${esc(a)}</b> ${esc(m)}</span>`).join('<span class="ksep">&middot;</span>') + `</div>`
+  : '';
 const panels = (DATA.groups || []).map(([title, rows]) =>
   `<div class="panel"><div class="ptitle">${esc(title)}</div><div class="sg">` +
   rows.map(([l, v]) => `<div class="sr"><span class="sl2">${esc(l)}</span><span class="sv2">${esc(v)}</span></div>`).join('') +
@@ -463,7 +475,11 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #1610
 .strip .stat { text-align: center; }
 .strip .sv { font-family: Georgia, serif; font-size: 21px; font-weight: 800; color: #ffd633; }
 .strip .sl { font-size: 8.5px; color: #cfc6ea; letter-spacing: 1.2px; margin-top: 3px; }
-.grid { display: flex; flex-wrap: wrap; margin: 8px 40px 0; }
+.keytitle { margin: 7px 45px 0; font-size: 8px; font-weight: 800; letter-spacing: 2px; color: #714ad2; text-transform: uppercase; }
+.key { margin: 2.5px 45px 0; font-size: 8.8px; color: #443a66; line-height: 1.55; }
+.key .ki b { color: #4e3191; letter-spacing: .3px; }
+.key .ksep { color: #b9aede; margin: 0 5px; font-weight: 800; }
+.grid { display: flex; flex-wrap: wrap; margin: 5px 40px 0; }
 .panel { width: 50%; padding: 4px 5px; }
 .ptitle { font-size: 9.5px; font-weight: 800; letter-spacing: 1.8px; color: #4e3191; border-bottom: 1.5px solid #ecc913; padding-bottom: 3px; margin-bottom: 5px; }
 .sg { display: flex; flex-wrap: wrap; }
@@ -515,12 +531,12 @@ tr.totlab td { color: #714ad2; font-size: 7.5px; font-weight: 700; letter-spacin
 </div>
 <div class="striptitle">${esc(DATA.seasonTitle)}</div>
 <div class="strip">${seasonTiles}</div>
-<div class="grid">${panels}</div>
+${keyRow}<div class="grid">${panels}</div>
 <div class="logwrap">
 <h2>${esc(DATA.logTitle)}</h2>
 <table>
 <thead><tr>${headCells}</tr></thead>
-<tbody>${bodyRows}<tr class="totlab">${labCells}</tr><tr class="tot">${totCells}</tr></tbody>
+<tbody>${bodyRows}<tr class="tot">${totCells}</tr><tr class="totlab">${labCells}</tr></tbody>
 </table>
 <div class="note">${esc(DATA.note)}</div>
 </div>
