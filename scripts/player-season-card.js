@@ -497,9 +497,9 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #1610
 .band .shade { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(22,16,43,.38); }
 .band .inner { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; padding: 0 45px; }
 .band img.mark { width: 96px; height: 96px; object-fit: contain; margin-right: 22px; }
-.band .org { font-family: Georgia, serif; font-weight: 800; font-size: 23px; color: #ecc913; letter-spacing: 1.2px; }
+.band .org { font-family: Georgia, serif; font-weight: 800; font-size: 23px; color: #ffd633; letter-spacing: 1.2px; }
 .band .sub { font-size: 11px; color: #cfc6ea; letter-spacing: 2.2px; text-transform: uppercase; margin-top: 6px; }
-.goldline { height: 6px; background: linear-gradient(90deg, #ecc913, #ffd633 55%, #b89b0e); }
+.goldline { height: 6px; background: linear-gradient(90deg, #ecc913, #ffd633 55%, #ecc913); }
 .id { display: flex; padding: 22px 45px 10px; }
 .id .ph { width: 118px; height: 118px; border-radius: 9px; object-fit: cover; border: 4px solid #ecc913; background: #ddd; }
 .id .who { margin-left: 22px; flex: 1; }
