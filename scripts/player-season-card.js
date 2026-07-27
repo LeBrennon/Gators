@@ -1,24 +1,27 @@
 #!/usr/bin/env node
 /*
  * Player Season Card — renders a one-page, letter-size, branded PDF of one
- * player's summer: identity block, season totals strip, and a game-by-game
- * table with a totals row. Same club branding as the GM report cards
- * (croc-skin bands, gold border, purples #4e3191 dark / #714ad2 accent,
- * gold #ecc913/#ffd633, green W / red L in the result column).
+ * player's summer: identity block, season-totals strip, four advanced-stat
+ * panels (Savant-style: run prevention, command & rates, hitters-against,
+ * pitch profile), and a game-by-game table with totals + column labels.
+ * Club branding per docs/HANDOFF.md: croc-skin bands (hue-locked to the
+ * #4e3191 family via scripts/assets/croc-band.jpg), gold border, purples
+ * #4e3191 dark / #714ad2 accent, gold #ecc913/#ffd633.
  *
  * This is a hand-fed renderer: fill in the DATA block below for the player
  * and run it. Everything below DATA is generic — do not edit it per player.
- * Game-by-game rows come straight from the box scores; on the live site the
- * player's profile card (or /api/player?slug=<slug>) lists them, and
- * scripts/box-score.js / /api/boxscore?id=<id> has each game's numbers.
+ * Counting stats come from the official box scores; advanced metrics
+ * (BF, K%/BB%, AVG/OBP/SLG/OPS against, BABIP, extra-base hits allowed,
+ * FPS%, SwStr%, GB/FB/LD/PU) are computed from TCL play-by-play text.
+ * FIP uses the FanGraphs formula ((13*HR + 3*(BB+HBP) - 2*K)/IP + 3.10).
  *
  *   node scripts/player-season-card.js                 # -> reports/players/
  *   node scripts/player-season-card.js /path/stem      # custom output stem
  *
  * Photo: drops in photos/<photoSlug>.<ext> automatically (photoSlug defaults
  * to the player's slug). Layout is a fixed single letter page — it never
- * spills to a second page, so keep the season strip to <= 10 stats and the
- * log to a full season's worth of rows (tested to ~30 rows).
+ * spills to a second page (tested with a 10-tile strip, 4 panels x 8 stats,
+ * and a 13-column log; keep roughly to that budget).
  *
  * Requires Chromium (CHROMIUM_PATH, /opt/pw-browsers, a Playwright install,
  * or Mac Chrome). No other dependencies.
@@ -31,41 +34,353 @@ const stemArg = process.argv.slice(2).find(a => a && !a.startsWith('--'));
 
 // ===========================================================================
 // PLAYER DATA — replace this block for each player. Everything below is generic.
-// (Values shown are Brayden Guillory's 2026 summer, from the official TCL box
-// scores — his Presto player page is an all-dashes placeholder, so these rows
-// were rebuilt game by game from the box scores, which is also what the site
-// shows on his card.)
+// (Values shown are Brayden Guillory's 2026 summer: counting stats from the
+// official TCL box scores, advanced metrics computed from play-by-play text
+// because his Presto player page is an all-dashes placeholder.)
 // ===========================================================================
 const DATA = {
-  name: 'Brayden Guillory',
-  num: '47',
-  pos: 'RHP',
-  bt: 'R/R',
-  cls: 'R-Freshman',
-  school: 'Southern University',
-  home: 'Kinder, LA',
-  htwt: '6-2 · 200',
-  bday: '11/17/2005',
-  photoSlug: 'braydenguillory',          // photos/<photoSlug>.<webp|jpg|jpeg|png|avif>
-  seasonTitle: 'Season Totals — Pitching',
-  season: [                              // [LABEL, VALUE] — up to 10 tiles
-    ['APP', '7'], ['IP', '11.0'], ['ERA', '14.73'], ['WHIP', '2.27'],
-    ['H', '16'], ['R', '19'], ['ER', '18'], ['BB', '9'], ['K', '3'], ['K/9', '2.5'],
+  "name": "Brayden Guillory",
+  "num": "47",
+  "pos": "RHP",
+  "bt": "R/R",
+  "cls": "R-Freshman",
+  "school": "Southern University",
+  "home": "Kinder, LA",
+  "htwt": "6-2 · 200",
+  "bday": "11/17/2005",
+  "photoSlug": "braydenguillory",
+  "seasonTitle": "Season Totals — Pitching",
+  "season": [
+    [
+      "APP",
+      "7"
+    ],
+    [
+      "GS",
+      "0"
+    ],
+    [
+      "IP",
+      "11.0"
+    ],
+    [
+      "BF",
+      "60"
+    ],
+    [
+      "ERA",
+      "14.73"
+    ],
+    [
+      "WHIP",
+      "2.27"
+    ],
+    [
+      "FIP",
+      "8.83"
+    ],
+    [
+      "K",
+      "3"
+    ],
+    [
+      "BB",
+      "9"
+    ],
+    [
+      "H",
+      "16"
+    ]
   ],
-  logTitle: 'Game by Game',
-  logCols: ['Date', 'Opponent', 'Result', 'IP', 'H', 'R', 'ER', 'BB', 'K', 'ERA'],
-  // result must start with 'W' / 'L' / 'T' for the color coding; use '' for none
-  log: [
-    ['Jul 1', 'at Brazos Valley', 'W, 10-8', '3.1', '1', '2', '2', '1', '3', '5.40'],
-    ['Jul 7', 'at Acadiana', 'L, 4-7', '0.2', '1', '0', '0', '1', '0', '0.00'],
-    ['Jul 12', 'at San Antonio', 'L, 4-8', '3.1', '5', '5', '5', '1', '0', '13.50'],
-    ['Jul 15', 'at Baton Rouge', 'L, 2-9', '1.2', '3', '5', '4', '1', '0', '21.60'],
-    ['Jul 19', 'Brazos Valley', 'W, 14-11', '0.2', '3', '5', '5', '2', '0', '67.50'],
-    ['Jul 23', 'Sherman', 'W, 8-7', '1.0', '2', '2', '2', '1', '0', '18.00'],
-    ['Jul 26', 'Abilene', 'W, 5-4', '0.1', '1', '0', '0', '2', '0', '0.00'],
+  "groups": [
+    [
+      "RUN PREVENTION",
+      [
+        [
+          "ERA",
+          "14.73"
+        ],
+        [
+          "WHIP",
+          "2.27"
+        ],
+        [
+          "FIP",
+          "8.83"
+        ],
+        [
+          "HR",
+          "3"
+        ],
+        [
+          "HR/9",
+          "2.5"
+        ],
+        [
+          "H",
+          "16"
+        ],
+        [
+          "R",
+          "19"
+        ],
+        [
+          "ER",
+          "18"
+        ]
+      ]
+    ],
+    [
+      "COMMAND & RATES",
+      [
+        [
+          "K%",
+          "5.0"
+        ],
+        [
+          "BB%",
+          "15.0"
+        ],
+        [
+          "K−BB%",
+          "−10.0"
+        ],
+        [
+          "K/9",
+          "2.5"
+        ],
+        [
+          "BB/9",
+          "7.4"
+        ],
+        [
+          "H/9",
+          "13.1"
+        ],
+        [
+          "K:BB",
+          "0.33"
+        ],
+        [
+          "P/BF",
+          "3.5"
+        ]
+      ]
+    ],
+    [
+      "HITTERS VS. GUILLORY",
+      [
+        [
+          "AVG",
+          ".333"
+        ],
+        [
+          "OBP",
+          ".441"
+        ],
+        [
+          "SLG",
+          ".562"
+        ],
+        [
+          "OPS",
+          "1.003"
+        ],
+        [
+          "ISO",
+          ".229"
+        ],
+        [
+          "BABIP",
+          ".302"
+        ],
+        [
+          "2B",
+          "2"
+        ],
+        [
+          "3B",
+          "0"
+        ]
+      ]
+    ],
+    [
+      "PITCH PROFILE",
+      [
+        [
+          "#P",
+          "212"
+        ],
+        [
+          "S%",
+          "52"
+        ],
+        [
+          "FPS%",
+          "60.0"
+        ],
+        [
+          "SwStr%",
+          "7.9"
+        ],
+        [
+          "P/IP",
+          "19.3"
+        ],
+        [
+          "GB%",
+          "40"
+        ],
+        [
+          "FB%",
+          "36"
+        ],
+        [
+          "LD% / PU%",
+          "4 / 20"
+        ]
+      ]
+    ]
   ],
-  totals: ['TOTAL', '7 G', '', '11.0', '16', '19', '18', '9', '3', '14.73'],
-  note: 'ERA shown per appearance; season ERA is earned runs over total innings, not an average of daily ERAs. Compiled from official Texas Collegiate League box scores.',
+  "logTitle": "Game by Game",
+  "logCols": [
+    "Date",
+    "Opponent",
+    "Result",
+    "IP",
+    "BF",
+    "H",
+    "R",
+    "ER",
+    "BB",
+    "K",
+    "#P",
+    "S%",
+    "ERA"
+  ],
+  "log": [
+    [
+      "Jul 1",
+      "at Brazos Valley",
+      "W, 10-8",
+      "3.1",
+      "12",
+      "1",
+      "2",
+      "2",
+      "1",
+      "3",
+      "41",
+      "41",
+      "5.40"
+    ],
+    [
+      "Jul 7",
+      "at Acadiana",
+      "L, 4-7",
+      "0.2",
+      "3",
+      "1",
+      "0",
+      "0",
+      "1",
+      "0",
+      "14",
+      "43",
+      "0.00"
+    ],
+    [
+      "Jul 12",
+      "at San Antonio",
+      "L, 4-8",
+      "3.1",
+      "17",
+      "5",
+      "5",
+      "5",
+      "1",
+      "0",
+      "56",
+      "63",
+      "13.50"
+    ],
+    [
+      "Jul 15",
+      "at Baton Rouge",
+      "L, 2-9",
+      "1.2",
+      "11",
+      "3",
+      "5",
+      "4",
+      "1",
+      "0",
+      "41",
+      "54",
+      "21.60"
+    ],
+    [
+      "Jul 19",
+      "Brazos Valley",
+      "W, 14-11",
+      "0.2",
+      "7",
+      "3",
+      "5",
+      "5",
+      "2",
+      "0",
+      "23",
+      "57",
+      "67.50"
+    ],
+    [
+      "Jul 23",
+      "Sherman",
+      "W, 8-7",
+      "1.0",
+      "6",
+      "2",
+      "2",
+      "2",
+      "1",
+      "0",
+      "21",
+      "52",
+      "18.00"
+    ],
+    [
+      "Jul 26",
+      "Abilene",
+      "W, 5-4",
+      "0.1",
+      "4",
+      "1",
+      "0",
+      "0",
+      "2",
+      "0",
+      "16",
+      "44",
+      "0.00"
+    ]
+  ],
+  "totals": [
+    "TOTAL",
+    "7 G",
+    "",
+    "11.0",
+    "60",
+    "16",
+    "19",
+    "18",
+    "9",
+    "3",
+    "212",
+    "52",
+    "14.73"
+  ],
+  "note": "BF (batters faced), K%/BB% (per BF), AVG/OBP/SLG/OPS/ISO against, BABIP, 2B/3B/HR allowed, FPS% (first-pitch strike), SwStr% (swinging strikes per pitch) and the GB/FB/LD/PU profile are computed from official TCL play-by-play text; FIP uses the FanGraphs formula ((13·HR + 3·(BB+HBP) − 2·K)/IP + 3.10). IP, H/R/ER/BB/K, #P and S% are the scorer's official box-score figures. Statcast-only metrics (exit velocity, spin rate, barrels) are not captured at this level."
 };
 // ===========================================================================
 
@@ -95,10 +410,14 @@ function findChromium() {
 }
 
 const logo = b64('gg-logo.png', 'image/png');
-const croc = b64('scripts/assets/croc-band.jpg', 'image/jpeg');   // contrast-boosted croc tile
+const croc = b64('scripts/assets/croc-band.jpg', 'image/jpeg');   // hue-locked croc band
 const photo = findPhoto(DATA.photoSlug || (DATA.name || '').toLowerCase().replace(/[^a-z]/g, ''));
 
 const seasonTiles = DATA.season.map(([k, v]) => `<div class="stat"><div class="sv">${esc(v)}</div><div class="sl">${esc(k)}</div></div>`).join('');
+const panels = (DATA.groups || []).map(([title, rows]) =>
+  `<div class="panel"><div class="ptitle">${esc(title)}</div><div class="sg">` +
+  rows.map(([l, v]) => `<div class="sr"><span class="sl2">${esc(l)}</span><span class="sv2">${esc(v)}</span></div>`).join('') +
+  `</div></div>`).join('');
 const headCells = DATA.logCols.map((c, i) => `<th${i < 3 ? ' class="l"' : ''}>${esc(c)}</th>`).join('');
 const bodyRows = DATA.log.map(r => {
   const cells = r.map((v, i) => {
@@ -121,44 +440,51 @@ const html = `<!DOCTYPE html>
 <style>
 @page { size: letter; margin: 0; }
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-body { margin: 0; padding: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #16102b; }
+body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #16102b; }
 .page { width: 816px; height: 1056px; position: relative; overflow: hidden; background: #f4f2ec; }
-.band { position: relative; height: 128px; overflow: hidden; }
+.band { position: relative; height: 118px; overflow: hidden; }
 .band img.texture { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 35%; }
 .band .shade { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(22,16,43,.38); }
 .band .inner { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; padding: 0 45px; }
-.band img.mark { width: 104px; height: 104px; object-fit: contain; margin-right: 23px; }
+.band img.mark { width: 96px; height: 96px; object-fit: contain; margin-right: 22px; }
 .band .org { font-family: Georgia, serif; font-weight: 800; font-size: 23px; color: #ecc913; letter-spacing: 1.2px; }
 .band .sub { font-size: 11px; color: #cfc6ea; letter-spacing: 2.2px; text-transform: uppercase; margin-top: 6px; }
 .goldline { height: 6px; background: linear-gradient(90deg, #ecc913, #ffd633 55%, #b89b0e); }
-.id { display: flex; padding: 34px 45px 19px; }
-.id .ph { width: 151px; height: 151px; border-radius: 11px; object-fit: cover; border: 4.5px solid #ecc913; background: #ddd; }
-.id .who { margin-left: 26px; flex: 1; }
-.id h1 { font-family: Georgia, serif; font-size: 38px; font-weight: 800; color: #4e3191; white-space: nowrap; letter-spacing: .5px; }
-.id .role { font-size: 15.5px; font-weight: 700; color: #714ad2; letter-spacing: 1.6px; margin-top: 4.5px; }
-.meta { display: flex; flex-wrap: wrap; margin-top: 19px; }
-.meta div { font-size: 12px; color: #443a66; margin-right: 26px; line-height: 1.75; }
-.meta b { color: #16102b; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: .8px; display: block; }
-.striptitle { margin: 23px 45px 0; font-size: 11.5px; font-weight: 700; letter-spacing: 2.4px; color: #714ad2; text-transform: uppercase; }
-.strip { margin: 11px 45px 0; background: #4e3191; border-radius: 9px; padding: 21px 8px; display: flex; justify-content: space-around; border: 2.3px solid #ecc913; }
+.id { display: flex; padding: 22px 45px 10px; }
+.id .ph { width: 118px; height: 118px; border-radius: 9px; object-fit: cover; border: 4px solid #ecc913; background: #ddd; }
+.id .who { margin-left: 22px; flex: 1; }
+.id h1 { font-family: Georgia, serif; font-size: 33px; font-weight: 800; color: #4e3191; white-space: nowrap; }
+.id .role { font-size: 14px; font-weight: 700; color: #714ad2; letter-spacing: 1.4px; margin-top: 3px; }
+.meta { display: flex; flex-wrap: wrap; margin-top: 10px; }
+.meta div { font-size: 11px; color: #443a66; margin-right: 22px; line-height: 1.6; }
+.meta b { color: #16102b; font-size: 9px; text-transform: uppercase; letter-spacing: .7px; display: block; }
+.striptitle { margin: 12px 45px 0; font-size: 10.5px; font-weight: 700; letter-spacing: 2.2px; color: #714ad2; text-transform: uppercase; }
+.strip { margin: 6px 45px 0; background: #4e3191; border-radius: 8px; padding: 13px 6px; display: flex; justify-content: space-around; border: 2px solid #ecc913; }
 .strip .stat { text-align: center; }
-.strip .sv { font-family: Georgia, serif; font-size: 23px; font-weight: 800; color: #ffd633; }
-.strip .sl { font-size: 9px; color: #cfc6ea; letter-spacing: 1.4px; margin-top: 4px; }
-.logwrap { margin: 15px 45px 0; }
-h2 { font-family: Georgia, serif; font-size: 17.5px; color: #4e3191; border-bottom: 1.9px solid #ecc913; padding-bottom: 5px; margin-bottom: 9px; }
-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-th { background: #4e3191; color: #fff; font-size: 9.8px; letter-spacing: 1px; text-transform: uppercase; padding: 10.6px 6.8px; text-align: right; }
+.strip .sv { font-family: Georgia, serif; font-size: 21px; font-weight: 800; color: #ffd633; }
+.strip .sl { font-size: 8.5px; color: #cfc6ea; letter-spacing: 1.2px; margin-top: 3px; }
+.grid { display: flex; flex-wrap: wrap; margin: 8px 40px 0; }
+.panel { width: 50%; padding: 4px 5px; }
+.ptitle { font-size: 9.5px; font-weight: 800; letter-spacing: 1.8px; color: #4e3191; border-bottom: 1.5px solid #ecc913; padding-bottom: 3px; margin-bottom: 5px; }
+.sg { display: flex; flex-wrap: wrap; }
+.sr { width: 50%; display: flex; justify-content: space-between; padding: 2.5px 8px 2.5px 2px; font-size: 11px; }
+.sl2 { color: #6d6391; font-weight: 700; letter-spacing: .5px; }
+.sv2 { color: #16102b; font-weight: 800; font-variant-numeric: tabular-nums; }
+.logwrap { margin: 8px 45px 0; }
+h2 { font-family: Georgia, serif; font-size: 15px; color: #4e3191; border-bottom: 1.9px solid #ecc913; padding-bottom: 4px; margin-bottom: 6px; }
+table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+th { background: #4e3191; color: #fff; font-size: 8px; letter-spacing: .8px; text-transform: uppercase; padding: 7px 4px; text-align: right; }
 th.l, td.l { text-align: left; }
-td { padding: 11.3px 6.8px; border-bottom: .9px solid #d9d4e8; text-align: right; }
+td { padding: 6.5px 4px; border-bottom: .9px solid #d9d4e8; text-align: right; font-variant-numeric: tabular-nums; }
 tr:nth-child(even) td { background: #ece9f6; }
-td.res { color: #16102b; font-weight: 700; }
+td.res { font-weight: 700; }
 tr.tot td { background: #16102b; color: #ffd633; font-weight: 800; border-bottom: none; }
-tr.totlab td { color: #714ad2; font-size: 9px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; border-bottom: none; padding-top: 4px; }
-.note { margin: 11px 45px 0; font-size: 10.5px; color: #6d6391; }
-.foot { position: absolute; bottom: 0; left: 0; width: 100%; height: 42px; overflow: hidden; }
+tr.totlab td { color: #714ad2; font-size: 7.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; border-bottom: none; padding-top: 3px; }
+.note { margin: 8px 45px 0; font-size: 8.6px; color: #6d6391; line-height: 1.5; }
+.foot { position: absolute; bottom: 0; left: 0; width: 100%; height: 40px; overflow: hidden; }
 .foot img { width: 100%; height: 100%; object-fit: cover; object-position: center 70%; }
 .foot .shade { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(22,16,43,.5); display: flex; align-items: center; justify-content: center; }
-.foot .shade span { color: #cfc6ea; font-size: 9.5px; letter-spacing: 1.6px; text-transform: uppercase; }
+.foot .shade span { color: #cfc6ea; font-size: 9px; letter-spacing: 1.6px; text-transform: uppercase; }
 </style></head>
 <body><div class="page">
 <div class="band">
@@ -189,6 +515,7 @@ tr.totlab td { color: #714ad2; font-size: 9px; font-weight: 700; letter-spacing:
 </div>
 <div class="striptitle">${esc(DATA.seasonTitle)}</div>
 <div class="strip">${seasonTiles}</div>
+<div class="grid">${panels}</div>
 <div class="logwrap">
 <h2>${esc(DATA.logTitle)}</h2>
 <table>
