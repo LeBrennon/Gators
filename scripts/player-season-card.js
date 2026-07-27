@@ -238,6 +238,22 @@ const DATA = {
       ]
     ]
   ],
+  "platoon": {
+    "title": "PLATOON SPLITS (BATTER HANDEDNESS)",
+    "rows": [
+      [
+        "vs LHB · 21 PA",
+        ".222 / .333 / .444",
+        "OPS .778"
+      ],
+      [
+        "vs RHB · 39 PA",
+        ".400 / .500 / .633",
+        "OPS 1.133"
+      ]
+    ],
+    "note": "AVG / OBP / SLG against · switch hitters bat left vs RHP"
+  },
   "key": [
     [
       "BF",
@@ -468,6 +484,14 @@ const panels = (DATA.groups || []).map(([title, rows]) =>
   `<div class="panel"><div class="ptitle">${esc(title)}</div><div class="sg">` +
   rows.map(([l, v]) => `<div class="sr"><span class="sl2">${esc(l)}</span><span class="sv2">${esc(v)}</span></div>`).join('') +
   `</div></div>`).join('');
+// Optional platoon-splits block (vs LHB / vs RHB slash lines against a pitcher)
+const platoon = DATA.platoon
+  ? `<div class="plat"><div class="ptitle">${esc(DATA.platoon.title)}</div>` +
+    DATA.platoon.rows.map(([s, l, o]) =>
+      `<div class="platrow"><span class="pside">${esc(s)}</span><span class="pslash">${esc(l)}</span><span class="pops">${esc(o)}</span></div>`).join('') +
+    (DATA.platoon.note ? `<div class="platnote">${esc(DATA.platoon.note)}</div>` : '') +
+    `</div>`
+  : '';
 const headCells = DATA.logCols.map((c, i) => `<th${i < 3 ? ' class="l"' : ''}>${esc(c)}</th>`).join('');
 const bodyRows = DATA.log.map(r => {
   const cells = r.map((v, i) => {
@@ -524,7 +548,13 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #1610
 .sr { width: 50%; display: flex; justify-content: space-between; padding: 3.2px 8px 3.2px 2px; font-size: 12px; }
 .sl2 { color: #6d6391; font-weight: 700; letter-spacing: .5px; }
 .sv2 { color: #16102b; font-weight: 800; font-variant-numeric: tabular-nums; }
-.logwrap { margin: 14px 45px 0; }
+.plat { margin: 6px 45px 0; }
+.platrow { display: flex; align-items: baseline; padding: 2.6px 2px; font-size: 12px; }
+.platrow .pside { width: 150px; color: #4e3191; font-weight: 800; letter-spacing: .5px; }
+.platrow .pslash { color: #16102b; font-weight: 800; font-variant-numeric: tabular-nums; }
+.platrow .pops { margin-left: auto; color: #714ad2; font-weight: 800; }
+.platnote { font-size: 8.5px; color: #6d6391; margin-top: 2px; }
+.logwrap { margin: 12px 45px 0; }
 h2 { font-family: Georgia, serif; font-size: 16px; color: #4e3191; border-bottom: 1.9px solid #ecc913; padding-bottom: 4px; margin-bottom: 6px; }
 table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
 th { background: #4e3191; color: #fff; font-size: 8.5px; letter-spacing: .8px; text-transform: uppercase; padding: 8px 4px; text-align: right; }
@@ -534,8 +564,15 @@ tr:nth-child(even) td { background: #e5e0f0; }
 td.res { font-weight: 700; }
 tr.tot td { background: #16102b; color: #ffd633; font-weight: 800; border-bottom: none; }
 tr.totlab td { color: #714ad2; font-size: 8px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; border-bottom: none; padding-top: 4px; }
+/* compact mode when the platoon block is present — reclaim its height from the table */
+.hasplat .sr { padding: 2.7px 8px 2.7px 2px; }
+.hasplat th { padding: 6.5px 4px; }
+.hasplat td { padding: 6.4px 4px; }
+.hasplat .plat { margin-top: 3px; }
+.hasplat .platrow { padding: 2px 2px; }
+.hasplat .logwrap { margin-top: 8px; }
 </style></head>
-<body><div class="page">
+<body><div class="page${DATA.platoon ? ' hasplat' : ''}">
 <div class="band">
   <img class="texture" src="${croc}" alt="">
   <div class="shade"></div>
@@ -564,6 +601,7 @@ tr.totlab td { color: #714ad2; font-size: 8px; font-weight: 700; letter-spacing:
 <div class="striptitle">${esc(DATA.seasonTitle)}</div>
 <div class="strip">${seasonTiles}</div>
 ${keyRow}<div class="grid">${panels}</div>
+${platoon}
 <div class="logwrap">
 <h2>${esc(DATA.logTitle)}</h2>
 <table>
