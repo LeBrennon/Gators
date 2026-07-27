@@ -4166,13 +4166,34 @@ function boxRowsForPlayer(boxData, normTarget) {
   }
   return { bat, pit };
 }
+// Game-by-game log entries built from box scores (used when Presto's own
+// player page is still a placeholder — all dashes — but the player has real
+// appearances in the Gators boxes). Same shape parseGameLog produces so the
+// profile's Game by Game table renders without caring where the rows came from.
+function glDateStr(yyyymmdd) {
+  const m = /^(\d{4})(\d{2})(\d{2})$/.exec(yyyymmdd || '');
+  if (!m) return yyyymmdd || '';
+  const mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m[2] - 1];
+  return mon + ' ' + (+m[3]);
+}
+function glOpp(g) { return g.gatorsHome ? g.opponent.name : 'at ' + g.opponent.name; }
+function glScore(g) {
+  const as = g.away && g.away.score, hs = g.home && g.home.score;
+  if (as == null || hs == null) return '';
+  const gf = g.gatorsHome ? hs : as, of = g.gatorsHome ? as : hs;
+  return (gf > of ? 'W, ' : gf < of ? 'L, ' : 'T, ') + gf + '-' + of;
+}
+function glEra(p) {
+  const outs = ipToOuts(p.ip);
+  return outs > 0 ? (27 * NUM(p.er) / outs).toFixed(2) : '-';
+}
 // Fill each still-statless roster player from the Gators box scores. Fetches each
 // final's box once (cached) and checks every target against it, then aggregates.
 // Marks the result fromBox so the poll keeps re-checking the real player page and
 // replaces it the moment Presto posts official stats (see storePlayer).
 async function fillStatsFromBoxes(players) {
   if (!players || !players.length) return;
-  const targets = players.map(pl => ({ pl, norm: normPlayerName(pl.name), bat: [], pit: [] }));
+  const targets = players.map(pl => ({ pl, norm: normPlayerName(pl.name), bat: [], pit: [], glBat: [], glPit: [] }));
   const finals = (games || []).filter(g => g.state === 'final' && isGatorsGame(g));
   for (const g of finals) {
     // A recent game's box can be transiently bot-gated or rate-limited (the poll
@@ -4188,13 +4209,30 @@ async function fillStatsFromBoxes(players) {
       await sleep(1200 * (a + 1));
     }
     if (!res || !res.ok || !res.data || !boxLooksComplete(res.data)) continue;
-    for (const t of targets) { const r = boxRowsForPlayer(res.data, t.norm); t.bat.push(...r.bat); t.pit.push(...r.pit); }
+    for (const t of targets) {
+      const r = boxRowsForPlayer(res.data, t.norm);
+      t.bat.push(...r.bat); t.pit.push(...r.pit);
+      // Keep the per-game rows as a game log, not just the aggregate, so a
+      // placeholder-paged player's profile can still show Game by Game.
+      for (const b of r.bat) t.glBat.push({ date: glDateStr(g.date), opp: glOpp(g), score: glScore(g), ab: b.ab, h: b.h, hr: b.hr, rbi: b.rbi, bb: b.bb, k: b.k, avg: '', boxUrl: boxscoreUrl(g.id), boxId: g.id });
+      for (const p of r.pit) t.glPit.push({ date: glDateStr(g.date), opp: glOpp(g), score: glScore(g), ip: p.ip, h: p.h, r: p.r, er: p.er, bb: p.bb, k: p.k, era: glEra(p), boxUrl: boxscoreUrl(g.id), boxId: g.id });
+    }
     await sleep(150);
   }
   for (const t of targets) {
     const hit = t.bat.length ? aggBat(t.bat) : null;
     const pit = t.pit.length ? aggPit(t.pit) : null;
     if (hit || pit) rosterStats[t.pl.slug] = { kind: pit ? 'pitching' : 'batting', hit, pit, hitRanks: {}, pitRanks: {}, fromBox: true };
+    // Season-to-date AVG for each batting log row (Presto's own convention).
+    let runH = 0, runAB = 0;
+    for (const e of t.glBat) { runH += NUM(e.h); runAB += NUM(e.ab); e.avg = runAB ? (runH / runAB).toFixed(3).replace(/^0/, '') : ''; }
+    // Stash the log as a full player record so the profile's Game by Game works
+    // while Presto's page is still dashes. Never overwrite a real player-page
+    // record; the poll keeps re-checking Presto and swaps it in the moment his
+    // page populates (storePlayer's fromBox guard handles the placeholder).
+    if ((t.glBat.length || t.glPit.length) && !recIsFull(playerCache[t.pl.slug])) {
+      playerCache[t.pl.slug] = { kind: pit ? 'pitching' : 'batting', hit, pit, hitRanks: {}, pitRanks: {}, glBat: t.glBat, glPit: t.glPit, ts: Date.now() };
+    }
   }
 }
 // Gmail transport, shared by the daily visitor-analytics digest.
