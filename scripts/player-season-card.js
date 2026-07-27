@@ -437,7 +437,6 @@ const bodyRows = DATA.log.map(r => {
   }).join('');
   return `<tr>${cells}</tr>`;
 }).join('');
-const labCells = DATA.logCols.map((c, i) => i < 3 ? '<td></td>' : `<td>${esc(c)}</td>`).join('');
 const totCells = DATA.totals.map((v, i) => {
   if (i < 3) return `<td class="l">${esc(v)}</td>`;
   if (i === DATA.totals.length - 1) return `<td><b>${esc(v)}</b></td>`;
@@ -492,7 +491,6 @@ td { padding: 6.5px 4px; border-bottom: .9px solid #d9d4e8; text-align: right; f
 tr:nth-child(even) td { background: #ece9f6; }
 td.res { font-weight: 700; }
 tr.tot td { background: #16102b; color: #ffd633; font-weight: 800; border-bottom: none; }
-tr.totlab td { color: #714ad2; font-size: 7.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; border-bottom: none; padding-top: 1px; padding-bottom: 7px; }
 .note { margin: 8px 45px 0; font-size: 8.6px; color: #6d6391; line-height: 1.5; }
 .foot { position: absolute; bottom: 0; left: 0; width: 100%; height: 40px; overflow: hidden; }
 .foot img { width: 100%; height: 100%; object-fit: cover; object-position: center 70%; }
@@ -533,7 +531,7 @@ ${keyRow}<div class="grid">${panels}</div>
 <h2>${esc(DATA.logTitle)}</h2>
 <table>
 <thead><tr>${headCells}</tr></thead>
-<tbody>${bodyRows}<tr class="tot">${totCells}</tr><tr class="totlab">${labCells}</tr></tbody>
+<tbody>${bodyRows}<tr class="tot">${totCells}</tr></tbody>
 </table>
 <div class="note">${esc(DATA.note)}</div>
 </div>
