@@ -15,3 +15,5 @@ reports/box/
 reports/season/
 reports/rest/
 reports/playoffs/
+# Generated player season cards (hand-fed per player, reproducible)
+reports/players/
