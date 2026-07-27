@@ -492,14 +492,13 @@ const html = `<!DOCTYPE html>
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #16102b; }
 .page { width: 816px; height: 1056px; position: relative; overflow: hidden; background: #f4f2ec; }
-.band { position: relative; height: 122px; overflow: hidden; }
+.band { position: relative; height: 118px; overflow: hidden; margin: 18px 45px 0; border-radius: 12px; border: 2.5px solid #ecc913; }
 .band img.texture { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 35%; }
 .band .shade { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(22,16,43,.38); }
-.band .inner { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; padding: 0 45px; }
+.band .inner { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; padding: 0 30px; }
 .band img.mark { width: 102px; height: 102px; object-fit: contain; margin-right: 22px; }
 .band .org { font-family: Georgia, serif; font-weight: 800; font-size: 23px; color: #ffd633; letter-spacing: 1.2px; }
 .band .sub { font-size: 11px; color: #cfc6ea; letter-spacing: 2.2px; text-transform: uppercase; margin-top: 6px; }
-.goldline { height: 6px; background: linear-gradient(90deg, #ecc913, #ffd633 55%, #ecc913); }
 .id { display: flex; padding: 24px 45px 12px; }
 .id .ph { width: 118px; height: 118px; border-radius: 9px; object-fit: cover; border: 4px solid #ecc913; background: #ddd; }
 .id .who { margin-left: 22px; flex: 1; }
@@ -518,27 +517,23 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #1610
 .key .ki { white-space: nowrap; }
 .key .ki b { color: #4e3191; letter-spacing: .3px; }
 .key .ksep { color: #cfc6ea; margin: 0 5px; font-weight: 800; }
-.grid { display: flex; flex-wrap: wrap; margin: 8px 40px 0; }
+.grid { display: flex; flex-wrap: wrap; margin: 10px 40px 0; }
 .panel { width: 50%; padding: 4px 5px; }
 .ptitle { font-size: 10px; font-weight: 800; letter-spacing: 1.8px; color: #4e3191; border-bottom: 1.5px solid #ecc913; padding-bottom: 4px; margin-bottom: 7px; }
 .sg { display: flex; flex-wrap: wrap; }
 .sr { width: 50%; display: flex; justify-content: space-between; padding: 3.2px 8px 3.2px 2px; font-size: 12px; }
 .sl2 { color: #6d6391; font-weight: 700; letter-spacing: .5px; }
 .sv2 { color: #16102b; font-weight: 800; font-variant-numeric: tabular-nums; }
-.logwrap { margin: 10px 45px 0; }
+.logwrap { margin: 14px 45px 0; }
 h2 { font-family: Georgia, serif; font-size: 16px; color: #4e3191; border-bottom: 1.9px solid #ecc913; padding-bottom: 4px; margin-bottom: 6px; }
 table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
 th { background: #4e3191; color: #fff; font-size: 8.5px; letter-spacing: .8px; text-transform: uppercase; padding: 8px 4px; text-align: right; }
 th.l, td.l { text-align: left; }
-td { padding: 7.2px 4px; border-bottom: .9px solid #e5e0f0; text-align: right; font-variant-numeric: tabular-nums; }
+td { padding: 8px 4px; border-bottom: .9px solid #e5e0f0; text-align: right; font-variant-numeric: tabular-nums; }
 tr:nth-child(even) td { background: #e5e0f0; }
 td.res { font-weight: 700; }
 tr.tot td { background: #16102b; color: #ffd633; font-weight: 800; border-bottom: none; }
 tr.totlab td { color: #714ad2; font-size: 8px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; border-bottom: none; padding-top: 4px; }
-.foot { position: absolute; bottom: 0; left: 0; width: 100%; height: 40px; overflow: hidden; }
-.foot img { width: 100%; height: 100%; object-fit: cover; object-position: center 70%; }
-.foot .shade { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(22,16,43,.5); display: flex; align-items: center; justify-content: center; }
-.foot .shade span { color: #cfc6ea; font-size: 9px; letter-spacing: 1.6px; text-transform: uppercase; }
 </style></head>
 <body><div class="page">
 <div class="band">
@@ -552,7 +547,6 @@ tr.totlab td { color: #714ad2; font-size: 8px; font-weight: 700; letter-spacing:
     </div>
   </div>
 </div>
-<div class="goldline"></div>
 <div class="id">
   <img class="ph" src="${photo}" alt="">
   <div class="who">
@@ -576,10 +570,6 @@ ${keyRow}<div class="grid">${panels}</div>
 <thead><tr>${headCells}</tr></thead>
 <tbody>${bodyRows}<tr class="tot">${totCells}</tr><tr class="totlab">${labCells}</tr></tbody>
 </table>
-</div>
-<div class="foot">
-  <img src="${croc}" alt="">
-  <div class="shade"><span>whatisthegatorscore.com</span></div>
 </div>
 </div></body></html>`;
 
