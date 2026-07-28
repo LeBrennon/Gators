@@ -197,6 +197,7 @@ const THEMES = {
 // Home games with free admission (no tickets sold), keyed by date -> sponsor.
 const FREE_ADMISSION = {
   '20260627': 'Southside Machine Works',
+  '20260729': 'Orion Energy',
 };
 // Recurring nightly concession promos by weekday (0=Sun..6=Sat). Home games
 // only — these run at Joe Miller Ballpark. No Monday game day.
@@ -6414,7 +6415,7 @@ function schedCardHtml(g){
     +(g.state==='scheduled'&&g.promo?('<div class="cpromo">'+esc(g.promo.emoji)+' <b>'+esc(g.promo.name)+'</b> · '+esc(g.promo.detail)+'</div>'):'')
     +'<div class="cfoot"><span class="cloc">'+esc(g.location||'')+'</span>'
     +(g.state==='final'&&g.replayUrl?('<a class="watchmini replay" href="'+esc(g.replayUrl)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Replay</a>'):'')
-    +(g.state==='scheduled'&&g.freeAdmission?('<span class="watchmini free">Free Admission</span>'):(g.state==='scheduled'&&g.ticketUrl?('<a class="watchmini tickets" href="'+esc(g.ticketUrl)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Tickets</a>'):''))
+    +(g.state==='scheduled'&&g.freeAdmission?('<span class="watchmini free">Free Admission · '+esc(g.freeAdmission)+'</span>'):(g.state==='scheduled'&&g.ticketUrl?('<a class="watchmini tickets" href="'+esc(g.ticketUrl)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Tickets</a>'):''))
     +'</div></div>';
 }
 // First half ran through Jun 28; the second half opened Jun 30 (the day the
