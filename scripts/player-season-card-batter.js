@@ -976,7 +976,7 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #1610
 .meta div { font-size: 11.5px; color: #6d6391; margin-right: 24px; line-height: 1.7; }
 .meta b { color: #4e3191; font-size: 9px; text-transform: uppercase; letter-spacing: .7px; display: block; }
 .striptitle { margin: 12px 45px 0; font-size: 10.5px; font-weight: 700; letter-spacing: 2.2px; color: #714ad2; text-transform: uppercase; }
-.strip { margin: 6px 45px 0; background: #4e3191; border-radius: 8px; padding: 11px 6px; display: flex; justify-content: space-around; border: 2px solid #ecc913; }
+.strip { margin: 6px 45px 0; background: #231745; border-radius: 8px; padding: 11px 6px; display: flex; justify-content: space-around; border: 2px solid #ecc913; }
 .strip .stat { text-align: center; }
 .strip .sv { font-family: Georgia, serif; font-size: 23px; font-weight: 800; color: #ffd633; }
 .strip .sl { font-size: 8.5px; color: #cfc6ea; letter-spacing: 1.2px; margin-top: 3px; }

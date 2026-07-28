@@ -961,7 +961,7 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neu
 
 /* Season strip - wraps naturally, no horizontal scroll */
 .striptitle { margin: 0 0 6px; font-size: 10px; font-weight: 700; letter-spacing: 1.8px; color: #714ad2; text-transform: uppercase; }
-.strip { background: #16102b; border-radius: 18px; padding: 10px 6px; display: grid; grid-template-columns: repeat(${stripCols}, 1fr); gap: 8px 4px; border: 2px solid #ecc913; }
+.strip { background: #231745; border-radius: 18px; padding: 10px 6px; display: grid; grid-template-columns: repeat(${stripCols}, 1fr); gap: 8px 4px; border: 2px solid #ecc913; }
 .strip .stat { text-align: center; min-width: 48px; }
 .strip .sv { font-family: Georgia, serif; font-size: 20px; font-weight: 800; color: #ffd633; }
 .strip .sl { font-size: 8px; color: #cfc6ea; letter-spacing: .8px; margin-top: 2px; text-transform: uppercase; }
