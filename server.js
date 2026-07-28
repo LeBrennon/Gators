@@ -199,6 +199,11 @@ const FREE_ADMISSION = {
   '20260627': 'Southside Machine Works',
   '20260728': 'Orion Energy',
 };
+// Playoff series info shown on the hero, keyed by date. tag = the series line,
+// note = where the rest of the series is played.
+const PLAYOFF_SERIES = {
+  '20260728': { tag: 'Playoffs · Game 1 — Best-of-3', note: 'Game 2 is away · Game 3 is away (if needed)' },
+};
 // Recurring nightly concession promos by weekday (0=Sun..6=Sat). Home games
 // only — these run at Joe Miller Ballpark. No Monday game day.
 const PROMOS = {
@@ -1684,7 +1689,7 @@ function normalizeFeatured(g) {
     inning: ip.inning, half: ip.half,
     inningLabel: status === 'live' ? g.status : status === 'final' ? (g.status || 'Final') : status === 'cancelled' ? 'Cancelled' : g.status,
     gatorsHome: g.gatorsHome, opponent: g.opponent,
-    location: gameLocation(g), watchUrl: watchUrlFor(g), replayUrl: replayUrlFor(g), ticketUrl: ticketIndex[g.id] || null, theme: THEMES[g.date] || null, freeAdmission: FREE_ADMISSION[g.date] || null, promo: promoFor(g), special: SPECIALS[g.date] || null,
+    location: gameLocation(g), watchUrl: watchUrlFor(g), replayUrl: replayUrlFor(g), ticketUrl: ticketIndex[g.id] || null, theme: THEMES[g.date] || null, freeAdmission: FREE_ADMISSION[g.date] || null, playoff: PLAYOFF_SERIES[g.date] || null, promo: promoFor(g), special: SPECIALS[g.date] || null,
     away: { name: g.away.name, short: g.away.short, logo: g.away.logo, runs: g.away.score || 0, record: recordStr(g.away), site: TEAM_SITE[g.away.id] || null },
     home: { name: g.home.name, short: g.home.short, logo: g.home.logo, runs: g.home.score || 0, record: recordStr(g.home), site: TEAM_SITE[g.home.id] || null },
   };
@@ -3794,7 +3799,7 @@ async function pollTickets() {
   } catch (e) { logErr('pollTickets', e); /* keep previous */ }
 }
 // Attaches the derived display fields a game needs on the client.
-function decorateGame(g) { const dh = MANUAL_DOUBLEHEADER[g.id]; return Object.assign({}, g, { status: (dh && g.state === 'final' && dh.status) ? dh.status : g.status, dhLabel: dh ? dh.label : null, away: Object.assign({}, g.away, { city: boardCity(g.away && g.away.id), nick: NICK[g.away && g.away.id] || (g.away && g.away.short) || '' }), home: Object.assign({}, g.home, { city: boardCity(g.home && g.home.id), nick: NICK[g.home && g.home.id] || (g.home && g.home.short) || '' }), location: gameLocation(g), watchUrl: watchUrlFor(g), replayUrl: replayUrlFor(g), ticketUrl: ticketIndex[g.id] || null, theme: THEMES[g.date] || null, freeAdmission: FREE_ADMISSION[g.date] || null, promo: promoFor(g), special: SPECIALS[g.date] || null }); }
+function decorateGame(g) { const dh = MANUAL_DOUBLEHEADER[g.id]; return Object.assign({}, g, { status: (dh && g.state === 'final' && dh.status) ? dh.status : g.status, dhLabel: dh ? dh.label : null, away: Object.assign({}, g.away, { city: boardCity(g.away && g.away.id), nick: NICK[g.away && g.away.id] || (g.away && g.away.short) || '' }), home: Object.assign({}, g.home, { city: boardCity(g.home && g.home.id), nick: NICK[g.home && g.home.id] || (g.home && g.home.short) || '' }), location: gameLocation(g), watchUrl: watchUrlFor(g), replayUrl: replayUrlFor(g), ticketUrl: ticketIndex[g.id] || null, theme: THEMES[g.date] || null, freeAdmission: FREE_ADMISSION[g.date] || null, playoff: PLAYOFF_SERIES[g.date] || null, promo: promoFor(g), special: SPECIALS[g.date] || null }); }
 
 // ----- server ---------------------------------------------------------------
 // ---- daily unique-visitor analytics ----------------------------------------
@@ -5237,6 +5242,8 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .bld{margin:20px 0 6px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.08em;color:var(--mute);opacity:.5;}
 .note b{color:var(--bone);font-weight:600;}
 .jloc{text-align:center;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:10px;color:var(--mute);}
+.jplayoff{color:#1a1330;background:linear-gradient(180deg,var(--gold2),var(--gold));}
+.jplayoffnote{margin-top:5px;text-align:center;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.05em;text-transform:uppercase;font-size:9.5px;color:var(--gold2);line-height:1.3;}
 .jtheme{margin-top:6px;text-align:center;font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-size:10.5px;color:#1a1330;background:linear-gradient(180deg,var(--gold2),var(--gold));border-radius:999px;padding:4px 11px;line-height:1.2;}
 .jpromos{display:flex;flex-direction:column;align-items:center;}
 .jpromo{margin-top:10px;text-align:center;font-size:10.5px;color:var(--mute);line-height:1.35;max-width:320px;}
@@ -5640,7 +5647,7 @@ __SITE_NOTICE__
 <div class="jumbo">
 <div class="sl">
 <div class="tm" id="awayTm"><a class="tlogo" id="awayLogoLink" rel="noopener"><img id="awayLogo" alt=""></a><div class="nm" id="awayNm">—</div><div class="rec" id="awayRec"></div><div class="sc" id="awaySc">0</div></div>
-<div class="mid"><a class="watchpill" id="watchBtn" target="_blank" rel="noopener" style="display:none">Watch</a><div class="statpill" id="statpill">—</div><div class="vs" id="vs">vs</div><div class="jloc" id="jloc"></div><div class="jtheme" id="themeTag" style="display:none"></div><div class="jtheme" id="specialName" style="display:none"></div></div>
+<div class="mid"><a class="watchpill" id="watchBtn" target="_blank" rel="noopener" style="display:none">Watch</a><div class="statpill" id="statpill">—</div><div class="vs" id="vs">vs</div><div class="jloc" id="jloc"></div><div class="jtheme" id="themeTag" style="display:none"></div><div class="jtheme" id="specialName" style="display:none"></div><div class="jtheme" id="playoffTag" style="display:none"></div><div class="jplayoffnote" id="playoffNote" style="display:none"></div></div>
 <div class="tm" id="homeTm"><a class="tlogo" id="homeLogoLink" rel="noopener"><img id="homeLogo" alt=""></a><div class="nm" id="homeNm">—</div><div class="rec" id="homeRec"></div><div class="sc" id="homeSc">0</div></div>
 </div>
 <div class="jpromos"><div class="jpromo" id="specialDetail" style="display:none"></div><div class="jpromo" id="promoTag" style="display:none"></div></div>
@@ -6016,6 +6023,10 @@ function renderGame(g){
   var th=$('themeTag');if(th){if(g.theme&&g.status==='pregame'){th.textContent='🎉 '+g.theme+' Night';th.style.display='';}else{th.style.display='none';}}
   var sn=$('specialName'),sd=$('specialDetail');
   if(sn&&sd){if(g.special&&g.status==='pregame'){sn.textContent=(g.special.emoji?g.special.emoji+' ':'')+g.special.name;sn.style.display='';if(g.special.detail){sd.textContent=g.special.detail;sd.style.display='';}else sd.style.display='none';}else{sn.style.display='none';sd.style.display='none';}}
+  var pt=$('playoffTag'),pn=$('playoffNote');
+  // Playoff series tag stays up pregame, live, and final — it's the context for
+  // the whole night, not a pregame-only promo.
+  if(pt&&pn){if(g.playoff){pt.textContent='🏆 '+g.playoff.tag;pt.style.display='';if(g.playoff.note){pn.textContent=g.playoff.note;pn.style.display='';}else pn.style.display='none';}else{pt.style.display='none';pn.style.display='none';}}
   var pr=$('promoTag');if(pr){if(g.promo&&g.status==='pregame'){pr.innerHTML=esc(g.promo.emoji)+' <b>'+esc(g.promo.name)+'</b> · '+esc(g.promo.detail);pr.style.display='';}else{pr.style.display='none';}}
   var wb=$('watchBtn');
   if(wb){
