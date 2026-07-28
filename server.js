@@ -6606,8 +6606,7 @@ function renderStandings(d){
       var lg=x.logo?'<img class="stlogo" src="'+esc(x.logo)+'" alt="">':'';
       var sk=x.streak?'<span class="strk '+(/^W/i.test(x.streak)?'win':'loss')+'">'+esc(x.streak)+'</span>':'—';
       var nm=esc(x.name||x.short);
-      var clin=x.clinched?('<span class="clinch" title="Won the first half — clinched a playoff spot">🏆<small>1H</small></span>'):'';
-      if(x.clinched)anyClinch=true;
+      var clin='';
       var gl=x.gamesLeft==null?'':(' — '+x.gamesLeft+' game'+(x.gamesLeft===1?'':'s')+' left');
       var outb=x.eliminated?('<span class="outbadge" title="Mathematically eliminated from the second-half race'+esc(gl)+'">Out</span>'):'';
       if(x.eliminated)anyOut=true;
@@ -6623,7 +6622,7 @@ function renderStandings(d){
         +'<td class="stwl2">'+wl2+'</td><td>'+fmtPct(x.pct)+'</td><td>'+fmtGb(x.gb)+'</td>'+diffTd+'<td>'+sk+'</td><td class="stwls">'+wls+'</td></tr>';
     });
     h+='</table></div>';
-    if(anyClinch)h+='<div class="stnote"><span class="clinch">🏆<small>1H</small></span> first-half champion — clinched a playoff spot</div>';
+
     if(anyOut)h+='<div class="stnote"><span class="outswatch"></span><span class="outbadge">Out</span> shaded row — mathematically eliminated from the second-half race</div>';
     var tbs=(d&&d.tiebreaks)||[];
     if(tbs.length){
@@ -6644,7 +6643,7 @@ function poffSlot(s,gatorsId){
   var isG=t&&t.id&&gatorsId&&t.id===gatorsId;
   var lg=t&&t.logo?'<img class="poffl" src="'+esc(t.logo)+'" alt="">':'<span class="poffl"></span>';
   var nm=t?esc(t.name||t.short):'TBD';
-  var badge=s.clinched?'<span class="poffclinch" title="First-half champion — clinched a playoff spot">🏆<small>1st half</small></span>':'';
+  var badge=''; // first-half trophies removed once the playoff field was set
   var note=(t&&s.note)?'<span class="poffwhy">'+esc(s.note)+'</span>':'';
   return '<div class="poffslot'+(isG?' g':'')+(t?'':' tbd')+'">'
     +'<span class="poffseed'+(s.clinched?' clin':'')+'">'+s.seed+'</span>'
