@@ -88,3 +88,12 @@ Note: his Presto player page is an all-dashes placeholder — ALL his stats were
 2. **Refresh league-bt.json** from TCL Presto team pages before the season-end run.
 3. **Season-end batch run**: for each pitcher — platoon-splits.py, validate per-game H/BB/K vs box, fill DATA, render, deliver. For each batter — batter template once built.
 4. **Optional**: batch script that loops a roster list and emits all cards.
+
+## 9c. Auto-fit print layout (no blank bottoms)
+
+Both print templates now self-fit the letter page at render time:
+- `.page` is a flex column with `justify-content: space-between` (+ `.page > * { flex-shrink: 0 }`), so leftover space distributes between sections instead of pooling at the bottom.
+- `buildHtml(sp)` builds the page at a given `spread` factor (0 = locked layout, 1 = fully loosened); the script measures real content height in headless Chromium (dump-dom + `.page{height:auto}` override, title = scrollHeight) and **binary-searches the spread** that lands content at 1010px (1056 - 46px footer padding). Nonlinear growth (row/panel wraps) made interpolation unreliable — don't go back to it.
+- Batter template: if natural height already exceeds the target, it auto-falls-back to the `compact` two-column log even at <=20 games.
+- Landmines fixed: `.spread .grid` must use `row-gap` only (a column gap wraps 50%-wide panels into a stacked single column and clips the page); `.panel` needs `min-width: 0` (long slash lines like `.000/1.000/.000` push min-content past 50% and wrap the grid).
+- render-batch.py: two-way rename skips already-labeled files (`if '(' in f: continue`) so the second role no longer double-suffixes the first role's card.
