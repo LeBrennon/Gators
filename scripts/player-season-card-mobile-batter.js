@@ -951,7 +951,7 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neu
 
 /* Identity */
 .id { display: flex; gap: 12px; margin-bottom: 16px; align-items: flex-start; }
-.id .ph { width: 90px; height: 90px; border-radius: 10px; object-fit: contain; object-position: center; border: 3px solid #ecc913; background: #16102b; flex-shrink: 0; }
+.id .ph { width: 90px; height: 90px; border-radius: 10px; object-fit: cover; object-position: center 15%; border: 3px solid #ecc913; background: #ddd; flex-shrink: 0; }
 .id .who { flex: 1; min-width: 0; }
 .id h1 { font-family: Georgia, serif; font-size: 22px; font-weight: 800; color: #4e3191; line-height: 1.1; margin-bottom: 3px; }
 .id .role { font-size: 12px; font-weight: 700; color: #714ad2; letter-spacing: 1px; margin-bottom: 8px; }
