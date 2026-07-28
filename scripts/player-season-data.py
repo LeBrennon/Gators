@@ -418,6 +418,7 @@ def pitcher_card(player, mobile=False):
                                  ['HR/9', '%.2f' % (9 * hr / ip if ip else 0)], ['P/IP', '%.1f' % (np_ / ip if ip and np_ else 0)]]],
             ['HITTERS AGAINST', [['BF', str(bf)], ['AB', str(ab)], ['H', str(ha)], ['2B', str(two)],
                                  ['3B', str(thr)], ['HR', str(hr)], ['HBP', str(hbp)], ['SF', str(sf)],
+                                 [f'Total ({tot["PA"]} PA)', f'{f3(avg)}/{f3(obp)}/{f3(slg)}', 'wide', 'AVG · OBP · SLG'],
                                  [f'vs LHB ({lpa} PA)', f'{f3(lavg)}/{f3(lobp)}/{f3(lslg)}', 'wide', 'AVG · OBP · SLG'],
                                  [f'vs RHB ({rpa} PA)', f'{f3(ravg)}/{f3(robp)}/{f3(rslg)}', 'wide', 'AVG · OBP · SLG']]],
             ['WORKLOAD', [['APP', str(app)], ['IP', ip_s], ['IP/APP', '%.1f' % (ip / app if app else 0)],
