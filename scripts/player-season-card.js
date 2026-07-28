@@ -489,6 +489,8 @@ const panels = (DATA.groups || []).map(([title, rows]) =>
       : `<span class="sv2">${esc(v)}</span>`) +
     `</div>`).join('') +
   `</div></div>`).join('');
+function buildHtml(sp) {
+const spread = sp;
 const headCells = DATA.logCols.map((c, i) => `<th${i < 3 ? ' class="l"' : ''}>${esc(c)}</th>`).join('');
 const bodyRows = DATA.log.map(r => {
   const cells = r.map((v, i) => {
@@ -512,7 +514,8 @@ const html = `<!DOCTYPE html>
 @page { size: letter; margin: 0; }
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #16102b; }
-.page { width: 816px; height: 1056px; position: relative; overflow: hidden; background: #f4f2ec; padding-bottom: 46px; }
+.page { width: 816px; height: 1056px; position: relative; overflow: hidden; background: #f4f2ec; padding-bottom: 46px; display: flex; flex-direction: column; justify-content: space-between; }
+.page > * { flex-shrink: 0; }
 .band { position: relative; height: 118px; overflow: hidden; margin: 18px 45px 0; border-radius: 12px; border: 2.5px solid #ecc913; }
 .band img.texture { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 35%; }
 .band .shade { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(22,16,43,.38); }
@@ -539,7 +542,7 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #1610
 .key .ki b { color: #4e3191; letter-spacing: .3px; }
 .key .ksep { color: #cfc6ea; margin: 0 5px; font-weight: 800; }
 .grid { display: flex; flex-wrap: wrap; margin: 8px 40px 0; }
-.panel { width: 50%; padding: 4px 5px; }
+.panel { width: 50%; min-width: 0; padding: 4px 5px; }
 .ptitle { font-size: 10px; font-weight: 800; letter-spacing: 1.8px; color: #4e3191; border-bottom: 1.5px solid #ecc913; padding-bottom: 4px; margin-bottom: 7px; }
 .sg { display: flex; flex-wrap: wrap; }
 .sr { width: 50%; display: flex; justify-content: space-between; padding: 2.6px 8px 2.6px 2px; font-size: 12px; }
@@ -557,9 +560,34 @@ td { padding: 5.6px 4px; border-bottom: .9px solid #e5e0f0; text-align: right; f
 tr:nth-child(even) td { background: #e5e0f0; }
 td.res { font-weight: 700; }
 tr.tot td { background: #16102b; color: #ffd633; font-weight: 800; border-bottom: none; }
+${spread > 0 ? `
+/* spread (short logs): loosen everything so the page doesn't end in blank space */
+.spread .band { height: calc(118px + ${(spread * 30).toFixed(0)}px); margin-top: calc(18px + ${(spread * 12).toFixed(0)}px); }
+.spread .id { padding-top: calc(16px + ${(spread * 18).toFixed(0)}px); padding-bottom: calc(8px + ${(spread * 14).toFixed(0)}px); }
+.spread .id .ph { width: calc(118px + ${(spread * 30).toFixed(0)}px); height: calc(118px + ${(spread * 30).toFixed(0)}px); }
+.spread .id h1 { font-size: calc(37px + ${(spread * 10).toFixed(0)}px); }
+.spread .id .sub { font-size: calc(15px + ${(spread * 4).toFixed(0)}px); }
+.spread .id .meta { font-size: calc(11px + ${(spread * 2).toFixed(0)}px); margin-top: calc(7px + ${(spread * 6).toFixed(0)}px); }
+.spread .striptitle { margin-top: calc(12px + ${(spread * 12).toFixed(0)}px); }
+.spread .strip { padding: calc(11px + ${(spread * 10).toFixed(0)}px) 6px; }
+.spread .strip .sv { font-size: calc(23px + ${(spread * 8).toFixed(0)}px); }
+.spread .strip .sl { font-size: calc(8.5px + ${(spread * 1.5).toFixed(0)}px); }
+.spread .keytitle { margin-top: calc(8px + ${(spread * 8).toFixed(0)}px); }
+.spread .key { font-size: calc(9.2px + ${(spread * 1.8).toFixed(0)}px); line-height: calc(1.5 + ${(spread * 0.4).toFixed(2)}); }
+.spread .grid { margin-top: calc(8px + ${(spread * 10).toFixed(0)}px); row-gap: calc(10px + ${(spread * 8).toFixed(0)}px); }
+.spread .panel { padding: calc(11px + ${(spread * 8).toFixed(0)}px) 13px calc(8px + ${(spread * 8).toFixed(0)}px); }
+.spread .ptitle { font-size: calc(12.5px + ${(spread * 2.5).toFixed(0)}px); margin-bottom: calc(7px + ${(spread * 5).toFixed(0)}px); }
+.spread .sr { padding-top: calc(2.6px + ${(spread * 4.5).toFixed(1)}px); padding-bottom: calc(2.6px + ${(spread * 4.5).toFixed(1)}px); font-size: calc(11.8px + ${(spread * 2).toFixed(0)}px); }
+.spread .logwrap { margin-top: calc(8px + ${(spread * 12).toFixed(0)}px); }
+.spread h2 { font-size: calc(16px + ${(spread * 4).toFixed(0)}px); margin-bottom: calc(5px + ${(spread * 6).toFixed(0)}px); padding-bottom: calc(4px + ${(spread * 3).toFixed(0)}px); }
+.spread table { font-size: calc(11.5px + ${(spread * 3).toFixed(0)}px); }
+.spread th { font-size: calc(7.5px + ${(spread * 1.5).toFixed(0)}px); padding: calc(7px + ${(spread * 5).toFixed(0)}px) 4px; }
+.spread td { padding: calc(5.6px + ${(spread * 12).toFixed(0)}px) 4px; }
+.spread tr.totlab td { padding-top: calc(3px + ${(spread * 4).toFixed(0)}px); }
+` : ''}
 tr.totlab td { color: #714ad2; font-size: 8px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; border-bottom: none; padding-top: 4px; }
 </style></head>
-<body><div class="page">
+<body><div class="page${spread > 0 ? ' spread' : ''}">
 <div class="band">
   <img class="texture" src="${croc}" alt="">
   <div class="shade"></div>
@@ -592,7 +620,37 @@ ${keyRow}<div class="grid">${panels}</div>
 <tbody>${bodyRows}<tr class="tot">${totCells}</tr><tr class="totlab">${labCells}</tr></tbody>
 </table>
 </div>
-</div></body></html>`;
+</div><script>window.addEventListener('load',function(){document.title=String(document.querySelector('.page').scrollHeight)})</script></body></html>`;
+return html;
+}
+
+// Auto-fit: measure content height at spread 0 and 1, then pick the spread that fills the page
+// exactly down to the bottom padding (no clipped content, no blank bottom).
+function heightOf(htmlStr, tag) {
+  const f = path.join(require('os').tmpdir(), `psc-${process.pid}-${tag}.html`);
+  // measure natural content height: unpin the fixed page height so scrollHeight reports content
+  fs.writeFileSync(f, htmlStr.replace('</style>', '.page{height:auto !important;}\n</style>'));
+  const dom = execFileSync(findChromium(), ['--headless=new', '--no-sandbox', '--disable-gpu', '--virtual-time-budget=5000', '--dump-dom', 'file://' + path.resolve(f)], { encoding: 'utf8', maxBuffer: 1 << 26 });
+  try { fs.unlinkSync(f); } catch (e) {}
+  const m = dom.match(/<title>(\d+)<\/title>/);
+  return m ? +m[1] : 0;
+}
+const TARGET = 1010;  // 1056 - 46px bottom padding
+const h0 = heightOf(buildHtml(0), 's0');
+let sp = 0;
+if (h0 < TARGET && h0 > 0) {
+  const h1 = heightOf(buildHtml(1), 's1');
+  if (h1 <= TARGET) { sp = 1; }  // even max spread under-fills: use it, space-between does the rest
+  else {
+    // growth vs spread is nonlinear (rows/panels wrap at thresholds): binary search the best fit
+    let lo = 0, hi = 1;
+    for (let i = 0; i < 7; i++) {
+      const mid = (lo + hi) / 2;
+      if (heightOf(buildHtml(mid), 'bs' + i) <= TARGET) { sp = mid; lo = mid; } else { hi = mid; }
+    }
+  }
+}
+const html = buildHtml(sp);
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
 const stem = stemArg || path.join(OUT_DIR, DATA.name + ' - 2026 Summer Stats');
