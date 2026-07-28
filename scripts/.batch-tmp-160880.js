@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /*
- * Player Season Card — MOBILE VERSION (no horizontal scroll)
+ * Player Season Card — MOBILE BATTER VERSION (no horizontal scroll)
  * Same DATA block as player-season-card.js. Renders a responsive HTML page
  * plus a shareable PNG screenshot. Everything fits within phone width.
  *
@@ -20,66 +20,433 @@ const stemArg = process.argv.slice(2).find(a => a && !a.startsWith('--'));
 // PLAYER DATA — copy this block from player-season-card.js for each player
 // ===========================================================================
 const DATA = {
-  "name": "Brayden Guillory",
-  "num": "47",
-  "pos": "RHP",
-  "bt": "R/R",
-  "cls": "R-Freshman",
-  "school": "Southern University",
-  "home": "Kinder, LA",
-  "htwt": "6-2 · 200",
-  "bday": "11/17/2005",
-  "photoSlug": "braydenguillory",
-  "seasonTitle": "Season Totals — Pitching",
+  "name": "Easton Culp",
+  "num": "",
+  "pos": "\u2014",
+  "bt": "\u2014",
+  "cls": "\u2014",
+  "school": "Lamar",
+  "home": "\u2014",
+  "htwt": "\u2014",
+  "bday": "\u2014",
+  "photoSlug": "eastonculpilgr",
+  "seasonTitle": "Season Totals \u2014 Hitting",
   "season": [
-    ["APP","7"],["GS","0"],["IP","11.0"],["BF","60"],
-    ["ERA","14.73"],["WHIP","2.27"],["FIP","8.83"],
-    ["K","3"],["BB","9"],["H","16"]
+    [
+      "G",
+      "14"
+    ],
+    [
+      "PA",
+      "54"
+    ],
+    [
+      "AVG",
+      ".250"
+    ],
+    [
+      "OBP",
+      ".352"
+    ],
+    [
+      "SLG",
+      ".250"
+    ],
+    [
+      "OPS",
+      ".602"
+    ],
+    [
+      "HR",
+      "0"
+    ],
+    [
+      "RBI",
+      "5"
+    ],
+    [
+      "SB",
+      "1"
+    ]
   ],
   "groups": [
-    ["RUN PREVENTION",[
-      ["ERA","14.73"],["WHIP","2.27"],["FIP","8.83"],["BABIP",".302"],
-      ["AVG",".333","wide","vs LHB .222 · vs RHB .400"],
-      ["OBP",".441","wide","vs LHB .333 · vs RHB .500"],
-      ["SLG",".562","wide","vs LHB .444 · vs RHB .633"]
-    ]],
-    ["COMMAND & RATES",[
-      ["K%","5.0"],["BB%","15.0"],["K:BB","0.33"],["FPS%","60.0"],
-      ["K/9","2.5"],["BB/9","7.4"],["H/9","13.1"],["P/BF","3.5"]
-    ]],
-    ["HITTERS AGAINST",[
-      ["AB","48"],["2B","2"],["HR","3"],["HBP","1"],
-      ["SF","1"],["OPS","1.003"],["ISO",".229"],["P/IP","19.3"],
-      ["vs LHB (21 PA)",".222/.333/.444","wide","AVG · OBP · SLG"],
-      ["vs RHB (39 PA)",".400/.500/.633","wide","AVG · OBP · SLG"]
-    ]],
-    ["PITCH PROFILE",[
-      ["#P","212"],["S%","52"],["GB%","40"],["FB%","36"],
-      ["LD%","4"],["PU%","20"],["",""],["",""]
-    ]]
+    [
+      "PRODUCTION",
+      [
+        [
+          "AVG",
+          ".250"
+        ],
+        [
+          "OBP",
+          ".352"
+        ],
+        [
+          "SLG",
+          ".250"
+        ],
+        [
+          "OPS",
+          ".602"
+        ],
+        [
+          "ISO",
+          ".000"
+        ],
+        [
+          "BABIP",
+          ".306"
+        ],
+        [
+          "XBH",
+          "0"
+        ],
+        [
+          "TB",
+          "11"
+        ],
+        [
+          "vs LHP (14 PA)",
+          ".167/.143/.167",
+          "wide",
+          "AVG \u00b7 OBP \u00b7 SLG \u2014 OPS .310"
+        ],
+        [
+          "vs RHP (38 PA)",
+          ".281/.395/.281",
+          "wide",
+          "AVG \u00b7 OBP \u00b7 SLG \u2014 OPS .676"
+        ]
+      ],
+      "OBP = on-base pct (H+BB+HBP per PA) \u00b7 SLG = total bases per AB \u00b7 OPS = OBP + SLG \u00b7 ISO = isolated power (SLG \u2212 AVG) \u00b7 BABIP = batting avg on balls in play \u00b7 XBH = extra-base hits \u00b7 TB = total bases"
+    ],
+    [
+      "PLATE DISCIPLINE",
+      [
+        [
+          "BB%",
+          "7.4"
+        ],
+        [
+          "K%",
+          "18.5"
+        ],
+        [
+          "BB:K",
+          "0.40"
+        ],
+        [
+          "PA",
+          "54"
+        ],
+        [
+          "BB",
+          "4"
+        ],
+        [
+          "K",
+          "10"
+        ],
+        [
+          "HBP",
+          "4"
+        ],
+        [
+          "SF",
+          "2"
+        ]
+      ],
+      "BB% = walks per PA \u00b7 K% = strikeouts per PA \u00b7 SF = sacrifice flies (not an AB)"
+    ],
+    [
+      "HIT BREAKDOWN",
+      [
+        [
+          "H",
+          "11"
+        ],
+        [
+          "1B",
+          "11"
+        ],
+        [
+          "2B",
+          "0"
+        ],
+        [
+          "3B",
+          "0"
+        ],
+        [
+          "HR",
+          "0"
+        ],
+        [
+          "RBI",
+          "5"
+        ],
+        [
+          "R",
+          "5"
+        ],
+        [
+          "GIDP",
+          "0"
+        ]
+      ]
+    ],
+    [
+      "BASE RUNNING",
+      [
+        [
+          "SB",
+          "1"
+        ],
+        [
+          "CS",
+          "0"
+        ],
+        [
+          "SB%",
+          "100.0"
+        ],
+        [
+          "SB-ATT",
+          "1-1"
+        ]
+      ],
+      "SB% = stolen-base success (SB \u00f7 attempts)"
+    ]
   ],
-  "key": [
-    ["ERA","Earned Run Average"],
-    ["WHIP","Walks + Hits per Inning"],
-    ["FIP","Fielding Independent Pitching"],
-    ["BABIP","Batting Avg on Balls In Play"],
-    ["FPS%","First Pitch Strike"],
-    ["ISO","Isolated Power"],
-    ["K:BB","Strikeout to Walk ratio"]
+  "key": [],
+  "logTitle": "Game by Game \u2014 Hitting",
+  "logCols": [
+    "Date",
+    "Opp",
+    "Res",
+    "PA",
+    "AB",
+    "R",
+    "H",
+    "RBI",
+    "BB",
+    "K",
+    "SB",
+    "AVG"
   ],
-  "logTitle": "Game Log — Pitching",
-  "logCols": ["Date","Opp","Res","IP","H","R","ER","BB","K","HR","HBP","BF","#P"],
   "log": [
-    ["6/4","vs BOM","L 4-10","1.0","3","4","4","2","0","1","0","10","28"],
-    ["6/7","vs BUR","L 3-8","1.0","1","1","1","0","0","0","0","5","18"],
-    ["6/11","vs WAC","L 6-10","2.0","3","3","3","1","1","0","0","11","38"],
-    ["6/15","vs SA","L 5-9","2.0","2","2","2","1","0","0","1","10","32"],
-    ["6/19","vs BOM","L 2-14","2.0","3","5","4","2","1","1","0","13","42"],
-    ["6/25","vs WAC","L 3-12","1.0","2","2","2","1","0","0","0","6","22"],
-    ["7/7","vs BOM","L 1-13","2.0","2","1","1","2","1","1","0","5","32"]
+    [
+      "6/2",
+      "vs ABI",
+      "W 11-1",
+      "1",
+      "1",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      ".000"
+    ],
+    [
+      "6/4",
+      "vs BR",
+      "L 18-5",
+      "4",
+      "3",
+      "1",
+      "1",
+      "1",
+      "0",
+      "0",
+      "0",
+      ".333"
+    ],
+    [
+      "6/5",
+      "at BR",
+      "W 14-1",
+      "1",
+      "1",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      ".000"
+    ],
+    [
+      "6/6",
+      "at BR",
+      "L 9-8",
+      "5",
+      "3",
+      "0",
+      "0",
+      "0",
+      "0",
+      "2",
+      "0",
+      ".000"
+    ],
+    [
+      "6/7",
+      "at BR",
+      "L 5-4",
+      "3",
+      "3",
+      "0",
+      "0",
+      "0",
+      "0",
+      "1",
+      "0",
+      ".000"
+    ],
+    [
+      "6/10",
+      "vs BR",
+      "W 8-7",
+      "3",
+      "2",
+      "0",
+      "1",
+      "0",
+      "0",
+      "0",
+      "0",
+      ".500"
+    ],
+    [
+      "6/11",
+      "at ACA",
+      "L 4-3",
+      "3",
+      "3",
+      "0",
+      "1",
+      "0",
+      "0",
+      "1",
+      "0",
+      ".333"
+    ],
+    [
+      "6/13",
+      "at VIC",
+      "L 7-6",
+      "5",
+      "3",
+      "1",
+      "1",
+      "1",
+      "2",
+      "2",
+      "0",
+      ".333"
+    ],
+    [
+      "6/17",
+      "vs ACA",
+      "L 11-7",
+      "5",
+      "5",
+      "1",
+      "2",
+      "0",
+      "0",
+      "0",
+      "0",
+      ".400"
+    ],
+    [
+      "6/20",
+      "at SHE",
+      "W 8-1",
+      "5",
+      "5",
+      "1",
+      "2",
+      "1",
+      "0",
+      "1",
+      "1",
+      ".400"
+    ],
+    [
+      "6/21",
+      "at SHE",
+      "W 12-11",
+      "6",
+      "5",
+      "1",
+      "1",
+      "1",
+      "0",
+      "1",
+      "0",
+      ".200"
+    ],
+    [
+      "6/23",
+      "vs VIC",
+      "W 6-5",
+      "5",
+      "2",
+      "0",
+      "1",
+      "1",
+      "2",
+      "0",
+      "0",
+      ".500"
+    ],
+    [
+      "6/25",
+      "at BV",
+      "W 7-0",
+      "5",
+      "5",
+      "0",
+      "1",
+      "0",
+      "0",
+      "1",
+      "0",
+      ".200"
+    ],
+    [
+      "6/27",
+      "vs BR",
+      "W 7-6",
+      "3",
+      "3",
+      "0",
+      "0",
+      "0",
+      "0",
+      "1",
+      "0",
+      ".000"
+    ]
   ],
-  "totals": ["Total","0-7","—","11.0","16","19","18","9","3","3","1","60","212"]
-};
+  "totals": [
+    "TOTAL",
+    "14 G",
+    "",
+    "54",
+    "44",
+    "5",
+    "11",
+    "5",
+    "4",
+    "10",
+    "1",
+    ".250"
+  ]
+};;;
 // ===========================================================================
 // GENERIC RENDERING — do not edit below this line
 // ===========================================================================

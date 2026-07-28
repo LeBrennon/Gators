@@ -914,7 +914,7 @@ const keyRow = (DATA.key || []).length
     `</div>` : '';
 
 const panels = (DATA.groups || []).map(([title, rows, legend]) =>
-  `<div class="panel"><div class="ptitle">${esc(title)}</div>${legend ? `<div class="pleg">${esc(legend)}</div>` : ''}<div class="sg">` +
+  `<div class="panel"><div class="ptitle">${esc(title)}</div>${legend ? `<div class="pleg">` + legend.split(' \u00b7 ').map(d => `<span class="ld">${esc(d)}</span>`).join('<span class="lsep">\u00b7</span> ') + `</div>` : ''}<div class="sg">` +
   rows.map(([l, v, w, sub]) =>
     `<div class="sr${w === 'wide' ? ' w' : ''}"><span class="sl2">${esc(l)}</span>` +
     (sub
@@ -991,7 +991,9 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neu
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
 .panel { background: #fff; border-radius: 16px; padding: 10px; border: 1px solid #e5e0f0; }
 .ptitle { font-size: 9px; font-weight: 800; letter-spacing: 1.4px; color: #4e3191; border-bottom: 1.5px solid #ecc913; padding-bottom: 4px; margin-bottom: 6px; }
-.pleg { font-size: 7.5px; line-height: 1.5; color: #8a7fb8; margin: -3px 0 7px; }
+.pleg { font-size: 7.5px; line-height: 1.6; color: #8a7fb8; margin: -3px 0 7px; }
+.ld { white-space: nowrap; }
+.lsep { color: #c3b8e8; margin-right: 3px; }
 .sg { display: flex; flex-direction: column; gap: 4px; }
 .sr { display: flex; justify-content: space-between; align-items: center; font-size: 12px; padding: 2px 0; border-bottom: 1px solid #f4f2ec; }
 .sr:last-child { border-bottom: none; }
