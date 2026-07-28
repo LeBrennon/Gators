@@ -50,7 +50,7 @@ def run(job):
                 src = glob.glob(f"{d}/{data['name']} - 2026 Summer Stats*.{ext}")
                 import time
                 for f in src:
-                    if '(' in f: continue  # already labeled (don't double-suffix the other role's card)
+                    if '(Hitting)' in f or '(Pitching)' in f: continue  # already labeled (don't double-suffix the other role's card)
                     dst = f.replace(' - 2026 Summer Stats', f' - 2026 Summer Stats ({label})')
                     for _try in range(4):
                         try: shutil.move(f, dst); break
