@@ -197,7 +197,7 @@ const THEMES = {
 // Home games with free admission (no tickets sold), keyed by date -> sponsor.
 const FREE_ADMISSION = {
   '20260627': 'Southside Machine Works',
-  '20260729': 'Orion Energy',
+  '20260728': 'Orion Energy',
 };
 // Recurring nightly concession promos by weekday (0=Sun..6=Sat). Home games
 // only — these run at Joe Miller Ballpark. No Monday game day.
