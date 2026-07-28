@@ -5,78 +5,87 @@
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; color: #16102b; background: #f4f2ec; }
-.wrap { max-width: 600px; margin: 0 auto; padding: 16px 16px 32px; }
+.wrap { width: 100%; max-width: 100%; margin: 0 auto; padding: 12px 12px 24px; }
 
 /* Header band */
-.band { position: relative; height: 110px; overflow: hidden; border-radius: 14px; border: 2.5px solid #ecc913; margin-bottom: 20px; }
+.band { position: relative; height: 90px; overflow: hidden; border-radius: 12px; border: 2px solid #ecc913; margin-bottom: 16px; }
 .band img.texture { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 35%; }
-.band .shade { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(22,16,43,.42); }
-.band .inner { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; padding: 0 18px; }
-.band img.mark { width: 80px; height: 80px; object-fit: contain; margin-right: 14px; }
-.band .org { font-family: Georgia, serif; font-weight: 800; font-size: 20px; color: #ffd633; letter-spacing: 1px; }
-.band .sub { font-size: 10px; color: #cfc6ea; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
+.band .shade { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(22,16,43,.45); }
+.band .inner { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; padding: 0 12px; }
+.band img.mark { width: 64px; height: 64px; object-fit: contain; margin-right: 10px; }
+.band .org { font-family: Georgia, serif; font-weight: 800; font-size: 16px; color: #ffd633; letter-spacing: .8px; }
+.band .sub { font-size: 9px; color: #cfc6ea; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 3px; }
 
 /* Identity */
-.id { display: flex; gap: 16px; margin-bottom: 20px; align-items: flex-start; }
-.id .ph { width: 100px; height: 100px; border-radius: 12px; object-fit: cover; border: 3px solid #ecc913; background: #ddd; flex-shrink: 0; }
+.id { display: flex; gap: 12px; margin-bottom: 16px; align-items: flex-start; }
+.id .ph { width: 90px; height: 90px; border-radius: 10px; object-fit: cover; border: 3px solid #ecc913; background: #ddd; flex-shrink: 0; }
 .id .who { flex: 1; min-width: 0; }
-.id h1 { font-family: Georgia, serif; font-size: 26px; font-weight: 800; color: #4e3191; line-height: 1.1; margin-bottom: 4px; }
-.id .role { font-size: 13px; font-weight: 700; color: #714ad2; letter-spacing: 1.2px; margin-bottom: 10px; }
-.meta { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; }
-.meta div { font-size: 12px; color: #6d6391; line-height: 1.4; }
-.meta b { color: #4e3191; font-size: 9px; text-transform: uppercase; letter-spacing: .6px; display: block; margin-bottom: 1px; }
+.id h1 { font-family: Georgia, serif; font-size: 22px; font-weight: 800; color: #4e3191; line-height: 1.1; margin-bottom: 3px; }
+.id .role { font-size: 12px; font-weight: 700; color: #714ad2; letter-spacing: 1px; margin-bottom: 8px; }
+.meta { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; }
+.meta div { font-size: 11px; color: #6d6391; line-height: 1.3; }
+.meta b { color: #4e3191; font-size: 8px; text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 1px; }
 
-/* Season strip */
-.striptitle { margin: 0 0 8px; font-size: 11px; font-weight: 700; letter-spacing: 2px; color: #714ad2; text-transform: uppercase; }
-.strip-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -16px 20px; padding: 0 16px; }
-.strip { background: #4e3191; border-radius: 12px; padding: 14px 10px; display: inline-flex; gap: 16px; min-width: 100%; border: 2px solid #ecc913; justify-content: space-around; }
-.strip .stat { text-align: center; min-width: 52px; }
-.strip .sv { font-family: Georgia, serif; font-size: 22px; font-weight: 800; color: #ffd633; }
-.strip .sl { font-size: 9px; color: #cfc6ea; letter-spacing: 1px; margin-top: 3px; text-transform: uppercase; }
+/* Season strip - wraps naturally, no horizontal scroll */
+.striptitle { margin: 0 0 6px; font-size: 10px; font-weight: 700; letter-spacing: 1.8px; color: #714ad2; text-transform: uppercase; }
+.strip { background: #4e3191; border-radius: 10px; padding: 10px 6px; display: flex; flex-wrap: wrap; justify-content: space-around; gap: 8px 4px; border: 2px solid #ecc913; }
+.strip .stat { text-align: center; min-width: 48px; }
+.strip .sv { font-family: Georgia, serif; font-size: 20px; font-weight: 800; color: #ffd633; }
+.strip .sl { font-size: 8px; color: #cfc6ea; letter-spacing: .8px; margin-top: 2px; text-transform: uppercase; }
 
 /* Key */
-.keytitle { margin: 0 0 6px; font-size: 9px; font-weight: 800; letter-spacing: 1.8px; color: #714ad2; text-transform: uppercase; }
-.key { font-size: 11px; color: #6d6391; line-height: 1.5; margin-bottom: 16px; }
+.keytitle { margin: 10px 0 4px; font-size: 8px; font-weight: 800; letter-spacing: 1.5px; color: #714ad2; text-transform: uppercase; }
+.key { font-size: 10px; color: #6d6391; line-height: 1.4; margin-bottom: 12px; }
 .key .ki { white-space: nowrap; }
 .key .ki b { color: #4e3191; letter-spacing: .3px; }
-.key .ksep { color: #cfc6ea; margin: 0 4px; font-weight: 800; }
+.key .ksep { color: #cfc6ea; margin: 0 3px; font-weight: 800; }
 
 /* Panels */
-.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
-.panel { background: #fff; border-radius: 10px; padding: 12px; border: 1px solid #e5e0f0; }
-.ptitle { font-size: 10px; font-weight: 800; letter-spacing: 1.6px; color: #4e3191; border-bottom: 1.5px solid #ecc913; padding-bottom: 5px; margin-bottom: 8px; }
-.sg { display: flex; flex-direction: column; gap: 6px; }
-.sr { display: flex; justify-content: space-between; align-items: center; font-size: 13px; padding: 3px 0; border-bottom: 1px solid #f4f2ec; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+.panel { background: #fff; border-radius: 8px; padding: 10px; border: 1px solid #e5e0f0; }
+.ptitle { font-size: 9px; font-weight: 800; letter-spacing: 1.4px; color: #4e3191; border-bottom: 1.5px solid #ecc913; padding-bottom: 4px; margin-bottom: 6px; }
+.sg { display: flex; flex-direction: column; gap: 4px; }
+.sr { display: flex; justify-content: space-between; align-items: center; font-size: 12px; padding: 2px 0; border-bottom: 1px solid #f4f2ec; }
 .sr:last-child { border-bottom: none; }
 .sr.w { grid-column: 1 / -1; }
-.sl2 { color: #6d6391; font-weight: 700; letter-spacing: .4px; font-size: 11px; }
-.sv2 { color: #16102b; font-weight: 800; font-variant-numeric: tabular-nums; font-size: 14px; }
-.sv2sub { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2; }
-.svsub { font-size: 9px; color: #6d6391; font-weight: 700; letter-spacing: .8px; margin-top: 1px; }
+.sl2 { color: #6d6391; font-weight: 700; letter-spacing: .3px; font-size: 10px; }
+.sv2 { color: #16102b; font-weight: 800; font-variant-numeric: tabular-nums; font-size: 13px; }
+.sv2sub { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.15; }
+.svsub { font-size: 8px; color: #6d6391; font-weight: 700; letter-spacing: .6px; margin-top: 1px; }
 
-/* Game log */
-h2 { font-family: Georgia, serif; font-size: 16px; color: #4e3191; border-bottom: 2px solid #ecc913; padding-bottom: 5px; margin-bottom: 10px; }
-.log-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -16px; padding: 0 16px; }
-table { width: 100%; min-width: 640px; border-collapse: collapse; font-size: 12px; background: #fff; border-radius: 10px; overflow: hidden; border: 1px solid #e5e0f0; }
-th { background: #4e3191; color: #fff; font-size: 9px; letter-spacing: .7px; text-transform: uppercase; padding: 10px 6px; text-align: right; font-weight: 700; }
-th.l, td.l { text-align: left; }
-td { padding: 8px 6px; border-bottom: 1px solid #e5e0f0; text-align: right; font-variant-numeric: tabular-nums; }
-tr:nth-child(even) td { background: #f9f8f5; }
-td.res { font-weight: 700; color: #4e3191; }
-tr.tot td { background: #16102b; color: #ffd633; font-weight: 800; border-bottom: none; }
-tr.totlab td { color: #714ad2; font-size: 8px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; border-bottom: none; padding-top: 4px; background: transparent; }
+/* Game log - card layout, no table, no horizontal scroll */
+h2 { font-family: Georgia, serif; font-size: 15px; color: #4e3191; border-bottom: 2px solid #ecc913; padding-bottom: 4px; margin-bottom: 8px; }
+.glog { display: flex; flex-direction: column; gap: 6px; }
+.gcard { background: #fff; border-radius: 8px; padding: 8px 10px; border: 1px solid #e5e0f0; }
+.gcard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; padding-bottom: 4px; border-bottom: 1px solid #e5e0f0; }
+.gcard-date { font-size: 12px; font-weight: 800; color: #4e3191; }
+.gcard-opp { font-size: 11px; color: #6d6391; }
+.gcard-res { font-size: 12px; font-weight: 800; color: #4e3191; }
+.gcard-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px 6px; }
+.gcard-stat { text-align: center; }
+.gcard-stat .gv { font-size: 13px; font-weight: 800; color: #16102b; font-variant-numeric: tabular-nums; }
+.gcard-stat .gl { font-size: 8px; color: #6d6391; text-transform: uppercase; letter-spacing: .5px; }
 
-/* Responsive tweaks */
-@media (max-width: 480px) {
+/* Totals card */
+.totcard { background: #16102b; border-radius: 8px; padding: 10px; margin-top: 6px; border: 2px solid #ecc913; }
+.totcard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,.15); }
+.totcard-header .tlabel { font-size: 13px; font-weight: 800; color: #ffd633; }
+.totcard-header .trec { font-size: 12px; font-weight: 800; color: #ffd633; }
+.totcard-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px 6px; }
+.totcard-stat { text-align: center; }
+.totcard-stat .tv { font-size: 14px; font-weight: 800; color: #ffd633; font-variant-numeric: tabular-nums; }
+.totcard-stat .tl { font-size: 8px; color: #cfc6ea; text-transform: uppercase; letter-spacing: .5px; }
+
+/* Responsive */
+@media (max-width: 380px) {
   .id { flex-direction: column; align-items: center; text-align: center; }
-  .id .ph { width: 120px; height: 120px; }
-  .meta { grid-template-columns: 1fr 1fr; text-align: left; width: 100%; }
+  .id .ph { width: 100px; height: 100px; }
+  .meta { text-align: left; width: 100%; }
   .grid { grid-template-columns: 1fr; }
-  .band .org { font-size: 17px; }
-  .band img.mark { width: 64px; height: 64px; }
-}
-@media (min-width: 481px) and (max-width: 600px) {
-  .grid { grid-template-columns: 1fr 1fr; }
+  .band .org { font-size: 14px; }
+  .band img.mark { width: 52px; height: 52px; }
+  .gcard-stats { grid-template-columns: repeat(3, 1fr); }
+  .totcard-stats { grid-template-columns: repeat(3, 1fr); }
 }
 </style></head>
 <body><div class="wrap">
@@ -106,14 +115,60 @@ tr.totlab td { color: #714ad2; font-size: 8px; font-weight: 700; letter-spacing:
   </div>
 </div>
 <div class="striptitle">Season Totals — Pitching</div>
-<div class="strip-scroll"><div class="strip"><div class="stat"><div class="sv">7</div><div class="sl">APP</div></div><div class="stat"><div class="sv">11.0</div><div class="sl">IP</div></div><div class="stat"><div class="sv">60</div><div class="sl">BF</div></div><div class="stat"><div class="sv">14.73</div><div class="sl">ERA</div></div><div class="stat"><div class="sv">2.27</div><div class="sl">WHIP</div></div><div class="stat"><div class="sv">8.83</div><div class="sl">FIP</div></div><div class="stat"><div class="sv">3</div><div class="sl">K</div></div><div class="stat"><div class="sv">9</div><div class="sl">BB</div></div><div class="stat"><div class="sv">16</div><div class="sl">H</div></div></div></div>
+<div class="strip"><div class="stat"><div class="sv">7</div><div class="sl">APP</div></div><div class="stat"><div class="sv">11.0</div><div class="sl">IP</div></div><div class="stat"><div class="sv">60</div><div class="sl">BF</div></div><div class="stat"><div class="sv">14.73</div><div class="sl">ERA</div></div><div class="stat"><div class="sv">2.27</div><div class="sl">WHIP</div></div><div class="stat"><div class="sv">8.83</div><div class="sl">FIP</div></div><div class="stat"><div class="sv">3</div><div class="sl">K</div></div><div class="stat"><div class="sv">9</div><div class="sl">BB</div></div><div class="stat"><div class="sv">16</div><div class="sl">H</div></div></div>
 <div class="keytitle">Advanced Metrics Key</div><div class="key"><span class="ki"><b>ERA</b> Earned Run Average</span><span class="ksep">&middot;</span> <span class="ki"><b>WHIP</b> Walks + Hits per Inning</span><span class="ksep">&middot;</span> <span class="ki"><b>FIP</b> Fielding Independent Pitching</span><span class="ksep">&middot;</span> <span class="ki"><b>BABIP</b> Batting Avg on Balls In Play</span><span class="ksep">&middot;</span> <span class="ki"><b>FPS%</b> First Pitch Strike</span><span class="ksep">&middot;</span> <span class="ki"><b>ISO</b> Isolated Power</span><span class="ksep">&middot;</span> <span class="ki"><b>K:BB</b> Strikeout to Walk ratio</span></div>
 <div class="grid"><div class="panel"><div class="ptitle">RUN PREVENTION</div><div class="sg"><div class="sr"><span class="sl2">ERA</span><span class="sv2">14.73</span></div><div class="sr"><span class="sl2">WHIP</span><span class="sv2">2.27</span></div><div class="sr"><span class="sl2">FIP</span><span class="sv2">8.83</span></div><div class="sr"><span class="sl2">BABIP</span><span class="sv2">.302</span></div><div class="sr w"><span class="sl2">AVG</span><span class="sv2">.333</span></div><div class="sr w"><span class="sl2">OBP</span><span class="sv2sub"><span class="sv2">.441</span><span class="svsub">vs LHB .222 / vs RHB .400</span></span></div><div class="sr w"><span class="sl2">SLG</span><span class="sv2sub"><span class="sv2">.562</span><span class="svsub">vs LHB .444 / vs RHB .633</span></span></div></div></div><div class="panel"><div class="ptitle">COMMAND &amp; RATES</div><div class="sg"><div class="sr"><span class="sl2">K%</span><span class="sv2">5.0</span></div><div class="sr"><span class="sl2">BB%</span><span class="sv2">15.0</span></div><div class="sr"><span class="sl2">K:BB</span><span class="sv2">0.33</span></div><div class="sr"><span class="sl2">FPS%</span><span class="sv2">60.0</span></div><div class="sr"><span class="sl2">K/9</span><span class="sv2">2.5</span></div><div class="sr"><span class="sl2">BB/9</span><span class="sv2">7.4</span></div><div class="sr"><span class="sl2">H/9</span><span class="sv2">13.1</span></div><div class="sr"><span class="sl2">P/BF</span><span class="sv2">3.5</span></div></div></div><div class="panel"><div class="ptitle">HITTERS AGAINST</div><div class="sg"><div class="sr"><span class="sl2">AB</span><span class="sv2">48</span></div><div class="sr"><span class="sl2">2B</span><span class="sv2">2</span></div><div class="sr"><span class="sl2">HR</span><span class="sv2">3</span></div><div class="sr"><span class="sl2">HBP</span><span class="sv2">1</span></div><div class="sr"><span class="sl2">SF</span><span class="sv2">1</span></div><div class="sr"><span class="sl2">OPS</span><span class="sv2">1.003</span></div><div class="sr"><span class="sl2">ISO</span><span class="sv2">.229</span></div><div class="sr"><span class="sl2">P/IP</span><span class="sv2">19.3</span></div></div></div><div class="panel"><div class="ptitle">PITCH PROFILE</div><div class="sg"><div class="sr"><span class="sl2">#P</span><span class="sv2">212</span></div><div class="sr"><span class="sl2">S%</span><span class="sv2">52</span></div><div class="sr"><span class="sl2">GB%</span><span class="sv2">40</span></div><div class="sr"><span class="sl2">FB%</span><span class="sv2">36</span></div><div class="sr"><span class="sl2">LD%</span><span class="sv2">4</span></div><div class="sr"><span class="sl2">PU%</span><span class="sv2">20</span></div><div class="sr"><span class="sl2"></span><span class="sv2"></span></div><div class="sr"><span class="sl2"></span><span class="sv2"></span></div></div></div></div>
 <h2>Game Log — Pitching</h2>
-<div class="log-scroll">
-<table>
-<thead><tr><th class="l">Date</th><th class="l">Opp</th><th class="l">Res</th><th>IP</th><th>H</th><th>R</th><th>ER</th><th>BB</th><th>K</th><th>HR</th><th>HBP</th><th>BF</th><th>#P</th></tr></thead>
-<tbody><tr><td class="l">6/4</td><td class="l">vs BOM</td><td class="l res">L 4-10</td><td>1.0</td><td>3</td><td>4</td><td>4</td><td>2</td><td>0</td><td>1</td><td>0</td><td>10</td><td><b>28</b></td></tr><tr><td class="l">6/7</td><td class="l">vs BUR</td><td class="l res">L 3-8</td><td>1.0</td><td>1</td><td>1</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0</td><td>5</td><td><b>18</b></td></tr><tr><td class="l">6/11</td><td class="l">vs WAC</td><td class="l res">L 6-10</td><td>2.0</td><td>3</td><td>3</td><td>3</td><td>1</td><td>1</td><td>0</td><td>0</td><td>11</td><td><b>38</b></td></tr><tr><td class="l">6/15</td><td class="l">vs SA</td><td class="l res">L 5-9</td><td>2.0</td><td>2</td><td>2</td><td>2</td><td>1</td><td>0</td><td>0</td><td>1</td><td>10</td><td><b>32</b></td></tr><tr><td class="l">6/19</td><td class="l">vs BOM</td><td class="l res">L 2-14</td><td>2.0</td><td>3</td><td>5</td><td>4</td><td>2</td><td>1</td><td>1</td><td>0</td><td>13</td><td><b>42</b></td></tr><tr><td class="l">6/25</td><td class="l">vs WAC</td><td class="l res">L 3-12</td><td>1.0</td><td>2</td><td>2</td><td>2</td><td>1</td><td>0</td><td>0</td><td>0</td><td>6</td><td><b>22</b></td></tr><tr><td class="l">7/7</td><td class="l">vs BOM</td><td class="l res">L 1-13</td><td>2.0</td><td>2</td><td>1</td><td>1</td><td>2</td><td>1</td><td>1</td><td>0</td><td>5</td><td><b>32</b></td></tr><tr class="tot"><td class="l">Total</td><td class="l">0-7</td><td class="l">—</td><td>11.0</td><td>16</td><td>19</td><td>18</td><td>9</td><td>3</td><td>3</td><td>1</td><td>60</td><td><b>212</b></td></tr><tr class="totlab"><td></td><td></td><td></td><td>IP</td><td>H</td><td>R</td><td>ER</td><td>BB</td><td>K</td><td>HR</td><td>HBP</td><td>BF</td><td>#P</td></tr></tbody>
-</table>
+<div class="glog">
+<div class="gcard">
+    <div class="gcard-header">
+      <div><span class="gcard-date">6/4</span> <span class="gcard-opp">vs BOM</span></div>
+      <div class="gcard-res">L 4-10</div>
+    </div>
+    <div class="gcard-stats"><div class="gcard-stat"><div class="gv">1.0</div><div class="gl">IP</div></div><div class="gcard-stat"><div class="gv">3</div><div class="gl">H</div></div><div class="gcard-stat"><div class="gv">4</div><div class="gl">R</div></div><div class="gcard-stat"><div class="gv">4</div><div class="gl">ER</div></div><div class="gcard-stat"><div class="gv">2</div><div class="gl">BB</div></div><div class="gcard-stat"><div class="gv">0</div><div class="gl">K</div></div><div class="gcard-stat"><div class="gv">1</div><div class="gl">HR</div></div><div class="gcard-stat"><div class="gv">0</div><div class="gl">HBP</div></div><div class="gcard-stat"><div class="gv">10</div><div class="gl">BF</div></div><div class="gcard-stat"><div class="gv">28</div><div class="gl">#P</div></div></div>
+  </div><div class="gcard">
+    <div class="gcard-header">
+      <div><span class="gcard-date">6/7</span> <span class="gcard-opp">vs BUR</span></div>
+      <div class="gcard-res">L 3-8</div>
+    </div>
+    <div class="gcard-stats"><div class="gcard-stat"><div class="gv">1.0</div><div class="gl">IP</div></div><div class="gcard-stat"><div class="gv">1</div><div class="gl">H</div></div><div class="gcard-stat"><div class="gv">1</div><div class="gl">R</div></div><div class="gcard-stat"><div class="gv">1</div><div class="gl">ER</div></div><div class="gcard-stat"><div class="gv">0</div><div class="gl">BB</div></div><div class="gcard-stat"><div class="gv">0</div><div class="gl">K</div></div><div class="gcard-stat"><div class="gv">0</div><div class="gl">HR</div></div><div class="gcard-stat"><div class="gv">0</div><div class="gl">HBP</div></div><div class="gcard-stat"><div class="gv">5</div><div class="gl">BF</div></div><div class="gcard-stat"><div class="gv">18</div><div class="gl">#P</div></div></div>
+  </div><div class="gcard">
+    <div class="gcard-header">
+      <div><span class="gcard-date">6/11</span> <span class="gcard-opp">vs WAC</span></div>
+      <div class="gcard-res">L 6-10</div>
+    </div>
+    <div class="gcard-stats"><div class="gcard-stat"><div class="gv">2.0</div><div class="gl">IP</div></div><div class="gcard-stat"><div class="gv">3</div><div class="gl">H</div></div><div class="gcard-stat"><div class="gv">3</div><div class="gl">R</div></div><div class="gcard-stat"><div class="gv">3</div><div class="gl">ER</div></div><div class="gcard-stat"><div class="gv">1</div><div class="gl">BB</div></div><div class="gcard-stat"><div class="gv">1</div><div class="gl">K</div></div><div class="gcard-stat"><div class="gv">0</div><div class="gl">HR</div></div><div class="gcard-stat"><div class="gv">0</div><div class="gl">HBP</div></div><div class="gcard-stat"><div class="gv">11</div><div class="gl">BF</div></div><div class="gcard-stat"><div class="gv">38</div><div class="gl">#P</div></div></div>
+  </div><div class="gcard">
+    <div class="gcard-header">
+      <div><span class="gcard-date">6/15</span> <span class="gcard-opp">vs SA</span></div>
+      <div class="gcard-res">L 5-9</div>
+    </div>
+    <div class="gcard-stats"><div class="gcard-stat"><div class="gv">2.0</div><div class="gl">IP</div></div><div class="gcard-stat"><div class="gv">2</div><div class="gl">H</div></div><div class="gcard-stat"><div class="gv">2</div><div class="gl">R</div></div><div class="gcard-stat"><div class="gv">2</div><div class="gl">ER</div></div><div class="gcard-stat"><div class="gv">1</div><div class="gl">BB</div></div><div class="gcard-stat"><div class="gv">0</div><div class="gl">K</div></div><div class="gcard-stat"><div class="gv">0</div><div class="gl">HR</div></div><div class="gcard-stat"><div class="gv">1</div><div class="gl">HBP</div></div><div class="gcard-stat"><div class="gv">10</div><div class="gl">BF</div></div><div class="gcard-stat"><div class="gv">32</div><div class="gl">#P</div></div></div>
+  </div><div class="gcard">
+    <div class="gcard-header">
+      <div><span class="gcard-date">6/19</span> <span class="gcard-opp">vs BOM</span></div>
+      <div class="gcard-res">L 2-14</div>
+    </div>
+    <div class="gcard-stats"><div class="gcard-stat"><div class="gv">2.0</div><div class="gl">IP</div></div><div class="gcard-stat"><div class="gv">3</div><div class="gl">H</div></div><div class="gcard-stat"><div class="gv">5</div><div class="gl">R</div></div><div class="gcard-stat"><div class="gv">4</div><div class="gl">ER</div></div><div class="gcard-stat"><div class="gv">2</div><div class="gl">BB</div></div><div class="gcard-stat"><div class="gv">1</div><div class="gl">K</div></div><div class="gcard-stat"><div class="gv">1</div><div class="gl">HR</div></div><div class="gcard-stat"><div class="gv">0</div><div class="gl">HBP</div></div><div class="gcard-stat"><div class="gv">13</div><div class="gl">BF</div></div><div class="gcard-stat"><div class="gv">42</div><div class="gl">#P</div></div></div>
+  </div><div class="gcard">
+    <div class="gcard-header">
+      <div><span class="gcard-date">6/25</span> <span class="gcard-opp">vs WAC</span></div>
+      <div class="gcard-res">L 3-12</div>
+    </div>
+    <div class="gcard-stats"><div class="gcard-stat"><div class="gv">1.0</div><div class="gl">IP</div></div><div class="gcard-stat"><div class="gv">2</div><div class="gl">H</div></div><div class="gcard-stat"><div class="gv">2</div><div class="gl">R</div></div><div class="gcard-stat"><div class="gv">2</div><div class="gl">ER</div></div><div class="gcard-stat"><div class="gv">1</div><div class="gl">BB</div></div><div class="gcard-stat"><div class="gv">0</div><div class="gl">K</div></div><div class="gcard-stat"><div class="gv">0</div><div class="gl">HR</div></div><div class="gcard-stat"><div class="gv">0</div><div class="gl">HBP</div></div><div class="gcard-stat"><div class="gv">6</div><div class="gl">BF</div></div><div class="gcard-stat"><div class="gv">22</div><div class="gl">#P</div></div></div>
+  </div><div class="gcard">
+    <div class="gcard-header">
+      <div><span class="gcard-date">7/7</span> <span class="gcard-opp">vs BOM</span></div>
+      <div class="gcard-res">L 1-13</div>
+    </div>
+    <div class="gcard-stats"><div class="gcard-stat"><div class="gv">2.0</div><div class="gl">IP</div></div><div class="gcard-stat"><div class="gv">2</div><div class="gl">H</div></div><div class="gcard-stat"><div class="gv">1</div><div class="gl">R</div></div><div class="gcard-stat"><div class="gv">1</div><div class="gl">ER</div></div><div class="gcard-stat"><div class="gv">2</div><div class="gl">BB</div></div><div class="gcard-stat"><div class="gv">1</div><div class="gl">K</div></div><div class="gcard-stat"><div class="gv">1</div><div class="gl">HR</div></div><div class="gcard-stat"><div class="gv">0</div><div class="gl">HBP</div></div><div class="gcard-stat"><div class="gv">5</div><div class="gl">BF</div></div><div class="gcard-stat"><div class="gv">32</div><div class="gl">#P</div></div></div>
+  </div>
+  <div class="totcard">
+    <div class="totcard-header">
+      <span class="tlabel">Total</span>
+      <span class="trec">0-7</span>
+    </div>
+    <div class="totcard-stats"><div class="totcard-stat"><div class="tv">—</div><div class="tl">Res</div></div><div class="totcard-stat"><div class="tv">11.0</div><div class="tl">IP</div></div><div class="totcard-stat"><div class="tv">16</div><div class="tl">H</div></div><div class="totcard-stat"><div class="tv">19</div><div class="tl">R</div></div><div class="totcard-stat"><div class="tv">18</div><div class="tl">ER</div></div><div class="totcard-stat"><div class="tv">9</div><div class="tl">BB</div></div><div class="totcard-stat"><div class="tv">3</div><div class="tl">K</div></div><div class="totcard-stat"><div class="tv">3</div><div class="tl">HR</div></div><div class="totcard-stat"><div class="tv">1</div><div class="tl">HBP</div></div><div class="totcard-stat"><div class="tv">60</div><div class="tl">BF</div></div><div class="totcard-stat"><div class="tv">212</div><div class="tl">#P</div></div></div>
+  </div>
 </div>
 </div></body></html>
