@@ -6632,8 +6632,9 @@ function renderPlayoffs(d){
   (p.matchups||[]).forEach(function(m){
     h+='<div class="poffmatch">'+poffSlot(byseed[m[0]],gid)+'<div class="poffvs">vs</div>'+poffSlot(byseed[m[1]],gid)+'</div>';
   });
-  h+='<ul class="poffrules"><li>Best-of-3 series — first to two wins advances.</li>'
-    +'<li>Lower seed hosts Game 1; higher seed hosts Games 2 &amp; 3 (if needed).</li></ul>';
+  h+='<ul class="poffrules"><li>Semifinals are best-of-3 — first to two wins advances.</li>'
+    +'<li>The championship is a single game — winner take all.</li>'
+    +'<li>Semifinal lower seed hosts Game 1; higher seed hosts Games 2 &amp; 3 (if needed).</li></ul>';
   (p.notes||[]).forEach(function(n){h+='<div class="poffnote">'+esc(n)+'</div>';});
   if(provisional)h+='<div class="poffnote"><span class="poffprov">•</span> Seeds 3 &amp; 4 reflect the current second-half standings and can still change.</div>';
   h+='</div>';
@@ -6653,14 +6654,15 @@ function renderBracket(d){
     h+='<div class="poffmatch">'+poffSlot(byseed[m[0]],gid)+'<div class="poffvs">vs</div>'+poffSlot(byseed[m[1]],gid)+'</div>';
   });
   h+='</div><div class="brkconn"></div><div class="brkround brkfinal">';
-  h+='<div class="brkrlab"><span>Championship</span><span class="bo3">Best-of-3</span></div>';
+  h+='<div class="brkrlab"><span>Championship</span><span class="bo3">1 Game</span></div>';
   h+='<div class="poffmatch">'
     +'<div class="poffslot tbd"><span class="poffseed">–</span><span class="poffl"></span><span class="poffnm">Semifinal winner</span></div>'
     +'<div class="poffvs">vs</div>'
     +'<div class="poffslot tbd"><span class="poffseed">–</span><span class="poffl"></span><span class="poffnm">Semifinal winner</span></div></div>';
   h+='</div></div>';
-  h+='<ul class="poffrules"><li>Each round is a best-of-3 series — first to two wins advances.</li>'
-    +'<li>Lower seed hosts Game 1; higher seed hosts Games 2 &amp; 3 (if needed).</li></ul>';
+  h+='<ul class="poffrules"><li>Semifinals are best-of-3 — first to two wins advances to the final.</li>'
+    +'<li>The championship is a single game — winner take all.</li>'
+    +'<li>Semifinal lower seed hosts Game 1; higher seed hosts Games 2 &amp; 3 (if needed).</li></ul>';
   (p.notes||[]).forEach(function(n){h+='<div class="poffnote">'+esc(n)+'</div>';});
   h+='</div>';
   host.innerHTML=h;
