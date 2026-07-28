@@ -1,0 +1,1074 @@
+#!/usr/bin/env node
+/*
+ * Player Season Card (BATTER) — renders a one-page, letter-size, branded PDF of one
+ * player's summer: identity block, season-totals strip, four advanced-stat
+ * panels (Savant-style: run prevention, command & rates, hitters-against,
+ * pitch profile), and a game-by-game table with totals + column labels.
+ * Club branding per docs/HANDOFF.md: croc-skin bands (hue-locked to the
+ * #4e3191 family via scripts/assets/croc-band.jpg), gold border, purples
+ * #4e3191 dark / #714ad2 accent, gold #ecc913/#ffd633.
+ *
+ * This is a hand-fed renderer: fill in the DATA block below for the player
+ * and run it. Everything below DATA is generic — do not edit it per player.
+ * Counting stats come from the official box scores; advanced metrics
+ * (BF, K%/BB%, AVG/OBP/SLG/OPS against, BABIP, extra-base hits allowed,
+ * FPS%, GB/FB/LD/PU) are computed from TCL play-by-play text.
+ * FIP uses the FanGraphs formula ((13*HR + 3*(BB+HBP) - 2*K)/IP + 3.10).
+ *
+ *   node scripts/player-season-card.js                 # -> reports/players/
+ *   node scripts/player-season-card.js /path/stem      # custom output stem
+ *
+ * Photo: drops in photos/<photoSlug>.<ext> automatically (photoSlug defaults
+ * to the player's slug). Layout is a fixed single letter page — it never
+ * spills to a second page (tested with a 10-tile strip, 4 panels x 8 stats,
+ * and a 13-column log; keep roughly to that budget).
+ *
+ * Requires Chromium (CHROMIUM_PATH, /opt/pw-browsers, a Playwright install,
+ * or Mac Chrome). No other dependencies.
+ */
+const fs = require('fs');
+const path = require('path');
+const { execFileSync } = require('child_process');
+
+const stemArg = process.argv.slice(2).find(a => a && !a.startsWith('--'));
+
+// ===========================================================================
+// PLAYER DATA — replace this block for each player. Everything below is generic.
+// (Values shown are Brayden Guillory's 2026 summer: counting stats from the
+// official TCL box scores, advanced metrics computed from play-by-play text
+// because his Presto player page is an all-dashes placeholder.)
+// ===========================================================================
+const DATA = {
+  "name": "Ayden Sunday",
+  "num": "17",
+  "pos": "OF",
+  "bt": "R/R",
+  "cls": "Freshman",
+  "school": "Lamar University",
+  "home": "Nederland, TX",
+  "htwt": "6-0 \u00b7 185",
+  "bday": "\u2014",
+  "photoSlug": "aydensundayyp1j",
+  "seasonTitle": "Season Totals \u2014 Hitting",
+  "season": [
+    [
+      "G",
+      "41"
+    ],
+    [
+      "PA",
+      "185"
+    ],
+    [
+      "AVG",
+      ".286"
+    ],
+    [
+      "OBP",
+      ".438"
+    ],
+    [
+      "SLG",
+      ".471"
+    ],
+    [
+      "OPS",
+      ".909"
+    ],
+    [
+      "HR",
+      "3"
+    ],
+    [
+      "RBI",
+      "36"
+    ],
+    [
+      "SB",
+      "14"
+    ]
+  ],
+  "groups": [
+    [
+      "PRODUCTION",
+      [
+        [
+          "AVG",
+          ".286"
+        ],
+        [
+          "OBP",
+          ".438"
+        ],
+        [
+          "SLG",
+          ".471"
+        ],
+        [
+          "OPS",
+          ".909"
+        ],
+        [
+          "ISO",
+          ".186"
+        ],
+        [
+          "BABIP",
+          ".339"
+        ],
+        [
+          "XBH",
+          "16"
+        ],
+        [
+          "TB",
+          "66"
+        ]
+      ]
+    ],
+    [
+      "PLATE DISCIPLINE",
+      [
+        [
+          "BB%",
+          "15.1"
+        ],
+        [
+          "K%",
+          "17.3"
+        ],
+        [
+          "BB:K",
+          "0.88"
+        ],
+        [
+          "PA",
+          "185"
+        ],
+        [
+          "BB",
+          "28"
+        ],
+        [
+          "K",
+          "32"
+        ],
+        [
+          "HBP",
+          "13"
+        ],
+        [
+          "SF",
+          "4"
+        ]
+      ]
+    ],
+    [
+      "HIT BREAKDOWN",
+      [
+        [
+          "H",
+          "40"
+        ],
+        [
+          "1B",
+          "24"
+        ],
+        [
+          "2B",
+          "9"
+        ],
+        [
+          "3B",
+          "4"
+        ],
+        [
+          "HR",
+          "3"
+        ],
+        [
+          "RBI",
+          "36"
+        ],
+        [
+          "R",
+          "35"
+        ],
+        [
+          "GIDP",
+          "1"
+        ]
+      ]
+    ],
+    [
+      "BASE RUNNING & TCL RANKS",
+      [
+        [
+          "SB",
+          "14"
+        ],
+        [
+          "CS",
+          "3"
+        ],
+        [
+          "SB%",
+          "82.4"
+        ],
+        [
+          "SB-ATT",
+          "14-17"
+        ],
+        [
+          "League ranks",
+          "RBI 2nd \u00b7 3B 2nd \u00b7 R 3rd",
+          "wide",
+          "TCL BATTERS"
+        ],
+        [
+          "Also",
+          "PA 3rd \u00b7 TB 5th \u00b7 H 5th",
+          "wide",
+          "TCL BATTERS"
+        ]
+      ]
+    ]
+  ],
+  "key": [
+    [
+      "OBP",
+      "on-base pct (H+BB+HBP per PA)"
+    ],
+    [
+      "SLG",
+      "total bases per AB"
+    ],
+    [
+      "OPS",
+      "OBP + SLG"
+    ],
+    [
+      "ISO",
+      "isolated power (SLG \u2212 AVG)"
+    ],
+    [
+      "BABIP",
+      "batting avg on balls in play"
+    ],
+    [
+      "BB% / K%",
+      "walks / strikeouts per PA"
+    ],
+    [
+      "XBH \u00b7 TB",
+      "extra-base hits \u00b7 total bases"
+    ],
+    [
+      "SB%",
+      "stolen-base success (SB \u00f7 attempts)"
+    ],
+    [
+      "SF",
+      "sacrifice flies (not an AB)"
+    ]
+  ],
+  "logTitle": "Game by Game \u2014 Hitting",
+  "logCols": [
+    "Date",
+    "Opponent",
+    "Result",
+    "PA",
+    "AB",
+    "R",
+    "H",
+    "RBI",
+    "BB",
+    "K",
+    "SB",
+    "AVG"
+  ],
+  "log": [
+    [
+      "Jun 2",
+      "Abilene",
+      "W, 11-1",
+      "1",
+      "1",
+      "0",
+      "1",
+      "0",
+      "0",
+      "0",
+      "1",
+      "1.000"
+    ],
+    [
+      "Jun 4",
+      "Baton Rouge",
+      "L, 18-5",
+      "4",
+      "4",
+      "0",
+      "1",
+      "1",
+      "0",
+      "1",
+      "1",
+      ".250"
+    ],
+    [
+      "Jun 5",
+      "at Baton Rouge",
+      "W, 14-1",
+      "7",
+      "4",
+      "2",
+      "2",
+      "1",
+      "2",
+      "0",
+      "1",
+      ".500"
+    ],
+    [
+      "Jun 6",
+      "at Baton Rouge",
+      "L, 9-8",
+      "6",
+      "2",
+      "2",
+      "0",
+      "1",
+      "1",
+      "2",
+      "0",
+      ".000"
+    ],
+    [
+      "Jun 7",
+      "at Baton Rouge",
+      "L, 5-4",
+      "5",
+      "4",
+      "2",
+      "1",
+      "0",
+      "1",
+      "1",
+      "0",
+      ".250"
+    ],
+    [
+      "Jun 9",
+      "Baton Rouge",
+      "W, 3-1",
+      "4",
+      "4",
+      "0",
+      "2",
+      "1",
+      "0",
+      "0",
+      "0",
+      ".500"
+    ],
+    [
+      "Jun 10",
+      "Baton Rouge",
+      "W, 8-7",
+      "5",
+      "3",
+      "0",
+      "0",
+      "1",
+      "1",
+      "2",
+      "1",
+      ".000"
+    ],
+    [
+      "Jun 11",
+      "at Acadiana",
+      "L, 4-3",
+      "1",
+      "1",
+      "0",
+      "0",
+      "0",
+      "0",
+      "1",
+      "0",
+      ".000"
+    ],
+    [
+      "Jun 12",
+      "Acadiana",
+      "W, 16-15",
+      "5",
+      "3",
+      "3",
+      "1",
+      "2",
+      "1",
+      "2",
+      "0",
+      ".333"
+    ],
+    [
+      "Jun 13",
+      "at Victoria",
+      "L, 7-6",
+      "6",
+      "5",
+      "1",
+      "2",
+      "4",
+      "0",
+      "0",
+      "0",
+      ".400"
+    ],
+    [
+      "Jun 14",
+      "at Victoria",
+      "L, 10-3",
+      "5",
+      "3",
+      "0",
+      "0",
+      "0",
+      "2",
+      "1",
+      "0",
+      ".000"
+    ],
+    [
+      "Jun 16",
+      "Acadiana",
+      "L, 9-5",
+      "5",
+      "3",
+      "1",
+      "0",
+      "0",
+      "2",
+      "2",
+      "1",
+      ".000"
+    ],
+    [
+      "Jun 17",
+      "Acadiana",
+      "L, 11-7",
+      "5",
+      "5",
+      "1",
+      "0",
+      "0",
+      "0",
+      "1",
+      "0",
+      ".000"
+    ],
+    [
+      "Jun 18",
+      "at Acadiana",
+      "L, 4-2",
+      "1",
+      "1",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      "0",
+      ".000"
+    ],
+    [
+      "Jun 19",
+      "at Acadiana",
+      "W, 6-3",
+      "5",
+      "4",
+      "1",
+      "0",
+      "0",
+      "1",
+      "1",
+      "0",
+      ".000"
+    ],
+    [
+      "Jun 20",
+      "at Sherman",
+      "W, 8-1",
+      "5",
+      "4",
+      "1",
+      "2",
+      "2",
+      "1",
+      "1",
+      "2",
+      ".500"
+    ],
+    [
+      "Jun 21",
+      "at Sherman",
+      "W, 12-11",
+      "6",
+      "3",
+      "0",
+      "0",
+      "0",
+      "2",
+      "1",
+      "0",
+      ".000"
+    ],
+    [
+      "Jun 23",
+      "Victoria",
+      "W, 6-5",
+      "5",
+      "4",
+      "1",
+      "1",
+      "2",
+      "1",
+      "1",
+      "0",
+      ".250"
+    ],
+    [
+      "Jun 24",
+      "Victoria",
+      "L, 7-3",
+      "4",
+      "4",
+      "1",
+      "2",
+      "1",
+      "0",
+      "0",
+      "0",
+      ".500"
+    ],
+    [
+      "Jun 25",
+      "at Brazos Valley",
+      "W, 7-0",
+      "2",
+      "1",
+      "0",
+      "0",
+      "0",
+      "1",
+      "0",
+      "1",
+      ".000"
+    ],
+    [
+      "Jun 26",
+      "at Brazos Valley",
+      "L, 10-8",
+      "5",
+      "4",
+      "1",
+      "3",
+      "2",
+      "0",
+      "0",
+      "0",
+      ".750"
+    ],
+    [
+      "Jun 27",
+      "Baton Rouge",
+      "W, 7-6",
+      "5",
+      "3",
+      "0",
+      "0",
+      "1",
+      "0",
+      "1",
+      "0",
+      ".000"
+    ],
+    [
+      "Jun 28",
+      "at Baton Rouge",
+      "W, 8-5",
+      "4",
+      "3",
+      "1",
+      "0",
+      "0",
+      "0",
+      "1",
+      "0",
+      ".000"
+    ],
+    [
+      "Jun 30",
+      "at Brazos Valley",
+      "L, 9-3",
+      "4",
+      "3",
+      "0",
+      "1",
+      "0",
+      "1",
+      "1",
+      "0",
+      ".333"
+    ],
+    [
+      "Jul 1",
+      "at Brazos Valley",
+      "W, 10-8",
+      "5",
+      "5",
+      "1",
+      "3",
+      "2",
+      "0",
+      "0",
+      "1",
+      ".600"
+    ],
+    [
+      "Jul 2",
+      "San Antonio",
+      "W, 16-0",
+      "6",
+      "6",
+      "2",
+      "2",
+      "0",
+      "0",
+      "0",
+      "0",
+      ".333"
+    ],
+    [
+      "Jul 3",
+      "San Antonio",
+      "W, 9-7",
+      "4",
+      "3",
+      "1",
+      "2",
+      "6",
+      "0",
+      "0",
+      "0",
+      ".667"
+    ],
+    [
+      "Jul 4",
+      "Brazos Valley",
+      "W, 7-3",
+      "5",
+      "5",
+      "1",
+      "2",
+      "1",
+      "0",
+      "1",
+      "1",
+      ".400"
+    ],
+    [
+      "Jul 7",
+      "at Acadiana",
+      "L, 7-4",
+      "5",
+      "4",
+      "0",
+      "2",
+      "1",
+      "1",
+      "0",
+      "1",
+      ".500"
+    ],
+    [
+      "Jul 8",
+      "Acadiana",
+      "W, 15-6",
+      "5",
+      "2",
+      "0",
+      "0",
+      "0",
+      "3",
+      "1",
+      "0",
+      ".000"
+    ],
+    [
+      "Jul 9",
+      "at Abilene",
+      "L, 5-4",
+      "4",
+      "4",
+      "0",
+      "0",
+      "0",
+      "0",
+      "3",
+      "0",
+      ".000"
+    ],
+    [
+      "Jul 10",
+      "at Abilene",
+      "L, 4-3",
+      "4",
+      "4",
+      "1",
+      "1",
+      "0",
+      "0",
+      "1",
+      "0",
+      ".250"
+    ],
+    [
+      "Jul 12 G1",
+      "at San Antonio",
+      "W, 3-2",
+      "4",
+      "3",
+      "0",
+      "1",
+      "0",
+      "1",
+      "0",
+      "0",
+      ".333"
+    ],
+    [
+      "Jul 12 G2",
+      "at San Antonio",
+      "L, 8-4",
+      "4",
+      "4",
+      "1",
+      "1",
+      "0",
+      "0",
+      "1",
+      "0",
+      ".250"
+    ],
+    [
+      "Jul 14",
+      "Baton Rouge",
+      "W, 5-4",
+      "5",
+      "3",
+      "0",
+      "0",
+      "1",
+      "1",
+      "1",
+      "0",
+      ".000"
+    ],
+    [
+      "Jul 15",
+      "at Baton Rouge",
+      "L, 9-2",
+      "4",
+      "4",
+      "0",
+      "1",
+      "1",
+      "0",
+      "0",
+      "0",
+      ".250"
+    ],
+    [
+      "Jul 16",
+      "Baton Rouge",
+      "W, 10-2",
+      "5",
+      "3",
+      "1",
+      "1",
+      "2",
+      "1",
+      "0",
+      "1",
+      ".333"
+    ],
+    [
+      "Jul 18",
+      "Brazos Valley",
+      "W, 11-8",
+      "5",
+      "3",
+      "4",
+      "3",
+      "1",
+      "2",
+      "0",
+      "1",
+      "1.000"
+    ],
+    [
+      "Jul 19",
+      "Brazos Valley",
+      "W, 14-11",
+      "6",
+      "3",
+      "2",
+      "0",
+      "1",
+      "1",
+      "1",
+      "0",
+      ".000"
+    ],
+    [
+      "Jul 21",
+      "at Victoria",
+      "W, 12-7",
+      "5",
+      "4",
+      "3",
+      "2",
+      "1",
+      "1",
+      "1",
+      "1",
+      ".500"
+    ],
+    [
+      "Jul 22",
+      "at Victoria",
+      "L, 6-0",
+      "4",
+      "4",
+      "0",
+      "0",
+      "0",
+      "0",
+      "2",
+      "0",
+      ".000"
+    ]
+  ],
+  "totals": [
+    "TOTAL",
+    "41 G",
+    "",
+    "185",
+    "140",
+    "35",
+    "40",
+    "36",
+    "28",
+    "32",
+    "14",
+    ".286"
+  ]
+};
+// ===========================================================================
+
+const ROOT = path.join(__dirname, '..');
+const OUT_DIR = path.join(ROOT, 'reports', 'players');
+const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+function b64(file, mime) {
+  try { return 'data:' + mime + ';base64,' + fs.readFileSync(path.join(ROOT, file)).toString('base64'); }
+  catch (e) { return ''; }
+}
+function findPhoto(slug) {
+  for (const ext of ['webp', 'jpg', 'jpeg', 'png', 'avif']) {
+    const p = 'photos/' + slug + '.' + ext;
+    if (fs.existsSync(path.join(ROOT, p))) return b64(p, ext === 'jpg' ? 'image/jpeg' : 'image/' + ext);
+  }
+  return '';
+}
+function findChromium() {
+  const cands = [process.env.CHROMIUM_PATH, '/opt/pw-browsers/chromium', '/usr/bin/chromium', '/usr/bin/chromium-browser',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'].filter(Boolean);
+  for (const c of cands) { try { if (fs.existsSync(c)) return c; } catch (e) {} }
+  for (const base of [process.env.PLAYWRIGHT_BROWSERS_PATH, '/opt/pw-browsers', process.env.HOME + '/.cache/ms-playwright'].filter(Boolean)) {
+    try { for (const d of fs.readdirSync(base)) { const p = path.join(base, d, 'chrome-linux', 'chrome'); if (fs.existsSync(p)) return p; } } catch (e) {}
+  }
+  throw new Error('No Chromium found. Set CHROMIUM_PATH.');
+}
+
+const logo = b64('gg-logo.png', 'image/png');
+const croc = b64('scripts/assets/croc-band.jpg', 'image/jpeg');   // hue-locked croc band
+const photo = findPhoto(DATA.photoSlug || (DATA.name || '').toLowerCase().replace(/[^a-z]/g, ''));
+
+// Relievers never start — hide the GS tile entirely when it's 0.
+const seasonTiles = DATA.season.filter(([k, v]) => !(k === 'GS' && String(v) === '0')).map(([k, v]) => `<div class="stat"><div class="sv">${esc(v)}</div><div class="sl">${esc(k)}</div></div>`).join('');
+const keyRow = (DATA.key || []).length
+  ? `<div class="keytitle">Advanced Metrics Key</div><div class="key">` +
+    DATA.key.map(([a, m]) => `<span class="ki"><b>${esc(a)}</b> ${esc(m)}</span>`).join('<span class="ksep">&middot;</span> ') + `</div>`
+  : '';
+const panels = (DATA.groups || []).map(([title, rows]) =>
+  `<div class="panel"><div class="ptitle">${esc(title)}</div><div class="sg">` +
+  rows.map(([l, v, w, sub]) =>
+    `<div class="sr${w === 'wide' ? ' w' : ''}"><span class="sl2">${esc(l)}</span>` +
+    (sub
+      ? `<span class="sv2sub"><span class="sv2">${esc(v)}</span><span class="svsub">${esc(sub)}</span></span>`
+      : `<span class="sv2">${esc(v)}</span>`) +
+    `</div>`).join('') +
+  `</div></div>`).join('');
+const compact = DATA.log.length > 20;
+const headCells = DATA.logCols.map((c, i) => `<th${i < 3 ? ' class="l"' : ''}>${esc(c)}</th>`).join('');
+const logTable = (rows, withTotals) => {
+  const body = rows.map(r => '<tr>' + r.map((v, i) => {
+    if (i < 2) return `<td class="l">${esc(v)}</td>`;
+    if (i === 2) return `<td class="l res">${esc(v)}</td>`;
+    if (i === r.length - 1) return `<td><b>${esc(v)}</b></td>`;
+    return `<td>${esc(v)}</td>`;
+  }).join('') + '</tr>').join('');
+  const tot = withTotals
+    ? `<tr class="tot">${totCells}</tr><tr class="totlab">${labCells}</tr>` : '';
+  return `<table><thead><tr>${headCells}</tr></thead><tbody>${body}${tot}</tbody></table>`;
+};
+const bodyRows = DATA.log.map(r => {
+  const cells = r.map((v, i) => {
+    if (i < 2) return `<td class="l">${esc(v)}</td>`;
+    if (i === 2) return `<td class="l res">${esc(v)}</td>`;
+    if (i === r.length - 1) return `<td><b>${esc(v)}</b></td>`;
+    return `<td>${esc(v)}</td>`;
+  }).join('');
+  return `<tr>${cells}</tr>`;
+}).join('');
+const labCells = DATA.logCols.map((c, i) => i < 3 ? '<td></td>' : `<td>${esc(c)}</td>`).join('');
+const totCells = DATA.totals.map((v, i) => {
+  if (i < 3) return `<td class="l">${esc(v)}</td>`;
+  if (i === DATA.totals.length - 1) return `<td><b>${esc(v)}</b></td>`;
+  return `<td>${esc(v)}</td>`;
+}).join('');
+
+const html = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>${esc(DATA.name)} — 2026 Summer Stats</title>
+<style>
+@page { size: letter; margin: 0; }
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #16102b; }
+.page { width: 816px; height: 1056px; position: relative; overflow: hidden; background: #f4f2ec; padding-bottom: 28px; }
+.band { position: relative; height: 118px; overflow: hidden; margin: 18px 45px 0; border-radius: 12px; border: 2.5px solid #ecc913; }
+.band img.texture { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 35%; }
+.band .shade { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(22,16,43,.38); }
+.band .inner { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; padding: 0 30px; }
+.band img.mark { width: 102px; height: 102px; object-fit: contain; margin-right: 22px; }
+.band .org { font-family: Georgia, serif; font-weight: 800; font-size: 23px; color: #ffd633; letter-spacing: 1.2px; }
+.band .sub { font-size: 11px; color: #cfc6ea; letter-spacing: 2.2px; text-transform: uppercase; margin-top: 6px; }
+.id { display: flex; padding: 24px 45px 12px; }
+.id .ph { width: 118px; height: 118px; border-radius: 9px; object-fit: cover; border: 4px solid #ecc913; background: #ddd; }
+.id .who { margin-left: 22px; flex: 1; }
+.id h1 { font-family: Georgia, serif; font-size: 35px; font-weight: 800; color: #4e3191; white-space: nowrap; }
+.id .role { font-size: 14px; font-weight: 700; color: #714ad2; letter-spacing: 1.4px; margin-top: 3px; }
+.meta { display: flex; flex-wrap: wrap; margin-top: 14px; }
+.meta div { font-size: 11.5px; color: #6d6391; margin-right: 24px; line-height: 1.7; }
+.meta b { color: #4e3191; font-size: 9px; text-transform: uppercase; letter-spacing: .7px; display: block; }
+.striptitle { margin: 16px 45px 0; font-size: 10.5px; font-weight: 700; letter-spacing: 2.2px; color: #714ad2; text-transform: uppercase; }
+.strip { margin: 7px 45px 0; background: #4e3191; border-radius: 8px; padding: 15px 6px; display: flex; justify-content: space-around; border: 2px solid #ecc913; }
+.strip .stat { text-align: center; }
+.strip .sv { font-family: Georgia, serif; font-size: 23px; font-weight: 800; color: #ffd633; }
+.strip .sl { font-size: 8.5px; color: #cfc6ea; letter-spacing: 1.2px; margin-top: 3px; }
+.keytitle { margin: 10px 45px 0; font-size: 8px; font-weight: 800; letter-spacing: 2px; color: #714ad2; text-transform: uppercase; }
+.key { margin: 3px 45px 0; font-size: 9.2px; color: #6d6391; line-height: 1.6; }
+.key .ki { white-space: nowrap; }
+.key .ki b { color: #4e3191; letter-spacing: .3px; }
+.key .ksep { color: #cfc6ea; margin: 0 5px; font-weight: 800; }
+.grid { display: flex; flex-wrap: wrap; margin: 10px 40px 0; }
+.panel { width: 50%; padding: 4px 5px; }
+.ptitle { font-size: 10px; font-weight: 800; letter-spacing: 1.8px; color: #4e3191; border-bottom: 1.5px solid #ecc913; padding-bottom: 4px; margin-bottom: 7px; }
+.sg { display: flex; flex-wrap: wrap; }
+.sr { width: 50%; display: flex; justify-content: space-between; padding: 2.9px 8px 2.9px 2px; font-size: 12px; }
+.sr.w { width: 100%; }
+.sl2 { color: #6d6391; font-weight: 700; letter-spacing: .5px; }
+.sv2 { color: #16102b; font-weight: 800; font-variant-numeric: tabular-nums; }
+.sv2sub { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.25; }
+.svsub { font-size: 7px; color: #6d6391; font-weight: 700; letter-spacing: 1.2px; }
+.logwrap { margin: 10px 45px 0; }
+h2 { font-family: Georgia, serif; font-size: 16px; color: #4e3191; border-bottom: 1.9px solid #ecc913; padding-bottom: 4px; margin-bottom: 6px; }
+table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+th { background: #4e3191; color: #fff; font-size: 8.5px; letter-spacing: .8px; text-transform: uppercase; padding: 8px 4px; text-align: right; }
+th.l, td.l { text-align: left; }
+td { padding: 6.5px 4px; border-bottom: .9px solid #e5e0f0; text-align: right; font-variant-numeric: tabular-nums; }
+tr:nth-child(even) td { background: #e5e0f0; }
+td.res { font-weight: 700; }
+tr.tot td { background: #16102b; color: #ffd633; font-weight: 800; border-bottom: none; }
+/* compact (long logs): two side-by-side tables, tighter rows */
+.log2col { display: flex; gap: 10px; }
+.log2col table { width: 50%; }
+.compact .logwrap { margin-top: 4px; }
+.compact .log2col table { font-size: 8.8px; }
+.compact .log2col th { font-size: 6.5px; padding: 4px 2px; }
+.compact .log2col td { padding: 2.2px 2px; line-height: 1.15; }
+.compact h2 { font-size: 12.5px; margin-bottom: 3px; padding-bottom: 3px; }
+.compact .sr { padding: 1.9px 8px 1.9px 2px; font-size: 10.8px; }
+.compact .band { height: 100px; margin-top: 12px; }
+.compact .band img.mark { width: 86px; height: 86px; }
+.compact .id { padding: 14px 45px 8px; }
+.compact .id .ph { width: 100px; height: 100px; }
+.compact .striptitle { margin-top: 10px; }
+.compact .strip { padding: 10px 6px; }
+.compact .strip .sv { font-size: 20px; }
+.compact .keytitle { margin-top: 6px; }
+.compact .key { font-size: 8.4px; line-height: 1.45; }
+.compact .grid { margin-top: 6px; }
+.compact .ptitle { margin-bottom: 5px; padding-bottom: 3px; }
+.compact .svsub { font-size: 6.4px; }
+tr.totlab td { color: #714ad2; font-size: 8px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; border-bottom: none; padding-top: 4px; }
+</style></head>
+<body><div class="page${compact ? ' compact' : ''}">
+<div class="band">
+  <img class="texture" src="${croc}" alt="">
+  <div class="shade"></div>
+  <div class="inner">
+    <img class="mark" src="${logo}" alt="">
+    <div>
+      <div class="org">LAKE CHARLES GUMBEAUX GATORS</div>
+      <div class="sub">2026 Summer Season &middot; Texas Collegiate League</div>
+    </div>
+  </div>
+</div>
+<div class="id">
+  <img class="ph" src="${photo}" alt="">
+  <div class="who">
+    <h1>${esc(DATA.name.toUpperCase())}</h1>
+    <div class="role">#${esc(DATA.num)} &middot; ${esc(DATA.pos)} &middot; B/T: ${esc(DATA.bt)}</div>
+    <div class="meta">
+      <div><b>Class</b>${esc(DATA.cls)}</div>
+      <div><b>School</b>${esc(DATA.school)}</div>
+      <div><b>Hometown</b>${esc(DATA.home)}</div>
+      <div><b>Ht / Wt</b>${esc(DATA.htwt)}</div>
+      <div><b>Born</b>${esc(DATA.bday)}</div>
+    </div>
+  </div>
+</div>
+<div class="striptitle">${esc(DATA.seasonTitle)}</div>
+<div class="strip">${seasonTiles}</div>
+${keyRow}<div class="grid">${panels}</div>
+<div class="logwrap">
+<h2>${esc(DATA.logTitle)}</h2>
+${compact
+  ? `<div class="log2col">${logTable(DATA.log.slice(0, Math.ceil(DATA.log.length / 2)), false)}${logTable(DATA.log.slice(Math.ceil(DATA.log.length / 2)), true)}</div>`
+  : `<table><thead><tr>${headCells}</tr></thead><tbody>${bodyRows}<tr class="tot">${totCells}</tr><tr class="totlab">${labCells}</tr></tbody></table>`}
+</div>
+</div></body></html>`;
+
+fs.mkdirSync(OUT_DIR, { recursive: true });
+const stem = stemArg || path.join(OUT_DIR, DATA.name + ' - 2026 Summer Stats');
+const tmp = path.join(require('os').tmpdir(), 'player-season-card-' + Date.now() + '.html');
+fs.writeFileSync(tmp, html);
+const out = stem.endsWith('.pdf') ? stem : stem + '.pdf';
+execFileSync(findChromium(), ['--headless=new', '--no-sandbox', '--disable-gpu', '--no-pdf-header-footer', '--print-to-pdf=' + out, 'file://' + path.resolve(tmp)], { stdio: 'ignore' });
+try { fs.unlinkSync(tmp); } catch (e) {}
+console.log('wrote ' + out);

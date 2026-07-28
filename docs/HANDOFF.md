@@ -76,7 +76,7 @@ Note: his Presto player page is an all-dashes placeholder — ALL his stats were
 - Mobile: NO horizontal scrolling. Everything must fit within phone width.
 
 ## 10. Next steps (in order)
-1. **Batter card variant**: design the 4 panels + Advanced Key for position players (hitting slash, XBH, SB, BB/K, etc. from box batting columns + PBP). Need both print + mobile versions.
+1. ~~**Batter card variant**~~ DONE (Jul 28): `scripts/player-season-card-batter.js` (print) + `scripts/player-season-card-mobile-batter.js` (mobile), both validated on Ayden Sunday (#17 OF, Lamar). Panels: PRODUCTION / PLATE DISCIPLINE / HIT BREAKDOWN / BASE RUNNING & TCL RANKS. Print auto-switches to a 2-column compact game log when log > 20 rows (41 games fits one page). Stats triple-validated: box scores + PBP classifier (40/40 dates exact) + roster-seed.json official TCL line. PBP classifier notes: "flied out …, sacrifice fly" = SF not AB (check tail); "out at first" = AB unless tail has picked off/caught stealing; "out on batter's interference" = AB; TCL official CS excludes pickoffs.
 2. **Refresh league-bt.json** from TCL Presto team pages before the season-end run.
 3. **Season-end batch run**: for each pitcher — platoon-splits.py, validate per-game H/BB/K vs box, fill DATA, render, deliver. For each batter — batter template once built.
 4. **Optional**: batch script that loops a roster list and emits all cards.
