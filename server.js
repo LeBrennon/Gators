@@ -2182,10 +2182,7 @@ const ROSTER = [
   // leaderboard lists him as "J Torres", which doesn't match "Jeremiah Torres" via
   // normPlayerName — so his real Presto slug is set directly and stats flow.
   { num: 35, name: 'Jeremiah Torres',  slug: 'jeremiahtorrescsuy',   pos: 'IF',      cls: 'Junior',       ht: '6-0',  wt: '210', b: 'R', t: 'R', bday: '05/10/2006', home: 'Klein, TX',        school: 'Southern Indiana' },
-  // Added off the 6/30 second-half roster; real Presto slug now set directly. He'd
-  // already played 9 games (.217 AVG), but findSlug never resolved him because the
-  // league leaderboard lists him as "K Martin", which doesn't match "Kash Martin" via normPlayerName.
-  { num: 10, name: 'Kash Martin',      slug: 'kashmartin44sc',       pos: 'Utility', cls: 'Sophomore',    ht: '5-10', wt: '185', b: 'R', t: 'R', bday: '11/09/2006', home: 'Westlake, LA',     school: 'Bossier Parish CC' },
+  // Dropped off the 7/26 active roster (Kash Martin, #10) — removed to match the 30-man sheet.
   { num: 11, name: 'Diego Corrales',   slug: 'diegocorrales91v5',    pos: 'P',       cls: 'Junior',       ht: '5-8',  wt: '185', b: 'L', t: 'L', bday: '08/01/2005', home: 'Lake Charles, LA', school: 'McNeese State' },
   // On the official roster; real Presto slug set directly (resolved from the Gators
   // team roster page). No game action yet, so the note shows until his first game.
