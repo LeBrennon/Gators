@@ -202,7 +202,10 @@ const FREE_ADMISSION = {
 // Playoff series info shown on the hero, keyed by date. tag = the series line,
 // note = where the rest of the series is played.
 const PLAYOFF_SERIES = {
-  '20260728': { tag: 'Playoffs · Game 1 — Best-of-3', note: 'Game 2 is away · Game 3 is away (if needed)' },
+  '20260728': { tag: 'Playoffs · Game 1 — Best-of-3', note: 'Game 2 & Game 3 (if needed) are at Acadiana' },
+  '20260729': { tag: 'Playoffs · Game 2 — Best-of-3', note: 'Game 3 (if needed) is Thursday, also at Acadiana' },
+  '20260730': { tag: 'Playoffs · Game 3 — Best-of-3', note: 'Winner advances to Saturday’s championship' },
+  '20260801': { tag: 'TCL Championship — Winner Take All', note: 'Home field goes to the better regular-season record' },
 };
 // Recurring nightly concession promos by weekday (0=Sun..6=Sat). Home games
 // only — these run at Joe Miller Ballpark. No Monday game day.
@@ -5243,6 +5246,7 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .note b{color:var(--bone);font-weight:600;}
 .jloc{text-align:center;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:10px;color:var(--mute);}
 .jplayoff{color:#1a1330;background:linear-gradient(180deg,var(--gold2),var(--gold));}
+.brkwhen{margin-top:8px;text-align:center;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.05em;text-transform:uppercase;font-size:9.5px;color:var(--mute);}
 .jplayoffnote{margin-top:5px;text-align:center;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.05em;text-transform:uppercase;font-size:9.5px;color:var(--gold2);line-height:1.3;}
 .jtheme{margin-top:6px;text-align:center;font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-size:10.5px;color:#1a1330;background:linear-gradient(180deg,var(--gold2),var(--gold));border-radius:999px;padding:4px 11px;line-height:1.2;}
 .jpromos{display:flex;flex-direction:column;align-items:center;}
@@ -6662,8 +6666,8 @@ function renderPlayoffs(d){
   (p.matchups||[]).forEach(function(m){
     h+='<div class="poffmatch">'+poffSlot(byseed[m[0]],gid)+'<div class="poffvs">vs</div>'+poffSlot(byseed[m[1]],gid)+'</div>';
   });
-  h+='<ul class="poffrules"><li>Semifinals are best-of-3 — first to two wins advances.</li>'
-    +'<li>The championship is a single game — winner take all.</li>'
+  h+='<ul class="poffrules"><li>Semifinals (Jul 28–30) are best-of-3 — first to two wins advances.</li>'
+    +'<li>Championship (Sat, Aug 1) is one game, winner take all — the better regular-season record hosts.</li>'
     +'<li>Semifinal lower seed hosts Game 1; higher seed hosts Games 2 &amp; 3 (if needed).</li></ul>';
   (p.notes||[]).forEach(function(n){h+='<div class="poffnote">'+esc(n)+'</div>';});
   if(provisional)h+='<div class="poffnote"><span class="poffprov">•</span> Seeds 3 &amp; 4 reflect the current second-half standings and can still change.</div>';
@@ -6688,10 +6692,11 @@ function renderBracket(d){
   h+='<div class="poffmatch">'
     +'<div class="poffslot tbd"><span class="poffseed">–</span><span class="poffl"></span><span class="poffnm">Semifinal winner</span></div>'
     +'<div class="poffvs">vs</div>'
-    +'<div class="poffslot tbd"><span class="poffseed">–</span><span class="poffl"></span><span class="poffnm">Semifinal winner</span></div></div>';
+    +'<div class="poffslot tbd"><span class="poffseed">–</span><span class="poffl"></span><span class="poffnm">Semifinal winner</span></div></div>'
+    +'<div class="brkwhen">Saturday, August 1 · better regular-season record hosts</div>';
   h+='</div></div>';
-  h+='<ul class="poffrules"><li>Semifinals are best-of-3 — first to two wins advances to the final.</li>'
-    +'<li>The championship is a single game — winner take all.</li>'
+  h+='<ul class="poffrules"><li>Semifinals (Jul 28–30) are best-of-3 — first to two wins advances.</li>'
+    +'<li>Championship (Sat, Aug 1) is one game, winner take all — the better regular-season record hosts.</li>'
     +'<li>Semifinal lower seed hosts Game 1; higher seed hosts Games 2 &amp; 3 (if needed).</li></ul>';
   (p.notes||[]).forEach(function(n){h+='<div class="poffnote">'+esc(n)+'</div>';});
   h+='</div>';
