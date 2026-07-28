@@ -24,8 +24,8 @@ const DATA = {
   "num": "17",
   "pos": "OF",
   "bt": "R/R",
-  "cls": "Freshman",
-  "school": "Lamar University",
+  "cls": "Fr",
+  "school": "Lamar",
   "home": "Nederland, TX",
   "htwt": "6-0 \u00b7 185",
   "bday": "\u2014",
@@ -34,7 +34,7 @@ const DATA = {
   "season": [
     [
       "G",
-      "41"
+      "40"
     ],
     [
       "PA",
@@ -117,7 +117,8 @@ const DATA = {
           "wide",
           "AVG \u00b7 OBP \u00b7 SLG \u2014 OPS .995"
         ]
-      ]
+      ],
+      "OBP = on-base pct (H+BB+HBP per PA) \u00b7 SLG = total bases per AB \u00b7 OPS = OBP + SLG \u00b7 ISO = isolated power (SLG \u2212 AVG) \u00b7 BABIP = batting avg on balls in play \u00b7 XBH = extra-base hits \u00b7 TB = total bases"
     ],
     [
       "PLATE DISCIPLINE",
@@ -154,7 +155,8 @@ const DATA = {
           "SF",
           "4"
         ]
-      ]
+      ],
+      "BB% = walks per PA \u00b7 K% = strikeouts per PA \u00b7 SF = sacrifice flies (not an AB)"
     ],
     [
       "HIT BREAKDOWN",
@@ -189,12 +191,12 @@ const DATA = {
         ],
         [
           "GIDP",
-          "1"
+          "0"
         ]
       ]
     ],
     [
-      "BASE RUNNING & RANKS",
+      "BASE RUNNING",
       [
         [
           "SB",
@@ -211,60 +213,12 @@ const DATA = {
         [
           "SB-ATT",
           "14-17"
-        ],
-        [
-          "TCL Ranks",
-          "RBI 2nd \u00b7 3B 2nd \u00b7 R 3rd",
-          "wide",
-          "OF 308 BATTERS"
-        ],
-        [
-          "",
-          "PA 3rd \u00b7 TB 5th \u00b7 H 5th",
-          "wide",
-          ""
         ]
-      ]
+      ],
+      "SB% = stolen-base success (SB \u00f7 attempts)"
     ]
   ],
-  "key": [
-    [
-      "OBP",
-      "on-base pct"
-    ],
-    [
-      "SLG",
-      "total bases per AB"
-    ],
-    [
-      "OPS",
-      "OBP + SLG"
-    ],
-    [
-      "ISO",
-      "isolated power (SLG\u2212AVG)"
-    ],
-    [
-      "BABIP",
-      "avg on balls in play"
-    ],
-    [
-      "BB%/K%",
-      "walk / strikeout rate"
-    ],
-    [
-      "XBH \u00b7 TB",
-      "extra-base hits \u00b7 total bases"
-    ],
-    [
-      "SB%",
-      "steal success rate"
-    ],
-    [
-      "SF",
-      "sac flies (not an AB)"
-    ]
-  ],
+  "key": [],
   "logTitle": "Game by Game \u2014 Hitting",
   "logCols": [
     "Date",
@@ -858,8 +812,8 @@ const DATA = {
   ],
   "totals": [
     "TOTAL",
-    "41 G",
-    "\u2014",
+    "40 G",
+    "",
     "185",
     "140",
     "35",

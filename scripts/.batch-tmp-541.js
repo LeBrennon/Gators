@@ -24,8 +24,8 @@ const DATA = {
   "num": "17",
   "pos": "OF",
   "bt": "R/R",
-  "cls": "Freshman",
-  "school": "Lamar University",
+  "cls": "Fr",
+  "school": "Lamar",
   "home": "Nederland, TX",
   "htwt": "6-0 \u00b7 185",
   "bday": "\u2014",
@@ -34,7 +34,7 @@ const DATA = {
   "season": [
     [
       "G",
-      "41"
+      "40"
     ],
     [
       "PA",
@@ -117,7 +117,8 @@ const DATA = {
           "wide",
           "AVG \u00b7 OBP \u00b7 SLG \u2014 OPS .995"
         ]
-      ]
+      ],
+      "OBP = on-base pct (H+BB+HBP per PA) \u00b7 SLG = total bases per AB \u00b7 OPS = OBP + SLG \u00b7 ISO = isolated power (SLG \u2212 AVG) \u00b7 BABIP = batting avg on balls in play \u00b7 XBH = extra-base hits \u00b7 TB = total bases"
     ],
     [
       "PLATE DISCIPLINE",
@@ -154,7 +155,8 @@ const DATA = {
           "SF",
           "4"
         ]
-      ]
+      ],
+      "BB% = walks per PA \u00b7 K% = strikeouts per PA \u00b7 SF = sacrifice flies (not an AB)"
     ],
     [
       "HIT BREAKDOWN",
@@ -189,12 +191,12 @@ const DATA = {
         ],
         [
           "GIDP",
-          "1"
+          "0"
         ]
       ]
     ],
     [
-      "BASE RUNNING & RANKS",
+      "BASE RUNNING",
       [
         [
           "SB",
@@ -211,60 +213,12 @@ const DATA = {
         [
           "SB-ATT",
           "14-17"
-        ],
-        [
-          "TCL Ranks",
-          "RBI 2nd \u00b7 3B 2nd \u00b7 R 3rd",
-          "wide",
-          "OF 308 BATTERS"
-        ],
-        [
-          "",
-          "PA 3rd \u00b7 TB 5th \u00b7 H 5th",
-          "wide",
-          ""
         ]
-      ]
+      ],
+      "SB% = stolen-base success (SB \u00f7 attempts)"
     ]
   ],
-  "key": [
-    [
-      "OBP",
-      "on-base pct"
-    ],
-    [
-      "SLG",
-      "total bases per AB"
-    ],
-    [
-      "OPS",
-      "OBP + SLG"
-    ],
-    [
-      "ISO",
-      "isolated power (SLG\u2212AVG)"
-    ],
-    [
-      "BABIP",
-      "avg on balls in play"
-    ],
-    [
-      "BB%/K%",
-      "walk / strikeout rate"
-    ],
-    [
-      "XBH \u00b7 TB",
-      "extra-base hits \u00b7 total bases"
-    ],
-    [
-      "SB%",
-      "steal success rate"
-    ],
-    [
-      "SF",
-      "sac flies (not an AB)"
-    ]
-  ],
+  "key": [],
   "logTitle": "Game by Game \u2014 Hitting",
   "logCols": [
     "Date",
@@ -858,8 +812,8 @@ const DATA = {
   ],
   "totals": [
     "TOTAL",
-    "41 G",
-    "\u2014",
+    "40 G",
+    "",
     "185",
     "140",
     "35",
@@ -900,9 +854,7 @@ function findChromium() {
 }
 
 const logo = b64('gg-logo.png', 'image/png');
-const tcl = b64('scripts/assets/tcl-logo-transparent.png', 'image/png');
 const croc = b64('scripts/assets/croc-band.jpg', 'image/jpeg');
-const fLek = b64('scripts/assets/fonts/leckerli-one-400.ttf', 'font/ttf');
 const fPop7 = b64('scripts/assets/fonts/poppins-700.ttf', 'font/ttf');
 const fPop8 = b64('scripts/assets/fonts/poppins-800.ttf', 'font/ttf');
 const photo = findPhoto(DATA.photoSlug || (DATA.name || '').toLowerCase().replace(/[^a-z]/g, ''));
@@ -922,12 +874,7 @@ const panels = (DATA.groups || []).map(([title, rows, legend]) =>
   rows.map(([l, v, w, sub]) =>
     `<div class="sr${w === 'wide' ? ' w' : ''}"><span class="sl2">${esc(l)}</span>` +
     (sub
-      ? (() => {
-          const vs = v.split('/'), ss = sub.split(' · ');
-          if (vs.length === 3 && ss.length === 3)
-            return `<span class="sv2sub trio">${vs.map((x, i) => `<span class="triocell"><span class="sv2">${esc(x)}</span><span class="svsub">${esc(ss[i])}</span></span>`).join('<span class="sv2 trio-sep">/</span>')}</span>`;
-          return `<span class="sv2sub"><span class="sv2">${esc(v)}</span><span class="svsub">${esc(sub)}</span></span>`;
-        })()
+      ? `<span class="sv2sub"><span class="sv2">${esc(v)}</span><span class="svsub">${esc(sub)}</span></span>`
       : `<span class="sv2">${esc(v)}</span>`) +
     `</div>`).join('') +
   `</div></div>`).join('');
@@ -943,16 +890,16 @@ const gameLogCards = DATA.log.map(r => {
   return `<div class="gcard">
     <div class="gcard-header">
       <div><span class="gcard-date">${date}</span> <span class="gcard-opp">${opp}</span></div>
-      <div class="gcard-res">${res.replace(/^([WL])/, '<span class="res$1">$1</span>')}</div>
+      <div class="gcard-res">${res}</div>
     </div>
     <div class="gcard-stats" style="grid-template-columns: repeat(${evenCols(stats.length)}, 1fr);">${statCells}</div>
   </div>`;
 }).join('');
 
-const seasonKeys = new Set(seasonArr.map(([k]) => k));
-const totTiles = DATA.totals.slice(3).map((v, i) => [v, DATA.logCols[i + 3]])
-  .filter(([, l]) => !seasonKeys.has(l))
-  .map(([v, l]) => `<div class="stat"><div class="sv">${esc(v)}</div><div class="sl">${esc(l)}</div></div>`).join('');
+const totArr = DATA.totals.slice(2);
+const totStats = totArr.map((v, i) => 
+  `<div class="totcard-stat"><div class="tv">${esc(v)}</div><div class="tl">${esc(DATA.logCols[i+2])}</div></div>`
+).join('');
 
 const html = `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
@@ -961,97 +908,83 @@ const html = `<!DOCTYPE html>
 <style>
 @font-face { font-family: 'Poppins'; font-weight: 700; src: url(data:font/ttf;base64,${fPop7}) format('truetype'); }
 @font-face { font-family: 'Poppins'; font-weight: 800; src: url(data:font/ttf;base64,${fPop8}) format('truetype'); }
-@font-face { font-family: 'Leckerli One'; font-weight: 400; src: url(data:font/ttf;base64,${fLek}) format('truetype'); }
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-html { background-color: #16102b; min-height: 100vh; }
-body { position: relative; margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; color: #020200; background-color: #16102b; min-height: 100vh; }
+body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; color: #020200; background: #f4f2ec; }
 .wrap { width: 100%; max-width: 100%; margin: 0 auto; padding: 12px 12px 24px; }
 
 /* Header band */
-.band { position: relative; height: 90px; overflow: hidden; border-radius: 20px; border: 2px solid #ecc913; margin-bottom: 16px; background: linear-gradient(rgba(22,16,43,.42), rgba(22,16,43,.42)), url(${croc}) center 35% / cover no-repeat #241a4e; }
+.band { position: relative; height: 90px; overflow: hidden; border-radius: 20px; border: 2px solid #ecc913; margin-bottom: 16px; }
 .band img.texture { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 35%; }
 .band .shade { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(22,16,43,.45); }
 .band .inner { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; padding: 0 10px; }
 .band img.mark { width: 64px; height: 64px; object-fit: contain; margin-right: 10px; }
-.band .org { font-family: 'Poppins', Georgia, serif; font-weight: 800; font-size: 13px; color: #ffd633; letter-spacing: .5px; white-space: nowrap; }
+.band .org { font-family: Georgia, serif; font-weight: 800; font-size: 13.5px; color: #ffd633; letter-spacing: .5px; white-space: nowrap; }
 .band .sub { font-family: 'Poppins', Georgia, serif; font-size: 7.5px; font-weight: 700; color: #f0ede4; letter-spacing: 1px; text-transform: uppercase; margin-top: 5px; white-space: nowrap; }
 
 /* Identity */
-.id { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; }
-.id .who { flex: 1; text-align: center; container-type: inline-size; display: flex; flex-direction: column; align-items: center; }
-.id .tclid { height: 82px; width: auto; align-self: center; margin-left: 0; margin-right: 10px; flex-shrink: 0; background: #fff; border-radius: 10px; padding: 6px; box-sizing: content-box; }
-.id .ph { margin-left: 10px; width: 90px; height: 90px; border-radius: 10px; object-fit: cover; object-position: center 15%; border: 3px solid #ecc913; background: #ddd; flex-shrink: 0; }
-.id .who { flex: 1; min-width: 0; }
-.id h1 { font-family: 'Poppins', Georgia, serif; font-size: 22px; font-weight: 800; color: #f0ede4; line-height: 1.1; margin-bottom: 3px; }
-.id .role { font-size: 12px; font-weight: 700; color: #ecc913; letter-spacing: 1px; margin-bottom: 8px; }
-.meta { display: grid; grid-template-columns: auto auto; gap: 4px 22px; justify-content: center; text-align: left; }
-.meta div { font-size: 11px; color: #f0ede4; line-height: 1.3; }
-.meta b { color: #9a8cc4; font-size: 8px; text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 1px; }
+.id { display: flex; gap: 12px; margin-bottom: 16px; align-items: flex-start; }
+.id .ph { width: 90px; height: 90px; border-radius: 10px; object-fit: cover; object-position: center 15%; border: 3px solid #ecc913; background: #ddd; flex-shrink: 0; }
+.id .who { flex: 1; min-width: 0; text-align: center; display: flex; flex-direction: column; align-items: center; }
+.id h1 { font-family: Georgia, serif; font-size: 22px; font-weight: 800; color: #4e3191; line-height: 1.1; margin-bottom: 3px; }
+.id .role { font-size: 12px; font-weight: 700; color: #714ad2; letter-spacing: 1px; margin-bottom: 8px; }
+.meta { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; }
+.meta div { font-size: 11px; color: #714ad2; line-height: 1.3; }
+.meta b { color: #4e3191; font-size: 8px; text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 1px; }
 
 /* Season strip - wraps naturally, no horizontal scroll */
-.striptitle { font-family: 'Poppins', Georgia, serif; margin: 0 0 6px; font-size: 10px; font-weight: 700; letter-spacing: 1.8px; color: #b9a6ee; text-transform: uppercase; }
-.stotdiv { grid-column: 1 / -1; border-top: 1px solid rgba(255,255,255,.18); margin: 2px 0; }
-.strip { background: #1e1640; border-radius: 18px; padding: 10px 6px; display: grid; grid-template-columns: repeat(${stripCols}, 1fr); gap: 8px 4px; border: 2px solid #ecc913; margin-bottom: 16px; }
+.striptitle { margin: 0 0 6px; font-size: 10px; font-weight: 700; letter-spacing: 1.8px; color: #714ad2; text-transform: uppercase; }
+.strip { background: #231745; border-radius: 18px; padding: 10px 6px; display: grid; grid-template-columns: repeat(${stripCols}, 1fr); gap: 8px 4px; border: 2px solid #ecc913; }
 .strip .stat { text-align: center; min-width: 48px; }
 .strip .sv { font-family: Georgia, serif; font-size: 20px; font-weight: 800; color: #ecc913; }
-.strip .sl { font-size: 8px; color: #e5e0f0; letter-spacing: .8px; margin-top: 2px; text-transform: uppercase; }
+.strip .sl { font-size: 8px; color: #fcef9d; letter-spacing: .8px; margin-top: 2px; text-transform: uppercase; }
 
 /* Key */
-.keytitle { font-family: 'Poppins', Georgia, serif; margin: 10px 0 4px; font-size: 8px; font-weight: 800; letter-spacing: 1.5px; color: #33205e; text-transform: uppercase; }
-.key { font-size: 10px; color: #33205e; line-height: 1.4; margin-bottom: 12px; }
+.keytitle { margin: 10px 0 4px; font-size: 8px; font-weight: 800; letter-spacing: 1.5px; color: #714ad2; text-transform: uppercase; }
+.key { font-size: 10px; color: #714ad2; line-height: 1.4; margin-bottom: 12px; }
 .key .ki { white-space: nowrap; }
-.key .ki b { color: #33205e; letter-spacing: .3px; }
-.key .ksep { color: #e5e0f0; margin: 0 3px; font-weight: 800; }
+.key .ki b { color: #4e3191; letter-spacing: .3px; }
+.key .ksep { color: #fcef9d; margin: 0 3px; font-weight: 800; }
 
 /* Panels */
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
-.panel { background: #1e1640; border-radius: 14px; padding: 10px; border: 1px solid #41327a; }
-.ptitle { font-family: 'Poppins', Georgia, serif; font-size: 9px; font-weight: 800; letter-spacing: 1.4px; color: #ecc913; border-bottom: 1.5px solid #ecc913; padding-bottom: 4px; margin-bottom: 6px; }
-.pleg { font-size: 8.5px; line-height: 1.6; color: #9a8cc4; margin: -3px 0 7px; }
+.panel { background: #fff; border-radius: 16px; padding: 10px; border: 1px solid #fcef9d; }
+.ptitle { font-size: 9px; font-weight: 800; letter-spacing: 1.4px; color: #4e3191; border-bottom: 1.5px solid #ecc913; padding-bottom: 4px; margin-bottom: 6px; }
+.pleg { font-size: 7.5px; line-height: 1.6; color: #4e3191; margin: -3px 0 7px; }
 .ld { white-space: nowrap; }
 .lsep { color: #ecc913; margin-right: 3px; }
 .sg { display: flex; flex-direction: column; gap: 4px; }
-.sr { display: flex; justify-content: space-between; align-items: center; font-size: 12px; padding: 2px 0; border-bottom: 1px solid rgba(65,50,122,.55); }
+.sr { display: flex; justify-content: space-between; align-items: center; font-size: 12px; padding: 2px 0; border-bottom: 1px solid #f4f2ec; }
 .sr:last-child { border-bottom: none; }
 .sr.w { grid-column: 1 / -1; }
-.sl2 { color: #9a8cc4; font-weight: 700; letter-spacing: .3px; font-size: 10px; }
-.sv2 { color: #f0ede4; font-weight: 800; font-variant-numeric: tabular-nums; font-size: 13px; }
+.sl2 { color: #714ad2; font-weight: 700; letter-spacing: .3px; font-size: 10px; }
+.sv2 { color: #020200; font-weight: 800; font-variant-numeric: tabular-nums; font-size: 13px; }
 .sv2sub { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.15; }
-.sv2sub.trio { flex-direction: row; align-items: flex-start; gap: 1px; }
-.triocell { display: flex; flex-direction: column; align-items: center; }
-.trio-sep { margin: 0 1px; }
-.svsub { font-size: 8px; color: #9a8cc4; font-weight: 700; letter-spacing: .6px; margin-top: 1px; }
+.svsub { font-size: 8px; color: #714ad2; font-weight: 700; letter-spacing: .6px; margin-top: 1px; }
 
 /* Game log - card layout, no table, no horizontal scroll */
-h2 { font-family: 'Poppins', Georgia, serif; font-size: 15px; color: #b9a6ee; border-bottom: 2px solid #ecc913; padding-bottom: 4px; margin-bottom: 8px; }
+h2 { font-family: Georgia, serif; font-size: 15px; color: #4e3191; border-bottom: 2px solid #ecc913; padding-bottom: 4px; margin-bottom: 8px; }
 .glog { display: flex; flex-direction: column; gap: 6px; }
-.gcard { background: #1e1640; border-radius: 14px; padding: 8px 10px; border: 1px solid #41327a; }
-.gcard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; padding-bottom: 4px; border-bottom: 1px solid rgba(65,50,122,.55); }
-.gcard-date { font-size: 12px; font-weight: 800; color: #ecc913; }
-.gcard-opp { font-size: 11px; color: #b9a6ee; }
-.gcard-res { font-size: 12px; font-weight: 800; color: #ecc913; }
-.gcard-res .resW { color: #52cc17; }
-.gcard-res .resL { color: #ff5252; }
+.gcard { background: #fff; border-radius: 14px; padding: 8px 10px; border: 1px solid #fcef9d; }
+.gcard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; padding-bottom: 4px; border-bottom: 1px solid #fcef9d; }
+.gcard-date { font-size: 12px; font-weight: 800; color: #4e3191; }
+.gcard-opp { font-size: 11px; color: #714ad2; }
+.gcard-res { font-size: 12px; font-weight: 800; color: #4e3191; }
 .gcard-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px 6px; }
 .gcard-stat { text-align: center; }
-.gcard-stat .gv { font-size: 15px; font-weight: 800; color: #f0ede4; font-variant-numeric: tabular-nums; }
-.gcard-stat .gl { font-size: 8.5px; color: #9a8cc4; text-transform: uppercase; letter-spacing: .5px; }
+.gcard-stat .gv { font-size: 15px; font-weight: 800; color: #020200; font-variant-numeric: tabular-nums; }
+.gcard-stat .gl { font-size: 8.5px; color: #714ad2; text-transform: uppercase; letter-spacing: .5px; }
 
 /* Totals card */
-.totcard { background: linear-gradient(rgba(22,16,43,.45), rgba(22,16,43,.45)), url(${croc}) center 35% / cover no-repeat #33205e; border-radius: 14px; padding: 10px; margin-top: 6px; border: 2px solid #ecc913; }
+.totcard { background: #16102b; border-radius: 14px; padding: 10px; margin-top: 6px; border: 2px solid #ecc913; }
 .totcard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,.15); }
 .totcard-header .tlabel { font-size: 13px; font-weight: 800; color: #ecc913; }
 .totcard-header .trec { font-size: 12px; font-weight: 800; color: #ecc913; }
 .totcard-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px 6px; }
 .totcard-stat { text-align: center; }
 .totcard-stat .tv { font-size: 14px; font-weight: 800; color: #ecc913; font-variant-numeric: tabular-nums; }
-.totcard-stat .tl { font-size: 8px; color: #e5e0f0; text-transform: uppercase; letter-spacing: .5px; }
+.totcard-stat .tl { font-size: 8px; color: #fcef9d; text-transform: uppercase; letter-spacing: .5px; }
 
 /* Responsive */
-@media (max-width: 480px) {
-  .id .ph { width: 76px; height: 76px; }
-  .id .tclid { height: 68px; }
-}
 @media (max-width: 380px) {
   .id { flex-direction: column; align-items: center; text-align: center; }
   .id .ph { width: 100px; height: 100px; }
@@ -1065,6 +998,8 @@ h2 { font-family: 'Poppins', Georgia, serif; font-size: 15px; color: #b9a6ee; bo
 </style></head>
 <body><div class="wrap">
 <div class="band">
+  <img class="texture" src="${croc}" alt="">
+  <div class="shade"></div>
   <div class="inner">
     <img class="mark" src="${logo}" alt="">
     <div>
@@ -1083,15 +1018,21 @@ h2 { font-family: 'Poppins', Georgia, serif; font-size: 15px; color: #b9a6ee; bo
       .map(([k, v]) => `<div><b>${k}</b>${esc(v)}</div>`).join('')}
     </div>
   </div>
-  <img class="tclid" src="${tcl}" alt="">
 </div>
 <div class="striptitle">${esc(DATA.seasonTitle)}</div>
-<div class="strip">${seasonTiles}<div class="stotdiv"></div>${totTiles}</div>
+<div class="strip">${seasonTiles}</div>
 ${keyRow}
 <div class="grid">${panels}</div>
 <h2>${esc(DATA.logTitle)}</h2>
 <div class="glog">
 ${gameLogCards}
+  <div class="totcard">
+    <div class="totcard-header">
+      <span class="tlabel">${esc(DATA.totals[0])}</span>
+      <span class="trec">${esc(DATA.totals[1])}</span>
+    </div>
+    <div class="totcard-stats" style="grid-template-columns: repeat(${evenCols(totArr.length)}, 1fr);">${totStats}</div>
+  </div>
 </div>
 </div></body></html>`;
 
