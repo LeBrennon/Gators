@@ -133,9 +133,8 @@ def main():
                 has_pa = True
                 hand = throws.get(tkey(cur or ''))
                 pitchers_seen[cur or '?'] += 1
-                side = hand or 'R'  # provisional: unknown hands counted as R until league-throws.json lands
+                S = splits[hand] if hand else collections.defaultdict(int)
                 if not hand: unk[cur or '?'] += 1
-                S = splits[side]
                 v = m.group(0)
                 tail = txt[m.end():m.end() + 45].split(';')[0]
                 if 'sacrifice fly' in tail and re.search(r'(flied|lined|popped) out', v):
@@ -192,7 +191,7 @@ def main():
             s = out[side]
             print(f"{side}: {s['PA']} PA  {s['AVG']:.3f}/{s['OBP']:.3f}/{s['SLG']:.3f}  OPS {s['OPS']:.3f}  "
                   f"H{s['H']} 2B{s['2B']} 3B{s['3B']} HR{s['HR']} BB{s['BB']} K{s['K']} HBP{s['HBP']}")
-        if unk: print(f'NOTE: {sum(unk.values())} PA vs {len(unk)} pitchers with unknown hand (counted as R). Run --need-hands.')
+        if unk: print(f'NOTE: {sum(unk.values())} PA vs {len(unk)} pitchers excluded from splits (unknown hand). Run --need-hands.')
 
 if __name__ == '__main__':
     main()
