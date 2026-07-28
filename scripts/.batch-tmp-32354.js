@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /*
- * Player Season Card — MOBILE BATTER VERSION (no horizontal scroll)
+ * Player Season Card — MOBILE VERSION (no horizontal scroll)
  * Same DATA block as player-season-card.js. Renders a responsive HTML page
  * plus a shareable PNG screenshot. Everything fits within phone width.
  *
@@ -20,857 +20,367 @@ const stemArg = process.argv.slice(2).find(a => a && !a.startsWith('--'));
 // PLAYER DATA — copy this block from player-season-card.js for each player
 // ===========================================================================
 const DATA = {
-  "name": "Ayden Sunday",
-  "num": "17",
-  "pos": "OF",
+  "name": "Brayden Guillory",
+  "num": "47",
+  "pos": "P",
   "bt": "R/R",
-  "cls": "Freshman",
-  "school": "Lamar University",
-  "home": "Nederland, TX",
-  "htwt": "6-0 \u00b7 185",
+  "cls": "R-Fr",
+  "school": "Southern",
+  "home": "Kinder, TX",
+  "htwt": "6-2 \u00b7 200",
   "bday": "\u2014",
-  "photoSlug": "aydensundayyp1j",
-  "seasonTitle": "Season Totals \u2014 Hitting",
+  "photoSlug": "braydenguillory",
+  "seasonTitle": "Season Totals \u2014 Pitching",
   "season": [
     [
-      "G",
-      "41"
+      "APP",
+      "7"
     ],
     [
-      "PA",
-      "185"
+      "GS",
+      "0"
     ],
     [
-      "AVG",
-      ".286"
+      "W",
+      "0"
     ],
     [
-      "OBP",
-      ".438"
+      "L",
+      "0"
     ],
     [
-      "SLG",
-      ".471"
+      "SV",
+      "0"
     ],
     [
-      "OPS",
-      ".909"
+      "ERA",
+      "14.73"
     ],
     [
-      "HR",
+      "WHIP",
+      "2.27"
+    ],
+    [
+      "K",
       "3"
     ],
     [
-      "RBI",
-      "36"
-    ],
-    [
-      "SB",
-      "14"
+      "BB",
+      "9"
     ]
   ],
   "groups": [
     [
-      "PRODUCTION",
+      "RUN PREVENTION",
       [
         [
-          "AVG",
-          ".286"
+          "ERA",
+          "14.73"
         ],
         [
-          "OBP",
-          ".438"
+          "WHIP",
+          "2.27"
         ],
         [
-          "SLG",
-          ".471"
-        ],
-        [
-          "OPS",
-          ".909"
-        ],
-        [
-          "ISO",
-          ".186"
+          "FIP",
+          "8.83"
         ],
         [
           "BABIP",
-          ".339"
+          ".302"
         ],
         [
-          "XBH",
+          "AVG",
+          ".333"
+        ],
+        [
+          "OBP",
+          ".426"
+        ],
+        [
+          "SLG",
+          ".562"
+        ],
+        [
+          "OPS",
+          ".989"
+        ]
+      ],
+      "FIP = fielding-independent pitching (HR, BB, K) \u00b7 BABIP = avg on balls in play \u00b7 WHIP = walks + hits per IP \u00b7 ERA = earned runs per 9 IP"
+    ],
+    [
+      "COMMAND & RATES",
+      [
+        [
+          "K%",
+          "4.9"
+        ],
+        [
+          "BB%",
+          "14.8"
+        ],
+        [
+          "K:BB",
+          "0.33"
+        ],
+        [
+          "K/9",
+          "2.45"
+        ],
+        [
+          "BB/9",
+          "7.36"
+        ],
+        [
+          "H/9",
+          "13.09"
+        ],
+        [
+          "HR/9",
+          "2.45"
+        ],
+        [
+          "P/IP",
+          "19.3"
+        ]
+      ],
+      "K% = strikeouts per batter faced \u00b7 BB% = walks per batter faced \u00b7 P/IP = pitches per inning"
+    ],
+    [
+      "HITTERS AGAINST",
+      [
+        [
+          "BF",
+          "61"
+        ],
+        [
+          "AB",
+          "48"
+        ],
+        [
+          "H",
           "16"
         ],
         [
-          "TB",
-          "66"
-        ],
-        [
-          "vs LHP (52 PA)",
-          ".289/.385/.333",
-          "wide",
-          "AVG \u00b7 OBP \u00b7 SLG \u2014 OPS .718"
-        ],
-        [
-          "vs RHP (133 PA)",
-          ".284/.459/.537",
-          "wide",
-          "AVG \u00b7 OBP \u00b7 SLG \u2014 OPS .995"
-        ]
-      ]
-    ],
-    [
-      "PLATE DISCIPLINE",
-      [
-        [
-          "BB%",
-          "15.1"
-        ],
-        [
-          "K%",
-          "17.3"
-        ],
-        [
-          "BB:K",
-          "0.88"
-        ],
-        [
-          "PA",
-          "185"
-        ],
-        [
-          "BB",
-          "28"
-        ],
-        [
-          "K",
-          "32"
-        ],
-        [
-          "HBP",
-          "13"
-        ],
-        [
-          "SF",
-          "4"
-        ]
-      ]
-    ],
-    [
-      "HIT BREAKDOWN",
-      [
-        [
-          "H",
-          "40"
-        ],
-        [
-          "1B",
-          "24"
-        ],
-        [
           "2B",
-          "9"
+          "2"
         ],
         [
           "3B",
-          "4"
+          "0"
         ],
         [
           "HR",
           "3"
         ],
         [
-          "RBI",
-          "36"
+          "HBP",
+          "1"
+        ],
+        [
+          "SF",
+          "1"
+        ],
+        [
+          "Total (60 PA)",
+          ".333/.426/.562",
+          "wide",
+          "AVG \u00b7 OBP \u00b7 SLG"
+        ],
+        [
+          "vs LHB (19 PA)",
+          ".235/.316/.471",
+          "wide",
+          "AVG \u00b7 OBP \u00b7 SLG"
+        ],
+        [
+          "vs RHB (35 PA)",
+          ".407/.514/.667",
+          "wide",
+          "AVG \u00b7 OBP \u00b7 SLG"
+        ]
+      ],
+      "BF = batters faced"
+    ],
+    [
+      "WORKLOAD",
+      [
+        [
+          "APP",
+          "7"
+        ],
+        [
+          "IP",
+          "11"
+        ],
+        [
+          "IP/APP",
+          "1.6"
+        ],
+        [
+          "BF",
+          "61"
         ],
         [
           "R",
-          "35"
+          "19"
         ],
         [
-          "GIDP",
-          "1"
+          "ER",
+          "18"
+        ],
+        [
+          "#P",
+          "212"
+        ],
+        [
+          "W-L",
+          "0-0"
         ]
-      ]
-    ],
-    [
-      "BASE RUNNING & RANKS",
-      [
-        [
-          "SB",
-          "14"
-        ],
-        [
-          "CS",
-          "3"
-        ],
-        [
-          "SB%",
-          "82.4"
-        ],
-        [
-          "SB-ATT",
-          "14-17"
-        ],
-        [
-          "TCL Ranks",
-          "RBI 2nd \u00b7 3B 2nd \u00b7 R 3rd",
-          "wide",
-          "OF 308 BATTERS"
-        ],
-        [
-          "",
-          "PA 3rd \u00b7 TB 5th \u00b7 H 5th",
-          "wide",
-          ""
-        ]
-      ]
+      ],
+      "IP/APP = innings per appearance \u00b7 #P = total pitches"
     ]
   ],
-  "key": [
-    [
-      "OBP",
-      "on-base pct"
-    ],
-    [
-      "SLG",
-      "total bases per AB"
-    ],
-    [
-      "OPS",
-      "OBP + SLG"
-    ],
-    [
-      "ISO",
-      "isolated power (SLG\u2212AVG)"
-    ],
-    [
-      "BABIP",
-      "avg on balls in play"
-    ],
-    [
-      "BB%/K%",
-      "walk / strikeout rate"
-    ],
-    [
-      "XBH \u00b7 TB",
-      "extra-base hits \u00b7 total bases"
-    ],
-    [
-      "SB%",
-      "steal success rate"
-    ],
-    [
-      "SF",
-      "sac flies (not an AB)"
-    ]
-  ],
-  "logTitle": "Game by Game \u2014 Hitting",
+  "key": [],
+  "logTitle": "Game by Game \u2014 Pitching",
   "logCols": [
     "Date",
     "Opp",
     "Res",
-    "PA",
-    "AB",
-    "R",
+    "IP",
+    "BF",
     "H",
-    "RBI",
+    "R",
+    "ER",
     "BB",
     "K",
-    "SB",
-    "AVG"
+    "#P",
+    "S%",
+    "ERA"
   ],
   "log": [
-    [
-      "6/2",
-      "vs ABI",
-      "W 11-1",
-      "1",
-      "1",
-      "0",
-      "1",
-      "0",
-      "0",
-      "0",
-      "1",
-      "1.000"
-    ],
-    [
-      "6/4",
-      "vs BR",
-      "L 18-5",
-      "4",
-      "4",
-      "0",
-      "1",
-      "1",
-      "0",
-      "1",
-      "1",
-      ".250"
-    ],
-    [
-      "6/5",
-      "at BR",
-      "W 14-1",
-      "7",
-      "4",
-      "2",
-      "2",
-      "1",
-      "2",
-      "0",
-      "1",
-      ".500"
-    ],
-    [
-      "6/6",
-      "at BR",
-      "L 9-8",
-      "6",
-      "2",
-      "2",
-      "0",
-      "1",
-      "1",
-      "2",
-      "0",
-      ".000"
-    ],
-    [
-      "6/7",
-      "at BR",
-      "L 5-4",
-      "5",
-      "4",
-      "2",
-      "1",
-      "0",
-      "1",
-      "1",
-      "0",
-      ".250"
-    ],
-    [
-      "6/9",
-      "vs BR",
-      "W 3-1",
-      "4",
-      "4",
-      "0",
-      "2",
-      "1",
-      "0",
-      "0",
-      "0",
-      ".500"
-    ],
-    [
-      "6/10",
-      "vs BR",
-      "W 8-7",
-      "5",
-      "3",
-      "0",
-      "0",
-      "1",
-      "1",
-      "2",
-      "1",
-      ".000"
-    ],
-    [
-      "6/11",
-      "at ACA",
-      "L 4-3",
-      "1",
-      "1",
-      "0",
-      "0",
-      "0",
-      "0",
-      "1",
-      "0",
-      ".000"
-    ],
-    [
-      "6/12",
-      "vs ACA",
-      "W 16-15",
-      "5",
-      "3",
-      "3",
-      "1",
-      "2",
-      "1",
-      "2",
-      "0",
-      ".333"
-    ],
-    [
-      "6/13",
-      "at VIC",
-      "L 7-6",
-      "6",
-      "5",
-      "1",
-      "2",
-      "4",
-      "0",
-      "0",
-      "0",
-      ".400"
-    ],
-    [
-      "6/14",
-      "at VIC",
-      "L 10-3",
-      "5",
-      "3",
-      "0",
-      "0",
-      "0",
-      "2",
-      "1",
-      "0",
-      ".000"
-    ],
-    [
-      "6/16",
-      "vs ACA",
-      "L 9-5",
-      "5",
-      "3",
-      "1",
-      "0",
-      "0",
-      "2",
-      "2",
-      "1",
-      ".000"
-    ],
-    [
-      "6/17",
-      "vs ACA",
-      "L 11-7",
-      "5",
-      "5",
-      "1",
-      "0",
-      "0",
-      "0",
-      "1",
-      "0",
-      ".000"
-    ],
-    [
-      "6/18",
-      "at ACA",
-      "L 4-2",
-      "1",
-      "1",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      "0",
-      ".000"
-    ],
-    [
-      "6/19",
-      "at ACA",
-      "W 6-3",
-      "5",
-      "4",
-      "1",
-      "0",
-      "0",
-      "1",
-      "1",
-      "0",
-      ".000"
-    ],
-    [
-      "6/20",
-      "at SHE",
-      "W 8-1",
-      "5",
-      "4",
-      "1",
-      "2",
-      "2",
-      "1",
-      "1",
-      "2",
-      ".500"
-    ],
-    [
-      "6/21",
-      "at SHE",
-      "W 12-11",
-      "6",
-      "3",
-      "0",
-      "0",
-      "0",
-      "2",
-      "1",
-      "0",
-      ".000"
-    ],
-    [
-      "6/23",
-      "vs VIC",
-      "W 6-5",
-      "5",
-      "4",
-      "1",
-      "1",
-      "2",
-      "1",
-      "1",
-      "0",
-      ".250"
-    ],
-    [
-      "6/24",
-      "vs VIC",
-      "L 7-3",
-      "4",
-      "4",
-      "1",
-      "2",
-      "1",
-      "0",
-      "0",
-      "0",
-      ".500"
-    ],
-    [
-      "6/25",
-      "at BV",
-      "W 7-0",
-      "2",
-      "1",
-      "0",
-      "0",
-      "0",
-      "1",
-      "0",
-      "1",
-      ".000"
-    ],
-    [
-      "6/26",
-      "at BV",
-      "L 10-8",
-      "5",
-      "4",
-      "1",
-      "3",
-      "2",
-      "0",
-      "0",
-      "0",
-      ".750"
-    ],
-    [
-      "6/27",
-      "vs BR",
-      "W 7-6",
-      "5",
-      "3",
-      "0",
-      "0",
-      "1",
-      "0",
-      "1",
-      "0",
-      ".000"
-    ],
-    [
-      "6/28",
-      "at BR",
-      "W 8-5",
-      "4",
-      "3",
-      "1",
-      "0",
-      "0",
-      "0",
-      "1",
-      "0",
-      ".000"
-    ],
-    [
-      "6/30",
-      "at BV",
-      "L 9-3",
-      "4",
-      "3",
-      "0",
-      "1",
-      "0",
-      "1",
-      "1",
-      "0",
-      ".333"
-    ],
     [
       "7/1",
       "at BV",
       "W 10-8",
-      "5",
-      "5",
+      "3.1",
+      "12",
+      "1",
+      "2",
+      "2",
       "1",
       "3",
-      "2",
-      "0",
-      "0",
-      "1",
-      ".600"
-    ],
-    [
-      "7/2",
-      "vs SA",
-      "W 16-0",
-      "6",
-      "6",
-      "2",
-      "2",
-      "0",
-      "0",
-      "0",
-      "0",
-      ".333"
-    ],
-    [
-      "7/3",
-      "vs SA",
-      "W 9-7",
-      "4",
-      "3",
-      "1",
-      "2",
-      "6",
-      "0",
-      "0",
-      "0",
-      ".667"
-    ],
-    [
-      "7/4",
-      "vs BV",
-      "W 7-3",
-      "5",
-      "5",
-      "1",
-      "2",
-      "1",
-      "0",
-      "1",
-      "1",
-      ".400"
+      "41",
+      "41%",
+      "5.40"
     ],
     [
       "7/7",
       "at ACA",
       "L 7-4",
-      "5",
+      "0.2",
       "4",
-      "0",
-      "2",
-      "1",
       "1",
       "0",
+      "0",
       "1",
-      ".500"
+      "0",
+      "14",
+      "43%",
+      "0.00"
     ],
     [
-      "7/8",
-      "vs ACA",
-      "W 15-6",
-      "5",
-      "2",
-      "0",
-      "0",
-      "0",
-      "3",
-      "1",
-      "0",
-      ".000"
-    ],
-    [
-      "7/9",
-      "at ABI",
-      "L 5-4",
-      "4",
-      "4",
-      "0",
-      "0",
-      "0",
-      "0",
-      "3",
-      "0",
-      ".000"
-    ],
-    [
-      "7/10",
-      "at ABI",
-      "L 4-3",
-      "4",
-      "4",
-      "1",
-      "1",
-      "0",
-      "0",
-      "1",
-      "0",
-      ".250"
-    ],
-    [
-      "7/12 G1",
-      "at SA",
-      "W 3-2",
-      "4",
-      "3",
-      "0",
-      "1",
-      "0",
-      "1",
-      "0",
-      "0",
-      ".333"
-    ],
-    [
-      "7/12 G2",
+      "7/12",
       "at SA",
       "L 8-4",
-      "4",
-      "4",
-      "1",
-      "1",
-      "0",
-      "0",
-      "1",
-      "0",
-      ".250"
-    ],
-    [
-      "7/14",
-      "vs BR",
-      "W 5-4",
+      "3.1",
+      "16",
       "5",
-      "3",
-      "0",
-      "0",
-      "1",
-      "1",
+      "5",
+      "5",
       "1",
       "0",
-      ".000"
+      "56",
+      "63%",
+      "13.50"
     ],
     [
       "7/15",
       "at BR",
       "L 9-2",
-      "4",
-      "4",
-      "0",
-      "1",
-      "1",
-      "0",
-      "0",
-      "0",
-      ".250"
-    ],
-    [
-      "7/16",
-      "vs BR",
-      "W 10-2",
+      "1.2",
+      "9",
+      "3",
       "5",
-      "3",
-      "1",
-      "1",
-      "2",
-      "1",
-      "0",
-      "1",
-      ".333"
-    ],
-    [
-      "7/18",
-      "vs BV",
-      "W 11-8",
-      "5",
-      "3",
       "4",
-      "3",
       "1",
-      "2",
       "0",
-      "1",
-      "1.000"
+      "41",
+      "54%",
+      "21.60"
     ],
     [
       "7/19",
       "vs BV",
       "W 14-11",
-      "6",
+      "0.2",
+      "7",
       "3",
-      "2",
-      "0",
-      "1",
-      "1",
-      "1",
-      "0",
-      ".000"
-    ],
-    [
-      "7/21",
-      "at VIC",
-      "W 12-7",
       "5",
-      "4",
-      "3",
+      "5",
       "2",
-      "1",
-      "1",
-      "1",
-      "1",
-      ".500"
+      "0",
+      "23",
+      "57%",
+      "67.50"
     ],
     [
-      "7/22",
-      "at VIC",
-      "L 6-0",
-      "4",
-      "4",
+      "7/23",
+      "vs SHE",
+      "W 8-7",
+      "1.0",
+      "6",
+      "2",
+      "2",
+      "2",
+      "1",
       "0",
-      "0",
+      "21",
+      "52%",
+      "18.00"
+    ],
+    [
+      "7/26",
+      "vs ABI",
+      "W 5-4",
+      "0.1",
+      "4",
+      "1",
       "0",
       "0",
       "2",
       "0",
-      ".000"
+      "16",
+      "44%",
+      "0.00"
     ]
   ],
   "totals": [
     "TOTAL",
-    "41 G",
-    "\u2014",
-    "185",
-    "140",
-    "35",
-    "40",
-    "36",
-    "28",
-    "32",
-    "14",
-    ".286"
+    "7 APP",
+    "",
+    "11",
+    "58",
+    "16",
+    "19",
+    "18",
+    "9",
+    "3",
+    "212",
+    "53%",
+    "14.73"
   ]
-};;;
+};
 // ===========================================================================
 // GENERIC RENDERING — do not edit below this line
 // ===========================================================================
@@ -901,8 +411,6 @@ function findChromium() {
 
 const logo = b64('gg-logo.png', 'image/png');
 const croc = b64('scripts/assets/croc-band.jpg', 'image/jpeg');
-const fPop7 = b64('scripts/assets/fonts/poppins-700.ttf', 'font/ttf');
-const fPop8 = b64('scripts/assets/fonts/poppins-800.ttf', 'font/ttf');
 const photo = findPhoto(DATA.photoSlug || (DATA.name || '').toLowerCase().replace(/[^a-z]/g, ''));
 
 const seasonArr = DATA.season.filter(([k, v]) => !(k === 'GS' && String(v) === '0'));
@@ -952,8 +460,6 @@ const html = `<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>${esc(DATA.name)} — 2026 Summer Stats</title>
 <style>
-@font-face { font-family: 'Poppins'; font-weight: 700; src: url(data:font/ttf;base64,${fPop7}) format('truetype'); }
-@font-face { font-family: 'Poppins'; font-weight: 800; src: url(data:font/ttf;base64,${fPop8}) format('truetype'); }
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; color: #020200; background: #f4f2ec; }
 .wrap { width: 100%; max-width: 100%; margin: 0 auto; padding: 12px 12px 24px; }
@@ -965,12 +471,12 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neu
 .band .inner { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; padding: 0 10px; }
 .band img.mark { width: 64px; height: 64px; object-fit: contain; margin-right: 10px; }
 .band .org { font-family: Georgia, serif; font-weight: 800; font-size: 13.5px; color: #ffd633; letter-spacing: .5px; white-space: nowrap; }
-.band .sub { font-family: 'Poppins', Georgia, serif; font-size: 7.5px; font-weight: 700; color: #f0ede4; letter-spacing: 1px; text-transform: uppercase; margin-top: 5px; white-space: nowrap; }
+.band .sub { font-size: 9px; color: #cfc6ea; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 3px; }
 
 /* Identity */
 .id { display: flex; gap: 12px; margin-bottom: 16px; align-items: flex-start; }
 .id .ph { width: 90px; height: 90px; border-radius: 10px; object-fit: cover; object-position: center 15%; border: 3px solid #ecc913; background: #ddd; flex-shrink: 0; }
-.id .who { flex: 1; min-width: 0; text-align: center; display: flex; flex-direction: column; align-items: center; }
+.id .who { flex: 1; min-width: 0; }
 .id h1 { font-family: Georgia, serif; font-size: 22px; font-weight: 800; color: #4e3191; line-height: 1.1; margin-bottom: 3px; }
 .id .role { font-size: 12px; font-weight: 700; color: #714ad2; letter-spacing: 1px; margin-bottom: 8px; }
 .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; }
@@ -979,7 +485,7 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neu
 
 /* Season strip - wraps naturally, no horizontal scroll */
 .striptitle { margin: 0 0 6px; font-size: 10px; font-weight: 700; letter-spacing: 1.8px; color: #714ad2; text-transform: uppercase; }
-.strip { background: #231745; border-radius: 18px; padding: 10px 6px; display: grid; grid-template-columns: repeat(${stripCols}, 1fr); gap: 8px 4px; border: 2px solid #ecc913; }
+.strip { background: #33205e; border-radius: 18px; padding: 10px 6px; display: grid; grid-template-columns: repeat(${stripCols}, 1fr); gap: 8px 4px; border: 2px solid #ecc913; }
 .strip .stat { text-align: center; min-width: 48px; }
 .strip .sv { font-family: Georgia, serif; font-size: 20px; font-weight: 800; color: #ecc913; }
 .strip .sl { font-size: 8px; color: #fcef9d; letter-spacing: .8px; margin-top: 2px; text-transform: uppercase; }
@@ -1057,7 +563,7 @@ h2 { font-family: Georgia, serif; font-size: 15px; color: #4e3191; border-bottom
 <div class="id">
   <img class="ph" src="${photo}" alt="">
   <div class="who">
-    <h1 style="font-size: min(18px, calc((100vw - 235px) / ${(0.65 * DATA.name.length).toFixed(2)})); white-space: nowrap;">${esc(DATA.name.toUpperCase())}</h1>
+    <h1>${esc(DATA.name.toUpperCase())}</h1>
     <div class="role">#${esc(DATA.num)} &middot; ${esc(DATA.pos)} &middot; B/T: ${esc(DATA.bt)}</div>
     <div class="meta">${[['Class', DATA.cls], ['School', DATA.school], ['Hometown', DATA.home], ['Ht / Wt', DATA.htwt], ['Born', DATA.bday]]
       .filter(([, v]) => v && String(v).trim() !== '' && String(v).trim() !== '—' && String(v).trim().toUpperCase() !== 'N/A')

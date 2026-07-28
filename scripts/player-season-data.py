@@ -121,7 +121,7 @@ def game_meta(g):
 
 BVERBS = ('sacrifice fly|sacrifice bunt|singled|doubled|tripled|homered|was intentionally walked|intentionally walked|walked|'
           'struck out|hit by pitch|reached on|reached first|grounded out|flied out|lined out|popped up|'
-          'fouled out|infield fly|grounded into double play|out on batter.s interference|out at first')
+          'fouled out|infield fly|grounded into double play|lined into double play|flied into double play|out on batter.s interference|out at first')
 PITCH_SEQ = re.compile(r'\((?:\d+-\d+\s+)?([BCFHKLMNOPQRSTUVXZ*+.\s]+)\)\s*$')
 
 def parse_pitch_seqs(txt):
@@ -182,7 +182,7 @@ def batter_card(player, mobile=False):
                 S = splits[hand] if hand else collections.defaultdict(int)
                 v = m.group(0); tail = txt[m.end():m.end() + 80].split(')')[0].split(';')[0]
                 ev = None
-                if ('sacrifice fly' in tail or re.search(r',\s*SAC\b', tail)) and re.search(r'(flied|lined|popped) out', v): ev = 'SF'
+                if ('sacrifice fly' in tail or re.search(r',\s*SAC\b', tail)) and re.search(r'(flied|lined) out|popped (out|up)', v): ev = 'SF'
                 elif 'out at first' in v and ('picked off' in tail or 'caught stealing' in tail): ev = None
                 elif re.search(r',\s*SAC\b', tail) and re.search(r'(out at first|grounded out|reached)', v): ev = 'SH'
                 elif 'struck out' in v: ev = 'K'
@@ -234,7 +234,9 @@ def batter_card(player, mobile=False):
         spa = S['PA']  # SF events already incremented PA above
         stb = S['1B'] + 2 * S['2B'] + 3 * S['3B'] + 4 * S['HR']
         savg = sh_ / sab if sab else 0
-        sobp = (sh_ + S['BB'] + S['HBP']) / spa if spa else 0
+        # standard OBP denominator: AB + BB + HBP + SF (sac bunts excluded)
+        obp_den = sab + S['BB'] + S['HBP'] + S['SF']
+        sobp = (sh_ + S['BB'] + S['HBP']) / obp_den if obp_den else 0
         sslg = stb / sab if sab else 0
         return spa, savg, sobp, sslg
     lpa, lavg, lobp, lslg = slash(splits['L']); rpa, ravg, robp, rslg = slash(splits['R'])
@@ -339,16 +341,18 @@ def pitcher_card(player, mobile=False):
                 elif verb == 'sacrifice bunt': ev = 'SH'
                 elif verb == 'sacrifice fly': ev = 'SF'
                 else: ev = 'O'
+                if '. ' in batter: batter = batter.split('. ')[-1]  # unglue sentence-boundary names ("Cade Robin. Hayden Ramage")
                 bats = lookup(BATS, batter)
                 if bats == 'S':  # switch hitter bats opposite the pitcher's throwing hand
                     p_hand = (ROSTER.get(player, {}).get('bt') or '—/—').split('/')[-1]
                     bats = 'L' if p_hand == 'R' else 'R'
                 S = splits[bats] if bats in ('L', 'R') else collections.defaultdict(int)
-                S[ev] += 1; S['PA'] += 1; per[ev] += 1; tot[ev] += 1
+                S[ev] += 1; S['PA'] += 1; per[ev] += 1; per['PA'] += 1; tot[ev] += 1
                 if ev in ('1B', '2B', '3B', 'HR'): S['H'] += 1; per['H'] += 1; tot['H'] += 1
                 if ev in ('1B', '2B', '3B', 'HR', 'K', 'O'): S['AB'] += 1; per['AB'] += 1; tot['AB'] += 1
                 tot['PA'] += 1
         bg = [b for b in box_games if b['gid'] == gid][0]
+        bg['bf_pbp'] = per['PA']  # true batters faced from play-by-play
         if per['H'] != bg['h'] or per['BB'] != bg['bb'] or per['K'] != bg['k']:
             bad += 1; print(f'  MISMATCH {dt} box H/BB/K {bg["h"]}/{bg["bb"]}/{bg["k"]} pbp {per["H"]}/{per["BB"]}/{per["K"]}', file=sys.stderr)
     outs = sum(int(b['ip'].split('.')[0]) * 3 + int(b['ip'].split('.')[1]) for b in box_games)
@@ -357,7 +361,7 @@ def pitcher_card(player, mobile=False):
     bb = sum(b['bb'] for b in box_games); k = sum(b['k'] for b in box_games)
     r = sum(b['r'] for b in box_games); np_ = sum(b['np'] for b in box_games)
     hr = tot['HR']; hbp = tot['HBP']; sf = tot['SF']
-    bf = tot['PA'] + tot['SF']
+    bf = tot['PA']  # batters faced = plate appearances against (SF/SH already counted in PA)
     ab = tot['AB']
     ha = tot['H']
     one, two, thr = tot['1B'], tot['2B'], tot['3B']
@@ -366,7 +370,8 @@ def pitcher_card(player, mobile=False):
     whip = (bb + h) / ip if ip else 0
     fip = ((13 * hr + 3 * (bb + hbp) - 2 * k) / ip + 3.10) if ip else 0
     avg = ha / ab if ab else 0
-    obp = (ha + bb + hbp) / bf if bf else 0
+    obp_den = ab + bb + hbp + sf  # standard OBP denominator (sac bunts excluded)
+    obp = (ha + bb + hbp) / obp_den if obp_den else 0
     slg = tb / ab if ab else 0
     babip_den = ab - k - hr + sf
     babip = (ha - hr) / babip_den if babip_den else 0
@@ -377,7 +382,9 @@ def pitcher_card(player, mobile=False):
         stb = S['1B'] + 2 * S['2B'] + 3 * S['3B'] + 4 * S['HR']
         sbb = S['BB']; shp = S['HBP']
         savg = sh_ / sab if sab else 0
-        sobp = (sh_ + sbb + shp) / spa if spa else 0
+        # standard OBP denominator: AB + BB + HBP + SF (sac bunts excluded)
+        obp_den = sab + sbb + shp + S['SF']
+        sobp = (sh_ + sbb + shp) / obp_den if obp_den else 0
         sslg = stb / sab if sab else 0
         return spa, savg, sobp, sslg
     lpa, lavg, lobp, lslg = slash(splits['L']); rpa, ravg, robp, rslg = slash(splits['R'])
@@ -387,9 +394,10 @@ def pitcher_card(player, mobile=False):
     for b in box_games:
         label = f"{MON[b['dt'][4:6]]} {int(b['dt'][6:8])}" if not mobile else f"{int(b['dt'][4:6])}/{int(b['dt'][6:8])}"
         gera = '—' if b['ip'] == '0.0' else '%.2f' % (9 * b['er'] / (int(b['ip'].split('.')[0]) + int(b['ip'].split('.')[1]) / 3))
-        # BF estimate: box doesn't have it; skip -> use H+BB+outs? use outs+H+BB approx
+        # BF: true count from play-by-play (box BF column is unreliable in this league);
+        # fall back to outs+H+BB approximation only if PBP is missing for the game
         outs_g = int(b['ip'].split('.')[0]) * 3 + int(b['ip'].split('.')[1])
-        bf_g = outs_g + b['h'] + b['bb']  # approximation (ignores ROE/FC/DP)
+        bf_g = b.get('bf_pbp') or (outs_g + b['h'] + b['bb'])
         if mobile:
             games.append([label, ('vs ' if b['home'] else 'at ') + ABBR[b['opp']], b['res'].replace(', ', ' '),
                           b['ip'], str(bf_g), str(b['h']), str(b['r']), str(b['er']), str(b['bb']), str(b['k']),

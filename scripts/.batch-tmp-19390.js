@@ -22,63 +22,364 @@ const stemArg = process.argv.slice(2).find(a => a && !a.startsWith('--'));
 const DATA = {
   "name": "Brayden Guillory",
   "num": "47",
-  "pos": "RHP",
+  "pos": "P",
   "bt": "R/R",
-  "cls": "R-Freshman",
-  "school": "Southern University",
-  "home": "Kinder, LA",
-  "htwt": "6-2 · 200",
-  "bday": "11/17/2005",
+  "cls": "R-Fr",
+  "school": "Southern",
+  "home": "Kinder, TX",
+  "htwt": "6-2 \u00b7 200",
+  "bday": "\u2014",
   "photoSlug": "braydenguillory",
-  "seasonTitle": "Season Totals — Pitching",
+  "seasonTitle": "Season Totals \u2014 Pitching",
   "season": [
-    ["APP","7"],["GS","0"],["IP","11.0"],["BF","60"],
-    ["ERA","14.73"],["WHIP","2.27"],["FIP","8.83"],
-    ["K","3"],["BB","9"],["H","16"]
+    [
+      "APP",
+      "7"
+    ],
+    [
+      "GS",
+      "0"
+    ],
+    [
+      "W",
+      "0"
+    ],
+    [
+      "L",
+      "0"
+    ],
+    [
+      "SV",
+      "0"
+    ],
+    [
+      "ERA",
+      "14.73"
+    ],
+    [
+      "WHIP",
+      "2.27"
+    ],
+    [
+      "K",
+      "3"
+    ],
+    [
+      "BB",
+      "9"
+    ]
   ],
   "groups": [
-    ["RUN PREVENTION",[
-      ["ERA","14.73"],["WHIP","2.27"],["FIP","8.83"],["BABIP",".302"],
-      ["AVG",".333","wide","vs LHB .222 · vs RHB .400"],
-      ["OBP",".441","wide","vs LHB .333 · vs RHB .500"],
-      ["SLG",".562","wide","vs LHB .444 · vs RHB .633"]
-    ]],
-    ["COMMAND & RATES",[
-      ["K%","5.0"],["BB%","15.0"],["K:BB","0.33"],["FPS%","60.0"],
-      ["K/9","2.5"],["BB/9","7.4"],["H/9","13.1"],["P/BF","3.5"]
-    ]],
-    ["HITTERS AGAINST",[
-      ["AB","48"],["2B","2"],["HR","3"],["HBP","1"],
-      ["SF","1"],["OPS","1.003"],["ISO",".229"],["P/IP","19.3"],
-      ["vs LHB (21 PA)",".222/.333/.444","wide","AVG · OBP · SLG"],
-      ["vs RHB (39 PA)",".400/.500/.633","wide","AVG · OBP · SLG"]
-    ]],
-    ["PITCH PROFILE",[
-      ["#P","212"],["S%","52"],["GB%","40"],["FB%","36"],
-      ["LD%","4"],["PU%","20"],["",""],["",""]
-    ]]
+    [
+      "RUN PREVENTION",
+      [
+        [
+          "ERA",
+          "14.73"
+        ],
+        [
+          "WHIP",
+          "2.27"
+        ],
+        [
+          "FIP",
+          "8.83"
+        ],
+        [
+          "BABIP",
+          ".302"
+        ],
+        [
+          "AVG",
+          ".333"
+        ],
+        [
+          "OBP",
+          ".441"
+        ],
+        [
+          "SLG",
+          ".562"
+        ],
+        [
+          "OPS",
+          "1.003"
+        ]
+      ],
+      "FIP = fielding-independent pitching (HR, BB, K) \u00b7 BABIP = avg on balls in play \u00b7 WHIP = walks + hits per IP \u00b7 ERA = earned runs per 9 IP"
+    ],
+    [
+      "COMMAND & RATES",
+      [
+        [
+          "K%",
+          "5.0"
+        ],
+        [
+          "BB%",
+          "15.0"
+        ],
+        [
+          "K:BB",
+          "0.33"
+        ],
+        [
+          "K/9",
+          "2.45"
+        ],
+        [
+          "BB/9",
+          "7.36"
+        ],
+        [
+          "H/9",
+          "13.09"
+        ],
+        [
+          "HR/9",
+          "2.45"
+        ],
+        [
+          "P/IP",
+          "19.3"
+        ]
+      ],
+      "K% = strikeouts per batter faced \u00b7 BB% = walks per batter faced \u00b7 P/IP = pitches per inning"
+    ],
+    [
+      "HITTERS AGAINST",
+      [
+        [
+          "BF",
+          "60"
+        ],
+        [
+          "AB",
+          "48"
+        ],
+        [
+          "H",
+          "16"
+        ],
+        [
+          "2B",
+          "2"
+        ],
+        [
+          "3B",
+          "0"
+        ],
+        [
+          "HR",
+          "3"
+        ],
+        [
+          "HBP",
+          "1"
+        ],
+        [
+          "SF",
+          "1"
+        ],
+        [
+          "Total (60 PA)",
+          ".333/.441/.562",
+          "wide",
+          "AVG \u00b7 OBP \u00b7 SLG"
+        ],
+        [
+          "vs LHB (21 PA)",
+          ".222/.333/.444",
+          "wide",
+          "AVG \u00b7 OBP \u00b7 SLG"
+        ],
+        [
+          "vs RHB (39 PA)",
+          ".400/.500/.633",
+          "wide",
+          "AVG \u00b7 OBP \u00b7 SLG"
+        ]
+      ],
+      "BF = batters faced"
+    ],
+    [
+      "WORKLOAD",
+      [
+        [
+          "APP",
+          "7"
+        ],
+        [
+          "IP",
+          "11"
+        ],
+        [
+          "IP/APP",
+          "1.6"
+        ],
+        [
+          "BF",
+          "60"
+        ],
+        [
+          "R",
+          "19"
+        ],
+        [
+          "ER",
+          "18"
+        ],
+        [
+          "#P",
+          "212"
+        ],
+        [
+          "W-L",
+          "0-0"
+        ]
+      ],
+      "IP/APP = innings per appearance \u00b7 #P = total pitches"
+    ]
   ],
-  "key": [
-    ["ERA","Earned Run Average"],
-    ["WHIP","Walks + Hits per Inning"],
-    ["FIP","Fielding Independent Pitching"],
-    ["BABIP","Batting Avg on Balls In Play"],
-    ["FPS%","First Pitch Strike"],
-    ["ISO","Isolated Power"],
-    ["K:BB","Strikeout to Walk ratio"]
+  "key": [],
+  "logTitle": "Game by Game \u2014 Pitching",
+  "logCols": [
+    "Date",
+    "Opp",
+    "Res",
+    "IP",
+    "BF",
+    "H",
+    "R",
+    "ER",
+    "BB",
+    "K",
+    "#P",
+    "S%",
+    "ERA"
   ],
-  "logTitle": "Game Log — Pitching",
-  "logCols": ["Date","Opp","Res","IP","H","R","ER","BB","K","HR","HBP","BF","#P"],
   "log": [
-    ["6/4","vs BOM","L 4-10","1.0","3","4","4","2","0","1","0","10","28"],
-    ["6/7","vs BUR","L 3-8","1.0","1","1","1","0","0","0","0","5","18"],
-    ["6/11","vs WAC","L 6-10","2.0","3","3","3","1","1","0","0","11","38"],
-    ["6/15","vs SA","L 5-9","2.0","2","2","2","1","0","0","1","10","32"],
-    ["6/19","vs BOM","L 2-14","2.0","3","5","4","2","1","1","0","13","42"],
-    ["6/25","vs WAC","L 3-12","1.0","2","2","2","1","0","0","0","6","22"],
-    ["7/7","vs BOM","L 1-13","2.0","2","1","1","2","1","1","0","5","32"]
+    [
+      "7/1",
+      "at BV",
+      "W 10-8",
+      "3.1",
+      "12",
+      "1",
+      "2",
+      "2",
+      "1",
+      "3",
+      "41",
+      "41%",
+      "5.40"
+    ],
+    [
+      "7/7",
+      "at ACA",
+      "L 7-4",
+      "0.2",
+      "3",
+      "1",
+      "0",
+      "0",
+      "1",
+      "0",
+      "14",
+      "43%",
+      "0.00"
+    ],
+    [
+      "7/12",
+      "at SA",
+      "L 8-4",
+      "3.1",
+      "17",
+      "5",
+      "5",
+      "5",
+      "1",
+      "0",
+      "56",
+      "63%",
+      "13.50"
+    ],
+    [
+      "7/15",
+      "at BR",
+      "L 9-2",
+      "1.2",
+      "11",
+      "3",
+      "5",
+      "4",
+      "1",
+      "0",
+      "41",
+      "54%",
+      "21.60"
+    ],
+    [
+      "7/19",
+      "vs BV",
+      "W 14-11",
+      "0.2",
+      "7",
+      "3",
+      "5",
+      "5",
+      "2",
+      "0",
+      "23",
+      "57%",
+      "67.50"
+    ],
+    [
+      "7/23",
+      "vs SHE",
+      "W 8-7",
+      "1.0",
+      "6",
+      "2",
+      "2",
+      "2",
+      "1",
+      "0",
+      "21",
+      "52%",
+      "18.00"
+    ],
+    [
+      "7/26",
+      "vs ABI",
+      "W 5-4",
+      "0.1",
+      "4",
+      "1",
+      "0",
+      "0",
+      "2",
+      "0",
+      "16",
+      "44%",
+      "0.00"
+    ]
   ],
-  "totals": ["Total","0-7","—","11.0","16","19","18","9","3","3","1","60","212"]
+  "totals": [
+    "TOTAL",
+    "7 APP",
+    "",
+    "11",
+    "60",
+    "16",
+    "19",
+    "18",
+    "9",
+    "3",
+    "212",
+    "53%",
+    "14.73"
+  ]
 };
 // ===========================================================================
 // GENERIC RENDERING — do not edit below this line

@@ -5,8 +5,8 @@
  * panels (Savant-style: run prevention, command & rates, hitters-against,
  * pitch profile), and a game-by-game table with totals + column labels.
  * Club branding per docs/HANDOFF.md: croc-skin bands (hue-locked to the
- * #4e3191 family via scripts/assets/croc-band.jpg), gold border, purples
- * #4e3191 dark / #714ad2 accent, gold #ecc913/#ecc913.
+ * #33205e family via scripts/assets/croc-band.jpg), gold border, purples
+ * #33205e dark / #33205e accent, gold #ecc913/#ecc913.
  *
  * This is a hand-fed renderer: fill in the DATA block below for the player
  * and run it. Everything below DATA is generic — do not edit it per player.
@@ -471,6 +471,10 @@ function findChromium() {
 }
 
 const logo = b64('gg-logo.png', 'image/png');
+const tcl = b64('scripts/assets/tcl-logo-transparent.png', 'image/png');
+const fPop7 = b64('scripts/assets/fonts/poppins-700.ttf', 'font/ttf');
+const fPop8 = b64('scripts/assets/fonts/poppins-800.ttf', 'font/ttf');
+const fLek = b64('scripts/assets/fonts/leckerli-one-400.ttf', 'font/ttf');
 const croc = b64('scripts/assets/croc-band.jpg', 'image/jpeg');   // hue-locked croc band
 const photo = findPhoto(DATA.photoSlug || (DATA.name || '').toLowerCase().replace(/[^a-z]/g, ''));
 
@@ -511,6 +515,9 @@ const totCells = DATA.totals.map((v, i) => {
 const html = `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><title>${esc(DATA.name)} — 2026 Summer Stats</title>
 <style>
+@font-face { font-family: 'Poppins'; font-weight: 700; src: url(data:font/ttf;base64,${fPop7}) format('truetype'); }
+@font-face { font-family: 'Poppins'; font-weight: 800; src: url(data:font/ttf;base64,${fPop8}) format('truetype'); }
+@font-face { font-family: 'Leckerli One'; font-weight: 400; src: url(data:font/ttf;base64,${fLek}) format('truetype'); }
 @page { size: letter; margin: 0; }
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #020200; }
@@ -521,48 +528,49 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
 .band .shade { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(22,16,43,.38); }
 .band .inner { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; padding: 0 30px; }
 .band img.mark { width: 102px; height: 102px; object-fit: contain; margin-right: 22px; }
-.band .org { font-family: Georgia, serif; font-weight: 800; font-size: 23px; color: #ffd633; letter-spacing: 1.2px; }
-.band .sub { font-size: 11px; color: #cfc6ea; letter-spacing: 2.2px; text-transform: uppercase; margin-top: 6px; }
+.band .org { font-family: 'Poppins', Georgia, serif; font-weight: 800; font-size: 23px; color: #ffd633; letter-spacing: 1.2px; }
+.band .sub { font-family: 'Leckerli One', cursive; font-size: 14px; color: #cfc6ea; letter-spacing: 1px; margin-top: 6px; }
 .id { display: flex; padding: 16px 45px 8px; }
-.id .ph { width: 118px; height: 118px; border-radius: 9px; object-fit: cover; object-position: center 15%; border: 4px solid #ecc913; background: #ddd; }
-.id .who { margin-left: 22px; flex: 1; }
-.id h1 { font-family: Georgia, serif; font-size: 35px; font-weight: 800; color: #4e3191; white-space: nowrap; }
-.id .role { font-size: 14px; font-weight: 700; color: #714ad2; letter-spacing: 1.4px; margin-top: 3px; }
-.meta { display: flex; flex-wrap: wrap; margin-top: 14px; }
-.meta div { font-size: 11.5px; color: #714ad2; margin-right: 24px; line-height: 1.7; }
-.meta b { color: #4e3191; font-size: 9px; text-transform: uppercase; letter-spacing: .7px; display: block; }
-.striptitle { margin: 12px 45px 0; font-size: 10.5px; font-weight: 700; letter-spacing: 2.2px; color: #714ad2; text-transform: uppercase; }
-.strip { margin: 6px 45px 0; background: #231745; border-radius: 8px; padding: 11px 6px; display: flex; justify-content: space-around; border: 2px solid #ecc913; }
+.id .ph { margin-left: 16px; width: 118px; height: 118px; border-radius: 9px; object-fit: cover; object-position: center 15%; border: 4px solid #ecc913; background: #ddd; }
+.id .who { margin-left: 22px; flex: 1; text-align: center; }
+.id .tclid { height: 118px; width: auto; align-self: center; margin-left: 24px; margin-right: 16px; }
+.id h1 { font-family: 'Poppins', Georgia, serif; font-size: 35px; font-weight: 800; color: #33205e; white-space: nowrap; }
+.id .role { font-size: 14px; font-weight: 700; color: #33205e; letter-spacing: 1.4px; margin-top: 3px; }
+.meta { display: flex; flex-wrap: wrap; justify-content: center; margin-top: 14px; }
+.meta div { font-size: 11.5px; color: #33205e; margin-right: 24px; line-height: 1.7; }
+.meta b { color: #33205e; font-size: 9px; text-transform: uppercase; letter-spacing: .7px; display: block; }
+.striptitle { font-family: 'Poppins', Georgia, serif; margin: 12px 45px 0; font-size: 10.5px; font-weight: 700; letter-spacing: 2.2px; color: #33205e; text-transform: uppercase; }
+.strip { margin: 6px 45px 0; background: #33205e; border-radius: 8px; padding: 11px 6px; display: flex; justify-content: space-around; border: 2px solid #ecc913; }
 .strip .stat { text-align: center; }
 .strip .sv { font-family: Georgia, serif; font-size: 23px; font-weight: 800; color: #ecc913; }
 .strip .sl { font-size: 8.5px; color: #fcef9d; letter-spacing: 1.2px; margin-top: 3px; }
-.keytitle { margin: 8px 45px 0; font-size: 8px; font-weight: 800; letter-spacing: 2px; color: #714ad2; text-transform: uppercase; }
-.key { margin: 2px 45px 0; font-size: 9.2px; color: #714ad2; line-height: 1.5; }
+.keytitle { font-family: 'Poppins', Georgia, serif; margin: 8px 45px 0; font-size: 8px; font-weight: 800; letter-spacing: 2px; color: #33205e; text-transform: uppercase; }
+.key { margin: 2px 45px 0; font-size: 9.2px; color: #33205e; line-height: 1.5; }
 .key .ki { white-space: nowrap; }
-.key .ki b { color: #4e3191; letter-spacing: .3px; }
+.key .ki b { color: #33205e; letter-spacing: .3px; }
 .key .ksep { color: #fcef9d; margin: 0 5px; font-weight: 800; }
 .grid { display: flex; flex-wrap: wrap; margin: 8px 40px 0; }
 .panel { width: 50%; min-width: 0; padding: 4px 5px; }
-.ptitle { font-size: 10px; font-weight: 800; letter-spacing: 1.8px; color: #4e3191; border-bottom: 1.5px solid #ecc913; padding-bottom: 4px; margin-bottom: 7px; }
-.pleg { font-size: 7.5px; line-height: 1.6; color: #4e3191; margin: -3px 0 7px; }
+.ptitle { font-family: 'Poppins', Georgia, serif; font-size: 10px; font-weight: 800; letter-spacing: 1.8px; color: #33205e; border-bottom: 1.5px solid #ecc913; padding-bottom: 4px; margin-bottom: 7px; }
+.pleg { font-size: 9px; line-height: 1.6; color: #33205e; margin: -3px 0 7px; }
 .ld { white-space: nowrap; }
 .lsep { color: #ecc913; margin-right: 3px; }
 .sg { display: flex; flex-wrap: wrap; }
 .sr { width: 50%; display: flex; justify-content: space-between; padding: 2.6px 8px 2.6px 2px; font-size: 12px; }
 .sr.w { width: 100%; }
-.sl2 { color: #714ad2; font-weight: 700; letter-spacing: .5px; }
+.sl2 { color: #33205e; font-weight: 700; letter-spacing: .5px; }
 .sv2 { color: #020200; font-weight: 800; font-variant-numeric: tabular-nums; }
 .sv2sub { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.25; }
-.svsub { font-size: 7px; color: #714ad2; font-weight: 700; letter-spacing: 1.2px; }
+.svsub { font-size: 7px; color: #33205e; font-weight: 700; letter-spacing: 1.2px; }
 .logwrap { margin: 8px 45px 0; }
-h2 { font-family: Georgia, serif; font-size: 16px; color: #4e3191; border-bottom: 1.9px solid #ecc913; padding-bottom: 4px; margin-bottom: 6px; }
+h2 { font-family: 'Poppins', Georgia, serif; font-size: 16px; color: #33205e; border-bottom: 1.9px solid #ecc913; padding-bottom: 4px; margin-bottom: 6px; }
 table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
-th { background: #4e3191; color: #fff; font-size: 8.5px; letter-spacing: .8px; text-transform: uppercase; padding: 8px 4px; text-align: right; }
+th { background: #33205e; color: #fff; font-size: 8.5px; letter-spacing: .8px; text-transform: uppercase; padding: 8px 4px; text-align: center; }
 th.l, td.l { text-align: left; }
-td { padding: 5.6px 4px; border-bottom: .9px solid #fcef9d; text-align: right; font-variant-numeric: tabular-nums; }
-tr:nth-child(even) td { background: #fcef9d; }
+td { padding: 5.6px 4px; border-bottom: .9px solid #e5e0f0; text-align: center; font-variant-numeric: tabular-nums; }
+tr:nth-child(even) td { background: #e5e0f0; }
 td.res { font-weight: 700; }
-tr.tot td { background: #16102b; color: #ecc913; font-weight: 800; border-bottom: none; }
+tr.tot td { background: #33205e; color: #ecc913; font-weight: 800; border-bottom: none; }
 ${spread > 0 ? `
 /* spread (short logs): loosen everything so the page doesn't end in blank space */
 .spread .band { height: calc(118px + ${(spread * 30).toFixed(0)}px); margin-top: calc(18px + ${(spread * 12).toFixed(0)}px); }
@@ -571,15 +579,15 @@ ${spread > 0 ? `
 .spread .id h1 { font-size: calc(37px + ${(spread * 10).toFixed(0)}px); }
 .spread .id .sub { font-size: calc(15px + ${(spread * 4).toFixed(0)}px); }
 .spread .id .meta { font-size: calc(11px + ${(spread * 2).toFixed(0)}px); margin-top: calc(7px + ${(spread * 6).toFixed(0)}px); }
-.spread .striptitle { margin-top: calc(12px + ${(spread * 12).toFixed(0)}px); }
+.spread .striptitle { font-family: 'Poppins', Georgia, serif; margin-top: calc(12px + ${(spread * 12).toFixed(0)}px); }
 .spread .strip { padding: calc(11px + ${(spread * 10).toFixed(0)}px) 6px; }
 .spread .strip .sv { font-size: calc(23px + ${(spread * 8).toFixed(0)}px); }
 .spread .strip .sl { font-size: calc(8.5px + ${(spread * 1.5).toFixed(0)}px); }
-.spread .keytitle { margin-top: calc(8px + ${(spread * 8).toFixed(0)}px); }
+.spread .keytitle { font-family: 'Poppins', Georgia, serif; margin-top: calc(8px + ${(spread * 8).toFixed(0)}px); }
 .spread .key { font-size: calc(9.2px + ${(spread * 1.8).toFixed(0)}px); line-height: calc(1.5 + ${(spread * 0.4).toFixed(2)}); }
 .spread .grid { margin-top: calc(8px + ${(spread * 10).toFixed(0)}px); row-gap: calc(10px + ${(spread * 8).toFixed(0)}px); }
 .spread .panel { padding: calc(11px + ${(spread * 8).toFixed(0)}px) 13px calc(8px + ${(spread * 8).toFixed(0)}px); }
-.spread .ptitle { font-size: calc(12.5px + ${(spread * 2.5).toFixed(0)}px); margin-bottom: calc(7px + ${(spread * 5).toFixed(0)}px); }
+.spread .ptitle { font-family: 'Poppins', Georgia, serif; font-size: calc(12.5px + ${(spread * 2.5).toFixed(0)}px); margin-bottom: calc(7px + ${(spread * 5).toFixed(0)}px); }
 .spread .sr { padding-top: calc(2.6px + ${(spread * 4.5).toFixed(1)}px); padding-bottom: calc(2.6px + ${(spread * 4.5).toFixed(1)}px); font-size: calc(11.8px + ${(spread * 2).toFixed(0)}px); }
 .spread .logwrap { margin-top: calc(8px + ${(spread * 12).toFixed(0)}px); }
 .spread h2 { font-size: calc(16px + ${(spread * 4).toFixed(0)}px); margin-bottom: calc(5px + ${(spread * 6).toFixed(0)}px); padding-bottom: calc(4px + ${(spread * 3).toFixed(0)}px); }
@@ -588,7 +596,7 @@ ${spread > 0 ? `
 .spread td { padding: calc(5.6px + ${(spread * 12).toFixed(0)}px) 4px; }
 .spread tr.totlab td { padding-top: calc(3px + ${(spread * 4).toFixed(0)}px); }
 ` : ''}
-tr.totlab td { color: #714ad2; font-size: 8px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; border-bottom: none; padding-top: 4px; }
+tr.totlab td { color: #33205e; font-size: 8px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; border-bottom: none; padding-top: 4px; }
 </style></head>
 <body><div class="page${spread > 0 ? ' spread' : ''}">
 <div class="band">
@@ -605,13 +613,14 @@ tr.totlab td { color: #714ad2; font-size: 8px; font-weight: 700; letter-spacing:
 <div class="id">
   <img class="ph" src="${photo}" alt="">
   <div class="who">
-    <h1>${esc(DATA.name.toUpperCase())}</h1>
+    <h1 style="font-size: ${Math.round(35 * Math.min(1, 16 / DATA.name.length) * 10) / 10}px; white-space: nowrap;">${esc(DATA.name.toUpperCase())}</h1>
     <div class="role">#${esc(DATA.num)} &middot; ${esc(DATA.pos)} &middot; B/T: ${esc(DATA.bt)}</div>
     <div class="meta">${[['Class', DATA.cls], ['School', DATA.school], ['Hometown', DATA.home], ['Ht / Wt', DATA.htwt], ['Born', DATA.bday]]
       .filter(([, v]) => v && String(v).trim() !== '' && String(v).trim() !== '—' && String(v).trim().toUpperCase() !== 'N/A')
       .map(([k, v]) => `<div><b>${k}</b>${esc(v)}</div>`).join('')}
     </div>
   </div>
+  <img class="tclid" src="${tcl}" alt="">
 </div>
 <div class="striptitle">${esc(DATA.seasonTitle)}</div>
 <div class="strip">${seasonTiles}</div>
