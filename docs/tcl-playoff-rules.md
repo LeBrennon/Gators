@@ -31,6 +31,12 @@ matchups are **1 vs 4** and **2 vs 3**. The **championship is a single game —
 winner take all** (confirmed 2026-07-28, superseding the earlier all-rounds
 best-of-3 note). Hosting within a semifinal series is split:
 
+2026 bracket (per the league's 7/26 "Playoff Updates" email):
+- #1 Victoria vs #4 Brazos Valley — G1 Tue 7/28 at Brazos Valley; G2 Wed 7/29 & G3 Thu 7/30 (if needed) at Victoria
+- #2 Acadiana vs #3 Lake Charles — G1 Tue 7/28 at Lake Charles; G2 Wed 7/29 & G3 Thu 7/30 (if needed) at Acadiana
+- **Championship: Saturday, August 1** — one game, winner take all. Home field
+  goes to the team with the **better overall regular-season record** (not seed).
+
 - The **lower seed hosts Game 1**.
 - The **higher seed hosts Games 2 and 3** (Game 3 only if needed).
 
