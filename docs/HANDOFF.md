@@ -1,91 +1,82 @@
-# Session Handoff — Gumbeaux Gators Game Tracker
+# HANDOFF PROMPT — Gators Player Season Cards (paste into new chat, use K3 model)
 
-**Repo:** `LeBrennon/Gators` · **Deploy:** Render auto-deploys from `main` · **Live:** https://whatisthegatorscore.com
-Single-file app (`server.js`, backend + embedded frontend) · `npm test`
+## 1. Who I am / how to work with me
+- I run gameday ops for the Lake Charles Gumbeaux Gators (Texas Collegiate League, summer collegiate baseball). I own whatisthegatorscore.com.
+- Keep your answers at the TOP of your replies so I don't have to scroll.
+- Do NOT give me terminal commands to copy/paste. You have direct GitHub access — clone, edit, render, commit, and push yourself. Intermittent GnuTLS/TLS push errors are normal; use retry.
 
----
+## 2. Repo & infrastructure (already set up)
+- GitHub repo: `LeBrennon/Gators` — pushes to main auto-deploy to Render (site: gators-xicm.onrender.com, custom domain via Squarespace).
+- Persistent local clone: `/mnt/agents/gators-repo` (/tmp wipes between turns — always work in the clone).
+- GitHub token for pushes: `[REDACTED — ask me for it]`
+- Workflow per change: edit → `node --check` → render → visually verify PNG (pdftoppm) → commit → push with retries.
+- `box-seed.json` (repo root, ~2MB) = ALL stats source: 61 games with box[] (box-score HTML) and pbp[] (play-by-play HTML, titled blocks like "Team Top of 3rd").
 
-## GM report cards — computer + mobile (owner preference)
+## 3. The deliverable: 1-page player season cards
 
-Each game's shareable GM report ships in **two layouts with identical content**,
-rendered from one `DATA` block by **`scripts/gm-report-cards.js`**:
+### Print version
+- Template: `scripts/player-season-card.js` — hand-fed DATA block (JSON) per player + generic rendering.
+- Usage: `node scripts/player-season-card.js [/tmp/stem]` → writes PDF to `reports/players/`.
+- Page: 816×1056px letter, `overflow: hidden`, `padding-bottom: 28px` (safe print margin so bottom doesn't clip).
+- Final PDF naming: `<Name> - 2026 Summer Stats.pdf`.
+- Rendering: headless Chromium `--print-to-pdf` (NOT Paged.js — it caused artifacts).
 
-- **Computer** — letter, two-column, branded → `<stem> (Computer).pdf`
-- **Mobile** — one column, large text, single continuous page (no page-break that
-  slices a card) → `<stem> (Mobile).png` + `<stem> (Mobile).pdf`
+### Mobile version
+- Template: `scripts/player-season-card-mobile.js` — same DATA block as print.
+- Usage: `node scripts/player-season-card-mobile.js [/tmp/stem]` → writes HTML to `reports/players-mobile/`.
+- Outputs HTML only (no PNG screenshot).
+- Responsive: max-width 100%, season strip wraps with `flex-wrap`, game log uses card layout (not table) so nothing requires horizontal scroll.
+- On phones <380px: panels stack to 1 column, game log cards show 3 stats per row.
 
-Both carry the same sections: header + result badge, inning-by-inning **line
-score (R/H/E)**, Offense/Pitching stat strips, Recap, What Stood Out, Key
-Hitters, On the Mound, Season Context. Branding = croc-skin header band, gold
-border, purples **#4e3191** (dark) / **#714ad2** (accent), badge green WIN / red
-LOSS. No footer. Filename stem style: `MM-DD LCGG @ BVB - GM Report` (no `/` — it
-breaks paths).
+### Locked design system (do not change without asking me)
+- Header = inset croc-texture bubble (`.band`, ~90-118px, gold border `#ecc913`, logo ~64-102px). No footer.
+- Palette — Purples: `#16102b` bayou (values/totals bg), `#4e3191` dark (titles/strip/th), `#714ad2` accent (subtitles/totals legend), `#6d6391` muted, `#cfc6ea` lavender (on-dark text), `#e5e0f0` light fill. Golds: `#ffd633` (gold text on dark), `#ecc913` (structural borders).
+- Croc texture: `scripts/assets/croc-band.jpg` = hue-locked duotone (do NOT autocontrast per channel — causes magenta drift).
+- Season strip: tiles auto-hide GS when "0" (relievers never start). 4 stat panels × ~8 stats. Advanced Metrics Key legend above panels.
+- Game log: print = 13 cols table + TOTAL row + acronym legend row (totlab — must show, appears twice by design). Mobile = card layout per game.
+- Panel rows support "wide" (span full panel width) and a 4th element sub-label (tiny caption under the value).
+- Stats must be triple-checked against raw sources before I send anything to a player.
 
-Usage: fill the `DATA` block from the box score, then
-`node scripts/gm-report-cards.js "reports/postgame/<stem>"` (needs Chromium).
+## 4. Current status (as of this handoff)
+- Brayden Guillory's print + mobile cards are DONE and validated (44/44 exact audit vs raw sources).
+- Files live in `cards/brayden-guillory/` in the repo.
+- Mobile script was just fixed to remove horizontal scroll and PNG output.
+- Print script was just fixed to add 28px bottom padding for safe print margins.
 
-**Timing (owner preference):** generate both cards **right after the game goes
-final**, straight from the live box — don't wait for the next-day seed refresh.
+## 5. Guillory's validated numbers (reference)
+7 APP, 11.0 IP, 16 H, 19 R, 18 ER, 9 BB, 3 K, ERA 14.73, WHIP 2.27, FIP 8.83, #P 212, S% 52, BF 60, AB 48, 2B 2, HR 3, HBP 1, SF 1, K% 5.0, BB% 15.0, K/9 2.5, BB/9 7.4, H/9 13.1, K:BB 0.33, P/BF 3.5, P/IP 19.3, AVG .333, OBP .441, SLG .562, OPS 1.003, ISO .229, BABIP .302, FPS% 60.0, GB/FB/LD/PU 40/36/4/20.
+Platoon splits: vs LHB (21 PA) .222/.333/.444 · vs RHB (39 PA) .400/.500/.633.
+Note: his Presto player page is an all-dashes placeholder — ALL his stats were rebuilt from box scores + PBP.
 
-Why hand-fed: the daily seed lags a game, so on game night
-`postgame-report.js` can't resolve the just-finished game yet. Pull the line
-score + box from **`/api/boxscore?id=<id>`** on the live site (reachable from the
-sandbox) and paste the facts in; once the seed refreshes those numbers match
-`postgame-report.js`.
+## 6. Platoon splits pipeline (for every pitcher at season's end)
+- `scripts/platoon-splits.py "<LastName>"` → JSON with vs_LHB / vs_RHB lines, coverage, unknown batters, per-game outcomes.
+- `data/league-bt.json` = 308-player league handedness lookup (normalized name → bats L/R/S).
+- MANDATORY validation: per-game PBP-derived H/BB/K must equal the box-score line for every game. Never put unvalidated splits on a card.
 
----
+## 7. Stat formulas (validated — keep these exact)
+- ERA = 27·ER/outs
+- WHIP = (H+BB)·3/outs
+- FIP = (13·HR + 3·(BB+HBP) − 2·K)/IP + 3.10
+- BABIP = (H−HR)/(AB−K−HR+SF)
+- OBP = (H+BB+HBP)/(AB+BB+HBP+SF)
+- K%/BB% per BF
+- ISO = SLG−AVG
+- per-9 = 27·X/outs
+- PBP pitch sequences: K/S/F/X/C/T/M/L = strikes; B/I/P/H/N = balls (FPS% = first-pitch strike rate).
 
-## Shipped (merged to `main`, deployed)
+## 8. Commit history (this project arc, oldest → newest)
+0756d84 croc hue-lock → 8fa70bf font/logo/labels → 27da701 Savant v2 → 24624c4 legend move → 7a1a6a2 Advanced Key → 275a43e SwStr% removed → eb50917 GS-hide → fb86254 → 14ca01f legend restore → 0908c62/7a55d05 key wrap fixes → f8de078 purple consolidation → 88b31cd gold matching → 06c644a page-fill → a3be133 bubble header, footer removed → 45cced9 platoon splits block + pipeline → 6f72ea4 splits folded into HITTERS panel as wide rows → 6922b7a AVG/OBP/SLG sub-labels under split values → eb2db88 Add mobile player season card renderer → (current HEAD) print bottom cushion + mobile no-PNG.
 
-| PR  | Change |
-|-----|--------|
-| #1  | Live hero resilience (show line score/PBP/lineup even if at-bat situation missing) + **build stamp** (`/api/version`, `/health`, footer) |
-| #2  | Extract live-feed **event id** from the new 2026 page format |
-| #3  | **Base64 hash fix** — the root cause the in-game view went dark (hash with `/` was dropped; now allows `+ / =` and URL-encodes) |
-| #4  | 🎆 Fireworks animation when the Gators score (live games) |
-| #5  | Clickable Gators **lineup names** → player profiles |
-| #6  | Live **pitching box** (IP/H/R/ER/BB/K/P) |
-| #7  | "This Half" play-by-play **clears when the side flips** |
-| #8  | Jersey **#s** in the pitching box |
-| #9  | **S%** column in the pitching box |
-| #10 | Removed the "stats updated" status from the Roster tab |
-| #11 | 📋 Shareable per-game **GM report** page (`/report?id=`) |
-| #12 | 🔒 Made reports **private** (`REPORT_KEY` gate, removed public button, `/reports` index) |
-| #13 | 📧 **Auto-email** a report after each final (Gmail) |
-| #14 | On-demand **`/report/send`** (email a report now) |
-| #15 | 📊 Daily **unique-visitor analytics** (`/stats` page + midnight email digest) |
+## 9. What we've learned about my preferences (respect these)
+- Purples must be hue-consistent (limited palette above); golds must match exactly.
+- Game log font stays dark (#16102b), never red. Legend appears twice (Key above panels + totlab under totals) — that's intentional.
+- No separate full-width stat blocks — new data goes INSIDE the 4 existing panels (use "wide" rows).
+- Stats must be triple-checked against raw sources before I send anything to a player.
+- I print these — keep everything inside safe margins (bubble design, no edge-to-edge).
+- Mobile: NO horizontal scrolling. Everything must fit within phone width.
 
----
-
-## ⚠️ REQUIRED setup (owner action in Render → Environment)
-
-Reports, emails, and the stats digest stay dark until these are set. One pass unlocks all of it:
-
-- **`REPORT_KEY`** — any long random string. Gates `/report`, `/reports`, `/report/send`, `/stats`. Until set, reports are locked (private by default).
-- **`GMAIL_USER`** — sending Gmail address.
-- **`GMAIL_APP_PASSWORD`** — a Google **App Password** (not the normal account password). Generate at https://myaccount.google.com/apppasswords (requires 2-Step Verification enabled).
-
-Optional: `REPORT_TO` (default `brennonmbaseball@gmail.com`), `STATS_TO` (default `brennonmoore11@gmail.com`), `SITE_URL` (defaults to `https://whatisthegatorscore.com`), `STATS_SALT`.
-
-**Key URLs (after `REPORT_KEY` set):**
-- Reports index: `/reports?key=KEY`
-- One game: `/report?id=GAMEID&key=KEY`
-- Send now: `/report/send?key=KEY` (`&to=`, `&id=` optional)
-- Visitor stats: `/stats?key=KEY`
-
----
-
-## Open / unverified items
-
-1. **`3-0` stale count bug** — live at-bat sometimes shows the wrong count. Not yet diagnosed; needs a `/debug/live` paste (the `live` object + `raw.status`) from a fresh at-bat to tell whether the feed is stale or we read the wrong field.
-2. **Verify on a real live game** — the dev sandbox is egress-blocked from the upstream feed, so the following were built defensively and need confirmation against a live game: pitching **S%** populating (not `·`), pitching **H/R** correct, and report **Key Plays/Mistakes** categorization. `/debug/live` (raw feed) is the diagnostic for all.
-3. ~~3 pre-existing `boxscore` test failures~~ — **fixed.** They were stale assertions left over from the "group tables by team" box-score rewrite (`eb5d1cf`): pitching now immediately follows its team's batting, `SO` renders as `K`, and a pitching section is only emitted when paired with its team's batting table. Tests updated to match; `npm test` is green (118/118). No parser changes.
-4. **App icon** = Lake Charles badge — intentional owner revert (`0901d64`), not a bug.
-
----
-
-## Notes for the next session/dev
-
-- **Diagnostics:** `/debug/live?id=`, `/debug/scan?id=` expose the raw feed — invaluable since the league's feed format shifts.
-- **Sandbox caveat:** the dev environment is network-blocked from `prestosports.com` and `whatisthegatorscore.com`, so live-feed behavior can't be verified locally — only via the deployed app's `/debug/*`.
-- **Workflow:** branch off `main` → PR → squash-merge (Render deploys on merge). No CI configured. Verify each deploy via `/api/version`.
+## 10. Next steps (in order)
+1. **Batter card variant**: design the 4 panels + Advanced Key for position players (hitting slash, XBH, SB, BB/K, etc. from box batting columns + PBP). Need both print + mobile versions.
+2. **Refresh league-bt.json** from TCL Presto team pages before the season-end run.
+3. **Season-end batch run**: for each pitcher — platoon-splits.py, validate per-game H/BB/K vs box, fill DATA, render, deliver. For each batter — batter template once built.
+4. **Optional**: batch script that loops a roster list and emits all cards.
