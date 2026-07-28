@@ -205,12 +205,14 @@ const DATA = {
         [
           "vs LHB (21 PA)",
           ".222/.333/.444",
-          "wide"
+          "wide",
+          "AVG · OBP · SLG"
         ],
         [
           "vs RHB (39 PA)",
           ".400/.500/.633",
-          "wide"
+          "wide",
+          "AVG · OBP · SLG"
         ]
       ]
     ],
@@ -480,7 +482,12 @@ const keyRow = (DATA.key || []).length
   : '';
 const panels = (DATA.groups || []).map(([title, rows]) =>
   `<div class="panel"><div class="ptitle">${esc(title)}</div><div class="sg">` +
-  rows.map(([l, v, w]) => `<div class="sr${w === 'wide' ? ' w' : ''}"><span class="sl2">${esc(l)}</span><span class="sv2">${esc(v)}</span></div>`).join('') +
+  rows.map(([l, v, w, sub]) =>
+    `<div class="sr${w === 'wide' ? ' w' : ''}"><span class="sl2">${esc(l)}</span>` +
+    (sub
+      ? `<span class="sv2sub"><span class="sv2">${esc(v)}</span><span class="svsub">${esc(sub)}</span></span>`
+      : `<span class="sv2">${esc(v)}</span>`) +
+    `</div>`).join('') +
   `</div></div>`).join('');
 const headCells = DATA.logCols.map((c, i) => `<th${i < 3 ? ' class="l"' : ''}>${esc(c)}</th>`).join('');
 const bodyRows = DATA.log.map(r => {
@@ -535,16 +542,18 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #1610
 .panel { width: 50%; padding: 4px 5px; }
 .ptitle { font-size: 10px; font-weight: 800; letter-spacing: 1.8px; color: #4e3191; border-bottom: 1.5px solid #ecc913; padding-bottom: 4px; margin-bottom: 7px; }
 .sg { display: flex; flex-wrap: wrap; }
-.sr { width: 50%; display: flex; justify-content: space-between; padding: 3.2px 8px 3.2px 2px; font-size: 12px; }
+.sr { width: 50%; display: flex; justify-content: space-between; padding: 2.9px 8px 2.9px 2px; font-size: 12px; }
 .sr.w { width: 100%; }
 .sl2 { color: #6d6391; font-weight: 700; letter-spacing: .5px; }
 .sv2 { color: #16102b; font-weight: 800; font-variant-numeric: tabular-nums; }
-.logwrap { margin: 14px 45px 0; }
+.sv2sub { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.25; }
+.svsub { font-size: 7px; color: #6d6391; font-weight: 700; letter-spacing: 1.2px; }
+.logwrap { margin: 10px 45px 0; }
 h2 { font-family: Georgia, serif; font-size: 16px; color: #4e3191; border-bottom: 1.9px solid #ecc913; padding-bottom: 4px; margin-bottom: 6px; }
 table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
 th { background: #4e3191; color: #fff; font-size: 8.5px; letter-spacing: .8px; text-transform: uppercase; padding: 8px 4px; text-align: right; }
 th.l, td.l { text-align: left; }
-td { padding: 7.2px 4px; border-bottom: .9px solid #e5e0f0; text-align: right; font-variant-numeric: tabular-nums; }
+td { padding: 6.5px 4px; border-bottom: .9px solid #e5e0f0; text-align: right; font-variant-numeric: tabular-nums; }
 tr:nth-child(even) td { background: #e5e0f0; }
 td.res { font-weight: 700; }
 tr.tot td { background: #16102b; color: #ffd633; font-weight: 800; border-bottom: none; }
