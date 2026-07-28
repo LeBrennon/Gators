@@ -5570,9 +5570,8 @@ a.bxp:active{opacity:.6;}
 .poffslot.g{background:rgba(113,74,210,.16);}
 .poffslot.tbd .poffnm{color:var(--mute);font-style:italic;}
 .poffvs{text-align:center;font-family:'Oswald',sans-serif;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);padding:2px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--bayou);}
-.poffseed{flex:none;width:23px;height:23px;border-radius:50%;background:var(--gator2);color:var(--bone);display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-weight:700;font-size:12px;}
-.poffseed.clin{background:var(--gold2);color:var(--bayou);}
-.poffslot.g .poffseed{background:var(--purple);color:var(--bone);}
+.poffseed{flex:none;width:23px;height:23px;border-radius:50%;background:var(--purple);color:var(--bone);display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-weight:700;font-size:12px;}
+.poffslot.g .poffseed{background:var(--gold2);color:var(--bayou);}
 .poffl{width:24px;height:24px;border-radius:5px;object-fit:contain;background:transparent;flex:none;}
 .poffnm{flex:1;min-width:0;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.01em;color:var(--bone);white-space:normal;overflow-wrap:anywhere;line-height:1.15;}
 .poffslot.g .poffnm{color:var(--gator);}
