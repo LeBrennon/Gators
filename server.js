@@ -5556,6 +5556,27 @@ a.bxp:active{opacity:.6;}
 .poffrules li{margin-bottom:2px;}
 .poffnote{margin-top:11px;font-size:10px;color:var(--mute);display:flex;align-items:flex-start;gap:6px;font-family:'Oswald',sans-serif;letter-spacing:.01em;line-height:1.45;}
 .poffprov{color:var(--gold2);font-weight:700;}
+/* ---- playoff bracket (Scores tab) ---- */
+.brkwrap{background:var(--bayou2);border:1px solid var(--line);border-radius:12px;padding:14px;}
+.brk{display:flex;flex-direction:column;gap:6px;}
+.brkround{flex:1;min-width:0;}
+.brkrlab{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.08em;font-size:11px;color:var(--gold2);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;}
+.brkrlab .bo3{font-size:9px;color:var(--bayou);background:var(--gold2);border-radius:20px;padding:2px 10px;font-weight:700;letter-spacing:.05em;}
+.brkconn{text-align:center;color:var(--gold2);font-size:15px;line-height:1.4;}
+.brkconn::before{content:'▾';}
+.brkfinal .poffmatch{margin-bottom:0;}
+@media(min-width:640px){.brk{flex-direction:row;align-items:center;gap:2px;}.brkconn{flex:none;padding:0 6px;}.brkconn::before{content:'▸';}}
+/* ---- regular-season results collapse ---- */
+.rswrap{margin-top:18px;border:1px solid var(--line);border-radius:12px;background:var(--bayou2);overflow:hidden;}
+.rshead{width:100%;display:flex;align-items:center;gap:8px;padding:13px 14px;background:transparent;border:none;cursor:pointer;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.08em;font-size:13px;color:var(--gold2);text-align:left;-webkit-tap-highlight-color:transparent;}
+.rshead .rscnt{font-size:11px;color:var(--mute);font-weight:400;letter-spacing:.03em;text-transform:none;}
+.rschev{margin-left:auto;color:var(--mute);font-size:12px;transition:transform .2s;}
+.rswrap.open .rschev{transform:rotate(180deg);}
+.rsbody{display:none;padding:0 10px 10px;}
+.rswrap.open .rsbody{display:block;}
+.rstabs{display:flex;gap:8px;margin:2px 2px 10px;}
+.rstab{flex:1;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.05em;font-size:12px;padding:8px;border-radius:9px;border:1px solid var(--line);color:var(--mute);background:transparent;cursor:pointer;}
+.rstab.on{color:var(--bayou);background:var(--gold2);border-color:var(--gold2);}
 .sbg{display:flex;align-items:center;gap:10px;background:var(--bayou2);border:1px solid var(--line);border-radius:12px;padding:10px 13px;margin-bottom:8px;color:inherit;text-decoration:none;cursor:pointer;transition:border-color .15s,background .15s;}
 a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 .sbg.g{border-color:var(--purple);background:rgba(113,74,210,.10);}
@@ -5610,8 +5631,12 @@ __SITE_NOTICE__
 <div class="live" id="livePanel" style="display:none"></div>
 <a class="watchbtn ticket" id="ticketBtn" target="_blank" rel="noopener" style="display:none">Buy Tickets</a>
 </div>
-<div class="sec">Gators Schedule</div>
-<div id="sched"></div>
+<div id="poffScores"></div>
+<div id="upSec" style="display:none"><div class="sec">Upcoming</div><div id="sched"></div></div>
+<div class="rswrap" id="rsWrap" style="display:none">
+<button class="rshead" id="rsHead"><span>Regular Season Results</span><span class="rscnt" id="rsCnt"></span><span class="rschev">▼</span></button>
+<div class="rsbody"><div class="rstabs"><button class="rstab" id="rsTab2">2nd Half</button><button class="rstab" id="rsTab1">1st Half</button></div><div id="schedPast"></div></div>
+</div>
 </div>
 <div id="viewRoster" style="display:none">
 <div class="sec">2026 Roster</div>
@@ -5645,7 +5670,7 @@ __SITE_NOTICE__
 </div></div>
 <script>
 var $=function(i){return document.getElementById(i);};
-var curId=null,pbpView='half',lineupTeam='gators',lastGame=null,schedList=null,_schedHtml=null;
+var curId=null,pbpView='half',lineupTeam='gators',lastGame=null,schedList=null,_schedHtml=null,rsHalf='2',_upHtml=null,_pastHtml=null;
 function setPbpView(v){pbpView=v;if(lastGame)renderGame(lastGame);}
 function setLineupTeam(v){lineupTeam=v;if(lastGame)renderGame(lastGame);}
 function ord(n){n=+n;var s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}
@@ -6361,6 +6386,26 @@ function buildPbp(g){
   }
   return '<div class="pbp">'+tabs+body+'</div>';
 }
+function schedCardHtml(g){
+  var pill=g.state==='live'?'<span class="cpill live"><span class="dot"></span>'+g.status+'</span>':g.state==='final'?'<span class="cpill final">'+g.status+' \u203A</span>':'<span class="cpill'+(g.state==='scheduled'?' sched':'')+'">'+esc(g.status)+'</span>';
+  var aw=g.state==='final'&&g.away.score>g.home.score,hw=g.state==='final'&&g.home.score>g.away.score;
+  function row(t,isG,won){var sc=(g.state==='live'||g.state==='final')&&t.score!=null?t.score:'';var ct=t.city?'<span class="tcity">'+esc(t.city)+'</span> ':'';return '<div class="crow'+(isG?' g':'')+(won?' w':'')+'"><img src="'+t.logo+'" alt=""><span class="n">'+ct+esc(t.nick||t.short)+'</span><span class="s">'+sc+'</span><span class="warrow" aria-label="'+(won?'Winner':'')+'">'+(won?'◀':'')+'</span></div>';}
+  return '<div class="card '+(g.state==='live'?'glive':g.state==='cancelled'?'gcancel':'')+(g.id===curId?' pinned':'')+'" data-state="'+g.state+'" data-id="'+g.id+'">'
+    +'<div class="ctop"><span class="cdate">'+g.dateLabel+'</span>'+pill+'</div>'
+    +(g.dhLabel?('<div class="cdh">'+esc(g.dhLabel)+'</div>'):'')
+    +row(g.away,g.away.id==='et1bt9sixrz5lnnl',aw)+row(g.home,g.home.id==='et1bt9sixrz5lnnl',hw)
+    +(g.state==='scheduled'&&g.theme?('<div class="ctheme">🎉 '+esc(g.theme)+' Night</div>'):'')
+    +(g.state==='scheduled'&&g.special?('<div class="ctheme">'+(g.special.emoji?esc(g.special.emoji)+' ':'')+esc(g.special.name)+'</div>'+(g.special.detail?('<div class="cpromo">'+esc(g.special.detail)+'</div>'):'')):'')
+    +(g.state==='scheduled'&&g.promo?('<div class="cpromo">'+esc(g.promo.emoji)+' <b>'+esc(g.promo.name)+'</b> · '+esc(g.promo.detail)+'</div>'):'')
+    +'<div class="cfoot"><span class="cloc">'+esc(g.location||'')+'</span>'
+    +(g.state==='final'&&g.replayUrl?('<a class="watchmini replay" href="'+esc(g.replayUrl)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Replay</a>'):'')
+    +(g.state==='scheduled'&&g.freeAdmission?('<span class="watchmini free">Free Admission</span>'):(g.state==='scheduled'&&g.ticketUrl?('<a class="watchmini tickets" href="'+esc(g.ticketUrl)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Tickets</a>'):''))
+    +'</div></div>';
+}
+// First half ran through Jun 28; the second half opened Jun 30 (the day the
+// frozen FIRST_HALF_FINAL records were captured). Finished games roll up into
+// the collapsed Regular Season Results block under 1st/2nd-half tabs.
+var HALF2_START='20260630';
 function renderSched(list){
   schedList=list;   // cache so the list can re-render when the hero (featured) game changes
   var done=list.filter(function(g){return g.state==='final'||g.state==='cancelled';}).reverse();
@@ -6368,40 +6413,33 @@ function renderSched(list){
   // Show every game except the one already in the hero (curId). Don't blind-drop
   // the first upcoming game: when the hero is a live or sticky-final game it isn't
   // curId, and slicing the first upcoming game would make it vanish entirely.
-  var ord=done.concat(up).filter(function(g){return g.id!==curId;}),h='';
-  ord.forEach(function(g){
-    var pill=g.state==='live'?'<span class="cpill live"><span class="dot"></span>'+g.status+'</span>':g.state==='final'?'<span class="cpill final">'+g.status+' \u203A</span>':'<span class="cpill'+(g.state==='scheduled'?' sched':'')+'">'+esc(g.status)+'</span>';
-    var aw=g.state==='final'&&g.away.score>g.home.score,hw=g.state==='final'&&g.home.score>g.away.score;
-    function row(t,isG,won){var sc=(g.state==='live'||g.state==='final')&&t.score!=null?t.score:'';var ct=t.city?'<span class="tcity">'+esc(t.city)+'</span> ':'';return '<div class="crow'+(isG?' g':'')+(won?' w':'')+'"><img src="'+t.logo+'" alt=""><span class="n">'+ct+esc(t.nick||t.short)+'</span><span class="s">'+sc+'</span><span class="warrow" aria-label="'+(won?'Winner':'')+'">'+(won?'◀':'')+'</span></div>';}
-    h+='<div class="card '+(g.state==='live'?'glive':g.state==='cancelled'?'gcancel':'')+(g.id===curId?' pinned':'')+'" data-state="'+g.state+'" data-id="'+g.id+'">'
-      +'<div class="ctop"><span class="cdate">'+g.dateLabel+'</span>'+pill+'</div>'
-      +(g.dhLabel?('<div class="cdh">'+esc(g.dhLabel)+'</div>'):'')
-      +row(g.away,g.away.id==='et1bt9sixrz5lnnl',aw)+row(g.home,g.home.id==='et1bt9sixrz5lnnl',hw)
-      +(g.state==='scheduled'&&g.theme?('<div class="ctheme">🎉 '+esc(g.theme)+' Night</div>'):'')
-      +(g.state==='scheduled'&&g.special?('<div class="ctheme">'+(g.special.emoji?esc(g.special.emoji)+' ':'')+esc(g.special.name)+'</div>'+(g.special.detail?('<div class="cpromo">'+esc(g.special.detail)+'</div>'):'')):'')
-      +(g.state==='scheduled'&&g.promo?('<div class="cpromo">'+esc(g.promo.emoji)+' <b>'+esc(g.promo.name)+'</b> · '+esc(g.promo.detail)+'</div>'):'')
-      +'<div class="cfoot"><span class="cloc">'+esc(g.location||'')+'</span>'
-      +(g.state==='final'&&g.replayUrl?('<a class="watchmini replay" href="'+esc(g.replayUrl)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Replay</a>'):'')
-      +(g.state==='scheduled'&&g.freeAdmission?('<span class="watchmini free">Free Admission</span>'):(g.state==='scheduled'&&g.ticketUrl?('<a class="watchmini tickets" href="'+esc(g.ticketUrl)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Tickets</a>'):''))
-      +'</div></div>';
-  });
-  var html=h||'<div class="note">No Gators games found yet.</div>';
+  var upOnly=up.filter(function(g){return g.id!==curId;});
+  var past=done.filter(function(g){return g.id!==curId;});
+  var half=past.filter(function(g){return (String(g.date)<HALF2_START)===(rsHalf==='1');});
+  var upHtml=upOnly.map(schedCardHtml).join('');
+  var pastHtml=past.length?(half.map(schedCardHtml).join('')||'<div class="note">No games in this half.</div>'):'';
   // The 15s schedule poll usually returns an unchanged list; skip the DOM churn
   // (and listener re-binding) when the markup is identical to what's on screen.
-  if(html===_schedHtml)return;
-  _schedHtml=html;
-  var box=$('sched');
-  box.innerHTML=html;
-  // One delegated click handler on the container (bound once) instead of one per
+  if(upHtml===_upHtml&&pastHtml===_pastHtml)return;
+  _upHtml=upHtml;_pastHtml=pastHtml;
+  $('upSec').style.display=upHtml?'':'none';
+  $('sched').innerHTML=upHtml;
+  $('rsWrap').style.display=past.length?'':'none';
+  $('rsCnt').textContent=past.length?('\u00B7 '+past.length+' games'):'';
+  $('rsTab1').classList.toggle('on',rsHalf==='1');
+  $('rsTab2').classList.toggle('on',rsHalf==='2');
+  $('schedPast').innerHTML=pastHtml;
+  // One delegated click handler per container (bound once) instead of one per
   // final card on every render.
-  if(!box._boxBound){box._boxBound=true;box.addEventListener('click',function(e){var c=e.target.closest&&e.target.closest('.card[data-state="final"]');if(c)openBox(c.dataset.id);});}
+  ['sched','schedPast'].forEach(function(id){var box=$(id);
+    if(box&&!box._boxBound){box._boxBound=true;box.addEventListener('click',function(e){var c=e.target.closest&&e.target.closest('.card[data-state="final"]');if(c)openBox(c.dataset.id);});}});
 }
 function toast(e,t,s,cls){var el=document.createElement('div');el.className='toast '+(cls||'');
   el.innerHTML='<div class="e">'+e+'</div><div><b>'+t+'</b><span>'+s+'</span></div>';$('toasts').appendChild(el);
   requestAnimationFrame(function(){requestAnimationFrame(function(){el.classList.add('show');});});
   setTimeout(function(){el.classList.remove('show');setTimeout(function(){el.remove();},500);},4200);}
 function emo(tag){return tag==='lead'?'📣':tag==='final'?'🏁':tag==='run'?'🔥':tag==='start'?'⚾':'🐊';}
-function loadSched(){fetch('/api/schedule',{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){renderSched(d.games||[]);}).catch(function(){});}
+function loadSched(){fetch('/api/schedule',{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){renderSched(d.games||[]);loadBracket();}).catch(function(){});}
 function connect(){
   var sseOk=false,lastStatus='',pollTimer=null,schedTimer=null;
   function applyGame(g){if(g&&g.home){lastStatus=g.status||'';renderGame(applyThirdOutHold(g));if($('viewStandings').style.display!=='none')silentStandings();if($('viewRoster').style.display!=='none')loadRoster();}}
@@ -6604,6 +6642,33 @@ function renderPlayoffs(d){
   h+='</div>';
   host.innerHTML=h;
 }
+// Scores-tab playoff bracket: both semifinal series feeding the championship,
+// seeded from the same /api/standings playoff picture as the Standings tab.
+function renderBracket(d){
+  var host=$('poffScores');if(!host)return;
+  var p=d&&d.playoffs;
+  if(!p||!p.seeds||!p.seeds.length){host.innerHTML='';return;}
+  var gid=d&&d.gatorsId;
+  var byseed={};p.seeds.forEach(function(s){byseed[s.seed]=s;});
+  var h='<div class="sec">Playoff Bracket</div><div class="brkwrap"><div class="brk"><div class="brkround">';
+  h+='<div class="brkrlab"><span>Semifinals</span><span class="bo3">Best-of-3</span></div>';
+  (p.matchups||[[1,4],[2,3]]).forEach(function(m){
+    h+='<div class="poffmatch">'+poffSlot(byseed[m[0]],gid)+'<div class="poffvs">vs</div>'+poffSlot(byseed[m[1]],gid)+'</div>';
+  });
+  h+='</div><div class="brkconn"></div><div class="brkround brkfinal">';
+  h+='<div class="brkrlab"><span>Championship</span><span class="bo3">Best-of-3</span></div>';
+  h+='<div class="poffmatch">'
+    +'<div class="poffslot tbd"><span class="poffseed">–</span><span class="poffl"></span><span class="poffnm">Semifinal winner</span></div>'
+    +'<div class="poffvs">vs</div>'
+    +'<div class="poffslot tbd"><span class="poffseed">–</span><span class="poffl"></span><span class="poffnm">Semifinal winner</span></div></div>';
+  h+='</div></div>';
+  h+='<ul class="poffrules"><li>Each round is a best-of-3 series — first to two wins advances.</li>'
+    +'<li>Lower seed hosts Game 1; higher seed hosts Games 2 &amp; 3 (if needed).</li></ul>';
+  (p.notes||[]).forEach(function(n){h+='<div class="poffnote">'+esc(n)+'</div>';});
+  h+='</div>';
+  host.innerHTML=h;
+}
+function loadBracket(){fetch('/api/standings',{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){renderBracket(d);}).catch(function(){});}
 function sbScore(v){return (v==null||v==='')?'':v;}
 // Compact the inning label for the card: drop "of" and shorten the half word
 // ("Bottom of 7th" -> "Bot 7th", "Middle of 3rd" -> "Mid 3rd").
@@ -6978,6 +7043,9 @@ function boxDate(id){var m=/^(\d{4})(\d{2})(\d{2})/.exec(id||'');if(!m)return ''
   return mon?(mon+' '+(+m[3])+', '+m[1]):'';}
 function oppShort(o){o=(o||'').replace('at ','@ ');var map={'Acadiana Cane Cutters':'Acadiana','Baton Rouge Rougarou':'Baton Rouge','Abilene Flying Bison':'Abilene','Brazos Valley Bombers':'Brazos Valley','San Antonio River Monsters':'San Antonio','Sherman Shadowcats':'Sherman','Victoria Generals':'Victoria','Lake Charles Gumbeaux Gators':'Gators'};for(var k in map)o=o.replace(k,map[k]);return o;}
 $('navScores').addEventListener('click',function(){setView('scores');});
+$('rsHead').addEventListener('click',function(){$('rsWrap').classList.toggle('open');});
+$('rsTab1').addEventListener('click',function(){rsHalf='1';_pastHtml=null;if(schedList)renderSched(schedList);});
+$('rsTab2').addEventListener('click',function(){rsHalf='2';_pastHtml=null;if(schedList)renderSched(schedList);});
 $('navStandings').addEventListener('click',function(){setView('standings');});
 document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-pbp]');if(b)setPbpView(b.getAttribute('data-pbp'));});
 document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-lineup]');if(b)setLineupTeam(b.getAttribute('data-lineup'));});
