@@ -1046,8 +1046,8 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
 .sg { display: flex; flex-wrap: wrap; }
 .sr { width: 50%; display: flex; justify-content: flex-start; gap: 4px; padding: 3.2px 8px 3.2px 2px; font-size: 13px; }
 .sr.w { width: 100%; padding: 4.5px 8px 4.5px 2px; }
-.sg.splitrow { display: flex; gap: 10px; }
-.splitcell { flex: 1; display: flex; gap: 8px; align-items: flex-start; padding: 3px 2px; }
+.sg.splitrow { display: flex; gap: 10px; font-size: 13px; }
+.splitcell { flex: 1; display: flex; gap: 8px; align-items: flex-start; justify-content: center; padding: 3px 2px; }
 .splitcell .sl2 { min-width: 0; }
 .sl2 { color: #33205e; font-weight: 700; letter-spacing: .5px; display: inline-block; min-width: 58px; white-space: nowrap; }
 .sr.w .sl2 { min-width: 126px; }
@@ -1072,6 +1072,7 @@ tr.tot td { background: #33205e; color: #ecc913; font-weight: 800; border-bottom
 .compact .log2col td { padding: 2.2px 2px; line-height: 1.15; }
 .compact h2 { font-size: 12.5px; margin-bottom: 3px; padding-bottom: 3px; }
 .compact .sr { padding: 2.3px 8px 2.3px 2px; font-size: 11.6px; }
+.compact .sg.splitrow { font-size: 11.6px; }
 .compact .band { height: 100px; margin-top: 12px; }
 .compact .band img.mark { width: 86px; height: 86px; }
 .compact .id { padding: 14px 45px 8px; }
@@ -1102,6 +1103,7 @@ ${spread > 0 ? `
 .spread .panel { padding: calc(11px + ${(spread * 8).toFixed(0)}px) 13px calc(8px + ${(spread * 8).toFixed(0)}px); }
 .spread .ptitle { font-family: 'Poppins', Georgia, serif; font-size: calc(12.5px + ${(spread * 2.5).toFixed(0)}px); margin-bottom: calc(7px + ${(spread * 5).toFixed(0)}px); }
 .spread .sr { padding-top: calc(3.2px + ${(spread * 4.5).toFixed(1)}px); padding-bottom: calc(3.2px + ${(spread * 4.5).toFixed(1)}px); font-size: calc(13px + ${(spread * 2).toFixed(0)}px); }
+.spread .sg.splitrow { font-size: calc(13px + ${(spread * 2).toFixed(0)}px); }
 .spread .logwrap { margin-top: calc(8px + ${(spread * 12).toFixed(0)}px); }
 .spread h2 { font-size: calc(16px + ${(spread * 4).toFixed(0)}px); margin-bottom: calc(5px + ${(spread * 6).toFixed(0)}px); padding-bottom: calc(4px + ${(spread * 3).toFixed(0)}px); }
 .spread table { font-size: calc(11.5px + ${(spread * 3).toFixed(0)}px); }
