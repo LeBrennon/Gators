@@ -5674,9 +5674,6 @@ __SITE_NOTICE__
 <div class="sec">League Standings</div>
 <div class="rmeta" id="stMeta">Loading standings…</div>
 <div id="standingsBody"></div>
-<div class="sec sbsec" id="sbSec" style="display:none"><span>Around the League</span><span class="sbdate" id="sbMeta"></span></div>
-<div id="scoreboardBody"></div>
-<div id="poffBody"></div>
 </div>
 <div class="bld">__BUILD_LABEL__</div>
 </div>
@@ -6637,8 +6634,8 @@ function renderStandings(d){
     $('standingsBody').innerHTML=h;
     $('stMeta').textContent=d.half===2?'Second-half standings':d.half===1?'First-half standings':'';
   }
-  renderPlayoffs(d);
-  renderScoreboard(d&&d.scoreboard,d&&d.gatorsId,recById);
+  // Standings tab is standings-only now — the bracket lives on the Scores tab
+  // and the around-the-league scoreboard was removed with the season over.
 }
 // A single seeded slot in a playoff matchup card.
 function poffSlot(s,gatorsId){
