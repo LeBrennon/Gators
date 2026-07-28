@@ -927,8 +927,8 @@ const keyRow = (DATA.key || []).length
   ? `<div class="keytitle">Advanced Metrics Key</div><div class="key">` +
     DATA.key.map(([a, m]) => `<span class="ki"><b>${esc(a)}</b> ${esc(m)}</span>`).join('<span class="ksep">&middot;</span> ') + `</div>`
   : '';
-const panels = (DATA.groups || []).map(([title, rows]) =>
-  `<div class="panel"><div class="ptitle">${esc(title)}</div><div class="sg">` +
+const panels = (DATA.groups || []).map(([title, rows, legend]) =>
+  `<div class="panel"><div class="ptitle">${esc(title)}</div>${legend ? `<div class="pleg">${esc(legend)}</div>` : ''}<div class="sg">` +
   rows.map(([l, v, w, sub]) =>
     `<div class="sr${w === 'wide' ? ' w' : ''}"><span class="sl2">${esc(l)}</span>` +
     (sub
@@ -1003,6 +1003,7 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #1610
 .grid { display: flex; flex-wrap: wrap; margin: 8px 40px 0; }
 .panel { width: 50%; min-width: 0; padding: 4px 5px; }
 .ptitle { font-size: 10px; font-weight: 800; letter-spacing: 1.8px; color: #4e3191; border-bottom: 1.5px solid #ecc913; padding-bottom: 4px; margin-bottom: 7px; }
+.pleg { font-size: 7.5px; line-height: 1.5; color: #8a7fb8; margin: -3px 0 7px; }
 .sg { display: flex; flex-wrap: wrap; }
 .sr { width: 50%; display: flex; justify-content: space-between; padding: 2.6px 8px 2.6px 2px; font-size: 12px; }
 .sr.w { width: 100%; }
