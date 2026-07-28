@@ -941,12 +941,12 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neu
 .wrap { width: 100%; max-width: 100%; margin: 0 auto; padding: 12px 12px 24px; }
 
 /* Header band */
-.band { position: relative; height: 90px; overflow: hidden; border-radius: 12px; border: 2px solid #ecc913; margin-bottom: 16px; }
+.band { position: relative; height: 90px; overflow: hidden; border-radius: 20px; border: 2px solid #ecc913; margin-bottom: 16px; }
 .band img.texture { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 35%; }
 .band .shade { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(22,16,43,.45); }
-.band .inner { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; padding: 0 12px; }
+.band .inner { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; padding: 0 10px; }
 .band img.mark { width: 64px; height: 64px; object-fit: contain; margin-right: 10px; }
-.band .org { font-family: Georgia, serif; font-weight: 800; font-size: 16px; color: #ffd633; letter-spacing: .8px; }
+.band .org { font-family: Georgia, serif; font-weight: 800; font-size: 13.5px; color: #ffd633; letter-spacing: .5px; white-space: nowrap; }
 .band .sub { font-size: 9px; color: #cfc6ea; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 3px; }
 
 /* Identity */
@@ -961,7 +961,7 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neu
 
 /* Season strip - wraps naturally, no horizontal scroll */
 .striptitle { margin: 0 0 6px; font-size: 10px; font-weight: 700; letter-spacing: 1.8px; color: #714ad2; text-transform: uppercase; }
-.strip { background: #4e3191; border-radius: 10px; padding: 10px 6px; display: grid; grid-template-columns: repeat(${stripCols}, 1fr); gap: 8px 4px; border: 2px solid #ecc913; }
+.strip { background: #16102b; border-radius: 18px; padding: 10px 6px; display: grid; grid-template-columns: repeat(${stripCols}, 1fr); gap: 8px 4px; border: 2px solid #ecc913; }
 .strip .stat { text-align: center; min-width: 48px; }
 .strip .sv { font-family: Georgia, serif; font-size: 20px; font-weight: 800; color: #ffd633; }
 .strip .sl { font-size: 8px; color: #cfc6ea; letter-spacing: .8px; margin-top: 2px; text-transform: uppercase; }
@@ -975,7 +975,7 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neu
 
 /* Panels */
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
-.panel { background: #fff; border-radius: 8px; padding: 10px; border: 1px solid #e5e0f0; }
+.panel { background: #fff; border-radius: 16px; padding: 10px; border: 1px solid #e5e0f0; }
 .ptitle { font-size: 9px; font-weight: 800; letter-spacing: 1.4px; color: #4e3191; border-bottom: 1.5px solid #ecc913; padding-bottom: 4px; margin-bottom: 6px; }
 .sg { display: flex; flex-direction: column; gap: 4px; }
 .sr { display: flex; justify-content: space-between; align-items: center; font-size: 12px; padding: 2px 0; border-bottom: 1px solid #f4f2ec; }
@@ -989,7 +989,7 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neu
 /* Game log - card layout, no table, no horizontal scroll */
 h2 { font-family: Georgia, serif; font-size: 15px; color: #4e3191; border-bottom: 2px solid #ecc913; padding-bottom: 4px; margin-bottom: 8px; }
 .glog { display: flex; flex-direction: column; gap: 6px; }
-.gcard { background: #fff; border-radius: 8px; padding: 8px 10px; border: 1px solid #e5e0f0; }
+.gcard { background: #fff; border-radius: 14px; padding: 8px 10px; border: 1px solid #e5e0f0; }
 .gcard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; padding-bottom: 4px; border-bottom: 1px solid #e5e0f0; }
 .gcard-date { font-size: 12px; font-weight: 800; color: #4e3191; }
 .gcard-opp { font-size: 11px; color: #6d6391; }
@@ -1000,7 +1000,7 @@ h2 { font-family: Georgia, serif; font-size: 15px; color: #4e3191; border-bottom
 .gcard-stat .gl { font-size: 8px; color: #6d6391; text-transform: uppercase; letter-spacing: .5px; }
 
 /* Totals card */
-.totcard { background: #16102b; border-radius: 8px; padding: 10px; margin-top: 6px; border: 2px solid #ecc913; }
+.totcard { background: #16102b; border-radius: 14px; padding: 10px; margin-top: 6px; border: 2px solid #ecc913; }
 .totcard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,.15); }
 .totcard-header .tlabel { font-size: 13px; font-weight: 800; color: #ffd633; }
 .totcard-header .trec { font-size: 12px; font-weight: 800; color: #ffd633; }
@@ -1015,7 +1015,7 @@ h2 { font-family: Georgia, serif; font-size: 15px; color: #4e3191; border-bottom
   .id .ph { width: 100px; height: 100px; }
   .meta { text-align: left; width: 100%; }
   .grid { grid-template-columns: 1fr; }
-  .band .org { font-size: 14px; }
+  .band .org { font-size: 11.5px; }
   .band img.mark { width: 52px; height: 52px; }
   .gcard-stats { grid-template-columns: repeat(3, 1fr); }
   .totcard-stats { grid-template-columns: repeat(3, 1fr); }
@@ -1038,12 +1038,9 @@ h2 { font-family: Georgia, serif; font-size: 15px; color: #4e3191; border-bottom
   <div class="who">
     <h1>${esc(DATA.name.toUpperCase())}</h1>
     <div class="role">#${esc(DATA.num)} &middot; ${esc(DATA.pos)} &middot; B/T: ${esc(DATA.bt)}</div>
-    <div class="meta">
-      <div><b>Class</b>${esc(DATA.cls)}</div>
-      <div><b>School</b>${esc(DATA.school)}</div>
-      <div><b>Hometown</b>${esc(DATA.home)}</div>
-      <div><b>Ht / Wt</b>${esc(DATA.htwt)}</div>
-      <div><b>Born</b>${esc(DATA.bday)}</div>
+    <div class="meta">${[['Class', DATA.cls], ['School', DATA.school], ['Hometown', DATA.home], ['Ht / Wt', DATA.htwt], ['Born', DATA.bday]]
+      .filter(([, v]) => v && String(v).trim() !== '' && String(v).trim() !== '—' && String(v).trim().toUpperCase() !== 'N/A')
+      .map(([k, v]) => `<div><b>${k}</b>${esc(v)}</div>`).join('')}
     </div>
   </div>
 </div>

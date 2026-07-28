@@ -576,12 +576,9 @@ tr.totlab td { color: #714ad2; font-size: 8px; font-weight: 700; letter-spacing:
   <div class="who">
     <h1>${esc(DATA.name.toUpperCase())}</h1>
     <div class="role">#${esc(DATA.num)} &middot; ${esc(DATA.pos)} &middot; B/T: ${esc(DATA.bt)}</div>
-    <div class="meta">
-      <div><b>Class</b>${esc(DATA.cls)}</div>
-      <div><b>School</b>${esc(DATA.school)}</div>
-      <div><b>Hometown</b>${esc(DATA.home)}</div>
-      <div><b>Ht / Wt</b>${esc(DATA.htwt)}</div>
-      <div><b>Born</b>${esc(DATA.bday)}</div>
+    <div class="meta">${[['Class', DATA.cls], ['School', DATA.school], ['Hometown', DATA.home], ['Ht / Wt', DATA.htwt], ['Born', DATA.bday]]
+      .filter(([, v]) => v && String(v).trim() !== '' && String(v).trim() !== '—' && String(v).trim().toUpperCase() !== 'N/A')
+      .map(([k, v]) => `<div><b>${k}</b>${esc(v)}</div>`).join('')}
     </div>
   </div>
 </div>
