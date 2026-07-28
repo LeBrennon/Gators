@@ -6,7 +6,7 @@
  * pitch profile), and a game-by-game table with totals + column labels.
  * Club branding per docs/HANDOFF.md: croc-skin bands (hue-locked to the
  * #4e3191 family via scripts/assets/croc-band.jpg), gold border, purples
- * #4e3191 dark / #714ad2 accent, gold #ecc913/#ffd633.
+ * #4e3191 dark / #714ad2 accent, gold #ecc913/#ecc913.
  *
  * This is a hand-fed renderer: fill in the DATA block below for the player
  * and run it. Everything below DATA is generic — do not edit it per player.
@@ -972,7 +972,7 @@ const html = `<!DOCTYPE html>
 <style>
 @page { size: letter; margin: 0; }
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #16102b; }
+body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #020200; }
 .page { width: 816px; height: 1056px; position: relative; overflow: hidden; background: #f4f2ec; padding-bottom: 46px; display: flex; flex-direction: column; justify-content: space-between; }
 .page > * { flex-shrink: 0; }
 .band { position: relative; height: 118px; overflow: hidden; margin: 18px 45px 0; border-radius: 12px; border: 2.5px solid #ecc913; }
@@ -988,40 +988,40 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #1610
 .id h1 { font-family: Georgia, serif; font-size: 35px; font-weight: 800; color: #4e3191; white-space: nowrap; }
 .id .role { font-size: 14px; font-weight: 700; color: #714ad2; letter-spacing: 1.4px; margin-top: 3px; }
 .meta { display: flex; flex-wrap: wrap; margin-top: 14px; }
-.meta div { font-size: 11.5px; color: #6d6391; margin-right: 24px; line-height: 1.7; }
+.meta div { font-size: 11.5px; color: #714ad2; margin-right: 24px; line-height: 1.7; }
 .meta b { color: #4e3191; font-size: 9px; text-transform: uppercase; letter-spacing: .7px; display: block; }
 .striptitle { margin: 12px 45px 0; font-size: 10.5px; font-weight: 700; letter-spacing: 2.2px; color: #714ad2; text-transform: uppercase; }
 .strip { margin: 6px 45px 0; background: #231745; border-radius: 8px; padding: 11px 6px; display: flex; justify-content: space-around; border: 2px solid #ecc913; }
 .strip .stat { text-align: center; }
-.strip .sv { font-family: Georgia, serif; font-size: 23px; font-weight: 800; color: #ffd633; }
-.strip .sl { font-size: 8.5px; color: #cfc6ea; letter-spacing: 1.2px; margin-top: 3px; }
+.strip .sv { font-family: Georgia, serif; font-size: 23px; font-weight: 800; color: #ecc913; }
+.strip .sl { font-size: 8.5px; color: #fcef9d; letter-spacing: 1.2px; margin-top: 3px; }
 .keytitle { margin: 8px 45px 0; font-size: 8px; font-weight: 800; letter-spacing: 2px; color: #714ad2; text-transform: uppercase; }
-.key { margin: 2px 45px 0; font-size: 9.2px; color: #6d6391; line-height: 1.5; }
+.key { margin: 2px 45px 0; font-size: 9.2px; color: #714ad2; line-height: 1.5; }
 .key .ki { white-space: nowrap; }
 .key .ki b { color: #4e3191; letter-spacing: .3px; }
-.key .ksep { color: #cfc6ea; margin: 0 5px; font-weight: 800; }
+.key .ksep { color: #fcef9d; margin: 0 5px; font-weight: 800; }
 .grid { display: flex; flex-wrap: wrap; margin: 8px 40px 0; }
 .panel { width: 50%; min-width: 0; padding: 4px 5px; }
 .ptitle { font-size: 10px; font-weight: 800; letter-spacing: 1.8px; color: #4e3191; border-bottom: 1.5px solid #ecc913; padding-bottom: 4px; margin-bottom: 7px; }
-.pleg { font-size: 7.5px; line-height: 1.6; color: #8a7fb8; margin: -3px 0 7px; }
+.pleg { font-size: 7.5px; line-height: 1.6; color: #4e3191; margin: -3px 0 7px; }
 .ld { white-space: nowrap; }
-.lsep { color: #c3b8e8; margin-right: 3px; }
+.lsep { color: #ecc913; margin-right: 3px; }
 .sg { display: flex; flex-wrap: wrap; }
 .sr { width: 50%; display: flex; justify-content: space-between; padding: 2.6px 8px 2.6px 2px; font-size: 12px; }
 .sr.w { width: 100%; }
-.sl2 { color: #6d6391; font-weight: 700; letter-spacing: .5px; }
-.sv2 { color: #16102b; font-weight: 800; font-variant-numeric: tabular-nums; }
+.sl2 { color: #714ad2; font-weight: 700; letter-spacing: .5px; }
+.sv2 { color: #020200; font-weight: 800; font-variant-numeric: tabular-nums; }
 .sv2sub { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.25; }
-.svsub { font-size: 7px; color: #6d6391; font-weight: 700; letter-spacing: 1.2px; }
+.svsub { font-size: 7px; color: #714ad2; font-weight: 700; letter-spacing: 1.2px; }
 .logwrap { margin: 8px 45px 0; }
 h2 { font-family: Georgia, serif; font-size: 16px; color: #4e3191; border-bottom: 1.9px solid #ecc913; padding-bottom: 4px; margin-bottom: 6px; }
 table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
 th { background: #4e3191; color: #fff; font-size: 8.5px; letter-spacing: .8px; text-transform: uppercase; padding: 8px 4px; text-align: right; }
 th.l, td.l { text-align: left; }
-td { padding: 5.6px 4px; border-bottom: .9px solid #e5e0f0; text-align: right; font-variant-numeric: tabular-nums; }
-tr:nth-child(even) td { background: #e5e0f0; }
+td { padding: 5.6px 4px; border-bottom: .9px solid #fcef9d; text-align: right; font-variant-numeric: tabular-nums; }
+tr:nth-child(even) td { background: #fcef9d; }
 td.res { font-weight: 700; }
-tr.tot td { background: #16102b; color: #ffd633; font-weight: 800; border-bottom: none; }
+tr.tot td { background: #16102b; color: #ecc913; font-weight: 800; border-bottom: none; }
 /* compact (long logs): two side-by-side tables, tighter rows */
 .log2col { display: flex; gap: 10px; }
 .log2col table { width: 50%; }
