@@ -26,8 +26,10 @@ in `server.js`). Four teams make the playoffs.
 
 Source: **Jared**, confirmed 2026-07-09.
 
-Each playoff round is a **best-of-3 series** (first to two wins advances). The
-matchups are **1 vs 4** and **2 vs 3**. Hosting is split within the series:
+The **semifinals** are a **best-of-3 series** (first to two wins advances). The
+matchups are **1 vs 4** and **2 vs 3**. The **championship is a single game —
+winner take all** (confirmed 2026-07-28, superseding the earlier all-rounds
+best-of-3 note). Hosting within a semifinal series is split:
 
 - The **lower seed hosts Game 1**.
 - The **higher seed hosts Games 2 and 3** (Game 3 only if needed).
