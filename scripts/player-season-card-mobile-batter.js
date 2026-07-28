@@ -911,6 +911,7 @@ const panels = (DATA.groups || []).map(([title, rows]) =>
     `</div>`).join('') +
   `</div></div>`).join('');
 
+const evenCols = n => (n % 5 === 0 ? 5 : n % 4 === 0 ? 4 : n % 3 === 0 ? 3 : 4);
 const gameLogCards = DATA.log.map(r => {
   const date = esc(r[0]), opp = esc(r[1]), res = esc(r[2]);
   const stats = r.slice(3);
@@ -923,11 +924,12 @@ const gameLogCards = DATA.log.map(r => {
       <div><span class="gcard-date">${date}</span> <span class="gcard-opp">${opp}</span></div>
       <div class="gcard-res">${res}</div>
     </div>
-    <div class="gcard-stats">${statCells}</div>
+    <div class="gcard-stats" style="grid-template-columns: repeat(${evenCols(stats.length)}, 1fr);">${statCells}</div>
   </div>`;
 }).join('');
 
-const totStats = DATA.totals.slice(2).map((v, i) => 
+const totArr = DATA.totals.slice(2);
+const totStats = totArr.map((v, i) => 
   `<div class="totcard-stat"><div class="tv">${esc(v)}</div><div class="tl">${esc(DATA.logCols[i+2])}</div></div>`
 ).join('');
 
@@ -994,17 +996,17 @@ h2 { font-family: Georgia, serif; font-size: 15px; color: #4e3191; border-bottom
 .gcard-date { font-size: 12px; font-weight: 800; color: #4e3191; }
 .gcard-opp { font-size: 11px; color: #6d6391; }
 .gcard-res { font-size: 12px; font-weight: 800; color: #4e3191; }
-.gcard-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px 6px; }
+.gcard-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px 6px; }
 .gcard-stat { text-align: center; }
-.gcard-stat .gv { font-size: 13px; font-weight: 800; color: #16102b; font-variant-numeric: tabular-nums; }
-.gcard-stat .gl { font-size: 8px; color: #6d6391; text-transform: uppercase; letter-spacing: .5px; }
+.gcard-stat .gv { font-size: 15px; font-weight: 800; color: #16102b; font-variant-numeric: tabular-nums; }
+.gcard-stat .gl { font-size: 8.5px; color: #6d6391; text-transform: uppercase; letter-spacing: .5px; }
 
 /* Totals card */
 .totcard { background: #16102b; border-radius: 14px; padding: 10px; margin-top: 6px; border: 2px solid #ecc913; }
 .totcard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,.15); }
 .totcard-header .tlabel { font-size: 13px; font-weight: 800; color: #ffd633; }
 .totcard-header .trec { font-size: 12px; font-weight: 800; color: #ffd633; }
-.totcard-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px 6px; }
+.totcard-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px 6px; }
 .totcard-stat { text-align: center; }
 .totcard-stat .tv { font-size: 14px; font-weight: 800; color: #ffd633; font-variant-numeric: tabular-nums; }
 .totcard-stat .tl { font-size: 8px; color: #cfc6ea; text-transform: uppercase; letter-spacing: .5px; }
@@ -1056,7 +1058,7 @@ ${gameLogCards}
       <span class="tlabel">${esc(DATA.totals[0])}</span>
       <span class="trec">${esc(DATA.totals[1])}</span>
     </div>
-    <div class="totcard-stats">${totStats}</div>
+    <div class="totcard-stats" style="grid-template-columns: repeat(${evenCols(totArr.length)}, 1fr);">${totStats}</div>
   </div>
 </div>
 </div></body></html>`;
