@@ -533,7 +533,7 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
 .id { display: flex; padding: 16px 45px 8px; }
 .id .ph { margin-left: 16px; width: 118px; height: 118px; border-radius: 9px; object-fit: cover; object-position: center 15%; border: 4px solid #ecc913; background: #ddd; }
 .id .who { margin-left: 22px; flex: 1; text-align: center; }
-.id .tclid { height: 118px; width: auto; align-self: center; margin-left: 24px; margin-right: 16px; border: 4px solid #ecc913; border-radius: 9px; background: #fff; padding: 6px; }
+.id .tclid { height: 118px; width: auto; align-self: center; margin-left: 24px; margin-right: 16px; }
 .id h1 { font-family: 'Poppins', Georgia, serif; font-size: 35px; font-weight: 800; color: #33205e; white-space: nowrap; }
 .id .role { font-size: 14px; font-weight: 700; color: #33205e; letter-spacing: 1.4px; margin-top: 3px; }
 .meta { display: flex; flex-wrap: wrap; justify-content: center; margin-top: 14px; }
