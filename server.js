@@ -2131,7 +2131,7 @@ async function refreshFeatured() {
     rosterFinalDone.add(norm.id);
     fillStatsFromBoxes(ROSTER.filter(pl => {
       const s = rosterStats[pl.slug];
-      return (s && s.fromBox) || !lineIsShowable(s);
+      return (s && s.fromBox) || !lineIsShowable(s) || !recIsFull(playerCache[pl.slug]);
     })).then(saveCache).catch(e => logErr('fillStatsFromBoxes(final)', e));
   }
   // Snapshot the Gators' own game's live-feed pitching (live or just-final) so the
@@ -3034,7 +3034,7 @@ async function pollRoster() {
     try {
       await fillStatsFromBoxes(ROSTER.filter(pl => {
         const s = rosterStats[pl.slug];
-        return (s && s.fromBox) || !lineIsShowable(s);
+        return (s && s.fromBox) || !lineIsShowable(s) || !recIsFull(playerCache[pl.slug]);
       }));
     } catch (e) { logErr('fillStatsFromBoxes', e); }
     // Transfer stints: a player who joined mid-season carries a `priorStint`
@@ -4190,7 +4190,14 @@ function glEra(p) {
 // replaces it the moment Presto posts official stats (see storePlayer).
 async function fillStatsFromBoxes(players) {
   if (!players || !players.length) return;
-  const targets = players.map(pl => ({ pl, norm: normPlayerName(pl.name), bat: [], pit: [], glBat: [], glPit: [] }));
+  // logsOnly targets already have a real season line but no Game by Game rows
+  // (their Presto page fetch failed or posts totals without a log) — build just
+  // the log from the box scores and never touch their official numbers.
+  const targets = players.map(pl => {
+    const s = rosterStats[pl.slug];
+    return { pl, norm: normPlayerName(pl.name), bat: [], pit: [], glBat: [], glPit: [],
+             logsOnly: lineIsShowable(s) && !(s && s.fromBox) };
+  });
   const finals = (games || []).filter(g => g.state === 'final' && isGatorsGame(g));
   for (const g of finals) {
     // A recent game's box can be transiently bot-gated or rate-limited (the poll
@@ -4219,7 +4226,7 @@ async function fillStatsFromBoxes(players) {
   for (const t of targets) {
     const hit = t.bat.length ? aggBat(t.bat) : null;
     const pit = t.pit.length ? aggPit(t.pit) : null;
-    if (hit || pit) rosterStats[t.pl.slug] = { kind: pit ? 'pitching' : 'batting', hit, pit, hitRanks: {}, pitRanks: {}, fromBox: true };
+    if (!t.logsOnly && (hit || pit)) rosterStats[t.pl.slug] = { kind: pit ? 'pitching' : 'batting', hit, pit, hitRanks: {}, pitRanks: {}, fromBox: true };
     // Season-to-date AVG for each batting log row (Presto's own convention).
     let runH = 0, runAB = 0;
     for (const e of t.glBat) { runH += NUM(e.h); runAB += NUM(e.ab); e.avg = runAB ? (runH / runAB).toFixed(3).replace(/^0/, '') : ''; }
@@ -4227,8 +4234,19 @@ async function fillStatsFromBoxes(players) {
     // while Presto's page is still dashes. Never overwrite a real player-page
     // record; the poll keeps re-checking Presto and swaps it in the moment his
     // page populates (storePlayer's fromBox guard handles the placeholder).
-    if ((t.glBat.length || t.glPit.length) && !recIsFull(playerCache[t.pl.slug])) {
-      playerCache[t.pl.slug] = { kind: pit ? 'pitching' : 'batting', hit, pit, hitRanks: {}, pitRanks: {}, glBat: t.glBat, glPit: t.glPit, ts: Date.now() };
+    if (t.glBat.length || t.glPit.length) {
+      const cur = playerCache[t.pl.slug];
+      if (!recIsFull(cur)) {
+        // A logsOnly target keeps his real record (season line, ranks) — only
+        // the missing Game by Game rows are grafted on.
+        if (t.logsOnly && cur && recHasData(cur)) {
+          playerCache[t.pl.slug] = Object.assign({}, cur, { glBat: t.glBat, glPit: t.glPit, ts: Date.now() });
+        } else {
+          playerCache[t.pl.slug] = { kind: pit ? 'pitching' : 'batting', hit: (cur && cur.hit) || hit, pit: (cur && cur.pit) || pit,
+                                     hitRanks: (cur && cur.hitRanks) || {}, pitRanks: (cur && cur.pitRanks) || {},
+                                     glBat: t.glBat, glPit: t.glPit, ts: Date.now() };
+        }
+      }
     }
   }
 }
