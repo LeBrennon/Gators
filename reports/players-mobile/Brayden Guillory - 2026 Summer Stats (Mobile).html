@@ -23,7 +23,7 @@ body { position: relative; margin: 0; font-family: -apple-system, BlinkMacSystem
 /* Identity */
 .id { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; }
 .id .who { flex: 1; text-align: center; container-type: inline-size; display: flex; flex-direction: column; align-items: center; }
-.id .tclid { height: 82px; width: auto; align-self: center; margin-left: 0; margin-right: 10px; flex-shrink: 0; background: #fff; border-radius: 10px; padding: 6px; box-sizing: content-box; }
+.id .tclid { height: 94px; width: auto; align-self: center; margin-left: 0; margin-right: 10px; flex-shrink: 0; background: #fff; border-radius: 10px; padding: 6px; border: 3px solid #ecc913; }
 .id .ph { margin-left: 10px; width: 90px; height: 90px; border-radius: 10px; object-fit: cover; object-position: center 15%; border: 3px solid #ecc913; background: #ddd; flex-shrink: 0; }
 .id .who { flex: 1; min-width: 0; }
 .id h1 { font-family: 'Poppins', Georgia, serif; font-size: 22px; font-weight: 800; color: #f0ede4; line-height: 1.1; margin-bottom: 3px; }
@@ -94,7 +94,7 @@ h2 { font-family: 'Poppins', Georgia, serif; font-size: 15px; color: #b9a6ee; bo
 /* Responsive */
 @media (max-width: 480px) {
   .id .ph { width: 76px; height: 76px; }
-  .id .tclid { height: 68px; }
+  .id .tclid { height: 80px; }
 }
 @media (max-width: 380px) {
   .id { flex-direction: column; align-items: center; text-align: center; }

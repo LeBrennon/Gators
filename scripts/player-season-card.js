@@ -484,7 +484,7 @@ const keyRow = (DATA.key || []).length
   ? `<div class="keytitle">Advanced Metrics Key</div><div class="key">` +
     DATA.key.map(([a, m]) => `<span class="ki"><b>${esc(a)}</b> ${esc(m)}</span>`).join('<span class="ksep">&middot;</span> ') + `</div>`
   : '';
-const panels = (DATA.groups || []).map(([title, rows, legend]) =>
+const panelList = (DATA.groups || []).map(([title, rows, legend]) =>
   `<div class="panel"><div class="ptitle">${esc(title)}</div>${legend ? `<div class="pleg">` + legend.split(' \u00b7 ').map(d => `<span class="ld">${esc(d)}</span>`).join('<span class="lsep">\u00b7</span> ') + `</div>` : ''}<div class="sg">` +
   rows.map(([l, v, w, sub]) =>
     `<div class="sr${w === 'wide' ? ' w' : ''}"><span class="sl2">${esc(l)}</span>` +
@@ -492,7 +492,8 @@ const panels = (DATA.groups || []).map(([title, rows, legend]) =>
       ? `<span class="sv2sub"><span class="sv2">${esc(v)}</span><span class="svsub">${esc(sub)}</span></span>`
       : `<span class="sv2">${esc(v)}</span>`) +
     `</div>`).join('') +
-  `</div></div>`).join('');
+  `</div></div>`);
+const panels = `<div class="pcol">${panelList.filter((_, i) => i % 2 === 0).join('')}</div><div class="pcol">${panelList.filter((_, i) => i % 2 === 1).join('')}</div>`;
 function buildHtml(sp) {
 const spread = sp;
 const headCells = DATA.logCols.map((c, i) => `<th${i < 3 ? ' class="l"' : ''}>${esc(c)}</th>`).join('');
@@ -531,7 +532,7 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
 .band .org { font-family: 'Poppins', Georgia, serif; font-weight: 800; font-size: 23px; color: #ffd633; letter-spacing: 1.2px; }
 .band .sub { font-family: 'Leckerli One', cursive; font-size: 14px; color: #cfc6ea; letter-spacing: 1px; margin-top: 6px; }
 .id { display: flex; padding: 16px 45px 8px; }
-.id .ph { margin-left: 16px; width: 118px; height: 118px; border-radius: 9px; object-fit: cover; object-position: center 15%; border: 4px solid #ecc913; background: #ddd; }
+.id .ph { margin-left: 16px; width: 132px; height: 132px; border-radius: 9px; object-fit: cover; object-position: center 15%; border: 4px solid #ecc913; background: #ddd; }
 .id .who { margin-left: 22px; flex: 1; text-align: center; }
 .id .tclid { height: 118px; width: auto; align-self: center; margin-left: 24px; margin-right: 16px; }
 .id h1 { font-family: 'Poppins', Georgia, serif; font-size: 35px; font-weight: 800; color: #33205e; white-space: nowrap; }
@@ -550,13 +551,14 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
 .key .ki b { color: #33205e; letter-spacing: .3px; }
 .key .ksep { color: #fcef9d; margin: 0 5px; font-weight: 800; }
 .grid { display: flex; flex-wrap: wrap; margin: 8px 40px 0; }
-.panel { width: 50%; min-width: 0; padding: 4px 5px; }
+.pcol { width: 50%; min-width: 0; }
+.panel { padding: 4px 5px; }
 .ptitle { font-family: 'Poppins', Georgia, serif; font-size: 10px; font-weight: 800; letter-spacing: 1.8px; color: #33205e; border-bottom: 1.5px solid #ecc913; padding-bottom: 4px; margin-bottom: 7px; }
 .pleg { font-size: 9px; line-height: 1.6; color: #33205e; margin: -3px 0 7px; }
 .ld { white-space: nowrap; }
 .lsep { color: #ecc913; margin-right: 3px; }
 .sg { display: flex; flex-wrap: wrap; }
-.sr { width: 50%; display: flex; justify-content: space-between; padding: 2.6px 8px 2.6px 2px; font-size: 12px; }
+.sr { width: 50%; display: flex; justify-content: flex-start; gap: 10px; padding: 2.6px 8px 2.6px 2px; font-size: 12px; }
 .sr.w { width: 100%; }
 .sl2 { color: #33205e; font-weight: 700; letter-spacing: .5px; }
 .sv2 { color: #020200; font-weight: 800; font-variant-numeric: tabular-nums; }
@@ -575,7 +577,7 @@ ${spread > 0 ? `
 /* spread (short logs): loosen everything so the page doesn't end in blank space */
 .spread .band { height: calc(118px + ${(spread * 30).toFixed(0)}px); margin-top: calc(18px + ${(spread * 12).toFixed(0)}px); }
 .spread .id { padding-top: calc(16px + ${(spread * 18).toFixed(0)}px); padding-bottom: calc(8px + ${(spread * 14).toFixed(0)}px); }
-.spread .id .ph { width: calc(118px + ${(spread * 30).toFixed(0)}px); height: calc(118px + ${(spread * 30).toFixed(0)}px); }
+.spread .id .ph { width: calc(132px + ${(spread * 30).toFixed(0)}px); height: calc(132px + ${(spread * 30).toFixed(0)}px); }
 .spread .id h1 { font-size: calc(37px + ${(spread * 10).toFixed(0)}px); }
 .spread .id .sub { font-size: calc(15px + ${(spread * 4).toFixed(0)}px); }
 .spread .id .meta { font-size: calc(11px + ${(spread * 2).toFixed(0)}px); margin-top: calc(7px + ${(spread * 6).toFixed(0)}px); }
