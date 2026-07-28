@@ -1066,37 +1066,30 @@ tr.tot td { background: #33205e; color: #ecc913; font-weight: 800; border-bottom
 /* compact (long logs): two side-by-side tables, tighter rows */
 .log2col { display: flex; gap: 10px; }
 .log2col table { width: 50%; }
-.compact .logwrap { margin-top: 4px; }
+.compact .logwrap { margin-top: 2px; }
 .compact .log2col table { font-size: 8.8px; }
-.compact .log2col th { font-size: 6.5px; padding: 4px 2px; }
-.compact .log2col td { padding: 2.2px 2px; line-height: 1.15; }
+.compact .log2col th { font-size: 6.5px; padding: 3px 2px; }
+.compact .log2col td { padding: 1.8px 2px; line-height: 1.15; }
 .compact h2 { font-size: 12.5px; margin-bottom: 3px; padding-bottom: 3px; }
-.compact .sr { padding: 2.3px 8px 2.3px 2px; font-size: 11.6px; }
+.compact .sr { padding: 2px 8px 2px 2px; font-size: 11.6px; }
 .compact .sg.splitrow { font-size: 11.6px; }
-.compact .band { height: 100px; margin-top: 12px; }
-.compact .band img.mark { width: 86px; height: 86px; }
-.compact .id { padding: 14px 45px 8px; }
-.compact .id .ph { width: 112px; height: 112px; }
-.compact .striptitle { margin-top: 10px; }
-.compact .strip { padding: 10px 6px; }
-.compact .strip .sv { font-size: 20px; }
 .compact .keytitle { margin-top: 6px; }
 .compact .key { font-size: 8.4px; line-height: 1.45; }
-.compact .grid { margin-top: 6px; }
-.compact .ptitle { margin-bottom: 5px; padding-bottom: 3px; }
+.compact .grid { margin-top: 4px; }
+.compact .ptitle { margin-bottom: 4px; padding-bottom: 3px; }
 .compact .svsub { font-size: 6.4px; }
 ${spread > 0 ? `
 /* spread (short logs): loosen everything so the page doesn't end in blank space */
-.spread .band { height: calc(118px + ${(spread * 30).toFixed(0)}px); margin-top: calc(18px + ${(spread * 12).toFixed(0)}px); }
-.spread .id { padding-top: calc(16px + ${(spread * 18).toFixed(0)}px); padding-bottom: calc(8px + ${(spread * 14).toFixed(0)}px); }
-.spread .id .ph { width: calc(132px + ${(spread * 30).toFixed(0)}px); height: calc(132px + ${(spread * 30).toFixed(0)}px); }
-.spread .id h1 { font-size: calc(37px + ${(spread * 10).toFixed(0)}px); }
-.spread .id .sub { font-size: calc(15px + ${(spread * 4).toFixed(0)}px); }
-.spread .id .meta { font-size: calc(11px + ${(spread * 2).toFixed(0)}px); margin-top: calc(7px + ${(spread * 6).toFixed(0)}px); }
-.spread .striptitle { font-family: 'Poppins', Georgia, serif; margin-top: calc(12px + ${(spread * 12).toFixed(0)}px); }
-.spread .strip { padding: calc(11px + ${(spread * 10).toFixed(0)}px) 6px; }
-.spread .strip .sv { font-size: calc(23px + ${(spread * 8).toFixed(0)}px); }
-.spread .strip .sl { font-size: calc(8.5px + ${(spread * 1.5).toFixed(0)}px); }
+px); margin-top: calc(18px + ${(spread * 12).toFixed(0)}px); }
+px); padding-bottom: calc(8px + ${(spread * 14).toFixed(0)}px); }
+px); height: calc(132px + ${(spread * 30).toFixed(0)}px); }
+px); }
+px); }
+px); margin-top: calc(7px + ${(spread * 6).toFixed(0)}px); }
+px); }
+px) 6px; }
+px); }
+px); }
 .spread .keytitle { font-family: 'Poppins', Georgia, serif; margin-top: calc(8px + ${(spread * 8).toFixed(0)}px); }
 .spread .key { font-size: calc(9.2px + ${(spread * 1.8).toFixed(0)}px); line-height: calc(1.5 + ${(spread * 0.4).toFixed(2)}); }
 .spread .grid { margin-top: calc(8px + ${(spread * 10).toFixed(0)}px); row-gap: calc(10px + ${(spread * 8).toFixed(0)}px); }

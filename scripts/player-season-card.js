@@ -606,16 +606,16 @@ td.res { font-weight: 700; }
 tr.tot td { background: #33205e; color: #ecc913; font-weight: 800; border-bottom: none; }
 ${spread > 0 ? `
 /* spread (short logs): loosen everything so the page doesn't end in blank space */
-.spread .band { height: calc(118px + ${(spread * 30).toFixed(0)}px); margin-top: calc(18px + ${(spread * 12).toFixed(0)}px); }
-.spread .id { padding-top: calc(16px + ${(spread * 18).toFixed(0)}px); padding-bottom: calc(8px + ${(spread * 14).toFixed(0)}px); }
-.spread .id .ph { width: calc(132px + ${(spread * 30).toFixed(0)}px); height: calc(132px + ${(spread * 30).toFixed(0)}px); }
-.spread .id h1 { font-size: calc(37px + ${(spread * 10).toFixed(0)}px); }
-.spread .id .sub { font-size: calc(15px + ${(spread * 4).toFixed(0)}px); }
-.spread .id .meta { font-size: calc(11px + ${(spread * 2).toFixed(0)}px); margin-top: calc(7px + ${(spread * 6).toFixed(0)}px); }
-.spread .striptitle { font-family: 'Poppins', Georgia, serif; margin-top: calc(12px + ${(spread * 12).toFixed(0)}px); }
-.spread .strip { padding: calc(11px + ${(spread * 10).toFixed(0)}px) 6px; }
-.spread .strip .sv { font-size: calc(23px + ${(spread * 8).toFixed(0)}px); }
-.spread .strip .sl { font-size: calc(8.5px + ${(spread * 1.5).toFixed(0)}px); }
+px); margin-top: calc(18px + ${(spread * 12).toFixed(0)}px); }
+px); padding-bottom: calc(8px + ${(spread * 14).toFixed(0)}px); }
+px); height: calc(132px + ${(spread * 30).toFixed(0)}px); }
+px); }
+px); }
+px); margin-top: calc(7px + ${(spread * 6).toFixed(0)}px); }
+px); }
+px) 6px; }
+px); }
+px); }
 .spread .keytitle { font-family: 'Poppins', Georgia, serif; margin-top: calc(8px + ${(spread * 8).toFixed(0)}px); }
 .spread .key { font-size: calc(9.2px + ${(spread * 1.8).toFixed(0)}px); line-height: calc(1.5 + ${(spread * 0.4).toFixed(2)}); }
 .spread .grid { margin-top: calc(8px + ${(spread * 10).toFixed(0)}px); row-gap: calc(10px + ${(spread * 8).toFixed(0)}px); }
