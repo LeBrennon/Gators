@@ -484,16 +484,32 @@ const keyRow = (DATA.key || []).length
   ? `<div class="keytitle">Advanced Metrics Key</div><div class="key">` +
     DATA.key.map(([a, m]) => `<span class="ki"><b>${esc(a)}</b> ${esc(m)}</span>`).join('<span class="ksep">&middot;</span> ') + `</div>`
   : '';
-const panelList = (DATA.groups || []).map(([title, rows, legend]) =>
-  `<div class="panel"><div class="ptitle">${esc(title)}</div>${legend ? `<div class="pleg">` + legend.split(' \u00b7 ').map(d => `<span class="ld">${esc(d)}</span>`).join('<span class="lsep">\u00b7</span> ') + `</div>` : ''}<div class="sg">` +
+const mkPanel = ([title, rows, legend], full) =>
+  `<div class="panel${full ? ' full' : ''}"><div class="ptitle">${esc(title)}</div>${legend ? `<div class="pleg">` + legend.split(' \u00b7 ').map(d => `<span class="ld">${esc(d)}</span>`).join('<span class="lsep">\u00b7</span> ') + `</div>` : ''}<div class="sg">` +
   rows.map(([l, v, w, sub]) =>
     `<div class="sr${w === 'wide' ? ' w' : ''}"><span class="sl2">${esc(l)}</span>` +
     (sub
       ? `<span class="sv2sub"><span class="sv2">${esc(v)}</span><span class="svsub">${esc(sub)}</span></span>`
       : `<span class="sv2">${esc(v)}</span>`) +
     `</div>`).join('') +
-  `</div></div>`);
-const panels = `<div class="pcol">${panelList.filter((_, i) => i % 2 === 0).join('')}</div><div class="pcol">${panelList.filter((_, i) => i % 2 === 1).join('')}</div>`;
+  `</div></div>`;
+// Print layout: pull wide split rows out of their panels into one full-width
+// PLATOON SPLITS panel between the row pairs — keeps the 2x2 pairing balanced.
+const halfGroups = []; const splitRows = [];
+(DATA.groups || []).forEach(g => {
+  const half = g[1].filter(r => r[2] !== 'wide');
+  const wide = g[1].filter(r => r[2] === 'wide');
+  if (half.length) halfGroups.push([g[0], half, g[2]]);
+  splitRows.push(...wide);
+});
+const units = halfGroups.map(g => ({ g, full: false }));
+if (splitRows.length) units.splice(Math.min(2, units.length), 0, { g: ['PLATOON SPLITS', splitRows, null], full: true });
+let panels = '';
+for (let i = 0; i < units.length;) {
+  if (units[i].full) { panels += `<div class="prow">${mkPanel(units[i].g, true)}</div>`; i++; }
+  else if (i + 1 < units.length && !units[i + 1].full) { panels += `<div class="prow">${mkPanel(units[i].g)}${mkPanel(units[i + 1].g)}</div>`; i += 2; }
+  else { panels += `<div class="prow">${mkPanel(units[i].g)}</div>`; i++; }
+}
 function buildHtml(sp) {
 const spread = sp;
 const headCells = DATA.logCols.map((c, i) => `<th${i < 3 ? ' class="l"' : ''}>${esc(c)}</th>`).join('');
@@ -550,19 +566,21 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
 .key .ki { white-space: nowrap; }
 .key .ki b { color: #33205e; letter-spacing: .3px; }
 .key .ksep { color: #fcef9d; margin: 0 5px; font-weight: 800; }
-.grid { display: flex; flex-wrap: wrap; margin: 8px 40px 0; }
-.pcol { width: 50%; min-width: 0; }
-.panel { padding: 4px 5px; }
+.grid { margin: 8px 40px 0; }
+.prow { display: flex; }
+.panel { padding: 4px 5px; width: 50%; min-width: 0; }
+.panel.full { width: 100%; }
 .ptitle { font-family: 'Poppins', Georgia, serif; font-size: 10px; font-weight: 800; letter-spacing: 1.8px; color: #33205e; border-bottom: 1.5px solid #ecc913; padding-bottom: 4px; margin-bottom: 7px; }
 .pleg { font-size: 9px; line-height: 1.6; color: #33205e; margin: -3px 0 7px; }
 .ld { white-space: nowrap; }
 .lsep { color: #ecc913; margin-right: 3px; }
 .sg { display: flex; flex-wrap: wrap; }
-.sr { width: 50%; display: flex; justify-content: flex-start; gap: 10px; padding: 2.6px 8px 2.6px 2px; font-size: 12px; }
-.sr.w { width: 100%; }
-.sl2 { color: #33205e; font-weight: 700; letter-spacing: .5px; }
+.sr { width: 50%; display: flex; justify-content: flex-start; gap: 4px; padding: 2.6px 8px 2.6px 2px; font-size: 12px; }
+.sr.w { width: 100%; padding: 4.5px 8px 4.5px 2px; }
+.sl2 { color: #33205e; font-weight: 700; letter-spacing: .5px; display: inline-block; min-width: 54px; white-space: nowrap; }
+.sr.w .sl2 { min-width: 126px; }
 .sv2 { color: #020200; font-weight: 800; font-variant-numeric: tabular-nums; }
-.sv2sub { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.25; }
+.sv2sub { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.25; }
 .svsub { font-size: 7px; color: #33205e; font-weight: 700; letter-spacing: 1.2px; }
 .logwrap { margin: 8px 45px 0; }
 h2 { font-family: 'Poppins', Georgia, serif; font-size: 16px; color: #33205e; border-bottom: 1.9px solid #ecc913; padding-bottom: 4px; margin-bottom: 6px; }
