@@ -288,16 +288,5 @@ fs.writeFileSync(tmp, html);
 const outHtml = stem + '.html';
 fs.copyFileSync(tmp, outHtml);
 
-const outPng = stem + '.png';
-const chromium = findChromium();
-execFileSync(chromium, [
-  '--headless=new', '--no-sandbox', '--disable-gpu',
-  '--window-size=1080,1920',
-  '--hide-scrollbars',
-  '--screenshot=' + outPng,
-  'file://' + path.resolve(tmp)
-], { stdio: 'ignore' });
-
 try { fs.unlinkSync(tmp); } catch (e) {}
 console.log('wrote ' + outHtml);
-console.log('wrote ' + outPng);
