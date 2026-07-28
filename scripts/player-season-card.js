@@ -556,7 +556,7 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
 .band .inner { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; padding: 0 30px; }
 .band img.mark { width: 102px; height: 102px; object-fit: contain; margin-right: 22px; }
 .band .org { font-family: 'Poppins', Georgia, serif; font-weight: 800; font-size: 23px; color: #ffd633; letter-spacing: 1.2px; }
-.band .sub { font-family: 'Leckerli One', cursive; font-size: 14px; color: #cfc6ea; letter-spacing: 1px; margin-top: 6px; }
+.band .sub { font-family: 'Leckerli One', cursive; font-size: 14px; font-weight: 700; color: #cfc6ea; letter-spacing: 1px; margin-top: 6px; }
 .id { display: flex; padding: 16px 45px 8px; }
 .id .ph { margin-left: 16px; width: 132px; height: 132px; border-radius: 9px; object-fit: cover; object-position: center 15%; border: 4px solid #ecc913; background: #ddd; }
 .id .who { margin-left: 22px; flex: 1; text-align: center; }
