@@ -949,13 +949,23 @@ const halfGroups = []; const splitRows = [];
   if (half.length) halfGroups.push([g[0], half, g[2]]);
   splitRows.push(...wide);
 });
-const units = halfGroups.map(g => ({ g, full: false }));
-if (splitRows.length) units.splice(Math.min(2, units.length), 0, { g: ['PLATOON SPLITS', splitRows, null], full: true });
+// Hitters: synthesize a Total split row from the season tiles (pitchers already have one)
+const seasonMap = Object.fromEntries(DATA.season || []);
+if (splitRows.length && !splitRows.some(r => /^Total/.test(r[0])))
+  splitRows.unshift([`Total (${seasonMap['PA'] || ''} PA)`, `${seasonMap['AVG']}/${seasonMap['OBP']}/${seasonMap['SLG']}`, 'wide', `AVG \u00b7 OBP \u00b7 SLG \u2014 OPS ${seasonMap['OPS']}`]);
+// Order: Total, then RH side, then LH side
+splitRows.sort((a, b) => (/^Total/.test(a[0]) ? 0 : a[0].includes('RH') ? 1 : 2) - (/^Total/.test(b[0]) ? 0 : b[0].includes('RH') ? 1 : 2));
+// Horizontal cells stretch the splits across the full panel width
+const splitCells = splitRows.map(([l, v, , sub]) =>
+  `<div class="splitcell"><span class="sl2">${esc(l)}</span><span class="sv2sub"><span class="sv2">${esc(v)}</span><span class="svsub">${esc(sub)}</span></span></div>`).join('');
+const splitPanelHtml = `<div class="panel full"><div class="ptitle">PLATOON SPLITS</div><div class="sg splitrow">${splitCells}</div></div>`;
+const units = halfGroups.map(g => ({ html: mkPanel(g), full: false }));
+if (splitRows.length) units.splice(Math.min(2, units.length), 0, { html: splitPanelHtml, full: true });
 let panels = '';
 for (let i = 0; i < units.length;) {
-  if (units[i].full) { panels += `<div class="prow">${mkPanel(units[i].g, true)}</div>`; i++; }
-  else if (i + 1 < units.length && !units[i + 1].full) { panels += `<div class="prow">${mkPanel(units[i].g)}${mkPanel(units[i + 1].g)}</div>`; i += 2; }
-  else { panels += `<div class="prow">${mkPanel(units[i].g)}</div>`; i++; }
+  if (units[i].full) { panels += `<div class="prow">${units[i].html}</div>`; i++; }
+  else if (i + 1 < units.length && !units[i + 1].full) { panels += `<div class="prow">${units[i].html}${units[i + 1].html}</div>`; i += 2; }
+  else { panels += `<div class="prow">${units[i].html}</div>`; i++; }
 }
 function buildHtml(sp, cmp) {
 const spread = sp;
@@ -1034,16 +1044,19 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
 .ld { white-space: nowrap; }
 .lsep { color: #ecc913; margin-right: 3px; }
 .sg { display: flex; flex-wrap: wrap; }
-.sr { width: 50%; display: flex; justify-content: flex-start; gap: 4px; padding: 2.6px 8px 2.6px 2px; font-size: 12px; }
+.sr { width: 50%; display: flex; justify-content: flex-start; gap: 4px; padding: 3.2px 8px 3.2px 2px; font-size: 13px; }
 .sr.w { width: 100%; padding: 4.5px 8px 4.5px 2px; }
-.sl2 { color: #33205e; font-weight: 700; letter-spacing: .5px; display: inline-block; min-width: 54px; white-space: nowrap; }
+.sg.splitrow { display: flex; gap: 10px; }
+.splitcell { flex: 1; display: flex; gap: 8px; align-items: flex-start; padding: 3px 2px; }
+.splitcell .sl2 { min-width: 0; }
+.sl2 { color: #33205e; font-weight: 700; letter-spacing: .5px; display: inline-block; min-width: 58px; white-space: nowrap; }
 .sr.w .sl2 { min-width: 126px; }
 .sv2 { color: #020200; font-weight: 800; font-variant-numeric: tabular-nums; }
 .sv2sub { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.25; }
-.svsub { font-size: 7px; color: #33205e; font-weight: 700; letter-spacing: 1.2px; }
+.svsub { font-size: 7.5px; color: #33205e; font-weight: 700; letter-spacing: 1.2px; }
 .logwrap { margin: 8px 45px 0; }
 h2 { font-family: 'Poppins', Georgia, serif; font-size: 16px; color: #33205e; border-bottom: 1.9px solid #ecc913; padding-bottom: 4px; margin-bottom: 6px; }
-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
 th { background: #33205e; color: #fff; font-size: 8.5px; letter-spacing: .8px; text-transform: uppercase; padding: 8px 4px; text-align: center; }
 th.l, td.l { text-align: left; }
 td { padding: 5.6px 4px; border-bottom: .9px solid #e5e0f0; text-align: center; font-variant-numeric: tabular-nums; }
@@ -1058,7 +1071,7 @@ tr.tot td { background: #33205e; color: #ecc913; font-weight: 800; border-bottom
 .compact .log2col th { font-size: 6.5px; padding: 4px 2px; }
 .compact .log2col td { padding: 2.2px 2px; line-height: 1.15; }
 .compact h2 { font-size: 12.5px; margin-bottom: 3px; padding-bottom: 3px; }
-.compact .sr { padding: 1.9px 8px 1.9px 2px; font-size: 10.8px; }
+.compact .sr { padding: 2.3px 8px 2.3px 2px; font-size: 11.6px; }
 .compact .band { height: 100px; margin-top: 12px; }
 .compact .band img.mark { width: 86px; height: 86px; }
 .compact .id { padding: 14px 45px 8px; }
@@ -1088,7 +1101,7 @@ ${spread > 0 ? `
 .spread .grid { margin-top: calc(8px + ${(spread * 10).toFixed(0)}px); row-gap: calc(10px + ${(spread * 8).toFixed(0)}px); }
 .spread .panel { padding: calc(11px + ${(spread * 8).toFixed(0)}px) 13px calc(8px + ${(spread * 8).toFixed(0)}px); }
 .spread .ptitle { font-family: 'Poppins', Georgia, serif; font-size: calc(12.5px + ${(spread * 2.5).toFixed(0)}px); margin-bottom: calc(7px + ${(spread * 5).toFixed(0)}px); }
-.spread .sr { padding-top: calc(2.6px + ${(spread * 4.5).toFixed(1)}px); padding-bottom: calc(2.6px + ${(spread * 4.5).toFixed(1)}px); font-size: calc(11.8px + ${(spread * 2).toFixed(0)}px); }
+.spread .sr { padding-top: calc(3.2px + ${(spread * 4.5).toFixed(1)}px); padding-bottom: calc(3.2px + ${(spread * 4.5).toFixed(1)}px); font-size: calc(13px + ${(spread * 2).toFixed(0)}px); }
 .spread .logwrap { margin-top: calc(8px + ${(spread * 12).toFixed(0)}px); }
 .spread h2 { font-size: calc(16px + ${(spread * 4).toFixed(0)}px); margin-bottom: calc(5px + ${(spread * 6).toFixed(0)}px); padding-bottom: calc(4px + ${(spread * 3).toFixed(0)}px); }
 .spread table { font-size: calc(11.5px + ${(spread * 3).toFixed(0)}px); }
