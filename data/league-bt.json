@@ -1,5 +1,5 @@
 {
- "_comment": "Batter handedness lookup (normalized name -> bats L/R/S). Sources: TCL gameday roster PDFs dated 7/1, 7/7, 7/12, 7/26/2026; gaps filled from college roster pages / scouting profiles (see scripts/platoon-splits.py header). + TCL gameday roster PDFs 6/13 & 7/19 (110 added Jul 28).",
+ "_comment": "Batter handedness lookup (normalized name -> bats L/R/S). Sources: TCL gameday roster PDFs dated 7/1, 7/7, 7/12, 7/26/2026; gaps filled from college roster pages / scouting profiles (see scripts/platoon-splits.py header). + TCL gameday roster PDFs 6/13 & 7/19 (110 added Jul 28). + TCL GAMEDAY ROSTER PDFs 6/19 & 7/16 (added Jul 29).",
  "_web_filled": {
   "caleb boswell": "R",
   "ellington jefferson": "S",
@@ -447,6 +447,10 @@
   "deven kirtley": "L",
   "tanner trout": "S",
   "sammy kelly": "S",
-  "tyler acevedo": "R"
+  "tyler acevedo": "R",
+  "connor walker": "R",
+  "chance fouts": "R",
+  "griffin cooley": "L",
+  "pierce boles": "R"
  }
 }
