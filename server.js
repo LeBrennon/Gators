@@ -178,6 +178,24 @@ const FIRST_HALF_FINAL = {
   z7w5th537gur3z15: { w: 10, l: 13 },   // Brazos Valley Bombers
   w43rx8i07fn44cyl: { w: 6,  l: 14 },   // Sherman Shadowcats
 };
+// The final playoff field, seeds 1-4, exactly as the league announced it in the
+// 7/26 "Playoff Updates" email (recorded in docs/tcl-playoff-rules.md). Until
+// the season ended the seeds were derived from the live second-half race
+// (buildPlayoffPicture, still used for that); now that the bracket is set the
+// announced field is the truth, and deriving it would only reintroduce the
+// question of who took the last berth. Empty this array to fall back to the
+// derived picture.
+const PLAYOFF_FIELD = [
+  { id: 'jm9r4btii24hhtfp', note: 'First-half champion' },     // 1 Victoria Generals
+  { id: 'cz8qei0rxijys6nm', note: 'First-half champion' },     // 2 Acadiana Cane Cutters
+  { id: 'et1bt9sixrz5lnnl', note: 'Second-half champion' },    // 3 Lake Charles Gumbeaux Gators
+  { id: 'z7w5th537gur3z15', note: 'Second-half runner-up' },   // 4 Brazos Valley Bombers
+];
+// With the field set, the split season has served its purpose: the standings
+// show one final full-season table, and "eliminated" means "didn't make the
+// four" rather than "can't still catch the second-half leaders".
+const REGULAR_SEASON_OVER = PLAYOFF_FIELD.length > 0;
+const inPlayoffField = id => PLAYOFF_FIELD.some(x => x.id === id);
 // 2026 home-game themed nights (promotions), keyed by game date (yyyymmdd).
 const THEMES = {
   '20260602': 'Mardi Party',
@@ -932,6 +950,34 @@ function seriesStatus(list) {
     : w === l ? 'Series tied ' + w + '–' + l
     : (w > l ? 'Gators lead the series ' : 'Gators trail the series ') + hi + '–' + lo;
   return { w, l, label, results };
+}
+// The same series score for ANY semifinal matchup, read off the league game log
+// rather than the Gators' own schedule, so the bracket can carry a line for the
+// other semifinal too. Neutral wording — each game is credited to its winner by
+// name — since neither side is "us" here.
+function matchupSeries(log, aId, bId) {
+  const played = (log || [])
+    .filter(g => SEMIFINAL_DATES.indexOf(g.date) !== -1
+      && ((g.away.id === aId && g.home.id === bId) || (g.away.id === bId && g.home.id === aId)))
+    .sort((x, y) => (+x.date) - (+y.date));
+  if (!played.length) return null;
+  const wins = {}; wins[aId] = 0; wins[bId] = 0;
+  const shortOf = id => (TEAMS[id] && TEAMS[id].short) || 'TBD';
+  const results = played.map(g => {
+    const hi = Math.max(g.away.score, g.home.score), lo = Math.min(g.away.score, g.home.score);
+    const winner = g.away.score > g.home.score ? g.away.id : g.away.score < g.home.score ? g.home.id : null;
+    if (winner) wins[winner]++;
+    const n = SEMIFINAL_DATES.indexOf(g.date) + 1;
+    return { game: n, id: g.id, date: g.date, winnerId: winner,
+      text: 'G' + n + ' ' + (winner ? shortOf(winner) + ' ' : '') + hi + '–' + lo };
+  });
+  const a = wins[aId], b = wins[bId];
+  const hi = Math.max(a, b), lo = Math.min(a, b);
+  const leaderId = a > b ? aId : a < b ? bId : null;
+  const label = hi === 2 ? shortOf(leaderId) + ' win the series ' + hi + '–' + lo
+    : !leaderId ? 'Series tied ' + a + '–' + b
+    : shortOf(leaderId) + ' lead the series ' + hi + '–' + lo;
+  return { wins, leaderId, label, results };
 }
 
 // Today's date (yyyymmdd) in the league's timezone (US Central).
@@ -3835,6 +3881,10 @@ function recordStr(team) {
   if (!rec) { const s = normName(team.short || ''); if (s.length >= 4) { const h = keys.find(k => k.indexOf(s) !== -1); if (h) rec = standings[h]; } }
   if (!rec) { const f = normName(team.name || ''); if (f.length >= 5) { const h = keys.find(k => k.indexOf(f) !== -1 || f.indexOf(k) !== -1); if (h) rec = standings[h]; } }
   if (!rec) return null;
+  // Mid-season the meaningful number is the current half's record; once the
+  // regular season is over the halves are history and the full season is what
+  // a playoff team is carrying, so stop subtracting the first half.
+  if (REGULAR_SEASON_OVER) return rec.w + '-' + rec.l;
   const base = (team.id && FIRST_HALF_FINAL[team.id]) || { w: 0, l: 0 };
   const w = Math.max(0, rec.w - base.w), l = Math.max(0, rec.l - base.l);
   return w + '-' + l;
@@ -4772,10 +4822,19 @@ function rankSecondHalf(rows, metrics) {
 // first-half seed (overlap rule), and the second-half berth it vacates passes to
 // the best FULL-SEASON record among teams that didn't otherwise qualify. Ranked
 // rows arrive already tie-broken. Matchups: 1v4 and 2v3, best-of-3.
-function buildPlayoffPicture(ranked, metrics) {
+function buildPlayoffPicture(ranked, metrics, field) {
   if (!ranked.length) return null;
   metrics = metrics || { rd: {}, h2h: {}, lastReg: {} };
   const pick = x => x ? { id: x.id, name: x.name, short: x.short, logo: x.logo || null, site: x.site || null } : null;
+  // Once the league announces the bracket there's nothing left to derive — seed
+  // straight off the given field, with team details pulled from the standings
+  // row. Callers pass PLAYOFF_FIELD; omitting it keeps the derived picture.
+  if (field && field.length) {
+    const byId = {}; ranked.forEach(x => { if (x.id) byId[x.id] = x; });
+    return { format: 'Best-of-3', matchups: [[1, 4], [2, 3]], notes: [],
+      seeds: field.map((f, i) => ({ seed: i + 1, team: pick(byId[f.id]) || { id: f.id, name: f.name || 'TBD', short: f.short || 'TBD', logo: null, site: null },
+        note: f.note, clinched: true })) };
+  }
   const champs = ranked.filter(x => x.clinched).sort((a, b) => {
     const fa = FIRST_HALF_FINAL[a.id] || { w: 0, l: 0 }, fb = FIRST_HALF_FINAL[b.id] || { w: 0, l: 0 };
     const pa = (fa.w + fa.l) ? fa.w / (fa.w + fa.l) : 0, pb = (fb.w + fb.l) ? fb.w / (fb.w + fb.l) : 0;
@@ -4866,14 +4925,18 @@ app.get('/api/standings', (_q, r) => {
   const metrics = leagueMetrics();
   const enriched = standingsTable.map(x => {
     // The feed reports full-season W-L; the second half = season − first-half
-    // final (clamped at 0). Ranking, PCT and GB run off the second-half race.
+    // final (clamped at 0). Ranking, PCT and GB run off the second-half race —
+    // until the season ends, when the halves stop mattering and the table
+    // becomes the full-season one. Feeding the season totals through the same
+    // w2/l2 fields keeps one ranking path (tie-breakers, PCT and GB included).
     const base = (x.id && FIRST_HALF_FINAL[x.id]) || { w: 0, l: 0 };
     const sw = x.w, sl = x.l;
-    const w2 = Math.max(0, sw - base.w), l2 = Math.max(0, sl - base.l);
+    const w2 = REGULAR_SEASON_OVER ? sw : Math.max(0, sw - base.w);
+    const l2 = REGULAR_SEASON_OVER ? sl : Math.max(0, sl - base.l);
     const g2 = w2 + l2, gs = sw + sl;
     return Object.assign({}, x, {
       w2, l2, ws: sw, ls: sl,
-      pct: g2 ? w2 / g2 : 0,                       // second-half pct (drives sort/GB)
+      pct: g2 ? w2 / g2 : 0,                       // ranked-half pct (drives sort/GB)
       pctSeason: gs ? (sw + x.t * 0.5) / gs : 0,   // full-season pct (tiebreak)
       diff: seasonDiff(metrics, x.id),             // season run differential
       site: TEAM_SITE[x.id] || null,
@@ -4885,10 +4948,27 @@ app.get('/api/standings', (_q, r) => {
   const lead = rows[0];
   for (const x of rows) x.gb = lead ? ((lead.w2 - x.w2) + (x.l2 - lead.l2)) / 2 : 0;
   const remaining = remainingGamesByTeam(lastHtml);
-  const eliminated = computeElimination(rows, remaining);
-  for (const x of rows) { x.gamesLeft = remaining[x.id] || 0; x.eliminated = !!eliminated[x.id]; }
-  r.json({ updatedAt: standingsAt, gatorsId: GATORS_ID, half: SEASON_HALF, rows,
-    tiebreaks: ranked.tiebreaks, playoffs: buildPlayoffPicture(rows, metrics),
+  // With the bracket set, "out" means missed the playoff field outright; the
+  // mathematical second-half elimination check only applies mid-race.
+  const eliminated = REGULAR_SEASON_OVER ? null : computeElimination(rows, remaining);
+  for (const x of rows) {
+    x.gamesLeft = REGULAR_SEASON_OVER ? 0 : (remaining[x.id] || 0);
+    x.eliminated = REGULAR_SEASON_OVER ? !inPlayoffField(x.id) : !!eliminated[x.id];
+  }
+  const playoffs = buildPlayoffPicture(rows, metrics, PLAYOFF_FIELD);
+  // A series line per semifinal, so the bracket shows both — the Gators' own
+  // and the other one — rather than only the game the hero already carries.
+  const log = parseLeagueResults(lastHtml);
+  if (playoffs) {
+    const bySeed = {}; playoffs.seeds.forEach(s => { bySeed[s.seed] = s; });
+    playoffs.series = (playoffs.matchups || []).map(m => {
+      const a = bySeed[m[0]] && bySeed[m[0]].team, b = bySeed[m[1]] && bySeed[m[1]].team;
+      return (a && b) ? matchupSeries(log, a.id, b.id) : null;
+    });
+  }
+  r.json({ updatedAt: standingsAt, gatorsId: GATORS_ID, half: SEASON_HALF,
+    seasonOver: REGULAR_SEASON_OVER, rows,
+    tiebreaks: ranked.tiebreaks, playoffs,
     series: seriesStatus(games), scoreboard: buildLeagueBoard() });
 });
 app.get('/debug/extras', (_q, r) => {
@@ -5211,7 +5291,8 @@ module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, s
   parseLeagueResults, computeLeagueMetrics, cmpTwoTeam, rankTiedGroup, rankSecondHalf, buildPlayoffPicture, boxLooksComplete, boxErrorResponse,
   gatorsGameResult, gatorsSeasonWL, applyGatorsAutoFloor, feedHasPitching, atBoxPrestage, bsLinkGators,
   parseLeagueScoreboard, remainingGamesByTeam, computeElimination,
-  manualPlayoffGame, withManualPlayoffGames, seriesStatus, MANUAL_PLAYOFF_GAMES, SEMIFINAL_DATES, PLAYOFF_SERIES };
+  manualPlayoffGame, withManualPlayoffGames, seriesStatus, matchupSeries, MANUAL_PLAYOFF_GAMES, SEMIFINAL_DATES, PLAYOFF_SERIES,
+  PLAYOFF_FIELD, REGULAR_SEASON_OVER, inPlayoffField };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
@@ -6671,7 +6752,11 @@ function fmtPct(p){if(p==null)return '';var s=p.toFixed(3);return p<1?s.replace(
 function fmtGb(g){if(g==null||g===0)return '—';return (g%1)?g.toFixed(1):String(g);}
 function renderStandings(d){
   var rows=(d&&d.rows)||[];
-  // Scoreboard cards show the reset current-half (2H) W-L, not the full season.
+  // Once the regular season is over the halves stop mattering — one full-season
+  // table, no 2H column, and "out" means missed the playoff field.
+  var over=!!(d&&d.seasonOver);
+  // Scoreboard cards show whatever W-L the table is built on (2H mid-season,
+  // full season once it's over) — w2/l2 carry the ranked record either way.
   var recById={};rows.forEach(function(x){if(x.id)recById[x.id]=(x.w2|0)+'-'+(x.l2|0);});
   if(!rows.length){$('standingsBody').innerHTML='<div class="note">Standings aren’t available yet — check back shortly.</div>';$('stMeta').textContent='';}
   else{
@@ -6682,8 +6767,11 @@ function renderStandings(d){
     for(var pi=1;pi<pos.length;pi++){if(pos[pi]==null)pos[pi]=pos[pi-1];}
     var groupSize={};pos.forEach(function(p){groupSize[p]=(groupSize[p]||0)+1;});
     var haveDiff=rows.some(function(x){return x.diff!=null&&x.diff!==0;});
-    var h='<div class="gltbl sttbl"><table><tr><th>#</th><th>Team</th><th title="Second-half W-L">2H</th><th>PCT</th><th>GB</th>'
-      +(haveDiff?'<th title="Season run differential">DIFF</th>':'')+'<th>STRK</th><th title="Full-season W-L">Season</th></tr>';
+    var h='<div class="gltbl sttbl"><table><tr><th>#</th><th>Team</th>'
+      +(over?'<th title="Full-season W-L">W-L</th>':'<th title="Second-half W-L">2H</th>')
+      +'<th>PCT</th><th>GB</th>'
+      +(haveDiff?'<th title="Season run differential">DIFF</th>':'')+'<th>STRK</th>'
+      +(over?'':'<th title="Full-season W-L">Season</th>')+'</tr>';
     rows.forEach(function(x,i){
       var isG=x.id&&x.id===d.gatorsId;
       var lg=x.logo?'<img class="stlogo" src="'+esc(x.logo)+'" alt="">':'';
@@ -6691,7 +6779,8 @@ function renderStandings(d){
       var nm=esc(x.name||x.short);
       var clin='';
       var gl=x.gamesLeft==null?'':(' — '+x.gamesLeft+' game'+(x.gamesLeft===1?'':'s')+' left');
-      var outb=x.eliminated?('<span class="outbadge" title="Mathematically eliminated from the second-half race'+esc(gl)+'">Out</span>'):'';
+      var outt=over?'Did not qualify for the playoffs':('Mathematically eliminated from the second-half race'+gl);
+      var outb=x.eliminated?('<span class="outbadge" title="'+esc(outt)+'">Out</span>'):'';
       if(x.eliminated)anyOut=true;
       var inner=lg+'<span class="stnm">'+nm+'</span>'+clin+outb;
       var team=x.site?('<a class="stteam" href="'+esc(x.site)+'" target="_blank" rel="noopener">'+inner+'</a>'):('<div class="stteam">'+inner+'</div>');
@@ -6702,11 +6791,13 @@ function renderStandings(d){
       var diffTd=haveDiff?('<td class="stdiff '+(dv>0?'pos':dv<0?'neg':'')+'">'+(dv>0?'+':'')+dv+'</td>'):'';
       h+='<tr'+(cls?' class="'+cls+'"':'')+'><td>'+rk+'</td>'
         +'<td>'+team+'</td>'
-        +'<td class="stwl2">'+wl2+'</td><td>'+fmtPct(x.pct)+'</td><td>'+fmtGb(x.gb)+'</td>'+diffTd+'<td>'+sk+'</td><td class="stwls">'+wls+'</td></tr>';
+        +'<td class="stwl2">'+wl2+'</td><td>'+fmtPct(x.pct)+'</td><td>'+fmtGb(x.gb)+'</td>'+diffTd+'<td>'+sk+'</td>'
+        +(over?'':'<td class="stwls">'+wls+'</td>')+'</tr>';
     });
     h+='</table></div>';
 
-    if(anyOut)h+='<div class="stnote"><span class="outswatch"></span><span class="outbadge">Out</span> shaded row — mathematically eliminated from the second-half race</div>';
+    if(anyOut)h+='<div class="stnote"><span class="outswatch"></span><span class="outbadge">Out</span> shaded row — '
+      +(over?'did not qualify for the playoffs':'mathematically eliminated from the second-half race')+'</div>';
     var tbs=(d&&d.tiebreaks)||[];
     if(tbs.length){
       h+='<div class="sttb"><div class="sttbh">Tiebreakers applied</div><ul>';
@@ -6714,7 +6805,7 @@ function renderStandings(d){
       h+='</ul></div>';
     }
     $('standingsBody').innerHTML=h;
-    $('stMeta').textContent=d.half===2?'Second-half standings':d.half===1?'First-half standings':'';
+    $('stMeta').textContent=over?'Final regular-season standings':d.half===2?'Second-half standings':d.half===1?'First-half standings':'';
   }
   // The bracket lives on the Scores tab; the Standings tab only surfaces the
   // *other* semifinal/championship game — the Gators' own game is already the
@@ -6779,13 +6870,12 @@ function renderBracket(d){
   var byseed={};p.seeds.forEach(function(s){byseed[s.seed]=s;});
   var h='<div class="sec">Playoff Bracket</div><div class="brkwrap"><div class="brk"><div class="brkround">';
   h+='<div class="brkrlab"><span>Semifinals</span><span class="bo3">Best-of-3</span></div>';
-  var sr=d&&d.series;
-  (p.matchups||[[1,4],[2,3]]).forEach(function(m){
+  // Hang each semifinal's series score under its own matchup, so the bracket
+  // shows where BOTH series stand, not just the Gators'.
+  var srs=(p&&p.series)||[];
+  (p.matchups||[[1,4],[2,3]]).forEach(function(m,i){
     h+='<div class="poffmatch">'+poffSlot(byseed[m[0]],gid)+'<div class="poffvs">vs</div>'+poffSlot(byseed[m[1]],gid)+'</div>';
-    // Hang the series score under the Gators' own matchup — the other semifinal
-    // isn't tracked here, so it stays a plain bracket line.
-    var isG=[m[0],m[1]].some(function(s){var t=byseed[s]&&byseed[s].team;return t&&t.id&&gid&&t.id===gid;});
-    if(isG&&sr&&sr.label)h+='<div class="brkseries">'+seriesHtml(sr)+'</div>';
+    if(srs[i]&&srs[i].label)h+='<div class="brkseries">'+seriesHtml(srs[i])+'</div>';
   });
   h+='</div><div class="brkconn"></div><div class="brkround brkfinal">';
   h+='<div class="brkrlab"><span>Championship</span><span class="bo3">1 Game</span></div>';
