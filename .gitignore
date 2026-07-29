@@ -17,3 +17,6 @@ reports/rest/
 reports/playoffs/
 # Generated player season cards (hand-fed per player, reproducible)
 reports/players/
+# Renderer scratch (render-batch.py splices DATA into a temp copy of the template)
+scripts/.batch-tmp-*.js
+scripts/__pycache__/
