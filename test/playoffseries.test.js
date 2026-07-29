@@ -5,12 +5,15 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  manualPlayoffGame, withManualPlayoffGames, seriesStatus, pick,
-  MANUAL_PLAYOFF_GAMES, SEMIFINAL_DATES, PLAYOFF_SERIES,
+  manualPlayoffGame, withManualPlayoffGames, seriesStatus, matchupSeries, pick, buildPlayoffPicture,
+  MANUAL_PLAYOFF_GAMES, SEMIFINAL_DATES, PLAYOFF_SERIES, PLAYOFF_FIELD, REGULAR_SEASON_OVER, inPlayoffField,
 } = require('../server');
 
 const GAT = 'et1bt9sixrz5lnnl'; // Gators
 const ACA = 'cz8qei0rxijys6nm'; // Cane Cutters
+const VIC = 'jm9r4btii24hhtfp'; // Generals
+const BOM = 'z7w5th537gur3z15'; // Bombers
+const SAN = 'do9ibktaduhyld7f'; // River Monsters
 
 // A finished Gators game shaped like a parseSchedule() row.
 function final(date, gatorsHome, gatorsRuns, oppRuns) {
@@ -99,4 +102,64 @@ test('seriesStatus handles a split, a clincher and a series loss', () => {
 test('seriesStatus ignores regular-season games and unplayed dates', () => {
   assert.equal(seriesStatus([final('20260726', true, 9, 1)]), null);
   assert.equal(seriesStatus(withManualPlayoffGames([])), null);
+});
+
+// ---- announced playoff field + per-matchup series ---------------------------
+
+// A parseLeagueResults() row.
+function logGame(date, awayId, awayScore, homeId, homeScore) {
+  return { id: date + '_x', date, regulation: true,
+    away: { id: awayId, score: awayScore }, home: { id: homeId, score: homeScore } };
+}
+// A standings row as /api/standings enriches it before seeding.
+function stRow(id, name, short) { return { id, name, short, logo: null, site: null }; }
+
+test('the announced field is the four teams the league named, in seed order', () => {
+  assert.ok(REGULAR_SEASON_OVER);
+  assert.deepEqual(PLAYOFF_FIELD.map(x => x.id), [VIC, ACA, GAT, BOM]);
+  // San Antonio finished ahead of Brazos Valley in the derived second-half race
+  // but did not make the league's bracket — the announced field is the truth.
+  assert.equal(inPlayoffField(SAN), false);
+  assert.equal(inPlayoffField(BOM), true);
+  assert.equal(inPlayoffField(GAT), true);
+});
+
+test('buildPlayoffPicture seeds straight off an announced field', () => {
+  const ranked = [stRow(SAN, 'San Antonio River Monsters', 'River Monsters'), stRow(GAT, 'Lake Charles Gumbeaux Gators', 'Gators'),
+    stRow(BOM, 'Brazos Valley Bombers', 'Bombers'), stRow(VIC, 'Victoria Generals', 'Generals'),
+    stRow(ACA, 'Acadiana Cane Cutters', 'Cane Cutters')];
+  const p = buildPlayoffPicture(ranked, null, PLAYOFF_FIELD);
+  assert.deepEqual(p.seeds.map(s => s.team.id), [VIC, ACA, GAT, BOM]);
+  assert.deepEqual(p.matchups, [[1, 4], [2, 3]]);
+  assert.equal(p.seeds[2].note, 'Second-half champion');
+  assert.ok(!p.seeds.some(s => s.team.id === SAN));
+  // Omitting the field keeps the derived picture (still used mid-season).
+  const derived = buildPlayoffPicture(ranked.map(x => Object.assign({ clinched: null, pctSeason: 0, ws: 0, ls: 0 }, x)), null);
+  assert.ok(derived.seeds.length === 4);
+});
+
+test('matchupSeries reads the other semifinal off the league log', () => {
+  const log = [logGame('20260726', VIC, 3, BOM, 2), logGame('20260728', VIC, 8, BOM, 4)];
+  const s = matchupSeries(log, VIC, BOM);
+  // Only the semifinal dates count — the 7/26 regular-season meeting is ignored.
+  assert.deepEqual(s.results.map(r => r.text), ['G1 Generals 8–4']);
+  assert.equal(s.wins[VIC], 1);
+  assert.equal(s.wins[BOM], 0);
+  assert.equal(s.leaderId, VIC);
+  assert.equal(s.label, 'Generals lead the series 1–0');
+});
+
+test('matchupSeries credits each game to its winner and calls the clincher', () => {
+  const split = matchupSeries([logGame('20260728', VIC, 8, BOM, 4), logGame('20260729', BOM, 1, VIC, 5)], VIC, BOM);
+  assert.equal(split.label, 'Generals win the series 2–0');
+  assert.deepEqual(split.results.map(r => r.text), ['G1 Generals 8–4', 'G2 Generals 5–1']);
+
+  const tied = matchupSeries([logGame('20260728', VIC, 8, BOM, 4), logGame('20260729', BOM, 7, VIC, 2)], VIC, BOM);
+  assert.equal(tied.label, 'Series tied 1–1');
+  assert.deepEqual(tied.results.map(r => r.text), ['G1 Generals 8–4', 'G2 Bombers 7–2']);
+});
+
+test('matchupSeries ignores games that are not this matchup', () => {
+  assert.equal(matchupSeries([logGame('20260728', ACA, 1, GAT, 2)], VIC, BOM), null);
+  assert.equal(matchupSeries([], VIC, BOM), null);
 });
