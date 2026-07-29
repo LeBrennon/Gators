@@ -29,7 +29,9 @@ def run(job):
         tpl_p, tpl_m, flag = JOBS[r]
         label = '' if len(roles) == 1 else ('Hitting' if r == 'b' else 'Pitching')
         for tpl, extra in ((tpl_p, []), (tpl_m, ['--mobile'])):
-            res = subprocess.run(['python3', 'scripts/player-season-data.py', name.split()[-1], flag] + extra,
+            # pass the name as given (full name if supplied) — a bare last name is ambiguous
+            # when two players share one, e.g. Jake Smith / Shyler Smith
+            res = subprocess.run(['python3', 'scripts/player-season-data.py', name, flag] + extra,
                                  capture_output=True, text=True)
             if res.returncode != 0:
                 print(f'  DATA FAIL {name} {flag}: {res.stderr[-200:]}'); ok = False; continue

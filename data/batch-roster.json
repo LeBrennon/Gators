@@ -7,7 +7,7 @@
    "primary": null,
    "num": null,
    "pos": null,
-   "cls": null,
+   "cls": "So",
    "school": "San Jacinto CC",
    "home": null,
    "htwt": null,
@@ -23,7 +23,7 @@
    "school": "Vernon College",
    "home": "San Antonio, TX",
    "htwt": null,
-   "bt": null
+   "bt": "L/L"
   },
   "Ayden Sunday": {
    "games_batting": 41,
@@ -55,11 +55,11 @@
    "primary": "two-way",
    "num": null,
    "pos": null,
-   "cls": null,
+   "cls": "Jr",
    "school": "New Orleans",
    "home": null,
    "htwt": null,
-   "bt": null
+   "bt": "R/R"
   },
   "Brayden Guillory": {
    "games_batting": 0,
@@ -91,11 +91,11 @@
    "primary": "two-way",
    "num": null,
    "pos": null,
-   "cls": null,
+   "cls": "So",
    "school": "Benton",
    "home": null,
    "htwt": null,
-   "bt": null
+   "bt": "L/L"
   },
   "Cade Robin": {
    "games_batting": 2,
@@ -127,7 +127,7 @@
    "primary": "P",
    "num": null,
    "pos": null,
-   "cls": null,
+   "cls": "So",
    "school": "Vernon College",
    "home": null,
    "htwt": null,
@@ -139,11 +139,11 @@
    "primary": "P",
    "num": null,
    "pos": "P",
-   "cls": null,
+   "cls": "R-So",
    "school": "Paris JC",
    "home": null,
    "htwt": null,
-   "bt": null
+   "bt": "L/R"
   },
   "Cole Flanagan": {
    "games_batting": 0,
@@ -151,11 +151,11 @@
    "primary": "P",
    "num": null,
    "pos": "P",
-   "cls": null,
+   "cls": "Fr",
    "school": "Louisiana",
    "home": null,
    "htwt": null,
-   "bt": null
+   "bt": "L/L"
   },
   "Connor Walker": {
    "games_batting": 20,
@@ -163,7 +163,7 @@
    "primary": null,
    "num": null,
    "pos": null,
-   "cls": null,
+   "cls": "So",
    "school": "McNeese State",
    "home": null,
    "htwt": null,
@@ -211,11 +211,11 @@
    "primary": null,
    "num": null,
    "pos": null,
-   "cls": null,
+   "cls": "Sr",
    "school": "Lamar",
    "home": null,
    "htwt": null,
-   "bt": null
+   "bt": "R/R"
   },
   "Gabe Guidry": {
    "games_batting": 19,
@@ -319,11 +319,11 @@
    "primary": null,
    "num": null,
    "pos": null,
-   "cls": null,
+   "cls": "Jr",
    "school": "LSU-Eunice",
    "home": null,
    "htwt": null,
-   "bt": null
+   "bt": "R/R"
   },
   "James Reina": {
    "games_batting": 21,
@@ -331,11 +331,11 @@
    "primary": null,
    "num": null,
    "pos": null,
-   "cls": null,
+   "cls": "Jr",
    "school": "Stephen F. Austin",
    "home": null,
    "htwt": null,
-   "bt": null
+   "bt": "R/R"
   },
   "Jaxon Landreneau": {
    "games_batting": 33,
@@ -391,11 +391,11 @@
    "primary": "P",
    "num": null,
    "pos": "P",
-   "cls": null,
+   "cls": "So",
    "school": "Hill College",
    "home": null,
    "htwt": null,
-   "bt": null
+   "bt": "R/R"
   },
   "Kasen Bellard": {
    "games_batting": 16,
@@ -403,11 +403,11 @@
    "primary": null,
    "num": null,
    "pos": null,
-   "cls": null,
+   "cls": "Jr",
    "school": "Nicholls State",
    "home": null,
    "htwt": null,
-   "bt": null
+   "bt": "R/R"
   },
   "Kash Martin": {
    "games_batting": 21,
@@ -439,7 +439,7 @@
    "primary": "P",
    "num": null,
    "pos": null,
-   "cls": null,
+   "cls": "So",
    "school": "Angelina College",
    "home": null,
    "htwt": null,
@@ -487,7 +487,7 @@
    "primary": "two-way",
    "num": null,
    "pos": null,
-   "cls": null,
+   "cls": "So",
    "school": "Meridian CC",
    "home": null,
    "htwt": null,
@@ -511,7 +511,7 @@
    "primary": null,
    "num": null,
    "pos": null,
-   "cls": null,
+   "cls": "Sr",
    "school": "Loyola-New Orleans",
    "home": null,
    "htwt": null,
@@ -595,11 +595,11 @@
    "primary": "P",
    "num": null,
    "pos": "P",
-   "cls": null,
+   "cls": "Jr",
    "school": "Lamar",
    "home": null,
    "htwt": null,
-   "bt": null
+   "bt": "L/L"
   },
   "Yuichiro Kumagami": {
    "games_batting": 17,

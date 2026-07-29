@@ -145,7 +145,7 @@ def batter_card(player, mobile=False):
     cs_re = re.compile(p_pat + r' out at \w+ [^.;]*?caught stealing')
     splits = {'L': collections.defaultdict(int), 'R': collections.defaultdict(int)}
     tot = collections.defaultdict(int)
-    box = collections.defaultdict(lambda: [0, 0, 0, 0, 0, 0])
+    box = collections.defaultdict(lambda: [0, 0, 0, 0, 0, 0])  # keyed by gid, not date — 7/12 was a doubleheader
     games = []
     bad = 0
     for gid, g in sorted(BOX.items()):
@@ -167,7 +167,7 @@ def batter_card(player, mobile=False):
                     if len(r) < 8: continue
                     if clean(r[0]) == player:
                         line = [int(x) for x in r[1:7]]
-                        for i in range(6): box[dt][i] += line[i]
+                        for i in range(6): box[gid][i] += line[i]
         if not line: continue
         per = collections.defaultdict(int)
         for sec in g['data'].get('pbp', []):
@@ -223,7 +223,6 @@ def batter_card(player, mobile=False):
     one = tot['1B']; two = tot['2B']; thr = tot['3B']; hr = tot['HR']
     tb = one + 2 * two + 3 * thr + 4 * hr
     pa = ab + bb + hbp + sf + tot['SH']
-    G = len(games) if not cnt else len(box)
     avg = h / ab if ab else 0; obp = (h + bb + hbp) / pa if pa else 0; slg = tb / ab if ab else 0
     babip_den = ab - k - hr + sf
     babip = (h - hr) / babip_den if babip_den else 0
