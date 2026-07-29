@@ -207,6 +207,19 @@ const PLAYOFF_SERIES = {
   '20260730': { tag: 'Playoffs · Game 3 — Best-of-3', note: 'Winner advances to Saturday’s championship' },
   '20260801': { tag: 'TCL Championship — Winner Take All', note: 'Home field goes to the better regular-season record' },
 };
+// The Gators' semifinal, in series order — the dates a best-of-3 game can land
+// on. Drives the series score (see seriesStatus) and the stand-in games below.
+const SEMIFINAL_DATES = ['20260728', '20260729', '20260730'];
+// Playoff games the league hasn't posted to the schedule feed yet. Presto only
+// adds a semifinal game once it's official, so between Game 1 going final and
+// Game 2 appearing there's nothing upcoming for the site to point at. These
+// stand in until the feed carries the real game; a feed game on the same date
+// always wins (matched by date — a stand-in can't know Presto's game id).
+// Game 3 is deliberately absent: it's only played if the series goes the
+// distance, and a phantom game on the schedule would outlive a 2-0 sweep.
+const MANUAL_PLAYOFF_GAMES = [
+  { date: '20260729', awayId: GATORS_ID, homeId: 'cz8qei0rxijys6nm' },   // Game 2 at Acadiana
+];
 // Recurring nightly concession promos by weekday (0=Sun..6=Sat). Home games
 // only — these run at Joe Miller Ballpark. No Monday game day.
 const PROMOS = {
@@ -867,6 +880,58 @@ function parseSchedule(html) {
   }
   const seen = new Set();
   return out.filter(g => (seen.has(g.id) ? false : seen.add(g.id))).sort((a,b) => a.sortKey - b.sortKey);
+}
+
+// A stand-in schedule row for a MANUAL_PLAYOFF_GAMES entry, shaped exactly like
+// a parseSchedule() game so every downstream consumer (hero, Upcoming list,
+// schedule API) treats it as an ordinary scheduled game. The id carries the
+// date so the usual /^\d{8}/ id checks still read it correctly, with a "_tbd"
+// tail that can never collide with a Presto game id.
+function manualPlayoffGame(m) {
+  const when = dateFromId(m.date);
+  const team = id => ({ id, name: fullName(id), short: shortName(id), logo: logo(id), score: null });
+  const away = team(m.awayId), home = team(m.homeId);
+  const gatorsHome = home.id === GATORS_ID;
+  const opp = gatorsHome ? away : home;
+  return { id: m.date + '_tbd', date: m.date, dateLabel: when.label, sortKey: when.sortKey,
+    state: 'scheduled', status: gameTimeCDT(m.date), gatorsHome,
+    opponent: { name: opp.name, short: opp.short, logo: opp.logo }, away, home };
+}
+// Fold the stand-ins into the parsed feed schedule. A feed game on the same date
+// always wins, so the moment the league posts the real game the stand-in drops
+// out and the site picks up its id — and with it live scores, the box score and
+// the replay link.
+function withManualPlayoffGames(parsed, manual) {
+  const dates = new Set(parsed.map(g => g.date));
+  const extra = (manual || MANUAL_PLAYOFF_GAMES).filter(m => !dates.has(m.date)).map(manualPlayoffGame);
+  return extra.length ? parsed.concat(extra).sort((a, b) => a.sortKey - b.sortKey) : parsed;
+}
+// Where the Gators' semifinal stands, from the games already final: wins and
+// losses banked by each side plus a one-line result per game played. Once the
+// hero rotates off Game 1 to the next scheduled game, this is what keeps the
+// completed games' results on screen.
+function seriesStatus(list) {
+  const played = (list || [])
+    .filter(g => g.state === 'final' && SEMIFINAL_DATES.indexOf(g.date) !== -1
+      && g.away && g.home && g.away.score != null && g.home.score != null)
+    .sort((a, b) => a.sortKey - b.sortKey);
+  if (!played.length) return null;
+  let w = 0, l = 0;
+  const results = played.map(g => {
+    const us = g.gatorsHome ? g.home.score : g.away.score;
+    const them = g.gatorsHome ? g.away.score : g.home.score;
+    if (us > them) w++; else if (us < them) l++;
+    const n = SEMIFINAL_DATES.indexOf(g.date) + 1;
+    return { game: n, id: g.id, date: g.date, won: us > them,
+      text: 'G' + n + ' ' + (us > them ? 'W' : us < them ? 'L' : 'T') + ' ' + us + '–' + them };
+  });
+  const hi = Math.max(w, l), lo = Math.min(w, l);
+  const opp = (played[0].opponent && played[0].opponent.short) || 'Opponent';
+  const label = w === 2 ? 'Gators win the series ' + w + '–' + l
+    : l === 2 ? opp + ' win the series ' + l + '–' + w
+    : w === l ? 'Series tied ' + w + '–' + l
+    : (w > l ? 'Gators lead the series ' : 'Gators trail the series ') + hi + '–' + lo;
+  return { w, l, label, results };
 }
 
 // Today's date (yyyymmdd) in the league's timezone (US Central).
@@ -1955,8 +2020,8 @@ async function pollSchedule() {
     lastHtml = body; lastFetchAt = Date.now();
     const parsed = parseSchedule(body);
     // Don't wipe a known-good schedule on a transient empty/garbled response.
-    if (parsed.length) games = parsed;
-    else if (!games.length) games = parsed;
+    if (parsed.length) games = withManualPlayoffGames(parsed);
+    else if (!games.length) games = withManualPlayoffGames(parsed);
     else process.stdout.write('\r[poll] kept ' + games.length + ' cached games (empty parse)        ');
     await refreshFeatured();
     try {
@@ -2100,6 +2165,9 @@ async function refreshFeatured() {
   const chosen = pick(games);
   if (!chosen) return;
   const norm = normalizeFeatured(chosen);
+  // Series score rides along on every semifinal game, so the hero carries Game
+  // 1's result forward onto Game 2 instead of losing it when it rotates.
+  norm.series = SEMIFINAL_DATES.indexOf(norm.date) !== -1 ? seriesStatus(games) : null;
   await enrichLive(norm);
   if (MANUAL_OVERRIDE.gameId && norm.id === MANUAL_OVERRIDE.gameId) {
     norm.away.runs = MANUAL_OVERRIDE.awayRuns;
@@ -4820,7 +4888,8 @@ app.get('/api/standings', (_q, r) => {
   const eliminated = computeElimination(rows, remaining);
   for (const x of rows) { x.gamesLeft = remaining[x.id] || 0; x.eliminated = !!eliminated[x.id]; }
   r.json({ updatedAt: standingsAt, gatorsId: GATORS_ID, half: SEASON_HALF, rows,
-    tiebreaks: ranked.tiebreaks, playoffs: buildPlayoffPicture(rows, metrics), scoreboard: buildLeagueBoard() });
+    tiebreaks: ranked.tiebreaks, playoffs: buildPlayoffPicture(rows, metrics),
+    series: seriesStatus(games), scoreboard: buildLeagueBoard() });
 });
 app.get('/debug/extras', (_q, r) => {
   const sample = games.filter(g => g.state === 'live' || g.state === 'scheduled').slice(0, 4)
@@ -5141,7 +5210,8 @@ module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, s
   dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, applyStandingsOverride, MANUAL_STANDINGS_OVERRIDE, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseTeamRosterSlugs, parseGameLog, boxRowsForPlayer, aggBat, aggPit, buildRecord, lineIsShowable, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, applyPitcherOverrides, pitchingTotals, strikeCounts, inningAlertText, finalAlertText,
   parseLeagueResults, computeLeagueMetrics, cmpTwoTeam, rankTiedGroup, rankSecondHalf, buildPlayoffPicture, boxLooksComplete, boxErrorResponse,
   gatorsGameResult, gatorsSeasonWL, applyGatorsAutoFloor, feedHasPitching, atBoxPrestage, bsLinkGators,
-  parseLeagueScoreboard, remainingGamesByTeam, computeElimination };
+  parseLeagueScoreboard, remainingGamesByTeam, computeElimination,
+  manualPlayoffGame, withManualPlayoffGames, seriesStatus, MANUAL_PLAYOFF_GAMES, SEMIFINAL_DATES, PLAYOFF_SERIES };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
@@ -5248,6 +5318,12 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .jplayoff{color:#1a1330;background:linear-gradient(180deg,var(--gold2),var(--gold));}
 .brkwhen{margin-top:8px;text-align:center;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.05em;text-transform:uppercase;font-size:9.5px;color:var(--mute);}
 .jplayoffnote{margin-top:5px;text-align:center;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.05em;text-transform:uppercase;font-size:9.5px;color:var(--gold2);line-height:1.3;}
+.jseries{margin-top:6px;text-align:center;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.05em;text-transform:uppercase;font-size:10px;color:var(--bone);line-height:1.35;}
+.jseries b{color:var(--gold2);font-weight:700;}
+.jseries .jsg{color:var(--mute);}
+.brkseries{margin:-2px 0 8px;text-align:center;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.05em;text-transform:uppercase;font-size:10px;color:var(--bone);line-height:1.35;}
+.brkseries b{color:var(--gold2);font-weight:700;}
+.brkseries .jsg{color:var(--mute);}
 .jtheme{margin-top:6px;text-align:center;font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-size:10.5px;color:#1a1330;background:linear-gradient(180deg,var(--gold2),var(--gold));border-radius:999px;padding:4px 11px;line-height:1.2;}
 .jpromos{display:flex;flex-direction:column;align-items:center;}
 .jpromo{margin-top:10px;text-align:center;font-size:10.5px;color:var(--mute);line-height:1.35;max-width:320px;}
@@ -5650,7 +5726,7 @@ __SITE_NOTICE__
 <div class="jumbo">
 <div class="sl">
 <div class="tm" id="awayTm"><a class="tlogo" id="awayLogoLink" rel="noopener"><img id="awayLogo" alt=""></a><div class="nm" id="awayNm">—</div><div class="rec" id="awayRec"></div><div class="sc" id="awaySc">0</div></div>
-<div class="mid"><a class="watchpill" id="watchBtn" target="_blank" rel="noopener" style="display:none">Watch</a><div class="statpill" id="statpill">—</div><div class="vs" id="vs">vs</div><div class="jloc" id="jloc"></div><div class="jtheme" id="themeTag" style="display:none"></div><div class="jtheme" id="specialName" style="display:none"></div><div class="jtheme" id="playoffTag" style="display:none"></div><div class="jplayoffnote" id="playoffNote" style="display:none"></div></div>
+<div class="mid"><a class="watchpill" id="watchBtn" target="_blank" rel="noopener" style="display:none">Watch</a><div class="statpill" id="statpill">—</div><div class="vs" id="vs">vs</div><div class="jloc" id="jloc"></div><div class="jtheme" id="themeTag" style="display:none"></div><div class="jtheme" id="specialName" style="display:none"></div><div class="jtheme" id="playoffTag" style="display:none"></div><div class="jseries" id="playoffSeries" style="display:none"></div><div class="jplayoffnote" id="playoffNote" style="display:none"></div></div>
 <div class="tm" id="homeTm"><a class="tlogo" id="homeLogoLink" rel="noopener"><img id="homeLogo" alt=""></a><div class="nm" id="homeNm">—</div><div class="rec" id="homeRec"></div><div class="sc" id="homeSc">0</div></div>
 </div>
 <div class="jpromos"><div class="jpromo" id="specialDetail" style="display:none"></div><div class="jpromo" id="promoTag" style="display:none"></div></div>
@@ -6029,6 +6105,12 @@ function renderGame(g){
   // Playoff series tag stays up pregame, live, and final — it's the context for
   // the whole night, not a pregame-only promo.
   if(pt&&pn){if(g.playoff){pt.textContent='🏆 '+g.playoff.tag;pt.style.display='';if(g.playoff.note){pn.textContent=g.playoff.note;pn.style.display='';}else pn.style.display='none';}else{pt.style.display='none';pn.style.display='none';}}
+  // Series score + every game played so far. It's the only place Game 1's
+  // result stays visible once the hero moves on to the next game of the series.
+  var psr=$('playoffSeries');
+  if(psr){var sr=g.series;
+    if(sr&&sr.label){psr.innerHTML=seriesHtml(sr);psr.style.display='';}
+    else psr.style.display='none';}
   var pr=$('promoTag');if(pr){if(g.promo&&g.status==='pregame'){pr.innerHTML=esc(g.promo.emoji)+' <b>'+esc(g.promo.name)+'</b> · '+esc(g.promo.detail);pr.style.display='';}else{pr.style.display='none';}}
   var wb=$('watchBtn');
   if(wb){
@@ -6646,6 +6728,13 @@ function renderStandings(d){
     $('scoreboardBody').innerHTML='';
   }
 }
+// "Gators lead the series 1–0 · G1 W 2–1" — the series score followed by each
+// game already played. Shared by the hero and the Scores-tab bracket.
+function seriesHtml(sr){
+  if(!sr||!sr.label)return '';
+  var games=(sr.results||[]).map(function(r){return esc(r.text);}).join(' · ');
+  return '<b>'+esc(sr.label)+'</b>'+(games?' <span class="jsg">· '+games+'</span>':'');
+}
 // A single seeded slot in a playoff matchup card.
 function poffSlot(s,gatorsId){
   if(!s)return '';
@@ -6690,8 +6779,13 @@ function renderBracket(d){
   var byseed={};p.seeds.forEach(function(s){byseed[s.seed]=s;});
   var h='<div class="sec">Playoff Bracket</div><div class="brkwrap"><div class="brk"><div class="brkround">';
   h+='<div class="brkrlab"><span>Semifinals</span><span class="bo3">Best-of-3</span></div>';
+  var sr=d&&d.series;
   (p.matchups||[[1,4],[2,3]]).forEach(function(m){
     h+='<div class="poffmatch">'+poffSlot(byseed[m[0]],gid)+'<div class="poffvs">vs</div>'+poffSlot(byseed[m[1]],gid)+'</div>';
+    // Hang the series score under the Gators' own matchup — the other semifinal
+    // isn't tracked here, so it stays a plain bracket line.
+    var isG=[m[0],m[1]].some(function(s){var t=byseed[s]&&byseed[s].team;return t&&t.id&&gid&&t.id===gid;});
+    if(isG&&sr&&sr.label)h+='<div class="brkseries">'+seriesHtml(sr)+'</div>';
   });
   h+='</div><div class="brkconn"></div><div class="brkround brkfinal">';
   h+='<div class="brkrlab"><span>Championship</span><span class="bo3">1 Game</span></div>';
