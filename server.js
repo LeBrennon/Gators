@@ -5673,6 +5673,8 @@ __SITE_NOTICE__
 <div class="sec">League Standings</div>
 <div class="rmeta" id="stMeta">Loading standings…</div>
 <div id="standingsBody"></div>
+<div class="sec sbsec" id="sbSec" style="display:none"><span>Other Playoff Game</span><span class="sbdate" id="sbMeta"></span></div>
+<div id="scoreboardBody"></div>
 </div>
 <div class="bld">__BUILD_LABEL__</div>
 </div>
@@ -6632,8 +6634,17 @@ function renderStandings(d){
     $('standingsBody').innerHTML=h;
     $('stMeta').textContent=d.half===2?'Second-half standings':d.half===1?'First-half standings':'';
   }
-  // Standings tab is standings-only now — the bracket lives on the Scores tab
-  // and the around-the-league scoreboard was removed with the season over.
+  // The bracket lives on the Scores tab; the Standings tab only surfaces the
+  // *other* semifinal/championship game — the Gators' own game is already the
+  // gamecast hero, so it's filtered out here to avoid showing it twice.
+  var sb=d&&d.scoreboard;
+  var otherGames=((sb&&sb.games)||[]).filter(function(g){return !g.isGators;});
+  if(otherGames.length){
+    renderScoreboard({date:sb.date,dateLabel:sb.dateLabel,games:otherGames},d&&d.gatorsId,recById);
+  }else{
+    var sec=$('sbSec');if(sec)sec.style.display='none';
+    $('scoreboardBody').innerHTML='';
+  }
 }
 // A single seeded slot in a playoff matchup card.
 function poffSlot(s,gatorsId){
