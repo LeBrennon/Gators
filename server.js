@@ -228,6 +228,19 @@ const PLAYOFF_SERIES = {
 // The Gators' semifinal, in series order — the dates a best-of-3 game can land
 // on. Drives the series score (see seriesStatus) and the stand-in games below.
 const SEMIFINAL_DATES = ['20260728', '20260729', '20260730'];
+// The moment a best-of-3 is decided the "Game 3 (if needed)" note above is a
+// lie — a 2-0 sweep means Thursday's game never happens. These replace it with
+// the only thing left to say: where the series winner goes from here.
+const SEMIFINAL_WON_NOTE = 'Gators advance to the TCL Championship — Sat, Aug 1';
+const SEMIFINAL_LOST_NOTE = 'The Gators’ season is over';
+// The playoff block (tag + note) shown for a date, with that swap applied once
+// the Gators' semifinal has a two-win side. Pure — callers pass the current
+// series (seriesStatus) so the note tracks the result rather than the calendar.
+function playoffInfo(date, series) {
+  const base = PLAYOFF_SERIES[date] || null;
+  if (!base || !series || (series.w !== 2 && series.l !== 2)) return base;
+  return { tag: base.tag, note: series.w === 2 ? SEMIFINAL_WON_NOTE : SEMIFINAL_LOST_NOTE };
+}
 // Playoff games the league hasn't posted to the schedule feed yet. Presto only
 // adds a semifinal game once it's official, so between Game 1 going final and
 // Game 2 appearing there's nothing upcoming for the site to point at. These
@@ -924,6 +937,43 @@ function withManualPlayoffGames(parsed, manual) {
   const extra = (manual || MANUAL_PLAYOFF_GAMES).filter(m => !dates.has(m.date)).map(manualPlayoffGame);
   return extra.length ? parsed.concat(extra).sort((a, b) => a.sortKey - b.sortKey) : parsed;
 }
+// Presto's schedule page can sit on a finished playoff game for hours — Game 2
+// of the semifinal was still listed "live" with no score well after the last
+// out, while the per-game live feed had it final. Anything reading the series
+// off the schedule alone (the hero's series line, the bracket) would keep
+// saying "Gators lead 1–0" with the clincher already banked. This returns a
+// COPY of the schedule with the featured game's live-feed result folded in, so
+// the series score is right the moment the game ends. Non-mutating on purpose:
+// the cached `games` array must keep whatever the feed actually said.
+function withFeaturedResult(list, feat) {
+  if (!feat || feat.status !== 'final') return list || [];
+  const a = feat.away && feat.away.runs, h = feat.home && feat.home.runs;
+  if (a == null || h == null) return list || [];
+  return (list || []).map(g => (g.id !== feat.id || g.state === 'final') ? g : Object.assign({}, g, {
+    state: 'final', status: feat.inningLabel || 'Final',
+    away: Object.assign({}, g.away, { score: a }),
+    home: Object.assign({}, g.home, { score: h }),
+  }));
+}
+// League-log rows (parseLeagueResults shape) for semifinal games the league's
+// results page hasn't published yet, rebuilt from the Gators' own schedule —
+// which withFeaturedResult keeps current. Only ever covers the Gators' series;
+// the other semifinal has no such second source and waits on the league page.
+function semifinalLogRows(sched) {
+  return (sched || [])
+    .filter(g => g.state === 'final' && SEMIFINAL_DATES.indexOf(g.date) !== -1
+      && g.away && g.home && g.away.id && g.home.id && g.away.score != null && g.home.score != null)
+    .map(g => ({ id: g.id, date: g.date, regulation: true,
+      away: { id: g.away.id, score: g.away.score }, home: { id: g.home.id, score: g.home.score } }));
+}
+// Fold those in, with the league log authoritative for any matchup-date it
+// already carries (matched the same way matchupSeries reads it: date + pair).
+function withSemifinalLog(log, sched) {
+  const key = r => r.date + '|' + [r.away.id, r.home.id].sort().join('|');
+  const have = new Set((log || []).map(key));
+  const extra = semifinalLogRows(sched).filter(r => !have.has(key(r)));
+  return extra.length ? (log || []).concat(extra) : (log || []);
+}
 // Where the Gators' semifinal stands, from the games already final: wins and
 // losses banked by each side plus a one-line result per game played. Once the
 // hero rotates off Game 1 to the next scheduled game, this is what keeps the
@@ -978,6 +1028,20 @@ function matchupSeries(log, aId, bId) {
     : !leaderId ? 'Series tied ' + a + '–' + b
     : shortOf(leaderId) + ' lead the series ' + hi + '–' + lo;
   return { wins, leaderId, label, results };
+}
+// The team through to the championship out of one semifinal — a seeded slot
+// (same shape poffSlot renders) with the note reading how they got there, e.g.
+// "Beat Cane Cutters 2–0". Null while the series is still alive, so the
+// bracket's final round keeps its "Semifinal winner" placeholder.
+function finalistOf(series, slotA, slotB) {
+  if (!series || !series.wins || !slotA || !slotB || !slotA.team || !slotB.team) return null;
+  const winId = Object.keys(series.wins).find(id => series.wins[id] >= 2);
+  if (!winId) return null;
+  const won = slotA.team.id === winId ? slotA : slotB;
+  const lost = slotA.team.id === winId ? slotB : slotA;
+  const w = series.wins[winId], l = series.wins[lost.team.id] || 0;
+  return { seed: won.seed, team: won.team, clinched: true,
+    note: 'Beat ' + (lost.team.short || lost.team.name) + ' ' + w + '–' + l };
 }
 
 // Today's date (yyyymmdd) in the league's timezone (US Central).
@@ -1803,7 +1867,7 @@ function normalizeFeatured(g) {
     inning: ip.inning, half: ip.half,
     inningLabel: status === 'live' ? g.status : status === 'final' ? (g.status || 'Final') : status === 'cancelled' ? 'Cancelled' : g.status,
     gatorsHome: g.gatorsHome, opponent: g.opponent,
-    location: gameLocation(g), watchUrl: watchUrlFor(g), replayUrl: replayUrlFor(g), ticketUrl: ticketIndex[g.id] || null, theme: THEMES[g.date] || null, freeAdmission: FREE_ADMISSION[g.date] || null, playoff: PLAYOFF_SERIES[g.date] || null, promo: promoFor(g), special: SPECIALS[g.date] || null,
+    location: gameLocation(g), watchUrl: watchUrlFor(g), replayUrl: replayUrlFor(g), ticketUrl: ticketIndex[g.id] || null, theme: THEMES[g.date] || null, freeAdmission: FREE_ADMISSION[g.date] || null, playoff: playoffInfo(g.date, semifinal), promo: promoFor(g), special: SPECIALS[g.date] || null,
     away: { name: g.away.name, short: g.away.short, logo: g.away.logo, runs: g.away.score || 0, record: recordStr(g.away), site: TEAM_SITE[g.away.id] || null },
     home: { name: g.home.name, short: g.home.short, logo: g.home.logo, runs: g.home.score || 0, record: recordStr(g.home), site: TEAM_SITE[g.home.id] || null },
   };
@@ -1811,6 +1875,10 @@ function normalizeFeatured(g) {
 
 // ----- state ----------------------------------------------------------------
 let games = [], featured = null, prevFeatured = null;
+// Where the Gators' semifinal stands right now (seriesStatus), recomputed every
+// refreshFeatured with the featured game's live result folded in. Module state
+// because the schedule API and the hero both need it and neither owns it.
+let semifinal = null;
 // Last Gators game we saw pitching for via the live feed. Kept so the rest chart
 // survives the live→final→scraped-box handoff even after `featured` rotates to the
 // next game and before Presto's (bot-gated) final box XML can be scraped.
@@ -2211,9 +2279,6 @@ async function refreshFeatured() {
   const chosen = pick(games);
   if (!chosen) return;
   const norm = normalizeFeatured(chosen);
-  // Series score rides along on every semifinal game, so the hero carries Game
-  // 1's result forward onto Game 2 instead of losing it when it rotates.
-  norm.series = SEMIFINAL_DATES.indexOf(norm.date) !== -1 ? seriesStatus(games) : null;
   await enrichLive(norm);
   if (MANUAL_OVERRIDE.gameId && norm.id === MANUAL_OVERRIDE.gameId) {
     norm.away.runs = MANUAL_OVERRIDE.awayRuns;
@@ -2237,6 +2302,14 @@ async function refreshFeatured() {
     // still-live nightcap keeps its live inning label.
     if (norm.status === 'final' && dh.status) norm.inningLabel = dh.status;
   }
+  // Series score, computed last so it sees the live feed (and any manual
+  // override) rather than the schedule page's lagging view of tonight's game.
+  // It rides along on every semifinal game, so the hero carries Game 1's result
+  // forward onto Game 2 instead of losing it when it rotates — and once the
+  // series is decided it also retires the "Game 3 (if needed)" note.
+  semifinal = seriesStatus(withFeaturedResult(games, norm));
+  norm.series = SEMIFINAL_DATES.indexOf(norm.date) !== -1 ? semifinal : null;
+  norm.playoff = playoffInfo(norm.date, semifinal);
   prevFeatured = featured; featured = norm;
   // The instant a game is final, warm its box score in the background (retried on
   // each schedule poll until the real tables land) so the "Box Score" button
@@ -3920,7 +3993,7 @@ async function pollTickets() {
   } catch (e) { logErr('pollTickets', e); /* keep previous */ }
 }
 // Attaches the derived display fields a game needs on the client.
-function decorateGame(g) { const dh = MANUAL_DOUBLEHEADER[g.id]; return Object.assign({}, g, { status: (dh && g.state === 'final' && dh.status) ? dh.status : g.status, dhLabel: dh ? dh.label : null, away: Object.assign({}, g.away, { city: boardCity(g.away && g.away.id), nick: NICK[g.away && g.away.id] || (g.away && g.away.short) || '' }), home: Object.assign({}, g.home, { city: boardCity(g.home && g.home.id), nick: NICK[g.home && g.home.id] || (g.home && g.home.short) || '' }), location: gameLocation(g), watchUrl: watchUrlFor(g), replayUrl: replayUrlFor(g), ticketUrl: ticketIndex[g.id] || null, theme: THEMES[g.date] || null, freeAdmission: FREE_ADMISSION[g.date] || null, playoff: PLAYOFF_SERIES[g.date] || null, promo: promoFor(g), special: SPECIALS[g.date] || null }); }
+function decorateGame(g) { const dh = MANUAL_DOUBLEHEADER[g.id]; return Object.assign({}, g, { status: (dh && g.state === 'final' && dh.status) ? dh.status : g.status, dhLabel: dh ? dh.label : null, away: Object.assign({}, g.away, { city: boardCity(g.away && g.away.id), nick: NICK[g.away && g.away.id] || (g.away && g.away.short) || '' }), home: Object.assign({}, g.home, { city: boardCity(g.home && g.home.id), nick: NICK[g.home && g.home.id] || (g.home && g.home.short) || '' }), location: gameLocation(g), watchUrl: watchUrlFor(g), replayUrl: replayUrlFor(g), ticketUrl: ticketIndex[g.id] || null, theme: THEMES[g.date] || null, freeAdmission: FREE_ADMISSION[g.date] || null, playoff: playoffInfo(g.date, semifinal), promo: promoFor(g), special: SPECIALS[g.date] || null }); }
 
 // ----- server ---------------------------------------------------------------
 // ---- daily unique-visitor analytics ----------------------------------------
@@ -4958,18 +5031,26 @@ app.get('/api/standings', (_q, r) => {
   const playoffs = buildPlayoffPicture(rows, metrics, PLAYOFF_FIELD);
   // A series line per semifinal, so the bracket shows both — the Gators' own
   // and the other one — rather than only the game the hero already carries.
-  const log = parseLeagueResults(lastHtml);
+  // The league results page lags the last out just like the schedule does, so
+  // top it up with the Gators' own semifinal games off their (live-corrected)
+  // schedule before reading either series.
+  const sched = withFeaturedResult(games, featured);
+  const log = withSemifinalLog(parseLeagueResults(lastHtml), sched);
   if (playoffs) {
     const bySeed = {}; playoffs.seeds.forEach(s => { bySeed[s.seed] = s; });
     playoffs.series = (playoffs.matchups || []).map(m => {
       const a = bySeed[m[0]] && bySeed[m[0]].team, b = bySeed[m[1]] && bySeed[m[1]].team;
       return (a && b) ? matchupSeries(log, a.id, b.id) : null;
     });
+    // Whoever has banked two wins is through to the championship; the bracket's
+    // final round shows them by name instead of "Semifinal winner". Null until
+    // a series is actually decided — a 1-0 lead is not a finalist.
+    playoffs.finalists = (playoffs.matchups || []).map((m, i) => finalistOf(playoffs.series[i], bySeed[m[0]], bySeed[m[1]]));
   }
   r.json({ updatedAt: standingsAt, gatorsId: GATORS_ID, half: SEASON_HALF,
     seasonOver: REGULAR_SEASON_OVER, rows,
     tiebreaks: ranked.tiebreaks, playoffs,
-    series: seriesStatus(games), scoreboard: buildLeagueBoard() });
+    series: seriesStatus(sched), scoreboard: buildLeagueBoard() });
 });
 app.get('/debug/extras', (_q, r) => {
   const sample = games.filter(g => g.state === 'live' || g.state === 'scheduled').slice(0, 4)
@@ -5292,7 +5373,9 @@ module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, s
   gatorsGameResult, gatorsSeasonWL, applyGatorsAutoFloor, feedHasPitching, atBoxPrestage, bsLinkGators,
   parseLeagueScoreboard, remainingGamesByTeam, computeElimination,
   manualPlayoffGame, withManualPlayoffGames, seriesStatus, matchupSeries, MANUAL_PLAYOFF_GAMES, SEMIFINAL_DATES, PLAYOFF_SERIES,
-  PLAYOFF_FIELD, REGULAR_SEASON_OVER, inPlayoffField };
+  PLAYOFF_FIELD, REGULAR_SEASON_OVER, inPlayoffField,
+  withFeaturedResult, semifinalLogRows, withSemifinalLog, finalistOf, playoffInfo,
+  SEMIFINAL_WON_NOTE, SEMIFINAL_LOST_NOTE };
 
 // ----- embedded service worker ---------------------------------------------
 const SW = [
@@ -6968,6 +7051,12 @@ function renderPlayoffs(d){
   h+='</div>';
   host.innerHTML=h;
 }
+// A championship slot: the team that won its semifinal, or the placeholder that
+// stands there until one side banks its second win.
+function brkFinalSlot(f,gatorsId){
+  if(!f||!f.team)return '<div class="poffslot tbd"><span class="poffseed">–</span><span class="poffl"></span><span class="poffnm">Semifinal winner</span></div>';
+  return poffSlot(f,gatorsId);
+}
 // Scores-tab playoff bracket: both semifinal series feeding the championship,
 // seeded from the same /api/standings playoff picture as the Standings tab.
 function renderBracket(d){
@@ -6987,10 +7076,10 @@ function renderBracket(d){
   });
   h+='</div><div class="brkconn"></div><div class="brkround brkfinal">';
   h+='<div class="brkrlab"><span>Championship</span><span class="bo3">1 Game</span></div>';
-  h+='<div class="poffmatch">'
-    +'<div class="poffslot tbd"><span class="poffseed">–</span><span class="poffl"></span><span class="poffnm">Semifinal winner</span></div>'
-    +'<div class="poffvs">vs</div>'
-    +'<div class="poffslot tbd"><span class="poffseed">–</span><span class="poffl"></span><span class="poffnm">Semifinal winner</span></div></div>'
+  // A semifinal that's been won puts its winner in the final by name; the other
+  // slot stays a placeholder until that series is decided too.
+  var fin=(p&&p.finalists)||[];
+  h+='<div class="poffmatch">'+brkFinalSlot(fin[0],gid)+'<div class="poffvs">vs</div>'+brkFinalSlot(fin[1],gid)+'</div>'
     +'<div class="brkwhen">Saturday, August 1 · better regular-season record hosts</div>';
   h+='</div></div>';
   h+='<ul class="poffrules"><li>Semifinals (Jul 28–30) are best-of-3 — first to two wins advances.</li>'
