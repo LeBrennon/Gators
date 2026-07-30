@@ -93,3 +93,34 @@ test('bsAddSeasonAvg: accepts a slugMap without crashing (no roster/leaderboard 
   const out = bsAddSeasonAvg(TABLE, { 'ayden sunday': 'aydensunday', 'smith john': 'jsmith' });
   assert.match(out, /<td class="bxavg">-<\/td>/);
 });
+
+// The warm-boot seed (scripts/build-box-seed.js) is built by scraping
+// /api/boxscore, which already carries an injected AVG column — so a seeded box
+// gets run through this function a second time. Appending printed every average
+// twice; filling the existing column keeps it to one.
+const countAvgHeaders = h => (h.match(/>AVG</g) || []).length;
+
+test('bsAddSeasonAvg: re-running over its own output does not add a second AVG column', () => {
+  const once = bsAddSeasonAvg(TABLE);
+  const twice = bsAddSeasonAvg(once);
+  assert.equal(countAvgHeaders(once), 1);
+  assert.equal(countAvgHeaders(twice), 1);
+  assert.equal(twice, once);   // fully idempotent, not merely single-columned
+});
+
+test('bsAddSeasonAvg: fills an AVG column the table already had, in place', () => {
+  // A box whose source template ships its own AVG, mid-table rather than last.
+  const withAvg =
+    '<table>' +
+    '<tr><th>Gators Hitters</th><th>AB</th><th>AVG</th><th>R</th></tr>' +
+    '<tr><th><div><span>cf</span> Ayden Sunday</div></th><td>4</td><td>.301</td><td>1</td></tr>' +
+    '<tr><th>Totals</th><td>7</td><td></td><td>1</td></tr>' +
+    '</table>';
+  const out = bsAddSeasonAvg(withAvg);
+  assert.equal(countAvgHeaders(out), 1);
+  // Column stays where it was — the header cell is rewritten, not appended.
+  assert.match(out, /<th>AB<\/th><th class="bxavg">AVG<\/th><th>R<\/th>/);
+  // No season stats in a unit test, so the source's own figure is kept rather
+  // than being blanked to a dash.
+  assert.match(out, /<td>4<\/td><td class="bxavg">\.301<\/td><td>1<\/td>/);
+});

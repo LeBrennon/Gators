@@ -582,16 +582,31 @@ function bsAddSeasonAvg(html, slugMap) {
     if (!key) return null; const p = key.split(' '); if (p.length < 2) return null;
     return idx[p[0][0] + '|' + p[p.length - 1]] || null;
   };
-  let first = true;
+  let first = true, avgCol = -1;
   return html.replace(/<tr\b[\s\S]*?<\/tr>/gi, row => {
     const cells = row.match(/<t[dh]\b[\s\S]*?<\/t[dh]>/gi) || [];
     if (!cells.length) return row;
     const open = (row.match(/^<tr\b[^>]*>/i) || ['<tr>'])[0];
-    let cell;
-    if (first) { first = false; cell = '<th class="bxavg">AVG</th>'; }
-    else if (/^totals$/i.test(bsText(cells[0]).trim())) cell = '<td class="bxavg"></td>';
-    else { const avg = resolve(bsBatterName(cells[0])); cell = '<td class="bxavg">' + (avg || '-') + '</td>'; }
-    cells.push(cell);
+    if (first) {
+      first = false;
+      // The table may already carry an AVG column: the warm-boot seed is built
+      // by scraping THIS endpoint's own output (scripts/build-box-seed.js), so
+      // a seeded box comes back with the column we injected last time, and some
+      // Presto templates ship one of their own. Fill that column in place
+      // instead of appending a second — which is what printed every average
+      // twice — so re-running over our own output is a no-op.
+      avgCol = cells.findIndex(c => /^avg$/i.test(bsText(c).trim()));
+      const th = '<th class="bxavg">AVG</th>';
+      if (avgCol === -1) { avgCol = cells.length; cells.push(th); } else cells[avgCol] = th;
+      return open + cells.join('') + '</tr>';
+    }
+    // Whatever the column already held, kept as the fallback so a box that
+    // arrived with a number never renders a dash instead of one.
+    const prior = (avgCol < cells.length) ? bsText(cells[avgCol]).trim() : '';
+    const avg = /^totals$/i.test(bsText(cells[0]).trim()) ? prior
+      : (resolve(bsBatterName(cells[0])) || prior || '-');
+    const cell = '<td class="bxavg">' + avg + '</td>';
+    if (avgCol < cells.length) cells[avgCol] = cell; else cells.push(cell);
     return open + cells.join('') + '</tr>';
   });
 }
@@ -1042,6 +1057,20 @@ function finalistOf(series, slotA, slotB) {
   const w = series.wins[winId], l = series.wins[lost.team.id] || 0;
   return { seed: won.seed, team: won.team, clinched: true,
     note: 'Beat ' + (lost.team.short || lost.team.name) + ' ' + w + '–' + l };
+}
+// The other side of that: the team a decided series knocks out. They made the
+// field, so "did not qualify" was never true of them — but they're done, and
+// the standings table shades them like everyone else who isn't playing on.
+// Null while the series is still alive. Mirrors finalistOf.
+function eliminatedOf(series) {
+  if (!series || !series.wins) return null;
+  const ids = Object.keys(series.wins);
+  const winId = ids.find(id => series.wins[id] >= 2);
+  const loseId = winId && ids.find(id => id !== winId);
+  if (!winId || !loseId) return null;
+  return { id: loseId, winnerId: winId,
+    reason: 'Eliminated in the semifinals — lost to ' + shortName(winId)
+      + ' ' + series.wins[winId] + '–' + series.wins[loseId] };
 }
 
 // Today's date (yyyymmdd) in the league's timezone (US Central).
@@ -2139,8 +2168,10 @@ async function pollSchedule() {
     else process.stdout.write('\r[poll] kept ' + games.length + ' cached games (empty parse)        ');
     await refreshFeatured();
     try {
-      const date = (featured && featured.date) || todayCentralYmd();
-      await refreshLeagueLiveScores(parseLeagueScoreboard(lastHtml, date), featured && featured.id);
+      // Same day the board will show — otherwise a night the Gators aren't
+      // playing never gets its live scores pulled, and the board that finally
+      // shows those games has nothing to overlay.
+      await refreshLeagueLiveScores(parseLeagueScoreboard(lastHtml, boardDate()), featured && featured.id);
     } catch (e) { logErr('pollSchedule', e); /* board still works from schedule scores */ }
     try { await dispatchFinalReport(); } catch (e) { /* report trigger is best-effort */ }
   } catch (err) { process.stdout.write('\r[poll error] ' + err.message + '        '); }
@@ -2255,10 +2286,29 @@ function applyLiveScores(games, feat) {
   }
   return games;
 }
-// Around-the-league board for the featured game's day, live scores overlaid.
+// Which day the around-the-league board shows. Normally the featured game's,
+// which is right whenever the Gators are the thing happening. But once they're
+// off the schedule — between rounds, waiting on a semifinal opponent, or out —
+// `featured` sticks on their last final and the board freezes on that date,
+// hiding the very games that decide who they play next. Fall forward to today
+// when today has league games of its own and the featured game is behind it.
+// The decision itself, kept pure so it can be tested without module state.
+function pickBoardDate(featDate, today, todayHasGames) {
+  const fd = featDate || today;
+  return (fd < today && todayHasGames) ? today : fd;
+}
+function boardDate() {
+  const today = todayCentralYmd();
+  const fd = (featured && featured.date) || today;
+  if (fd >= today || !lastHtml) return fd;
+  let has = false;
+  try { has = parseLeagueScoreboard(lastHtml, today).length > 0; } catch (e) {}
+  return pickBoardDate(fd, today, has);
+}
+// Around-the-league board for that day, live scores overlaid.
 // Pure read of cached data — no network.
 function buildLeagueBoard() {
-  const date = (featured && featured.date) || todayCentralYmd();
+  const date = boardDate();
   const raw = lastHtml ? sortBoard(applyLiveScores(parseLeagueScoreboard(lastHtml, date), featured)) : [];
   const games = raw.map(g => {
     // Mirror the featured game's manual cancellation onto the board so the same
@@ -5027,6 +5077,11 @@ app.get('/api/standings', (_q, r) => {
   for (const x of rows) {
     x.gamesLeft = REGULAR_SEASON_OVER ? 0 : (remaining[x.id] || 0);
     x.eliminated = REGULAR_SEASON_OVER ? !inPlayoffField(x.id) : !!eliminated[x.id];
+    // Why a row is shaded, so the badge can say the true thing per team rather
+    // than one blanket sentence: 'missed' the field, knocked out of a series
+    // ('knockedout', set below), or dead in the mid-season 'race'.
+    x.outKind = !x.eliminated ? null : (REGULAR_SEASON_OVER ? 'missed' : 'race');
+    x.outReason = x.outKind === 'missed' ? 'Did not qualify for the playoffs' : null;
   }
   const playoffs = buildPlayoffPicture(rows, metrics, PLAYOFF_FIELD);
   // A series line per semifinal, so the bracket shows both — the Gators' own
@@ -5046,6 +5101,14 @@ app.get('/api/standings', (_q, r) => {
     // final round shows them by name instead of "Semifinal winner". Null until
     // a series is actually decided — a 1-0 lead is not a finalist.
     playoffs.finalists = (playoffs.matchups || []).map((m, i) => finalistOf(playoffs.series[i], bySeed[m[0]], bySeed[m[1]]));
+    // ...and the losing side is out. Shade them in with the teams that never
+    // qualified — "Out" on this table means out of the tournament, not out of
+    // the regular season — but keep their own reason on the badge.
+    for (const sr of playoffs.series) {
+      const gone = eliminatedOf(sr); if (!gone) continue;
+      const row = rows.find(x => x.id === gone.id); if (!row) continue;
+      row.eliminated = true; row.outKind = 'knockedout'; row.outReason = gone.reason;
+    }
   }
   r.json({ updatedAt: standingsAt, gatorsId: GATORS_ID, half: SEASON_HALF,
     seasonOver: REGULAR_SEASON_OVER, rows,
@@ -5368,13 +5431,13 @@ if (require.main === module) {
     (function scheduleLoop() { pollSchedule().catch(e => logErr('pollSchedule', e)).finally(() => setTimeout(scheduleLoop, schedulePollDelay())); })(); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleRosterRefresh(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); setTimeout(pollStrikePct, 15000); setInterval(pollStrikePct, 3 * 60 * 60 * 1000); setTimeout(getPitcherRest, 20000); scheduleDailyStats(); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, attachLineupSubLegend, pitchersFromFeed, extractEventAuth,
-  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, applyStandingsOverride, MANUAL_STANDINGS_OVERRIDE, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseTeamRosterSlugs, parseGameLog, boxRowsForPlayer, aggBat, aggPit, buildRecord, lineIsShowable, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, applyPitcherOverrides, pitchingTotals, strikeCounts, inningAlertText, finalAlertText,
+  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, applyStandingsOverride, MANUAL_STANDINGS_OVERRIDE, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseTeamRosterSlugs, parseGameLog, boxRowsForPlayer, aggBat, aggPit, buildRecord, lineIsShowable, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pickBoardDate, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, applyPitcherOverrides, pitchingTotals, strikeCounts, inningAlertText, finalAlertText,
   parseLeagueResults, computeLeagueMetrics, cmpTwoTeam, rankTiedGroup, rankSecondHalf, buildPlayoffPicture, boxLooksComplete, boxErrorResponse,
   gatorsGameResult, gatorsSeasonWL, applyGatorsAutoFloor, feedHasPitching, atBoxPrestage, bsLinkGators,
   parseLeagueScoreboard, remainingGamesByTeam, computeElimination,
   manualPlayoffGame, withManualPlayoffGames, seriesStatus, matchupSeries, MANUAL_PLAYOFF_GAMES, SEMIFINAL_DATES, PLAYOFF_SERIES,
   PLAYOFF_FIELD, REGULAR_SEASON_OVER, inPlayoffField,
-  withFeaturedResult, semifinalLogRows, withSemifinalLog, finalistOf, playoffInfo,
+  withFeaturedResult, semifinalLogRows, withSemifinalLog, finalistOf, eliminatedOf, playoffInfo,
   SEMIFINAL_WON_NOTE, SEMIFINAL_LOST_NOTE };
 
 // ----- embedded service worker ---------------------------------------------
@@ -6951,7 +7014,7 @@ function renderStandings(d){
   var recById={};rows.forEach(function(x){if(x.id)recById[x.id]=(x.w2|0)+'-'+(x.l2|0);});
   if(!rows.length){$('standingsBody').innerHTML='<div class="note">Standings aren’t available yet — check back shortly.</div>';$('stMeta').textContent='';}
   else{
-    var anyClinch=false,anyOut=false;
+    var anyClinch=false,anyOut=false,anyKnocked=false;
     // Standings position with ties: teams sharing the same second-half PCT hold
     // the same rank, shown as "T-N" (e.g. four teams at .667 are all "T-1").
     var pos=rows.map(function(x,i){return (i>0&&rows[i-1].pct===x.pct)?null:i+1;});
@@ -6970,9 +7033,12 @@ function renderStandings(d){
       var nm=esc(x.name||x.short);
       var clin='';
       var gl=x.gamesLeft==null?'':(' — '+x.gamesLeft+' game'+(x.gamesLeft===1?'':'s')+' left');
-      var outt=over?'Did not qualify for the playoffs':('Mathematically eliminated from the second-half race'+gl);
+      // The server sends the specific reason once there is one to send (missed
+      // the field, or knocked out of a series); the mid-season race keeps its
+      // games-left tail, which only the client knows how to phrase.
+      var outt=x.outReason||(over?'Did not qualify for the playoffs':('Mathematically eliminated from the second-half race'+gl));
       var outb=x.eliminated?('<span class="outbadge" title="'+esc(outt)+'">Out</span>'):'';
-      if(x.eliminated)anyOut=true;
+      if(x.eliminated){anyOut=true;if(x.outKind==='knockedout')anyKnocked=true;}
       var inner=lg+'<span class="stnm">'+nm+'</span>'+clin+outb;
       var team=x.site?('<a class="stteam" href="'+esc(x.site)+'" target="_blank" rel="noopener">'+inner+'</a>'):('<div class="stteam">'+inner+'</div>');
       var cls=[isG?'stg':'',x.clinched?'stclinch':'',x.eliminated?'stout':''].filter(Boolean).join(' ');
@@ -6987,8 +7053,11 @@ function renderStandings(d){
     });
     h+='</table></div>';
 
+    // Once a team has been knocked out of a series, "did not qualify" is false
+    // of the shaded set as a whole — they qualified and lost. One phrase has to
+    // cover both, and the per-row badge carries the specific reason.
     if(anyOut)h+='<div class="stnote"><span class="outswatch"></span><span class="outbadge">Out</span> shaded row — '
-      +(over?'did not qualify for the playoffs':'mathematically eliminated from the second-half race')+'</div>';
+      +(anyKnocked?'out of the playoffs':over?'did not qualify for the playoffs':'mathematically eliminated from the second-half race')+'</div>';
     var tbs=(d&&d.tiebreaks)||[];
     if(tbs.length){
       h+='<div class="sttb"><div class="sttbh">Tiebreakers applied</div><ul>';
