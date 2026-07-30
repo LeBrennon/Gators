@@ -241,6 +241,14 @@ function playoffInfo(date, series) {
   if (!base || !series || (series.w !== 2 && series.l !== 2)) return base;
   return { tag: base.tag, note: series.w === 2 ? SEMIFINAL_WON_NOTE : SEMIFINAL_LOST_NOTE };
 }
+// The same block for a league game on the hero: the date's own game-in-series
+// tag, and a note saying what the game means for the Gators — which is the
+// reason it's on their site at all.
+function neutralPlayoffInfo(date, series) {
+  const base = PLAYOFF_SERIES[date] || null;
+  return { tag: base ? base.tag : 'TCL Playoffs',
+    note: (series && series.w === 2) ? 'Winner meets the Gators in Saturday’s championship' : null };
+}
 // Playoff games the league hasn't posted to the schedule feed yet. Presto only
 // adds a semifinal game once it's official, so between Game 1 going final and
 // Game 2 appearing there's nothing upcoming for the site to point at. These
@@ -1924,7 +1932,7 @@ function normalizeFeatured(g) {
     id: g.id, date: g.date, status, statusText: g.status, dateLabel: g.dateLabel,
     inning: ip.inning, half: ip.half,
     inningLabel: status === 'live' ? g.status : status === 'final' ? (g.status || 'Final') : status === 'cancelled' ? 'Cancelled' : g.status,
-    gatorsHome: g.gatorsHome, opponent: g.opponent,
+    gatorsHome: g.gatorsHome, neutral: !!g.neutral, opponent: g.opponent,
     location: gameLocation(g), watchUrl: watchUrlFor(g), replayUrl: replayUrlFor(g), ticketUrl: ticketIndex[g.id] || null, theme: THEMES[g.date] || null, freeAdmission: FREE_ADMISSION[g.date] || null, playoff: playoffInfo(g.date, semifinal), promo: promoFor(g), special: SPECIALS[g.date] || null,
     away: { name: g.away.name, short: g.away.short, logo: g.away.logo, runs: g.away.score || 0, record: recordStr(g.away), site: TEAM_SITE[g.away.id] || null },
     home: { name: g.home.name, short: g.home.short, logo: g.home.logo, runs: g.home.score || 0, record: recordStr(g.home), site: TEAM_SITE[g.home.id] || null },
@@ -2339,6 +2347,26 @@ function boardDate() {
   if (fd >= today) return fd;
   return pickBoardDate(fd, today, leagueBoardRaw(today).length > 0);
 }
+// A board row reshaped like a parseSchedule() game, so the gamecast can feature
+// a league game the Gators aren't in. `neutral` is the flag every Gators-specific
+// branch keys off — there is no "us" here, so no fireworks, no score alerts, no
+// home/away framing, and the lineup tabs mean away/home instead of us/them.
+// gatorsHome stays null rather than false: false would claim we're the away team.
+function leagueGameRow(g) {
+  const when = dateFromId(g.date);
+  const side = t => ({ id: t.id, name: fullName(t.id), short: shortName(t.id), logo: t.logo || logo(t.id), score: t.score });
+  const away = side(g.away), home = side(g.home);
+  return { id: g.id, date: g.date, dateLabel: when.label, sortKey: when.sortKey,
+    state: g.state, status: g.status, gatorsHome: null, neutral: true,
+    opponent: { name: home.name, short: home.short, logo: home.logo }, away, home };
+}
+// The live league game to hand the gamecast when the Gators aren't playing. A
+// stand-in is never live (it has no real box id, so there's no feed behind it),
+// so this only ever returns a game the league has actually posted.
+function liveNeutralGame() {
+  const g = leagueBoardRaw(boardDate()).find(x => x.state === 'live' && !x.isGators && !/_tbd$/.test(x.id));
+  return g ? leagueGameRow(g) : null;
+}
 // Around-the-league board for that day, live scores overlaid.
 // Pure read of cached data — no network.
 function buildLeagueBoard() {
@@ -2360,7 +2388,17 @@ function buildLeagueBoard() {
 // broadcast. Used by both the schedule poll and the tighter live poll.
 async function refreshFeatured() {
   noteFinals(games);
-  const chosen = pick(games);
+  let chosen = pick(games);
+  // On a night the Gators aren't playing, a live league game takes the gamecast —
+  // the other semifinal deciding their next opponent IS the story, and it gets
+  // the same treatment theirs would: line score, count, bases, play-by-play.
+  // Only while it's live; the moment it's final the Gators' own card comes back,
+  // with the result carried by the board and the bracket below it. A live Gators
+  // game always outranks it.
+  if (!chosen || chosen.state !== 'live') {
+    const neutral = liveNeutralGame();
+    if (neutral) chosen = neutral;
+  }
   if (!chosen) return;
   const norm = normalizeFeatured(chosen);
   await enrichLive(norm);
@@ -2392,8 +2430,16 @@ async function refreshFeatured() {
   // forward onto Game 2 instead of losing it when it rotates — and once the
   // series is decided it also retires the "Game 3 (if needed)" note.
   semifinal = seriesStatus(withFeaturedResult(games, norm));
-  norm.series = SEMIFINAL_DATES.indexOf(norm.date) !== -1 ? semifinal : null;
-  norm.playoff = playoffInfo(norm.date, semifinal);
+  if (norm.neutral) {
+    // Their game, their context. Our series line under their score would read as
+    // if it were theirs, and our "advance to the championship" note belongs on
+    // our own card — what this game means to us is the note below instead.
+    norm.series = null;
+    norm.playoff = neutralPlayoffInfo(norm.date, semifinal);
+  } else {
+    norm.series = SEMIFINAL_DATES.indexOf(norm.date) !== -1 ? semifinal : null;
+    norm.playoff = playoffInfo(norm.date, semifinal);
+  }
   prevFeatured = featured; featured = norm;
   // The instant a game is final, warm its box score in the background (retried on
   // each schedule poll until the real tables land) so the "Box Score" button
@@ -2428,8 +2474,12 @@ async function refreshFeatured() {
   // feed so the finished box reconciles correctly even after Presto empties the
   // feed at the last out (see retainPrebuildFeed).
   try { retainPrebuildFeed(norm); } catch (e) { logErr('retainPrebuildFeed', e); }
-  diffAlert(norm);
-  try { checkInningAlerts(norm); } catch (e) { logErr('checkInningAlerts', e); }
+  // Alerts are about the Gators — "Gators score! 🐊" on a Generals run, or a
+  // text to Kat at the end of somebody else's 3rd inning, would both be wrong.
+  if (!norm.neutral) {
+    diffAlert(norm);
+    try { checkInningAlerts(norm); } catch (e) { logErr('checkInningAlerts', e); }
+  }
   // Only push to SSE clients when the game actually changed. During a slow
   // half-inning the 4s live poll would otherwise fan out ~15 identical frames a
   // minute to every open tab. New clients still get the current state on connect.
@@ -3696,8 +3746,11 @@ function rosterPayload() {
 
 // "Home, Joe Miller Ballpark" / "Away @ <city>". g.home is always the host team.
 function gameLocation(g) {
-  if (g.gatorsHome) return 'Home, ' + HOME_VENUE;
   const city = CITY[g.home.id] || (g.opponent && g.opponent.short) || 'Away';
+  // Neither side is us, so "Away @" would be reading the game from a seat
+  // nobody's sitting in — just name the host.
+  if (g.neutral) return 'At ' + city;
+  if (g.gatorsHome) return 'Home, ' + HOME_VENUE;
   return 'Away @ ' + city;
 }
 
@@ -3742,9 +3795,13 @@ async function pollWatch() {
 function watchUrlFor(g) {
   if (g.state !== 'live' && g.state !== 'scheduled') return null;
   const aw = citySlug(g.away.id), hm = citySlug(g.home.id);
-  if (!aw || !hm) return WATCH_FALLBACK;
+  // WATCH_FALLBACK is the Gators' own TCL TV category, which is the right guess
+  // for a Gators game and the wrong one for anybody else's — a neutral league
+  // game gets a link only if we actually matched its stream.
+  const fallback = g.neutral ? null : WATCH_FALLBACK;
+  if (!aw || !hm) return fallback;
   const k = aw + '|' + hm + '|' + mmddyyyy(g.date || '');
-  return watchIndex[k] || watchIndex['loose:' + aw + '|' + hm] || WATCH_FALLBACK;
+  return watchIndex[k] || watchIndex['loose:' + aw + '|' + hm] || fallback;
 }
 // ----- finished-game replays (VODs from the league's Vewbie catalog) ---------
 // texascollegiateleague.live is a Vewbie front end backed by vms.api.vewbie.com.
@@ -5471,7 +5528,8 @@ module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, s
   parseLeagueScoreboard, remainingGamesByTeam, computeElimination,
   manualPlayoffGame, withManualPlayoffGames, seriesStatus, matchupSeries, MANUAL_PLAYOFF_GAMES, SEMIFINAL_DATES, PLAYOFF_SERIES,
   PLAYOFF_FIELD, REGULAR_SEASON_OVER, inPlayoffField,
-  withFeaturedResult, semifinalLogRows, withSemifinalLog, finalistOf, eliminatedOf, playoffInfo,
+  withFeaturedResult, semifinalLogRows, withSemifinalLog, finalistOf, eliminatedOf, playoffInfo, neutralPlayoffInfo,
+  leagueGameRow, gameLocation, watchUrlFor,
   SEMIFINAL_WON_NOTE, SEMIFINAL_LOST_NOTE };
 
 // ----- embedded service worker ---------------------------------------------
@@ -6425,7 +6483,10 @@ function frozenFrame(g){
   return fg;
 }
 function renderGame(g){
-  var ah=!g.gatorsHome, hh=g.gatorsHome;
+  // Which side is us. In a league game neither is — without the neutral guard
+  // !gatorsHome reads true for the away team, which would paint them Gators
+  // green and strip the link to their own site.
+  var ah=!g.neutral&&!g.gatorsHome, hh=!g.neutral&&!!g.gatorsHome;
   $('awayTm').classList.toggle('gators',ah);$('homeTm').classList.toggle('gators',hh);
   $('awayLogo').src=g.away.logo;$('homeLogo').src=g.home.logo;
   // Hyperlink the opposing team's logo to their official site (the Gators' own
@@ -6444,7 +6505,7 @@ function renderGame(g){
   // bubble below, which usually lands a frame later. The fallback timer fires the
   // show anyway if that narrative never arrives.
   var gPrev=g.gatorsHome?prev.h:prev.a,gNow=g.gatorsHome?g.home.runs:g.away.runs;
-  if(g.id===curId&&g.status==='live'&&gPrev!=null&&gNow>gPrev){
+  if(!g.neutral&&g.id===curId&&g.status==='live'&&gPrev!=null&&gNow>gPrev){
     fxPending+=gNow-gPrev;if(!fxTimer)fxTimer=setTimeout(fireFx,5000);}
   $('awaySc').textContent=g.away.runs;$('homeSc').textContent=g.home.runs;
   // Color the scores by result (leader gold, trailer light purple); only once a
@@ -6458,7 +6519,8 @@ function renderGame(g){
   // Full finale when the Gators WIN — fire once, and only on the live->final flip
   // we watched happen (lastSeenStatus was a non-final state for this same game), so
   // it doesn't re-launch every time a finished win reloads in the post-game window.
-  var gWon=g.status==='final'&&g.away.runs!=null&&g.home.runs!=null&&(g.gatorsHome?g.home.runs>g.away.runs:g.away.runs>g.home.runs);
+  // Nobody's "us" in a league game, so there's no win to celebrate here.
+  var gWon=!g.neutral&&g.status==='final'&&g.away.runs!=null&&g.home.runs!=null&&(g.gatorsHome?g.home.runs>g.away.runs:g.away.runs>g.home.runs);
   if(gWon&&winFinaleGid!==g.id&&lastSeenGid===g.id&&lastSeenStatus&&lastSeenStatus!=='final'){winFinaleGid=g.id;fxWinPending=true;fireWinFx();}
   lastSeenGid=g.id;lastSeenStatus=g.status;
   prev={a:g.away.runs,h:g.home.runs};var pc=curId;curId=g.id;if(schedList&&pc!==curId)renderSched(schedList);
@@ -6626,12 +6688,14 @@ function buildPitching(g){
   var P=g.pitchers;if(!P||!P.length)return '';
   function nm(t){return t.vh==='H'?g.home.short:g.away.short;}
   // Show only the team picked by the lineup tab (Gators vs opponent), not both.
+  // A league game has no Gators side, so the same tab picks away vs home.
   var showGators=lineupTeam!=='opp';
+  var pickSide=function(t){return g.neutral?((t.vh==='V')===showGators):(!!t.isGators===showGators);};
   var head='<tr><th class="luu">#</th><th class="lunm">Pitcher</th><th class="lpn">IP</th><th class="lpn">H</th><th class="lpn">R</th>'+
     '<th class="lpn">ER</th><th class="lpn">BB</th><th class="lpn">K</th><th class="lpn">HBP</th><th class="lpn">P</th><th class="lpn">S%</th></tr>';
   var blocks='';
   P.forEach(function(t){
-    if(!!t.isGators!==showGators)return;
+    if(!pickSide(t))return;
     if(!t.rows||!t.rows.length)return;
     var rows='';
     t.rows.forEach(function(r){
@@ -6767,7 +6831,11 @@ function gatorSlug(name){
 function buildLineup(g){
   var L=g.lineups;if(!L||!L.length)return '';
   var gators=null,opp=null;
-  L.forEach(function(t){if(t.isGators&&!gators)gators=t;else if(!t.isGators&&!opp)opp=t;});
+  // In a league game neither side is us, so the two tabs mean away and home
+  // instead of us and them. Everything below is unchanged — the tab labels are
+  // team short names either way.
+  if(g.neutral)L.forEach(function(t){if(t.vh==='V'&&!gators)gators=t;else if(t.vh==='H'&&!opp)opp=t;});
+  else L.forEach(function(t){if(t.isGators&&!gators)gators=t;else if(!t.isGators&&!opp)opp=t;});
   if(!gators&&!opp)return '';
   var showGators=lineupTeam!=='opp'&&gators;
   var team=showGators?gators:(opp||gators);
@@ -7293,7 +7361,10 @@ function renderHomeBoard(d){
   var sec=$('sbHomeSec'),body=$('sbHomeBody');
   if(!sec||!body)return;
   var sb=d&&d.scoreboard;
-  var games=((sb&&sb.games)||[]).filter(function(g){return !g.isGators;});
+  // Drop whatever the jumbo above is already showing — the Gators' own game, and
+  // a league game on the nights it takes the gamecast. Otherwise the card just
+  // repeats the hero.
+  var games=((sb&&sb.games)||[]).filter(function(g){return !g.isGators&&g.id!==curId;});
   if(!games.length){sec.style.display='none';body.innerHTML='';return;}
   $('sbHomeTtl').textContent=games.length>1?'Other Playoff Games':'Other Playoff Game';
   $('sbHomeMeta').textContent=(sb&&sb.dateLabel)||'';
