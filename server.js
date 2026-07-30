@@ -582,16 +582,31 @@ function bsAddSeasonAvg(html, slugMap) {
     if (!key) return null; const p = key.split(' '); if (p.length < 2) return null;
     return idx[p[0][0] + '|' + p[p.length - 1]] || null;
   };
-  let first = true;
+  let first = true, avgCol = -1;
   return html.replace(/<tr\b[\s\S]*?<\/tr>/gi, row => {
     const cells = row.match(/<t[dh]\b[\s\S]*?<\/t[dh]>/gi) || [];
     if (!cells.length) return row;
     const open = (row.match(/^<tr\b[^>]*>/i) || ['<tr>'])[0];
-    let cell;
-    if (first) { first = false; cell = '<th class="bxavg">AVG</th>'; }
-    else if (/^totals$/i.test(bsText(cells[0]).trim())) cell = '<td class="bxavg"></td>';
-    else { const avg = resolve(bsBatterName(cells[0])); cell = '<td class="bxavg">' + (avg || '-') + '</td>'; }
-    cells.push(cell);
+    if (first) {
+      first = false;
+      // The table may already carry an AVG column: the warm-boot seed is built
+      // by scraping THIS endpoint's own output (scripts/build-box-seed.js), so
+      // a seeded box comes back with the column we injected last time, and some
+      // Presto templates ship one of their own. Fill that column in place
+      // instead of appending a second — which is what printed every average
+      // twice — so re-running over our own output is a no-op.
+      avgCol = cells.findIndex(c => /^avg$/i.test(bsText(c).trim()));
+      const th = '<th class="bxavg">AVG</th>';
+      if (avgCol === -1) { avgCol = cells.length; cells.push(th); } else cells[avgCol] = th;
+      return open + cells.join('') + '</tr>';
+    }
+    // Whatever the column already held, kept as the fallback so a box that
+    // arrived with a number never renders a dash instead of one.
+    const prior = (avgCol < cells.length) ? bsText(cells[avgCol]).trim() : '';
+    const avg = /^totals$/i.test(bsText(cells[0]).trim()) ? prior
+      : (resolve(bsBatterName(cells[0])) || prior || '-');
+    const cell = '<td class="bxavg">' + avg + '</td>';
+    if (avgCol < cells.length) cells[avgCol] = cell; else cells.push(cell);
     return open + cells.join('') + '</tr>';
   });
 }
@@ -2153,8 +2168,10 @@ async function pollSchedule() {
     else process.stdout.write('\r[poll] kept ' + games.length + ' cached games (empty parse)        ');
     await refreshFeatured();
     try {
-      const date = (featured && featured.date) || todayCentralYmd();
-      await refreshLeagueLiveScores(parseLeagueScoreboard(lastHtml, date), featured && featured.id);
+      // Same day the board will show — otherwise a night the Gators aren't
+      // playing never gets its live scores pulled, and the board that finally
+      // shows those games has nothing to overlay.
+      await refreshLeagueLiveScores(parseLeagueScoreboard(lastHtml, boardDate()), featured && featured.id);
     } catch (e) { logErr('pollSchedule', e); /* board still works from schedule scores */ }
     try { await dispatchFinalReport(); } catch (e) { /* report trigger is best-effort */ }
   } catch (err) { process.stdout.write('\r[poll error] ' + err.message + '        '); }
@@ -2269,10 +2286,29 @@ function applyLiveScores(games, feat) {
   }
   return games;
 }
-// Around-the-league board for the featured game's day, live scores overlaid.
+// Which day the around-the-league board shows. Normally the featured game's,
+// which is right whenever the Gators are the thing happening. But once they're
+// off the schedule — between rounds, waiting on a semifinal opponent, or out —
+// `featured` sticks on their last final and the board freezes on that date,
+// hiding the very games that decide who they play next. Fall forward to today
+// when today has league games of its own and the featured game is behind it.
+// The decision itself, kept pure so it can be tested without module state.
+function pickBoardDate(featDate, today, todayHasGames) {
+  const fd = featDate || today;
+  return (fd < today && todayHasGames) ? today : fd;
+}
+function boardDate() {
+  const today = todayCentralYmd();
+  const fd = (featured && featured.date) || today;
+  if (fd >= today || !lastHtml) return fd;
+  let has = false;
+  try { has = parseLeagueScoreboard(lastHtml, today).length > 0; } catch (e) {}
+  return pickBoardDate(fd, today, has);
+}
+// Around-the-league board for that day, live scores overlaid.
 // Pure read of cached data — no network.
 function buildLeagueBoard() {
-  const date = (featured && featured.date) || todayCentralYmd();
+  const date = boardDate();
   const raw = lastHtml ? sortBoard(applyLiveScores(parseLeagueScoreboard(lastHtml, date), featured)) : [];
   const games = raw.map(g => {
     // Mirror the featured game's manual cancellation onto the board so the same
@@ -5395,7 +5431,7 @@ if (require.main === module) {
     (function scheduleLoop() { pollSchedule().catch(e => logErr('pollSchedule', e)).finally(() => setTimeout(scheduleLoop, schedulePollDelay())); })(); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleRosterRefresh(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); setTimeout(pollStrikePct, 15000); setInterval(pollStrikePct, 3 * 60 * 60 * 1000); setTimeout(getPitcherRest, 20000); scheduleDailyStats(); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, attachLineupSubLegend, pitchersFromFeed, extractEventAuth,
-  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, applyStandingsOverride, MANUAL_STANDINGS_OVERRIDE, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseTeamRosterSlugs, parseGameLog, boxRowsForPlayer, aggBat, aggPit, buildRecord, lineIsShowable, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, applyPitcherOverrides, pitchingTotals, strikeCounts, inningAlertText, finalAlertText,
+  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, applyStandingsOverride, MANUAL_STANDINGS_OVERRIDE, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseTeamRosterSlugs, parseGameLog, boxRowsForPlayer, aggBat, aggPit, buildRecord, lineIsShowable, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pickBoardDate, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, applyPitcherOverrides, pitchingTotals, strikeCounts, inningAlertText, finalAlertText,
   parseLeagueResults, computeLeagueMetrics, cmpTwoTeam, rankTiedGroup, rankSecondHalf, buildPlayoffPicture, boxLooksComplete, boxErrorResponse,
   gatorsGameResult, gatorsSeasonWL, applyGatorsAutoFloor, feedHasPitching, atBoxPrestage, bsLinkGators,
   parseLeagueScoreboard, remainingGamesByTeam, computeElimination,

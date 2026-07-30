@@ -26,6 +26,18 @@ async function getJSON(url) {
 // Mirrors boxLooksComplete() in server.js — never seed a bot-gate stub.
 const looksComplete = d => !!(d && Array.isArray(d.box) && d.box.length >= 2);
 
+// /api/boxscore serves the box with a season-AVG column injected at request
+// time (bsAddSeasonAvg), so seeding its output verbatim bakes a derived — and
+// by tomorrow, stale — column into the snapshot. Strip it back out so the seed
+// holds source-shaped HTML and the server injects a current average on every
+// request, the way it does for a box fetched fresh from Presto.
+const stripInjectedAvg = html => String(html || '').replace(/<t[dh]\b[^>]*\bclass="bxavg"[^>]*>[\s\S]*?<\/t[dh]>/gi, '');
+function cleanBox(d) {
+  if (!d || !Array.isArray(d.box)) return d;
+  return Object.assign({}, d, { box: d.box.map(sec =>
+    (sec && typeof sec.html === 'string') ? Object.assign({}, sec, { html: stripInjectedAvg(sec.html) }) : sec) });
+}
+
 (async () => {
   const sched = await getJSON(BASE + '/api/schedule');
   if (!sched || !Array.isArray(sched.games)) { console.error('could not load /api/schedule'); process.exit(1); }
@@ -39,10 +51,15 @@ const looksComplete = d => !!(d && Array.isArray(d.box) && d.box.length >= 2);
   for (const g of finals) {
     if (boxes[g.id] && looksComplete(boxes[g.id].data)) { already++; continue; }
     const res = await getJSON(BASE + '/api/boxscore?id=' + encodeURIComponent(g.id));
-    if (looksComplete(res)) { boxes[g.id] = { data: res, at: Date.now() }; added++; }
+    if (looksComplete(res)) { boxes[g.id] = { data: cleanBox(res), at: Date.now() }; added++; }
     else gated++;
     await sleep(300);
   }
+
+  // Entries carried over from an older seed were written before the strip above
+  // existed, so clean every entry on the way out — not only the ones fetched
+  // this run, which the `already` skip above would otherwise leave untouched.
+  for (const id in boxes) if (boxes[id] && boxes[id].data) boxes[id] = Object.assign({}, boxes[id], { data: cleanBox(boxes[id].data) });
 
   fs.writeFileSync(OUT, JSON.stringify({ boxes }));
   console.log(`wrote box-seed.json: ${Object.keys(boxes).length}/${finals.length} finals ` +
