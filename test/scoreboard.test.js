@@ -134,3 +134,26 @@ test('applyLiveScores: a non-featured game the feed reports over is marked final
   assert.equal(out[0].status, 'Final');
   assert.equal(out[0].away.score, 6);
 });
+
+// ---- which day the board shows ----------------------------------------------
+// The board follows the featured game's day, which is right while the Gators are
+// playing. Once they're off the schedule (between rounds, waiting on a semifinal
+// opponent) `featured` sticks on their last final, and the board would freeze on
+// that date — hiding the game that decides who they play next.
+const { pickBoardDate } = require('../server');
+
+test('pickBoardDate: stays on the featured game while it is today or ahead', () => {
+  assert.equal(pickBoardDate('20260730', '20260730', true), '20260730');
+  assert.equal(pickBoardDate('20260801', '20260730', true), '20260801');
+  // No featured date at all falls back to today.
+  assert.equal(pickBoardDate(null, '20260730', true), '20260730');
+});
+
+test('pickBoardDate: falls forward to today once the featured game is behind', () => {
+  assert.equal(pickBoardDate('20260729', '20260730', true), '20260730');
+});
+
+test('pickBoardDate: holds the featured game when today has no league games', () => {
+  // An off day would otherwise trade a real result for an empty board.
+  assert.equal(pickBoardDate('20260729', '20260730', false), '20260729');
+});
