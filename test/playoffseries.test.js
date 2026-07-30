@@ -7,7 +7,7 @@ const assert = require('node:assert/strict');
 const {
   manualPlayoffGame, withManualPlayoffGames, seriesStatus, matchupSeries, pick, buildPlayoffPicture,
   MANUAL_PLAYOFF_GAMES, SEMIFINAL_DATES, PLAYOFF_SERIES, PLAYOFF_FIELD, REGULAR_SEASON_OVER, inPlayoffField,
-  withFeaturedResult, semifinalLogRows, withSemifinalLog, finalistOf, playoffInfo,
+  withFeaturedResult, semifinalLogRows, withSemifinalLog, finalistOf, eliminatedOf, playoffInfo,
   SEMIFINAL_WON_NOTE, SEMIFINAL_LOST_NOTE,
 } = require('../server');
 
@@ -274,6 +274,26 @@ test('finalistOf names the team that banked two wins', () => {
   assert.equal(f.seed, 3);
   assert.equal(f.note, 'Beat Cane Cutters 2–0');
   assert.equal(f.clinched, true);
+});
+
+test('eliminatedOf names the team a decided series knocks out', () => {
+  const swept = matchupSeries([logGame('20260728', ACA, 1, GAT, 2), logGame('20260729', GAT, 3, ACA, 1)], ACA, GAT);
+  const out = eliminatedOf(swept);
+  assert.equal(out.id, ACA);
+  assert.equal(out.winnerId, GAT);
+  assert.equal(out.reason, 'Eliminated in the semifinals — lost to Gators 2–0');
+  // A series that went the distance reports the real margin.
+  const three = matchupSeries([logGame('20260728', VIC, 8, BOM, 4), logGame('20260729', BOM, 5, VIC, 0),
+    logGame('20260730', BOM, 2, VIC, 6)], VIC, BOM);
+  assert.equal(three.label, 'Generals win the series 2–1');
+  assert.equal(eliminatedOf(three).reason, 'Eliminated in the semifinals — lost to Generals 2–1');
+});
+
+test('eliminatedOf stays null while the series is still alive', () => {
+  const tied = matchupSeries([logGame('20260728', VIC, 8, BOM, 4), logGame('20260729', BOM, 5, VIC, 0)], VIC, BOM);
+  assert.equal(eliminatedOf(tied), null);
+  assert.equal(eliminatedOf(matchupSeries([logGame('20260728', VIC, 8, BOM, 4)], VIC, BOM)), null);
+  assert.equal(eliminatedOf(null), null);
 });
 
 test('finalistOf stays null while the series is still alive', () => {

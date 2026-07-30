@@ -1043,6 +1043,20 @@ function finalistOf(series, slotA, slotB) {
   return { seed: won.seed, team: won.team, clinched: true,
     note: 'Beat ' + (lost.team.short || lost.team.name) + ' ' + w + '–' + l };
 }
+// The other side of that: the team a decided series knocks out. They made the
+// field, so "did not qualify" was never true of them — but they're done, and
+// the standings table shades them like everyone else who isn't playing on.
+// Null while the series is still alive. Mirrors finalistOf.
+function eliminatedOf(series) {
+  if (!series || !series.wins) return null;
+  const ids = Object.keys(series.wins);
+  const winId = ids.find(id => series.wins[id] >= 2);
+  const loseId = winId && ids.find(id => id !== winId);
+  if (!winId || !loseId) return null;
+  return { id: loseId, winnerId: winId,
+    reason: 'Eliminated in the semifinals — lost to ' + shortName(winId)
+      + ' ' + series.wins[winId] + '–' + series.wins[loseId] };
+}
 
 // Today's date (yyyymmdd) in the league's timezone (US Central).
 function todayCentralYmd() {
@@ -5027,6 +5041,11 @@ app.get('/api/standings', (_q, r) => {
   for (const x of rows) {
     x.gamesLeft = REGULAR_SEASON_OVER ? 0 : (remaining[x.id] || 0);
     x.eliminated = REGULAR_SEASON_OVER ? !inPlayoffField(x.id) : !!eliminated[x.id];
+    // Why a row is shaded, so the badge can say the true thing per team rather
+    // than one blanket sentence: 'missed' the field, knocked out of a series
+    // ('knockedout', set below), or dead in the mid-season 'race'.
+    x.outKind = !x.eliminated ? null : (REGULAR_SEASON_OVER ? 'missed' : 'race');
+    x.outReason = x.outKind === 'missed' ? 'Did not qualify for the playoffs' : null;
   }
   const playoffs = buildPlayoffPicture(rows, metrics, PLAYOFF_FIELD);
   // A series line per semifinal, so the bracket shows both — the Gators' own
@@ -5046,6 +5065,14 @@ app.get('/api/standings', (_q, r) => {
     // final round shows them by name instead of "Semifinal winner". Null until
     // a series is actually decided — a 1-0 lead is not a finalist.
     playoffs.finalists = (playoffs.matchups || []).map((m, i) => finalistOf(playoffs.series[i], bySeed[m[0]], bySeed[m[1]]));
+    // ...and the losing side is out. Shade them in with the teams that never
+    // qualified — "Out" on this table means out of the tournament, not out of
+    // the regular season — but keep their own reason on the badge.
+    for (const sr of playoffs.series) {
+      const gone = eliminatedOf(sr); if (!gone) continue;
+      const row = rows.find(x => x.id === gone.id); if (!row) continue;
+      row.eliminated = true; row.outKind = 'knockedout'; row.outReason = gone.reason;
+    }
   }
   r.json({ updatedAt: standingsAt, gatorsId: GATORS_ID, half: SEASON_HALF,
     seasonOver: REGULAR_SEASON_OVER, rows,
@@ -5374,7 +5401,7 @@ module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, s
   parseLeagueScoreboard, remainingGamesByTeam, computeElimination,
   manualPlayoffGame, withManualPlayoffGames, seriesStatus, matchupSeries, MANUAL_PLAYOFF_GAMES, SEMIFINAL_DATES, PLAYOFF_SERIES,
   PLAYOFF_FIELD, REGULAR_SEASON_OVER, inPlayoffField,
-  withFeaturedResult, semifinalLogRows, withSemifinalLog, finalistOf, playoffInfo,
+  withFeaturedResult, semifinalLogRows, withSemifinalLog, finalistOf, eliminatedOf, playoffInfo,
   SEMIFINAL_WON_NOTE, SEMIFINAL_LOST_NOTE };
 
 // ----- embedded service worker ---------------------------------------------
@@ -6951,7 +6978,7 @@ function renderStandings(d){
   var recById={};rows.forEach(function(x){if(x.id)recById[x.id]=(x.w2|0)+'-'+(x.l2|0);});
   if(!rows.length){$('standingsBody').innerHTML='<div class="note">Standings aren’t available yet — check back shortly.</div>';$('stMeta').textContent='';}
   else{
-    var anyClinch=false,anyOut=false;
+    var anyClinch=false,anyOut=false,anyKnocked=false;
     // Standings position with ties: teams sharing the same second-half PCT hold
     // the same rank, shown as "T-N" (e.g. four teams at .667 are all "T-1").
     var pos=rows.map(function(x,i){return (i>0&&rows[i-1].pct===x.pct)?null:i+1;});
@@ -6970,9 +6997,12 @@ function renderStandings(d){
       var nm=esc(x.name||x.short);
       var clin='';
       var gl=x.gamesLeft==null?'':(' — '+x.gamesLeft+' game'+(x.gamesLeft===1?'':'s')+' left');
-      var outt=over?'Did not qualify for the playoffs':('Mathematically eliminated from the second-half race'+gl);
+      // The server sends the specific reason once there is one to send (missed
+      // the field, or knocked out of a series); the mid-season race keeps its
+      // games-left tail, which only the client knows how to phrase.
+      var outt=x.outReason||(over?'Did not qualify for the playoffs':('Mathematically eliminated from the second-half race'+gl));
       var outb=x.eliminated?('<span class="outbadge" title="'+esc(outt)+'">Out</span>'):'';
-      if(x.eliminated)anyOut=true;
+      if(x.eliminated){anyOut=true;if(x.outKind==='knockedout')anyKnocked=true;}
       var inner=lg+'<span class="stnm">'+nm+'</span>'+clin+outb;
       var team=x.site?('<a class="stteam" href="'+esc(x.site)+'" target="_blank" rel="noopener">'+inner+'</a>'):('<div class="stteam">'+inner+'</div>');
       var cls=[isG?'stg':'',x.clinched?'stclinch':'',x.eliminated?'stout':''].filter(Boolean).join(' ');
@@ -6987,8 +7017,11 @@ function renderStandings(d){
     });
     h+='</table></div>';
 
+    // Once a team has been knocked out of a series, "did not qualify" is false
+    // of the shaded set as a whole — they qualified and lost. One phrase has to
+    // cover both, and the per-row badge carries the specific reason.
     if(anyOut)h+='<div class="stnote"><span class="outswatch"></span><span class="outbadge">Out</span> shaded row — '
-      +(over?'did not qualify for the playoffs':'mathematically eliminated from the second-half race')+'</div>';
+      +(anyKnocked?'out of the playoffs':over?'did not qualify for the playoffs':'mathematically eliminated from the second-half race')+'</div>';
     var tbs=(d&&d.tiebreaks)||[];
     if(tbs.length){
       h+='<div class="sttb"><div class="sttbh">Tiebreakers applied</div><ul>';
