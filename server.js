@@ -1116,6 +1116,35 @@ function parseLeagueScoreboard(html, dateStr) {
   }
   return sortBoard(out);
 }
+// League games the schedule page hasn't posted yet, shaped for the around-the-
+// league board. The board twin of MANUAL_PLAYOFF_GAMES, which only ever covers
+// the Gators' own schedule — a game between two other teams had nowhere to come
+// from. Presto adds a playoff game only once it's official, which for Game 2 of
+// the semifinals meant the afternoon of; until then the board had nothing to
+// show on a night that decides who the Gators play next.
+const MANUAL_LEAGUE_GAMES = [
+  // Semifinal Game 3, Victoria vs Brazos Valley. Higher seed hosts Games 2 & 3
+  // (docs/tcl-playoff-rules.md), so it's at Victoria.
+  { date: '20260730', awayId: 'z7w5th537gur3z15', homeId: 'jm9r4btii24hhtfp' },
+];
+function manualLeagueGame(m) {
+  const team = id => ({ id, short: shortName(id), logo: logo(id), score: null });
+  const away = team(m.awayId), home = team(m.homeId);
+  return { id: m.date + '_tbd', date: m.date, state: 'scheduled', status: gameTimeCDT(m.date),
+    isGators: away.id === GATORS_ID || home.id === GATORS_ID, url: null, away, home };
+}
+// Fold the stand-ins for one date into a parsed board. Matched on the matchup as
+// well as the date — and on the unordered pair, so a real posting displaces its
+// stand-in even if the league lists home and away the other way round. The
+// moment it does, the board picks up the real id and with it the live score.
+function withManualLeagueGames(board, date, manual) {
+  const pair = (a, b) => [a, b].sort().join('|');
+  const have = new Set((board || []).map(g => pair(g.away.id, g.home.id)));
+  const extra = (manual || MANUAL_LEAGUE_GAMES)
+    .filter(m => m.date === date && !have.has(pair(m.awayId, m.homeId)))
+    .map(manualLeagueGame);
+  return extra.length ? sortBoard((board || []).concat(extra)) : (board || []);
+}
 // Each team's remaining (not yet decided) games, from the same full-league
 // schedule page — every date, every team, no Gators filter. SEASON_HALF is
 // already 2, so every game still unplayed is necessarily a second-half game;
@@ -2171,7 +2200,7 @@ async function pollSchedule() {
       // Same day the board will show — otherwise a night the Gators aren't
       // playing never gets its live scores pulled, and the board that finally
       // shows those games has nothing to overlay.
-      await refreshLeagueLiveScores(parseLeagueScoreboard(lastHtml, boardDate()), featured && featured.id);
+      await refreshLeagueLiveScores(leagueBoardRaw(boardDate()), featured && featured.id);
     } catch (e) { logErr('pollSchedule', e); /* board still works from schedule scores */ }
     try { await dispatchFinalReport(); } catch (e) { /* report trigger is best-effort */ }
   } catch (err) { process.stdout.write('\r[poll error] ' + err.message + '        '); }
@@ -2297,19 +2326,24 @@ function pickBoardDate(featDate, today, todayHasGames) {
   const fd = featDate || today;
   return (fd < today && todayHasGames) ? today : fd;
 }
+// Every league game on a date, stand-ins included. One place, so the board, the
+// live-score poll and the fall-forward check all agree on what exists that day.
+function leagueBoardRaw(date) {
+  let parsed = [];
+  try { parsed = lastHtml ? parseLeagueScoreboard(lastHtml, date) : []; } catch (e) { parsed = []; }
+  return withManualLeagueGames(parsed, date);
+}
 function boardDate() {
   const today = todayCentralYmd();
   const fd = (featured && featured.date) || today;
-  if (fd >= today || !lastHtml) return fd;
-  let has = false;
-  try { has = parseLeagueScoreboard(lastHtml, today).length > 0; } catch (e) {}
-  return pickBoardDate(fd, today, has);
+  if (fd >= today) return fd;
+  return pickBoardDate(fd, today, leagueBoardRaw(today).length > 0);
 }
 // Around-the-league board for that day, live scores overlaid.
 // Pure read of cached data — no network.
 function buildLeagueBoard() {
   const date = boardDate();
-  const raw = lastHtml ? sortBoard(applyLiveScores(parseLeagueScoreboard(lastHtml, date), featured)) : [];
+  const raw = sortBoard(applyLiveScores(leagueBoardRaw(date), featured));
   const games = raw.map(g => {
     // Mirror the featured game's manual cancellation onto the board so the same
     // game reads "Cancelled" here too (the schedule/feed may still report it as
@@ -5431,7 +5465,7 @@ if (require.main === module) {
     (function scheduleLoop() { pollSchedule().catch(e => logErr('pollSchedule', e)).finally(() => setTimeout(scheduleLoop, schedulePollDelay())); })(); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleRosterRefresh(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); setTimeout(pollStrikePct, 15000); setInterval(pollStrikePct, 3 * 60 * 60 * 1000); setTimeout(getPitcherRest, 20000); scheduleDailyStats(); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, attachLineupSubLegend, pitchersFromFeed, extractEventAuth,
-  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, applyStandingsOverride, MANUAL_STANDINGS_OVERRIDE, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseTeamRosterSlugs, parseGameLog, boxRowsForPlayer, aggBat, aggPit, buildRecord, lineIsShowable, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pickBoardDate, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, applyPitcherOverrides, pitchingTotals, strikeCounts, inningAlertText, finalAlertText,
+  dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, applyStandingsOverride, MANUAL_STANDINGS_OVERRIDE, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseTeamRosterSlugs, parseGameLog, boxRowsForPlayer, aggBat, aggPit, buildRecord, lineIsShowable, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pickBoardDate, manualLeagueGame, withManualLeagueGames, MANUAL_LEAGUE_GAMES, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, applyPitcherOverrides, pitchingTotals, strikeCounts, inningAlertText, finalAlertText,
   parseLeagueResults, computeLeagueMetrics, cmpTwoTeam, rankTiedGroup, rankSecondHalf, buildPlayoffPicture, boxLooksComplete, boxErrorResponse,
   gatorsGameResult, gatorsSeasonWL, applyGatorsAutoFloor, feedHasPitching, atBoxPrestage, bsLinkGators,
   parseLeagueScoreboard, remainingGamesByTeam, computeElimination,
@@ -5960,6 +5994,8 @@ __SITE_NOTICE__
 <div class="live" id="livePanel" style="display:none"></div>
 <a class="watchbtn ticket" id="ticketBtn" target="_blank" rel="noopener" style="display:none">Buy Tickets</a>
 </div>
+<div class="sec sbsec" id="sbHomeSec" style="display:none"><span id="sbHomeTtl">Other Playoff Game</span><span class="sbdate" id="sbHomeMeta"></span></div>
+<div id="sbHomeBody"></div>
 <div id="poffScores"></div>
 <div id="upSec" style="display:none"><div class="sec">Upcoming</div><div id="sched"></div></div>
 <div class="rswrap" id="rsWrap" style="display:none">
@@ -7011,7 +7047,7 @@ function renderStandings(d){
   var over=!!(d&&d.seasonOver);
   // Scoreboard cards show whatever W-L the table is built on (2H mid-season,
   // full season once it's over) — w2/l2 carry the ranked record either way.
-  var recById={};rows.forEach(function(x){if(x.id)recById[x.id]=(x.w2|0)+'-'+(x.l2|0);});
+  var recById=recordsById(d);
   if(!rows.length){$('standingsBody').innerHTML='<div class="note">Standings aren’t available yet — check back shortly.</div>';$('stMeta').textContent='';}
   else{
     var anyClinch=false,anyOut=false,anyKnocked=false;
@@ -7158,7 +7194,9 @@ function renderBracket(d){
   h+='</div>';
   host.innerHTML=h;
 }
-function loadBracket(){fetch('/api/standings',{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){renderBracket(d);}).catch(function(){});}
+// One /api/standings read feeds both Scores-tab pieces: the bracket and the
+// board card for the other playoff game above it.
+function loadBracket(){fetch('/api/standings',{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){renderBracket(d);renderHomeBoard(d);}).catch(function(){});}
 function sbScore(v){return (v==null||v==='')?'':v;}
 // Compact the inning label for the card: drop "of" and shorten the half word
 // ("Bottom of 7th" -> "Bot 7th", "Middle of 3rd" -> "Mid 3rd").
@@ -7190,13 +7228,18 @@ function sbTeamRow(t,win,isGt,showScore,recById,fin){
   // block instead of leaving the record floating beside a two-line name.
   return '<div class="sbrow'+(win?' w':'')+(isGt?' gt':'')+'">'+lg+'<span class="sbn">'+ct+esc(t.nick||t.short||'')+rec+'</span><span class="sbsc">'+tri+'<span class="sbs">'+sc+'</span></span></div>';
 }
-function renderScoreboard(sb,gatorsId,recById){
-  var games=(sb&&sb.games)||[];
-  $('sbSec').style.display='';
-  $('sbMeta').textContent=(sb&&sb.dateLabel)||'';
-  if(!games.length){$('scoreboardBody').innerHTML='<div class="note">No league games scheduled for this day.</div>';return;}
+// team id -> the W-L the standings table is built on (2H mid-season, full season
+// once it's over; w2/l2 carry the ranked record either way), for the board cards.
+function recordsById(d){
+  var out={};
+  ((d&&d.rows)||[]).forEach(function(x){if(x.id)out[x.id]=(x.w2|0)+'-'+(x.l2|0);});
+  return out;
+}
+// The board's game cards. Shared by the Standings tab (whole day) and the
+// Scores tab (the games the hero isn't already showing).
+function sbCardsHtml(games,gatorsId,recById){
   var h='';
-  games.forEach(function(g){
+  (games||[]).forEach(function(g){
     var fin=g.state==='final',live=g.state==='live';
     var sched=!fin&&!live;
     var haveScores=g.away.score!=null&&g.home.score!=null;
@@ -7233,7 +7276,29 @@ function renderScoreboard(sb,gatorsId,recById){
       +dia
       +'<div class="sbstat '+st+'">'+stat+'</div></'+tag+'>';
   });
-  $('scoreboardBody').innerHTML=h;
+  return h;
+}
+function renderScoreboard(sb,gatorsId,recById){
+  var games=(sb&&sb.games)||[];
+  $('sbSec').style.display='';
+  $('sbMeta').textContent=(sb&&sb.dateLabel)||'';
+  $('scoreboardBody').innerHTML=games.length
+    ? sbCardsHtml(games,gatorsId,recById)
+    : '<div class="note">No league games scheduled for this day.</div>';
+}
+// The same board on the Scores tab, so a game that decides who the Gators play
+// next is on the front page rather than a tab away. The Gators' own game is
+// dropped — the jumbo right above is already showing it.
+function renderHomeBoard(d){
+  var sec=$('sbHomeSec'),body=$('sbHomeBody');
+  if(!sec||!body)return;
+  var sb=d&&d.scoreboard;
+  var games=((sb&&sb.games)||[]).filter(function(g){return !g.isGators;});
+  if(!games.length){sec.style.display='none';body.innerHTML='';return;}
+  $('sbHomeTtl').textContent=games.length>1?'Other Playoff Games':'Other Playoff Game';
+  $('sbHomeMeta').textContent=(sb&&sb.dateLabel)||'';
+  sec.style.display='';
+  body.innerHTML=sbCardsHtml(games,d&&d.gatorsId,recordsById(d));
 }
 function silentStandings(){
   fetch('/api/standings',{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){
