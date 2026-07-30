@@ -5867,7 +5867,7 @@ function flash(el){el.classList.remove('flash');void el.offsetWidth;el.classList
 // fired when the Gators' run total ticks up during a live game. Pointer-events
 // are off and it hides itself when the last spark fades, so it never blocks taps.
 var FX=(function(){
-  var cv,ctx,parts=[],rockets=[],raf=0,endAt=0,W=0,H=0,dpr=1,bloom=0,hero=null;
+  var cv,ctx,parts=[],rockets=[],raf=0,endAt=0,W=0,H=0,dpr=1,bloom=0,hero=null,stillTimer=0;
   var logoImg=null,logoOk=false; // the Gumbeaux Gators wordmark, drawn as the finale centerpiece
   var COLORS=['#ecc913','#ffd633','#714ad2','#b9a6ee','#f0ede4'];
   var GOLD=['#ecc913','#ffd633','#fff3b0']; // warm golds for drooping "willow" shells
@@ -5978,31 +5978,119 @@ var FX=(function(){
     lg.addColorStop(0,'#fff3b0');lg.addColorStop(0.5,'#ffd633');lg.addColorStop(1,'#e0b207');
     ctx.fillStyle=lg;ctx.fillText('Gators Win!',cx,textY);ctx.restore();
   }
-  // Lazily grab the canvas, honor reduced-motion, and show/size it. Returns false
-  // when there's nothing to draw on or motion is suppressed.
+  // Does the viewer ask for less motion (OS/browser setting)? They still get a
+  // celebration — see still() — it just doesn't move.
+  function reduced(){try{return !!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);}catch(e){return false;}}
+  // Lazily grab the canvas and show/size it. Returns false only when there's
+  // nothing to draw on. Reduced motion is NOT handled here — it used to bail out
+  // of this function, which meant a viewer with "Reduce Motion" on (iOS
+  // Accessibility → Motion, Android "remove animations", Windows "show
+  // animations off") silently got no fireworks at all, ever, for any run. The
+  // callers now swap the animated show for a still frame instead.
   function ready(){
     if(!cv){cv=$('fx');if(!cv||!cv.getContext)return false;ctx=cv.getContext('2d');
       window.addEventListener('resize',function(){if(cv.style.display!=='none')size();});}
     // Warm the wordmark logo (same-origin, already in the header, so usually cached).
     if(!logoImg){logoImg=new Image();logoImg.onload=function(){logoOk=true;};logoImg.src='/gg-logo.png';}
-    if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)return false;
+    // Cancel a still frame still on screen (and its fade) so a new celebration
+    // starts from a clean, fully opaque canvas.
+    if(stillTimer){clearTimeout(stillTimer);stillTimer=0;}
+    cv.style.transition='';cv.style.opacity='';
     cv.style.display='block';if(!raf)size();return true;
   }
+  // Hold a still frame on screen, then cross-fade it out. An opacity fade isn't
+  // motion, so it's safe under a reduce-motion preference — nothing travels.
+  function fadeStill(hold){
+    stillTimer=setTimeout(function(){
+      cv.style.transition='opacity .8s linear';cv.style.opacity='0';
+      stillTimer=setTimeout(function(){stillTimer=0;cv.style.display='none';cv.style.transition='';cv.style.opacity='';},840);
+    },hold);
+  }
+  // The reduced-motion celebration: ONE frozen frame of shells — bursts drawn
+  // mid-explosion with their sparks already thrown, no rockets climbing and
+  // nothing falling — held a beat and faded out. Same gold/purple, same moment,
+  // zero movement. opt.win adds the wordmark + "Gators Win!" like the finale.
+  function still(intensity,opt){
+    opt=opt||{};
+    var n=Math.max(3,Math.min(2+(intensity||1),7)),i,j;
+    // Overlapping shells across the sky, sized like the animated bursts' full
+    // spread (not the instant of the pop) so a frozen frame still fills the page.
+    for(i=0;i<n;i++){
+      var x=W*(0.10+0.80*((i+0.5)/n)),y=H*(0.08+0.32*((i%3)/2)),
+          base=COLORS[i%COLORS.length],r=Math.min(W,H)*(0.20+0.07*(i%2));
+      // white-hot core, fading into the warm bloom each burst throws
+      var cg=ctx.createRadialGradient(x,y,0,x,y,r*0.5);
+      cg.addColorStop(0,'rgba(255,255,255,.95)');cg.addColorStop(0.35,'rgba(255,214,51,.4)');cg.addColorStop(1,'rgba(255,214,51,0)');
+      ctx.fillStyle=cg;ctx.beginPath();ctx.arc(x,y,r*0.5,0,6.283);ctx.fill();
+      // the shell's sparks, frozen mid-flight: streaks radiating out, fading to
+      // nothing at the tips so they read as light rather than as solid spokes.
+      // Two passes — long outer fronds plus a denser short inner ring — so the
+      // shell has a body instead of looking like a bare starburst.
+      for(var pass=0;pass<2;pass++){
+        var m=pass?26:46,near=pass?0.08:0.22,far=pass?0.42:1;
+        for(j=0;j<m;j++){
+          var a=6.283*j/m+(pass?0.12:0),len=r*far*(0.62+0.38*(((j*7)%m)/m)),
+              col=(j%4===0)?GOLD[j%GOLD.length]:base,
+              x0=x+Math.cos(a)*r*near,y0=y+Math.sin(a)*r*near,x1=x+Math.cos(a)*len,y1=y+Math.sin(a)*len;
+          var lg=ctx.createLinearGradient(x0,y0,x1,y1);
+          lg.addColorStop(0,col);lg.addColorStop(0.55,col);lg.addColorStop(1,'rgba(255,255,255,0)');
+          // Uneven per-spark brightness, so the shell scatters like light instead
+          // of reading as an evenly spoked wheel — and the page stays legible under it.
+          ctx.globalAlpha=0.45+0.5*(((j*11)%m)/m);
+          ctx.strokeStyle=lg;ctx.lineWidth=pass?1.2:2;ctx.lineCap='round';
+          ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.stroke();
+        }
+      }
+    }
+    ctx.globalAlpha=1;
+    if(opt.win)stillHero();
+    fadeStill(opt.win?3000:1600);
+    return true;
+  }
+  // The finale centerpiece as a still: the wordmark and "Gators Win!" at rest —
+  // no pop, no bob, no pulse. Mirrors drawHero's layout so the reduced-motion
+  // win screen reads the same, just frozen.
+  function stillHero(){
+    var cx=W/2,textY;
+    ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';
+    if(logoOk&&logoImg.width){
+      var lw=Math.min(W*0.74,340),lh=lw*(logoImg.height/logoImg.width),ly=H*0.21;
+      ctx.shadowColor='rgba(255,214,51,.6)';ctx.shadowBlur=36;
+      ctx.drawImage(logoImg,cx-lw/2,ly-lh/2,lw,lh);ctx.shadowBlur=0;
+      textY=ly+lh/2+Math.min(W*0.11,60)*0.5;
+    }else{textY=H*0.30;}
+    var fs=Math.min(W*0.15,82);
+    ctx.font="400 "+fs+"px 'Kaushan Script','Oswald',cursive";
+    var tw=ctx.measureText('Gators Win!').width,maxw=W*0.9;
+    if(tw>maxw){fs*=maxw/tw;ctx.font="400 "+fs+"px 'Kaushan Script','Oswald',cursive";}
+    ctx.lineJoin='round';
+    ctx.shadowColor='rgba(0,0,0,.5)';ctx.shadowBlur=16;
+    ctx.lineWidth=fs*0.11;ctx.strokeStyle='#100a1e';ctx.strokeText('Gators Win!',cx,textY);ctx.shadowBlur=0;
+    var lg=ctx.createLinearGradient(0,textY-fs*0.6,0,textY+fs*0.6);
+    lg.addColorStop(0,'#fff3b0');lg.addColorStop(0.5,'#ffd633');lg.addColorStop(1,'#e0b207');
+    ctx.fillStyle=lg;ctx.fillText('Gators Win!',cx,textY);ctx.restore();
+  }
+  // Returns true once a celebration is actually on screen, false when there was
+  // nowhere to draw it — the caller keeps the runs pending rather than losing
+  // them (see fireFx).
   function show(intensity){
-    if(!ready())return;
+    if(!ready())return false;
+    if(reduced())return still(intensity);
     // More runs -> a bigger show. Rockets fire in a staggered barrage across the
     // page; the barrage (and so the whole show) runs about twice as long as before.
     var shots=Math.max(16,Math.min(12+(intensity||1)*4,36));
     for(var s=0;s<shots;s++)(function(d){setTimeout(function(){if(cv.style.display!=='none')launch();},d);})(s*(150+Math.random()*130));
     endAt=Date.now()+shots*280+2600;if(!raf)tick();
+    return true;
   }
   // The win celebration: a long, dense, multi-type barrage that builds to an
   // all-at-once grand-finale volley of big shells, around the Gators wordmark logo
   // and a gold "Gators Win!" script.
   function finale(){
-    if(!ready())return;
+    if(!ready())return false;
     // Kick off the self-hosted Kaushan Script webfont so it's ready before the line draws.
     if(document.fonts&&document.fonts.load){try{document.fonts.load("60px 'Kaushan Script'");}catch(e){}}
+    if(reduced())return still(6,{win:true});
     var TYPES=['ring','ring','willow','palm','crackle'],t=0,last=0;
     // Phase 1 — a rolling barrage that runs a guaranteed ~9s (a while loop on
     // elapsed time, not a fixed shell count with random gaps that could finish
@@ -6031,6 +6119,7 @@ var FX=(function(){
       bloom=Math.min(1.2,bloom+0.7);
       hero={t:Date.now(),dur:dur-HDLY};},HDLY);
     if(!raf)tick();
+    return true;
   }
   return {show:show,finale:finale};
 })();
@@ -6076,8 +6165,23 @@ function glowDigit(el){if(!el)return;el.classList.remove('cglow');void el.offset
 // play narrative, so we stash the pending run count here and fire when the
 // Gators' scored bubble appears — with a timer as a fallback for a run that
 // never gets a "scored" narrative (e.g. a bases-loaded walk).
-var fxPending=0,fxTimer=0;
-function fireFx(){if(fxTimer){clearTimeout(fxTimer);fxTimer=0;}if(fxPending>0){FX.show(fxPending);fxPending=0;}}
+var fxPending=0,fxTimer=0,fxWinPending=false;
+// Fire the pending show — but only onto a page someone can actually see. While
+// the tab is backgrounded (or the phone is asleep) the live feed keeps arriving
+// over SSE, yet requestAnimationFrame is suspended: a show launched there burns
+// its whole run off-screen and is gone by the time you look. So hold the runs
+// and let them off on the way back in (see the visibilitychange handler below).
+// Only clear fxPending once a celebration actually started, so a show that
+// couldn't run isn't silently swallowed along with the runs that earned it.
+function fireFx(){
+  if(fxTimer){clearTimeout(fxTimer);fxTimer=0;}
+  if(fxPending<=0)return;
+  if(document.hidden)return;
+  if(FX.show(fxPending))fxPending=0;
+}
+// Same deferral for the win celebration — it's the one you least want to miss.
+function fireWinFx(){if(fxWinPending&&!document.hidden&&FX.finale())fxWinPending=false;}
+document.addEventListener('visibilitychange',function(){if(document.hidden)return;fireWinFx();fireFx();});
 // Point a team's scoreboard logo at their official site. Only the opponent is
 // linked; the Gators' own logo (isGators=true) stays a plain, non-clickable image.
 function logoLink(id,t,isGators){
@@ -6173,7 +6277,7 @@ function renderGame(g){
   // we watched happen (lastSeenStatus was a non-final state for this same game), so
   // it doesn't re-launch every time a finished win reloads in the post-game window.
   var gWon=g.status==='final'&&g.away.runs!=null&&g.home.runs!=null&&(g.gatorsHome?g.home.runs>g.away.runs:g.away.runs>g.home.runs);
-  if(gWon&&winFinaleGid!==g.id&&lastSeenGid===g.id&&lastSeenStatus&&lastSeenStatus!=='final'){winFinaleGid=g.id;FX.finale();}
+  if(gWon&&winFinaleGid!==g.id&&lastSeenGid===g.id&&lastSeenStatus&&lastSeenStatus!=='final'){winFinaleGid=g.id;fxWinPending=true;fireWinFx();}
   lastSeenGid=g.id;lastSeenStatus=g.status;
   prev={a:g.away.runs,h:g.home.runs};var pc=curId;curId=g.id;if(schedList&&pc!==curId)renderSched(schedList);
   var sp=$('statpill');sp.textContent=g.inningLabel;sp.classList.toggle('live',g.status==='live');
@@ -6308,8 +6412,12 @@ function buildLive(g){
   if(L&&L.holdEnd&&g._holdLp){
     // During the hold, pin the bubble to the play that made the 3rd out (captured
     // when the hold started) — g.plays' newest entry may already be the next half.
-    var hp=g._holdLp;
-    lastPlay='<div class="lastplay hold'+(hp.scored?' scored':'')+'" id="lastPlay"><span class="lplab">3rd out</span><span class="lptx">'+esc(hp.text)+'</span></div>';
+    // A run can score on the play that makes the 3rd out (a runner crossing while
+    // the batter is thrown out), so this bubble needs gscore too — without it the
+    // fireworks for that run missed their bubble and had to wait out the fallback
+    // timer instead of landing with the play text.
+    var hp=g._holdLp,hpG=g.gatorsHome?(hp.half==='bot'):(hp.half==='top');
+    lastPlay='<div class="lastplay hold'+(hp.scored?' scored':'')+(hp.scored&&hpG?' gscore':'')+'" id="lastPlay"><span class="lplab">3rd out</span><span class="lptx">'+esc(hp.text)+'</span></div>';
   }else if(g.plays&&g.plays.length){var lp=g.plays[g.plays.length-1];
     var inHalf=!L||(lp.inning===(+L.inning)&&lp.half===(L.half==='Top'?'top':'bot'));
     // gscore marks a Gators scoring play (their half + a "scored" narrative) so
