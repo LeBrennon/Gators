@@ -5482,7 +5482,14 @@ app.get('/debug/leaders', async (q, r) => {
     for (const t of tables) {
       const rows = rowsOf(t); if (rows.length < 2) continue;
       const hd = cellsOf(rows[0]).map(x => bsText(x).split(/\s+/)[0].toLowerCase());
-      if (hd.indexOf('team') === -1) continue; tbl = t; head = hd; break;
+      if (hd.indexOf('team') === -1) continue;
+      // The pitching page still leads with a hitting-shaped table, so "first
+      // table with a Team column" picks the wrong one. Same discipline-guard
+      // parseLeagueStats uses: keep looking until the header matches the board
+      // we actually asked for.
+      if (pos === 'p' && hd.indexOf('era') === -1 && hd.indexOf('ip') === -1) continue;
+      if (pos === 'h' && hd.indexOf('avg') === -1) continue;
+      tbl = t; head = hd; break;
     }
     if (!tbl) return r.json({ error: 'no leaderboard table', tables: tables.length });
     const rows = rowsOf(tbl); const all = [];
