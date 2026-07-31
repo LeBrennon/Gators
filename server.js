@@ -223,7 +223,9 @@ const PLAYOFF_SERIES = {
   '20260728': { tag: 'Playoffs · Game 1 — Best-of-3', note: 'Game 2 & Game 3 (if needed) are at Acadiana' },
   '20260729': { tag: 'Playoffs · Game 2 — Best-of-3', note: 'Game 3 (if needed) is Thursday, also at Acadiana' },
   '20260730': { tag: 'Playoffs · Game 3 — Best-of-3', note: 'Winner advances to Saturday’s championship' },
-  '20260801': { tag: 'TCL Championship — Winner Take All', note: 'Home field goes to the better regular-season record' },
+  // Victoria won their semifinal 2-1 and finished 31-19 to the Gators' 29-19, so
+  // the better regular-season record puts the title game at their place.
+  '20260801': { tag: 'TCL Championship — Winner Take All', note: 'At Victoria — the Generals host on the better regular-season record' },
 };
 // The Gators' semifinal, in series order — the dates a best-of-3 game can land
 // on. Drives the series score (see seriesStatus) and the stand-in games below.
@@ -238,7 +240,11 @@ const SEMIFINAL_LOST_NOTE = 'The Gators’ season is over';
 // series (seriesStatus) so the note tracks the result rather than the calendar.
 function playoffInfo(date, series) {
   const base = PLAYOFF_SERIES[date] || null;
-  if (!base || !series || (series.w !== 2 && series.l !== 2)) return base;
+  // Only a semifinal date's note is about the semifinal. The championship has
+  // its own note, and swapping it for "Gators advance to the TCL Championship"
+  // would put that line on the championship game itself.
+  if (!base || SEMIFINAL_DATES.indexOf(date) === -1) return base;
+  if (!series || (series.w !== 2 && series.l !== 2)) return base;
   return { tag: base.tag, note: series.w === 2 ? SEMIFINAL_WON_NOTE : SEMIFINAL_LOST_NOTE };
 }
 // The same block for a league game on the hero: the date's own game-in-series
@@ -254,10 +260,15 @@ function neutralPlayoffInfo(date, series) {
 // Game 2 appearing there's nothing upcoming for the site to point at. These
 // stand in until the feed carries the real game; a feed game on the same date
 // always wins (matched by date — a stand-in can't know Presto's game id).
-// Game 3 is deliberately absent: it's only played if the series goes the
-// distance, and a phantom game on the schedule would outlive a 2-0 sweep.
+// Semifinal Game 3 was deliberately never listed here: it's only played if the
+// series goes the distance, and a phantom game on the schedule would have
+// outlived the 2-0 sweep that made it moot.
 const MANUAL_PLAYOFF_GAMES = [
-  { date: '20260729', awayId: GATORS_ID, homeId: 'cz8qei0rxijys6nm' },   // Game 2 at Acadiana
+  // The championship. Victoria won their semifinal 2-1, and at 31-19 to the
+  // Gators' 29-19 the better regular-season record hosts — so it's at Victoria.
+  // Game 2's stand-in has been dropped: the feed carries that game now, and
+  // this list is only for games it doesn't.
+  { date: '20260801', awayId: GATORS_ID, homeId: 'jm9r4btii24hhtfp' },   // at Victoria
 ];
 // Recurring nightly concession promos by weekday (0=Sun..6=Sat). Home games
 // only — these run at Joe Miller Ballpark. No Monday game day.

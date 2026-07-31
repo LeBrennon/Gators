@@ -46,19 +46,26 @@ test('manualPlayoffGame builds a scheduled away game at 7:05', () => {
   assert.match(g.id, /^20260729_/);
 });
 
-test('the configured stand-in is Game 2 at Acadiana', () => {
+test('the configured stand-in is the championship at Victoria', () => {
   assert.equal(MANUAL_PLAYOFF_GAMES.length, 1);
   const [m] = MANUAL_PLAYOFF_GAMES;
-  assert.equal(m.date, '20260729');
+  assert.equal(m.date, '20260801');
   assert.equal(m.awayId, GAT);
-  assert.equal(m.homeId, ACA);
-  // Game 3 is only played if the series goes the distance, so it never stands in.
+  assert.equal(m.homeId, VIC);   // 31-19 to the Gators' 29-19, so Victoria hosts
+  // Semifinal Game 3 never stands in — it's only played if the series goes the
+  // distance, and the Gators' swept it away.
   assert.ok(!MANUAL_PLAYOFF_GAMES.some(x => x.date === '20260730'));
+  // Game 2's stand-in is retired: the feed carries that game now.
+  assert.ok(!MANUAL_PLAYOFF_GAMES.some(x => x.date === '20260729'));
 });
+
+// The mechanism, driven by an explicit list so these don't churn every time the
+// configured stand-in above moves on to the next unposted game.
+const G2 = [{ date: '20260729', awayId: GAT, homeId: ACA }];
 
 test('withManualPlayoffGames appends the stand-in in date order', () => {
   const parsed = [final('20260728', true, 2, 1)];
-  const merged = withManualPlayoffGames(parsed);
+  const merged = withManualPlayoffGames(parsed, G2);
   assert.equal(merged.length, 2);
   assert.deepEqual(merged.map(g => g.date), ['20260728', '20260729']);
   assert.equal(merged[1].state, 'scheduled');
@@ -66,18 +73,28 @@ test('withManualPlayoffGames appends the stand-in in date order', () => {
 
 test('a feed game on the same date wins over the stand-in', () => {
   const real = Object.assign(final('20260729', false, 0, 0), { state: 'scheduled', status: '7:05 PM CDT' });
-  const merged = withManualPlayoffGames([final('20260728', true, 2, 1), real]);
+  const merged = withManualPlayoffGames([final('20260728', true, 2, 1), real], G2);
   assert.equal(merged.length, 2);
   assert.equal(merged[1].id, real.id);
   assert.ok(!merged.some(g => /_tbd$/.test(g.id)));
 });
 
 test('pick features the stand-in once Game 1 is out of its sticky window', () => {
-  const games = withManualPlayoffGames([final('20260728', true, 2, 1)]);
+  const games = withManualPlayoffGames([final('20260728', true, 2, 1)], G2);
   // Two days after Game 1 ended, the fresh-final window is long gone.
   const chosen = pick(games, Date.UTC(2026, 6, 30, 18));
   assert.equal(chosen.date, '20260729');
   assert.equal(chosen.state, 'scheduled');
+});
+
+test('the championship stand-in becomes the featured game once the semifinal is done', () => {
+  // Friday, with the sweep two days behind us and nothing else on the schedule.
+  const games = withManualPlayoffGames([final('20260728', true, 2, 1), final('20260729', false, 3, 1)]);
+  const chosen = pick(games, Date.UTC(2026, 6, 31, 18));
+  assert.equal(chosen.date, '20260801');
+  assert.equal(chosen.state, 'scheduled');
+  assert.equal(chosen.gatorsHome, false);        // at Victoria
+  assert.equal(chosen.opponent.short, 'Generals');
 });
 
 test('seriesStatus reports the lead and each game played', () => {
@@ -261,6 +278,16 @@ test('playoffInfo retires the "if needed" note once the series is decided', () =
   assert.equal(playoffInfo('20260729', { w: 1, l: 2 }).note, SEMIFINAL_LOST_NOTE);
   // Dates with no playoff block stay null either way.
   assert.equal(playoffInfo('20260726', { w: 2, l: 0 }), null);
+});
+
+test('the swap is only for semifinal dates — the championship keeps its own note', () => {
+  // Only a semifinal date's note is about the semifinal. Without the date guard
+  // a decided series would put "Gators advance to the TCL Championship" on the
+  // championship game itself.
+  const champ = playoffInfo('20260801', { w: 2, l: 0 });
+  assert.equal(champ, PLAYOFF_SERIES['20260801']);
+  assert.notEqual(champ.note, SEMIFINAL_WON_NOTE);
+  assert.match(champ.note, /At Victoria/);
 });
 
 // A seeded bracket slot as buildPlayoffPicture emits it.
