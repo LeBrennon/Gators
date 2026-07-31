@@ -5615,46 +5615,69 @@ background:radial-gradient(1100px 550px at 50% -10%,rgba(111,79,212,.10),transpa
 .shopbtn .shoptxt{display:inline-block;line-height:1.1;text-align:center;}
 .dot{width:7px;height:7px;border-radius:50%;background:currentColor;}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(113,74,210,.5)}70%{box-shadow:0 0 0 8px rgba(113,74,210,0)}100%{box-shadow:0 0 0 0 rgba(113,74,210,0)}}
-.jumbo{position:relative;border-radius:22px;overflow:hidden;border:1px solid var(--line);box-shadow:0 18px 40px -18px rgba(0,0,0,.8);padding:18px 16px;
-background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gradient(180deg,var(--panel),var(--bayou2));}
-.jumbo::before{content:"";position:absolute;inset:0;border-radius:22px;padding:1px;background:linear-gradient(135deg,rgba(236,201,19,.5),transparent 40%,rgba(139,92,246,.35));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;}
-.sl{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;}
-.tm{display:flex;flex-direction:column;align-items:center;gap:8px;min-width:0;}
-.tm img{width:54px;height:54px;border-radius:14px;object-fit:contain;background:transparent;}
-.tm .tlogo{display:block;line-height:0;border-radius:14px;}
+.jumbo{position:relative;border-radius:22px;overflow:hidden;border:1px solid var(--line);box-shadow:0 18px 40px -18px rgba(0,0,0,.8);padding:16px 14px 18px;
+background:radial-gradient(120% 70% at 50% 0%,rgba(113,74,210,.34),transparent 62%),linear-gradient(180deg,var(--panel),var(--bayou2));}
+.jumbo::before{content:"";position:absolute;inset:0;border-radius:22px;padding:1px;background:linear-gradient(135deg,rgba(236,201,19,.5),transparent 40%,rgba(139,92,246,.35));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;z-index:2;}
+/* Full-bleed event banner across the top of the card (playoff / championship
+   tag). It sits outside the card's padding, so it reads as part of the frame
+   instead of another pill competing with the matchup. */
+.jbanner{position:relative;margin:-16px -14px 14px;padding:9px 14px;text-align:center;
+font-family:'Oswald',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.07em;font-size:12px;line-height:1.25;
+color:#1a1330;background:linear-gradient(100deg,var(--gold) 0%,var(--gold2) 45%,var(--gold) 100%);
+box-shadow:0 6px 18px -8px rgba(236,201,19,.7);}
+/* Date + status eyebrow, centered between two hairlines. */
+.jwhen{display:flex;align-items:center;justify-content:center;gap:11px;margin-bottom:14px;
+font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.16em;font-size:10px;color:var(--mute);}
+.jwhen::before,.jwhen::after{content:"";height:1px;flex:1 1 0;max-width:62px;background:linear-gradient(90deg,transparent,var(--line));}
+.jwhen::after{background:linear-gradient(90deg,var(--line),transparent);}
+/* minmax(0,1fr) keeps the two team columns from being squeezed below their
+   logo width by whatever sits in the middle — the old 1fr let a wide center
+   push the logos and names past the card's edge. */
+.sl{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:10px;}
+.tm{display:flex;flex-direction:column;align-items:center;gap:7px;min-width:0;max-width:100%;}
+.tm img{width:58px;height:58px;max-width:100%;border-radius:16px;object-fit:contain;background:transparent;filter:drop-shadow(0 4px 10px rgba(0,0,0,.45));}
+.tm .tlogo{display:block;line-height:0;border-radius:16px;}
 .tm a.tlogo[href]{cursor:pointer;transition:transform .12s ease,filter .12s ease;}
 .tm a.tlogo[href]:hover{transform:scale(1.06);filter:drop-shadow(0 2px 6px rgba(0,0,0,.35));}
 .tm a.tlogo[href]:focus-visible{outline:2px solid var(--gator);outline-offset:2px;}
-.tm .nm{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.03em;font-size:12px;text-align:center;line-height:1.05;}
-.tm .rec{font-family:'Inter',sans-serif;font-weight:600;font-size:11px;color:var(--mute);letter-spacing:.04em;margin-top:-4px;min-height:13px;}
+.tm .side{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.14em;font-size:8.5px;color:var(--mute);opacity:.75;line-height:1;}
+/* Two lines are always reserved for the name so a long one ("Cane Cutters")
+   wraps instead of being cut off, and both columns still line their records and
+   scores up with each other. */
+.tm .nm{display:flex;align-items:center;justify-content:center;min-height:26px;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.03em;font-size:12.5px;text-align:center;line-height:1.1;max-width:100%;overflow:hidden;}
+.tm .rec{font-family:'Inter',sans-serif;font-weight:600;font-size:10.5px;color:var(--mute);letter-spacing:.04em;white-space:nowrap;font-variant-numeric:tabular-nums;
+background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);border-radius:999px;padding:1px 8px;min-height:17px;line-height:15px;}
+.tm .rec:empty{background:none;border-color:transparent;}
 .tm.gators .nm{color:var(--gator);}
-.tm .sc{font-family:'Oswald',sans-serif;font-weight:700;font-size:60px;line-height:.9;}
+.tm .sc{font-family:'Oswald',sans-serif;font-weight:700;font-size:58px;line-height:.9;font-variant-numeric:tabular-nums;margin-top:1px;}
 /* Score color tracks the result, not the team: leader/winner in gold, trailer
    in light purple. A tie (or no result yet) leaves the default bone color. */
 .tm.win .sc{color:var(--gold2);text-shadow:0 0 24px rgba(255,214,51,.4);}
 .tm.lose .sc{color:var(--gator);text-shadow:0 0 24px rgba(113,74,210,.35);}
 .sc.flash{animation:fl .9s ease;}@keyframes fl{0%{transform:scale(1)}30%{transform:scale(1.18);filter:brightness(1.5)}100%{transform:scale(1)}}
 #fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9999;display:none;}
-.mid{display:flex;flex-direction:column;align-items:center;gap:8px;padding:0 2px;}
-.statpill{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12px;letter-spacing:.06em;color:var(--gold2);background:rgba(236,201,19,.08);border:1px solid rgba(236,201,19,.25);border-radius:999px;padding:6px 11px;text-align:center;text-transform:uppercase;white-space:nowrap;}
+.mid{display:flex;flex-direction:column;align-items:center;gap:8px;padding:0 2px;min-width:0;}
+.statpill{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:11.5px;letter-spacing:.04em;color:var(--gold2);background:rgba(236,201,19,.08);border:1px solid rgba(236,201,19,.25);border-radius:999px;padding:6px 10px;text-align:center;text-transform:uppercase;white-space:nowrap;}
 .statpill.live{color:var(--gator);background:rgba(113,74,210,.08);border-color:rgba(113,74,210,.3);}
-.watchpill{display:inline-flex;align-items:center;gap:5px;font-family:'Oswald',sans-serif;font-weight:700;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:#1a1330;background:linear-gradient(180deg,var(--gold2),var(--gold));border:1px solid var(--gold);border-radius:999px;padding:6px 12px;text-decoration:none;white-space:nowrap;}
-.watchpill.replay{color:#fff;background:linear-gradient(180deg,var(--purple),var(--gator2));border-color:var(--purple);}
-.vs{font-size:10px;color:var(--mute);letter-spacing:.1em;text-transform:uppercase;}
 .note{margin-top:14px;font-size:11.5px;line-height:1.6;color:var(--mute);background:var(--bayou2);border:1px solid var(--line);border-radius:14px;padding:13px 15px;}
 .bld{margin:20px 0 6px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.08em;color:var(--mute);opacity:.5;}
 .note b{color:var(--bone);font-weight:600;}
-.jloc{text-align:center;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:10px;color:var(--mute);}
+/* Everything that isn't the matchup itself lives in a full-width band under the
+   team row. Keeping these long lines out of the center grid column is what stops
+   them from squeezing the team columns (and clipping the logos) on a phone. */
+.jmeta{display:flex;flex-direction:column;align-items:center;gap:7px;margin-top:15px;padding-top:13px;border-top:1px solid rgba(255,255,255,.07);}
+.jmeta>*{max-width:100%;}
+.jloc{text-align:center;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.09em;text-transform:uppercase;font-size:10.5px;color:var(--bone);opacity:.8;}
 .jplayoff{color:#1a1330;background:linear-gradient(180deg,var(--gold2),var(--gold));}
 .brkwhen{margin-top:8px;text-align:center;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.05em;text-transform:uppercase;font-size:9.5px;color:var(--mute);}
-.jplayoffnote{margin-top:5px;text-align:center;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.05em;text-transform:uppercase;font-size:9.5px;color:var(--gold2);line-height:1.3;}
-.jseries{margin-top:6px;text-align:center;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.05em;text-transform:uppercase;font-size:10px;color:var(--bone);line-height:1.35;}
+.jplayoffnote{text-align:center;font-size:11px;font-style:italic;color:var(--mute);line-height:1.4;max-width:330px;}
+.jseries{text-align:center;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.05em;text-transform:uppercase;font-size:10px;color:var(--bone);line-height:1.35;}
 .jseries b{color:var(--gold2);font-weight:700;}
 .jseries .jsg{color:var(--mute);}
 .brkseries{margin:-2px 0 8px;text-align:center;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.05em;text-transform:uppercase;font-size:10px;color:var(--bone);line-height:1.35;}
 .brkseries b{color:var(--gold2);font-weight:700;}
 .brkseries .jsg{color:var(--mute);}
-.jtheme{margin-top:6px;text-align:center;font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-size:10.5px;color:#1a1330;background:linear-gradient(180deg,var(--gold2),var(--gold));border-radius:999px;padding:4px 11px;line-height:1.2;}
+.jtheme{text-align:center;font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-size:10.5px;color:#1a1330;background:linear-gradient(180deg,var(--gold2),var(--gold));border-radius:999px;padding:4px 11px;line-height:1.2;}
 .jpromos{display:flex;flex-direction:column;align-items:center;}
 .jpromo{margin-top:10px;text-align:center;font-size:10.5px;color:var(--mute);line-height:1.35;max-width:320px;}
 .jpromo b{color:var(--gold2);font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.03em;font-weight:700;}
@@ -6054,13 +6077,17 @@ a.sbg:hover{border-color:var(--purple);background:rgba(113,74,210,.14);}
 <div id="viewScores">
 __SITE_NOTICE__
 <div class="jumbo">
+<div class="jbanner" id="playoffTag" style="display:none"></div>
+<div class="jwhen" id="vs">vs</div>
 <div class="sl">
-<div class="tm" id="awayTm"><a class="tlogo" id="awayLogoLink" rel="noopener"><img id="awayLogo" alt=""></a><div class="nm" id="awayNm">—</div><div class="rec" id="awayRec"></div><div class="sc" id="awaySc">0</div></div>
-<div class="mid"><a class="watchpill" id="watchBtn" target="_blank" rel="noopener" style="display:none">Watch</a><div class="statpill" id="statpill">—</div><div class="vs" id="vs">vs</div><div class="jloc" id="jloc"></div><div class="jtheme" id="themeTag" style="display:none"></div><div class="jtheme" id="specialName" style="display:none"></div><div class="jtheme" id="playoffTag" style="display:none"></div><div class="jseries" id="playoffSeries" style="display:none"></div><div class="jplayoffnote" id="playoffNote" style="display:none"></div></div>
-<div class="tm" id="homeTm"><a class="tlogo" id="homeLogoLink" rel="noopener"><img id="homeLogo" alt=""></a><div class="nm" id="homeNm">—</div><div class="rec" id="homeRec"></div><div class="sc" id="homeSc">0</div></div>
+<div class="tm" id="awayTm"><div class="side">Away</div><a class="tlogo" id="awayLogoLink" rel="noopener"><img id="awayLogo" alt=""></a><div class="nm" id="awayNm">—</div><div class="rec" id="awayRec"></div><div class="sc" id="awaySc">0</div></div>
+<div class="mid"><div class="statpill" id="statpill">—</div></div>
+<div class="tm" id="homeTm"><div class="side">Home</div><a class="tlogo" id="homeLogoLink" rel="noopener"><img id="homeLogo" alt=""></a><div class="nm" id="homeNm">—</div><div class="rec" id="homeRec"></div><div class="sc" id="homeSc">0</div></div>
 </div>
+<div class="jmeta"><div class="jloc" id="jloc"></div><div class="jseries" id="playoffSeries" style="display:none"></div><div class="jplayoffnote" id="playoffNote" style="display:none"></div><div class="jtheme" id="themeTag" style="display:none"></div><div class="jtheme" id="specialName" style="display:none"></div></div>
 <div class="jpromos"><div class="jpromo" id="specialDetail" style="display:none"></div><div class="jpromo" id="promoTag" style="display:none"></div></div>
 <div class="live" id="livePanel" style="display:none"></div>
+<a class="watchbtn" id="watchBtn" target="_blank" rel="noopener" style="display:none">Watch</a>
 <a class="watchbtn ticket" id="ticketBtn" target="_blank" rel="noopener" style="display:none">Buy Tickets</a>
 </div>
 <div class="sec sbsec" id="sbHomeSec" style="display:none"><span id="sbHomeTtl">Other Playoff Game</span><span class="sbdate" id="sbHomeMeta"></span></div>
@@ -6552,10 +6579,18 @@ function renderGame(g){
     if(sr&&sr.label){psr.innerHTML=seriesHtml(sr);psr.style.display='';}
     else psr.style.display='none';}
   var pr=$('promoTag');if(pr){if(g.promo&&g.status==='pregame'){pr.innerHTML=esc(g.promo.emoji)+' <b>'+esc(g.promo.name)+'</b> · '+esc(g.promo.detail);pr.style.display='';}else{pr.style.display='none';}}
+  // The meta band carries its own divider rule, so it has to disappear entirely
+  // on a game with no location, series, note or theme — otherwise the card ends
+  // in a hairline under the matchup with nothing beneath it.
+  var jm=document.querySelector('.jmeta');
+  if(jm){var anyMeta=false;
+    for(var mi=0;mi<jm.children.length;mi++){var mc=jm.children[mi];
+      if(mc.style.display!=='none'&&(mc.textContent||'').trim())anyMeta=true;}
+    jm.style.display=anyMeta?'':'none';}
   var wb=$('watchBtn');
   if(wb){
-    // Live game: show the TCL stream pill. Upcoming games use the Buy Tickets
-    // button below instead (you can't watch a game that hasn't started).
+    // Live game: show the TCL stream button. Upcoming games use the Buy Tickets
+    // button in the same slot instead (you can't watch a game that hasn't started).
     if(g.status!=='pregame'&&g.status!=='cancelled'&&g.watchUrl){wb.href=g.watchUrl;wb.textContent='Watch on TCL';wb.classList.remove('replay');wb.style.display='';}
     else{wb.style.display='none';}
   }
