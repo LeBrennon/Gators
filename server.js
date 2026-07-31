@@ -5475,7 +5475,16 @@ app.get('/debug/leaders', async (q, r) => {
   try {
     const pos = String((q.query && q.query.pos) || 'h').toLowerCase() === 'p' ? 'p' : 'h';
     const team = String((q.query && q.query.team) || '').trim();
-    const res = await fetchText(leagueStatsUrl(pos));
+    // The board is one page of ~125 rows starting at row `r`, ordered by `sort`.
+    // The pitching board defaults to sort=era, which puts every position player
+    // who threw a scoreless inning ahead of the actual pitching staffs — so the
+    // first page contains no one with double-digit innings. Expose both knobs so
+    // an opponent's real arms can be reached (e.g. ?pos=p&sort=ip or &r=125).
+    const row0 = Math.max(0, parseInt(String((q.query && q.query.r) || '0'), 10) || 0);
+    const sort = String((q.query && q.query.sort) || '').replace(/[^a-z0-9]/gi, '');
+    const url = SPORT_BASE + '/players?view=&r=' + row0 + '&pos=' + pos
+      + '&sort=' + (sort || (pos === 'p' ? 'era' : 'avg'));
+    const res = await fetchText(url);
     const html = res.body || '';
     const tables = html.match(/<table\b[\s\S]*?<\/table>/gi) || [];
     let tbl = null, head = null;
@@ -5502,7 +5511,7 @@ app.get('/debug/leaders', async (q, r) => {
     const rowsFor = team === 'all' ? all : all.filter(x => x.teamId === (team || GATORS_ID));
     r.set('Cache-Control', 'no-store');
     r.json({
-      pos, team: team || GATORS_ID,
+      pos, team: team || GATORS_ID, url, r: row0, sort: sort || (pos === 'p' ? 'era' : 'avg'),
       header: head, totalLeagueHitters: all.length,
       gatorsId: GATORS_ID,
       sample: all.slice(0, 3),
