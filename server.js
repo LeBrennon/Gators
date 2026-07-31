@@ -5464,9 +5464,18 @@ app.get('/debug/player', async (q, r) => {
 });
 // Inspect the league hitting leaderboard so we can compute hitting ranks for
 // players whose own page has no batting "Overall" table (two-way players).
-app.get('/debug/leaders', async (_q, r) => {
+// League leaderboard dump. Defaults to the hitting board filtered to the Gators
+// (its original shape — scripts/build-seed.js reads `computedRanks` off that).
+// Advance scouting needs the same board for an OPPONENT, and the pitching board
+// too, so `?pos=p` switches which board is fetched and `?team=<prestoTeamId>`
+// (or `?team=all`) chooses whose rows come back. The board is the only place a
+// non-Gators player's season line and his Presto slug appear together — box
+// scores strip the player links, so there's no other way to resolve them.
+app.get('/debug/leaders', async (q, r) => {
   try {
-    const res = await fetchText(leagueStatsUrl('h'));
+    const pos = String((q.query && q.query.pos) || 'h').toLowerCase() === 'p' ? 'p' : 'h';
+    const team = String((q.query && q.query.team) || '').trim();
+    const res = await fetchText(leagueStatsUrl(pos));
     const html = res.body || '';
     const tables = html.match(/<table\b[\s\S]*?<\/table>/gi) || [];
     let tbl = null, head = null;
@@ -5483,12 +5492,17 @@ app.get('/debug/leaders', async (_q, r) => {
       for (let k = 3; k < c.length && k < head.length; k++) { if (head[k]) o[head[k]] = bsText(c[k]); }
       all.push(o);
     }
+    const rowsFor = team === 'all' ? all : all.filter(x => x.teamId === (team || GATORS_ID));
+    r.set('Cache-Control', 'no-store');
     r.json({
+      pos, team: team || GATORS_ID,
       header: head, totalLeagueHitters: all.length,
       gatorsId: GATORS_ID,
       sample: all.slice(0, 3),
+      rows: rowsFor,
       gators: all.filter(x => x.teamId === GATORS_ID),
-      computedRanks: computeLeagueHitRanks(html),
+      // Hitting-only (the ranks are computed off the hitting board).
+      computedRanks: pos === 'h' ? computeLeagueHitRanks(html) : {},
     });
   } catch (e) { r.status(502).json({ error: e.message }); }
 });
