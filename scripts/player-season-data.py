@@ -106,6 +106,14 @@ def defense(player, where, mobile):
             ['E', str(s['E'])], ['FLD%', s['FLD']]]
     legend = (f'PO = putouts · A = assists · E = errors · FLD% = fielding pct ((PO+A) ÷ chances) · '
               f'PO/G = putouts per game{" at " + spots if spots else ""} ({s["G"]} G)')
+    # Catchers get the throwing game too. Labels stay spelled out so they read
+    # apart from the SB/CS rows just above them, which are his own base running.
+    if s['GC'] and s['ATT']:
+        rows += [['Runners CS', str(s['CS'])], ['Steals allowed', str(s['SBA'])], ['CS%', s['CSPCT']]]
+        if s['PKO']: rows.append(['Pickoffs', str(s['PKO'])])
+        legend += (f' · Runners CS = runners he threw out stealing · CS% = caught stealing rate '
+                   f'(CS ÷ {s["ATT"]} attempts in {s["GC"]} G behind the plate)'
+                   + (' · Pickoffs counted separately, as the league counts them' if s['PKO'] else ''))
     return rows, legend
 
 THROWS = json.load(open('data/league-throws.json'))['players']

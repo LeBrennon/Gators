@@ -156,6 +156,7 @@ AIR_RE = re.compile(rf'(?:flied out|popped up|lined out|fouled out|flied into)\s
 OUT_RE = re.compile(rf'out at (?:first|second|third|home)\s+((?:{POS_RE})(?:\s+to\s+(?:{POS_RE}))*)(\s+unassisted)?')
 DP_RE = re.compile(rf'(?:double|triple) play\s+((?:{POS_RE})(?:\s+to\s+(?:{POS_RE}))*)(\s+unassisted)?')
 CHAIN_RE = re.compile(POS_RE)
+STEAL_RE = re.compile(r'\bstole (?:second|third|home)\b')
 
 
 def credit(book, lineup, pos, stat, orphans=None):
@@ -195,6 +196,18 @@ def apply_play(seg, book, lineup, orphans=None):
             for f in chain[:-1]: give(f, 'A')
             give(chain[-1], 'PO')
         po += 1
+        # The catcher's throwing game. A runner is only the catcher's to claim
+        # when the play starts with him: "out at second c to 2b, caught
+        # stealing" is his, "out at second p to 1b to ss, caught stealing" is
+        # the pitcher's pickoff and no catching credit at all. Pickoffs are
+        # kept apart from caught stealing, the way the league counts them.
+        if chain[0] == 'c':
+            if 'caught stealing' in seg: give('c', 'CS')
+            elif 'picked off' in seg: give('c', 'PKO')
+
+    # Every steal that goes uncontested is charged to whoever is catching.
+    for _ in STEAL_RE.finditer(seg):
+        give('c', 'SBA')
 
     # A strikeout is a putout for the catcher unless the play ended with a
     # throw (dropped third strike) — that out is already credited above.
@@ -315,9 +328,16 @@ def summary(tot, who, where='all'):
         s.get('G@field', 0) if where == 'field' else max(s.get('G@p', 0), s.get('G@field', 0))
     pos = sorted((k[3:] for k in s if k.startswith('at@') and keep(k[3:])),
                  key=lambda p: -s['at@' + p])
+    # Catching: runners he threw out, runners who got the base, and the rate.
+    # Pickoffs stay out of the rate — the league counts them separately.
+    cs, sba, pko = take('CS'), take('SBA'), take('PKO')
+    att = cs + sba
     return {'G': g, 'PO': po, 'A': a, 'E': e, 'CH': ch, 'POS': pos,
             'FLD': ('%.3f' % ((po + a) / ch)).replace('0.', '.') if ch else '—',
-            'POG': ('%.2f' % (po / g)) if g else '—'}
+            'POG': ('%.2f' % (po / g)) if g else '—',
+            'CS': cs, 'SBA': sba, 'PKO': pko, 'ATT': att,
+            'CSPCT': ('%.1f' % (100 * cs / att)) if att else '—',
+            'GC': s.get('at@c', 0)}
 
 
 if __name__ == '__main__':
