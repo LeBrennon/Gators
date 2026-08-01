@@ -3,6 +3,7 @@
 render-batch.py — render print PDF + mobile HTML for a list of players.
 
   python3 scripts/render-batch.py Ramos:b Walker:b Thompson:p Levy:both ...
+  python3 scripts/render-batch.py --print Ramos:b ...        # skip the mobile cards
 
   suffix :b = batter card, :p = pitcher card, :both = double report card
 Splices DATA from player-season-data.py into the locked card templates,
@@ -21,14 +22,15 @@ def splice(template, data, out):
     end = s.index('};', start) + 2
     open(out, 'w').write(s[:start] + 'const DATA = ' + json.dumps(data, indent=2) + ';' + s[end:])
 
-def run(job):
+def run(job, print_only=False):
     name, kind = job.split(':')
     roles = ['b', 'p'] if kind == 'both' else [kind]
     ok = True
     for r in roles:
         tpl_p, tpl_m, flag = JOBS[r]
         label = '' if len(roles) == 1 else ('Hitting' if r == 'b' else 'Pitching')
-        for tpl, extra in ((tpl_p, []), (tpl_m, ['--mobile'])):
+        jobs = [(tpl_p, [])] + ([] if print_only else [(tpl_m, ['--mobile'])])
+        for tpl, extra in jobs:
             # pass the name as given (full name if supplied) — a bare last name is ambiguous
             # when two players share one, e.g. Jake Smith / Shyler Smith
             res = subprocess.run(['python3', 'scripts/player-season-data.py', name, flag] + extra,
@@ -61,7 +63,9 @@ def run(job):
     return ok
 
 if __name__ == '__main__':
-    jobs = sys.argv[1:]
+    args = sys.argv[1:]
+    print_only = '--print' in args
+    jobs = [a for a in args if not a.startswith('--')]
     if not jobs: print(__doc__); sys.exit(1)
-    bad = [j for j in jobs if not run(j)]
+    bad = [j for j in jobs if not run(j, print_only)]
     print('FAILED:', bad if bad else 'none')

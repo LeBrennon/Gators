@@ -79,6 +79,35 @@ def photo_slug(player):
 
 BOX = json.load(open('box-seed.json'))['boxes']
 ROSTER = json.load(open('data/batch-roster.json'))['players']
+
+import fielding
+_FIELD = None
+POS_LABEL = {'p': 'P', 'c': 'C', '1b': '1B', '2b': '2B', '3b': '3B', 'ss': 'SS',
+             'lf': 'LF', 'cf': 'CF', 'rf': 'RF'}
+
+def defense(player, where, mobile):
+    """Defensive rows for a card panel, print only — PO/A/E/FLD%/PO-per-game.
+
+    `where` is 'field' for a position player's card and 'p' for a pitcher's, so
+    a two-way player's two cards each report the glove work that belongs to it.
+    Returns ([], '') when there is nothing to show (mobile cards, or a player
+    with no chances in that role), leaving the panel exactly as it was. The
+    numbers come from fielding.py, which rebuilds them from the play-by-play.
+    """
+    global _FIELD
+    if mobile: return [], ''                                   # print cards only
+    if _FIELD is None: _FIELD = fielding.season()[0]
+    s = fielding.summary(_FIELD, player, where)
+    if not s['G'] or not s['CH']: return [], ''
+    # "/" not " · " — the card templates split panel legends on " · ", so a
+    # middot inside one definition would break the list into separate entries.
+    spots = '/'.join(POS_LABEL.get(p, p.upper()) for p in s['POS'])
+    rows = [['PO', str(s['PO'])], ['PO/G', s['POG']], ['A', str(s['A'])],
+            ['E', str(s['E'])], ['FLD%', s['FLD']]]
+    legend = (f'PO = putouts · A = assists · E = errors · FLD% = fielding pct ((PO+A) ÷ chances) · '
+              f'PO/G = putouts per game{" at " + spots if spots else ""} ({s["G"]} G)')
+    return rows, legend
+
 THROWS = json.load(open('data/league-throws.json'))['players']
 BATS = json.load(open('data/league-bt.json'))['players']
 GATOR_KEYS = {tkey(n) for n in ROSTER}
@@ -240,6 +269,7 @@ def batter_card(player, mobile=False):
         return spa, savg, sobp, sslg
     lpa, lavg, lobp, lslg = slash(splits['L']); rpa, ravg, robp, rslg = slash(splits['R'])
     f3 = lambda v: ('%.3f' % v).replace('0.', '.')
+    drows, dleg = defense(player, 'field', mobile)
     DATA = {
         'name': player, 'num': str(bio.get('num') or ''), 'pos': bio.get('pos') or '—',
         'bt': bt, 'cls': bio.get('cls') or '—', 'school': bio.get('school') or '—',
@@ -260,10 +290,11 @@ def batter_card(player, mobile=False):
              'BB% = walks per PA · K% = strikeouts per PA · SF = sacrifice flies (not an AB)'],
             ['HIT BREAKDOWN', [['H', str(h)], ['1B', str(one)], ['2B', str(two)], ['3B', str(thr)],
                                ['HR', str(hr)], ['RBI', str(rbi)], ['R', str(r)], ['GIDP', str(tot.get('GIDP', 0))]]],
-            ['BASE RUNNING', [['SB', str(tot['SB'])], ['CS', str(tot['CS'])],
-                              ['SB%', '%.1f' % (100 * tot['SB'] / (tot['SB'] + tot['CS']) if tot['SB'] + tot['CS'] else 0)],
-                              ['SB-ATT', f"{tot['SB']}-{tot['SB'] + tot['CS']}"]],
-             'SB% = stolen-base success (SB ÷ attempts)']
+            [f'BASE RUNNING{" & DEFENSE" if drows else ""}',
+             [['SB', str(tot['SB'])], ['CS', str(tot['CS'])],
+              ['SB%', '%.1f' % (100 * tot['SB'] / (tot['SB'] + tot['CS']) if tot['SB'] + tot['CS'] else 0)],
+              ['SB-ATT', f"{tot['SB']}-{tot['SB'] + tot['CS']}"]] + drows,
+             'SB% = stolen-base success (SB ÷ attempts)' + (' · ' + dleg if dleg else '')]
         ],
         'key': [],  # legends moved into each panel (3rd element of its group)
         'logTitle': 'Game by Game — Hitting',
@@ -409,6 +440,7 @@ def pitcher_card(player, mobile=False):
     app = len(box_games)
     season = [['APP', str(app)], ['GS', '0'], ['W', str(w)], ['L', str(l)], ['SV', str(sv)],
               ['ERA', '%.2f' % era], ['WHIP', '%.2f' % whip], ['K', str(k)], ['BB', str(bb)]]
+    drows, dleg = defense(player, 'p', mobile)
     DATA = {
         'name': player, 'num': str(bio.get('num') or ''), 'pos': bio.get('pos') or 'P',
         'bt': bio.get('bt') or '—', 'cls': bio.get('cls') or '—', 'school': bio.get('school') or '—',
@@ -431,10 +463,11 @@ def pitcher_card(player, mobile=False):
                                  [f'vs LHB ({lpa} PA)', f'{f3(lavg)}/{f3(lobp)}/{f3(lslg)}', 'wide', 'AVG · OBP · SLG'],
                                  [f'vs RHB ({rpa} PA)', f'{f3(ravg)}/{f3(robp)}/{f3(rslg)}', 'wide', 'AVG · OBP · SLG']],
              'BF = batters faced'],
-            ['WORKLOAD', [['APP', str(app)], ['IP', ip_s], ['IP/APP', '%.1f' % (ip / app if app else 0)],
-                          ['BF', str(bf)], ['R', str(r)], ['ER', str(er)], ['#P', str(np_) if np_ else '—'],
-                          ['W-L', f'{w}-{l}']],
-             'IP/APP = innings per appearance · #P = total pitches']
+            [f'WORKLOAD{" & DEFENSE" if drows else ""}',
+             [['APP', str(app)], ['IP', ip_s], ['IP/APP', '%.1f' % (ip / app if app else 0)],
+              ['BF', str(bf)], ['R', str(r)], ['ER', str(er)], ['#P', str(np_) if np_ else '—'],
+              ['W-L', f'{w}-{l}']] + drows,
+             'IP/APP = innings per appearance · #P = total pitches' + (' · ' + dleg if dleg else '')]
         ],
         'key': [],  # legends moved into each panel (3rd element of its group)
         'logTitle': 'Game by Game — Pitching',

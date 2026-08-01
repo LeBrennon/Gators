@@ -89,6 +89,31 @@ Note: his Presto player page is an all-dashes placeholder — ALL his stats were
 3. **Season-end batch run**: for each pitcher — platoon-splits.py, validate per-game H/BB/K vs box, fill DATA, render, deliver. For each batter — batter template once built.
 4. **Optional**: batch script that loops a roster list and emits all cards.
 
+## 9d. DEFENSE on the print cards (PO / A / E / FLD% / PO per game)
+
+- `scripts/fielding.py` rebuilds per-player defense from the play-by-play — the official
+  fielding table is NOT in `box-seed.json` (the box parser keeps only the batting and
+  pitching tables) and Presto blocks scraping, so PBP is the only source available.
+- Per game it seeds the defensive nine from the box (starters + starting pitcher), walks
+  the PBP applying substitution announcements, and credits each out/error to whoever holds
+  that position at that moment by standard scoring (ground out to X = A X + PO 1b, K = PO c,
+  chains "X to Y to Z" = assists then the putout, and so on).
+- Five gates, all green on the 47-game seed: putouts credited == outs recorded on defense
+  (47/47); errors credited == the official line-score E (47/47); the seeded nine sit at
+  positions Presto itself chips (47/47); nine distinct fielders on at all times (46/47);
+  every credit lands on a named player (46/47). The one hole is 7/1 at Brazos Valley —
+  Presto never says who took left field after Landreneau moved to second, so 3 putouts stay
+  unattributed rather than being guessed onto someone.
+- Cards: rows go INSIDE the existing panel (BASE RUNNING & DEFENSE on batter cards, WORKLOAD
+  & DEFENSE on pitcher cards) per the 4-panel rule. A two-way player's hitting card shows his
+  work in the field and his pitching card his work on the mound — `defense(player, where)`.
+- **Print only.** `defense()` returns nothing for `--mobile`, and `render-batch.py --print`
+  skips mobile rendering entirely. The owner no longer sends mobile cards.
+- Known gap: no third source. Departed players are off the active roster, so `roster-seed.json`
+  has no official line to check against. Where an external number does exist (Ayden Sunday's
+  fan comparison sheet: 64 PO / 3 A / 1 E) this pipeline agrees on A and E and reads 2 putouts
+  high — treat PO as ±2 until someone can diff it against the league's fielding page.
+
 ## 9c. Auto-fit print layout (no blank bottoms)
 
 Both print templates now self-fit the letter page at render time:
