@@ -224,8 +224,10 @@ const PLAYOFF_SERIES = {
   '20260729': { tag: 'Playoffs · Game 2 — Best-of-3', note: 'Game 3 (if needed) is Thursday, also at Acadiana' },
   '20260730': { tag: 'Playoffs · Game 3 — Best-of-3', note: 'Winner advances to Saturday’s championship' },
   // Victoria won their semifinal 2-1 and finished 31-19 to the Gators' 29-19, so
-  // the better regular-season record puts the title game at their place.
-  '20260801': { tag: 'TCL Championship — Winner Take All', note: 'At Victoria — the Generals host on the better regular-season record' },
+  // the better regular-season record puts the title game at their place. The hero
+  // already says "At Victoria" in the location line, so the tag carries no note —
+  // the renderer hides the note row when there isn't one.
+  '20260801': { tag: 'TCL Championship — Winner Take All', note: null },
 };
 // The Gators' semifinal, in series order — the dates a best-of-3 game can land
 // on. Drives the series score (see seriesStatus) and the stand-in games below.
@@ -3768,6 +3770,14 @@ function gameLocation(g) {
 // ---- TCL TV (Vewbie) live/upcoming stream links ----
 const WATCH_LIST_URL = 'https://tcl-tv.vewbie.com/livestreams';
 const WATCH_FALLBACK = 'https://tcl-tv.vewbie.com/categories/lake-charles-gumbeaux-gators';
+// Streams the livestreams scrape can't find, keyed by date. The championship is
+// carried on texascollegiateleague.live under a hand-made slug ("...-Championship")
+// rather than the usual "<Away>-At-<Home>" pattern, so nothing in parseWatchList
+// matches it and the Gators-category fallback would point at the wrong page.
+// An override wins over both the scraped index and the fallback.
+const WATCH_URL_OVERRIDE = {
+  '20260801': 'https://texascollegiateleague.live/live/Lake-Charles-vs-Victoria-Championship',
+};
 let watchIndex = {};        // 'away|home|MM/DD/YYYY' and 'loose:away|home' -> stream URL
 let watchLoadedAt = 0;
 const citySlug = id => { const c = CITY[id]; return c ? c.toLowerCase().replace(/\s+/g, '-') : ''; };
@@ -3805,6 +3815,8 @@ async function pollWatch() {
 // Live + upcoming only. Falls back to the Gators' TCL TV page when unmatched.
 function watchUrlFor(g) {
   if (g.state !== 'live' && g.state !== 'scheduled') return null;
+  const override = WATCH_URL_OVERRIDE[g.date || ''];
+  if (override) return override;
   const aw = citySlug(g.away.id), hm = citySlug(g.home.id);
   // WATCH_FALLBACK is the Gators' own TCL TV category, which is the right guess
   // for a Gators game and the wrong one for anybody else's — a neutral league
