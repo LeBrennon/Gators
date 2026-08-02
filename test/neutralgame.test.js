@@ -59,6 +59,19 @@ test('a neutral game gets no watch link unless its own stream matched', () => {
   assert.match(String(watchUrlFor(ours)), /gumbeaux-gators/);
 });
 
+test('a date with a watch override wins over the scrape and the fallback', () => {
+  // The championship stream lives on texascollegiateleague.live under a slug the
+  // "<Away>-At-<Home>" scrape can't produce, so it's pinned by date.
+  const champ = { state: 'scheduled', date: '20260801', away: { id: GAT }, home: { id: VIC } };
+  assert.equal(watchUrlFor(champ),
+    'https://texascollegiateleague.live/live/Lake-Charles-vs-Victoria-Championship');
+  // It beats the neutral rule too — a pinned stream is the right link either way.
+  assert.equal(watchUrlFor(Object.assign({ neutral: true }, champ)),
+    'https://texascollegiateleague.live/live/Lake-Charles-vs-Victoria-Championship');
+  // A finished game still shows a Replay, not a live stream.
+  assert.equal(watchUrlFor(Object.assign({}, champ, { state: 'final' })), null);
+});
+
 test('neutralPlayoffInfo keeps the date tag and says what the game means for us', () => {
   const decided = { w: 2, l: 0 };
   const p = neutralPlayoffInfo('20260730', decided);

@@ -280,14 +280,17 @@ test('playoffInfo retires the "if needed" note once the series is decided', () =
   assert.equal(playoffInfo('20260726', { w: 2, l: 0 }), null);
 });
 
-test('the swap is only for semifinal dates — the championship keeps its own note', () => {
+test('the swap is only for semifinal dates — the championship keeps its own block', () => {
   // Only a semifinal date's note is about the semifinal. Without the date guard
   // a decided series would put "Gators advance to the TCL Championship" on the
   // championship game itself.
   const champ = playoffInfo('20260801', { w: 2, l: 0 });
   assert.equal(champ, PLAYOFF_SERIES['20260801']);
   assert.notEqual(champ.note, SEMIFINAL_WON_NOTE);
-  assert.match(champ.note, /At Victoria/);
+  // The championship carries no note at all — the hero's location line already
+  // says where it's played — so the swap has nothing to overwrite.
+  assert.equal(champ.note, null);
+  assert.match(champ.tag, /Championship/);
 });
 
 // A seeded bracket slot as buildPlayoffPicture emits it.
