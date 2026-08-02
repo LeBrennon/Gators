@@ -97,11 +97,16 @@ BOX = json.load(open('box-seed.json'))['boxes']
 # A player who transferred mid-season played games this club's seed never saw.
 # data/prior-stint-seed.json holds those boxes (same shape, fetched through the
 # live site's box proxy) so a full-season card can span both teams.
-try:
-    for _gid, _g in json.load(open('data/prior-stint-seed.json'))['boxes'].items():
-        BOX.setdefault(_gid, _g)          # never shadow a validated box-seed game
-except FileNotFoundError:
-    pass
+# late-box-repair.json carries a finished game whose line score Presto never
+# rendered, with the team names recovered from its own play-by-play titles.
+RESULTS = {}
+for _extra in ('data/prior-stint-seed.json', 'data/late-box-repair.json'):
+    try:
+        for _gid, _g in json.load(open(_extra))['boxes'].items():
+            BOX.setdefault(_gid, _g)      # never shadow a validated box-seed game
+            if _g.get('repair'): RESULTS[_gid] = _g['repair']['score']
+    except FileNotFoundError:
+        pass
 ROSTER = json.load(open('data/batch-roster.json'))['players']
 
 GATORS = 'Lake Charles Gumbeaux Gators'
@@ -248,13 +253,19 @@ def find_player(last, table_kind):
                         fallback = fallback or clean(r[0])
     return fallback
 
-def game_meta(g, team=GATORS):
+def game_meta(g, team=GATORS, gid=None):
     teams = g['data']['teams']
     gi = teams.index(team)
     opp = teams[1 - gi]; home = gi == 1
-    p = Table(); p.feed(g['data']['line'])
     short = team.split()[-1]
     gr = er = None
+    if not g['data'].get('line'):
+        # no line score on the page — use the official scoreboard's final
+        sc = RESULTS.get(gid) or {}
+        gr, er = sc.get(team), sc.get(opp)
+        if gr is None or er is None: raise KeyError(f'no result for {gid}')
+        return opp, home, ('W' if gr > er else 'L') + f', {max(gr, er)}-{min(gr, er)}'
+    p = Table(); p.feed(g['data']['line'])
     for r in p.rows:
         if short in r[0]: gr = int(r[-3])
         elif 'Final' not in r[0] and len(r) > 3:
@@ -298,7 +309,7 @@ def batter_card(player, mobile=False):
         pa_re, sb_re, cs_re = pats(gid)   # a game-scoped alias changes the patterns
         mine = team_of(gid, player)
         if not mine: continue                       # he wasn't in this game at all
-        opp, home, res = game_meta(g, mine)
+        opp, home, res = game_meta(g, mine, gid)
         starter = None
         for sec in g['data']['box']:
             if 'Pitching' in sec['label'] and mine not in sec['label']:
@@ -452,7 +463,7 @@ def pitcher_card(player, mobile=False):
         dt = gid[:8]
         mine = team_of(gid, player)
         if not mine: continue                       # not his game — a prior stint's box, say
-        opp, home, res = game_meta(g, mine)
+        opp, home, res = game_meta(g, mine, gid)
         for sec in g['data']['box']:
             if mine in sec['label'] and 'Pitching' in sec['label']:
                 p = Table(); p.feed(sec['html'])
@@ -527,6 +538,12 @@ def pitcher_card(player, mobile=False):
                 if ev in ('1B', '2B', '3B', 'HR'): S['H'] += 1; per['H'] += 1; tot['H'] += 1
                 if ev in ('1B', '2B', '3B', 'HR', 'K', 'O'): S['AB'] += 1; per['AB'] += 1; tot['AB'] += 1
                 tot['PA'] += 1
+            # Wild pitches are deliberately NOT derived here. Counting them from
+            # the text does not reconcile with Presto's own WP column (3 of 11
+            # pitchers matched): one wild pitch is described once per runner it
+            # moves, and the league counts some the text never flags. Presto
+            # publishes WP per pitcher — take it from there if it is ever wanted,
+            # rather than shipping a number that does not tie out.
         bg = [b for b in box_games if b['gid'] == gid][0]
         bg['bf_pbp'] = per['PA']  # true batters faced from play-by-play
         if per['H'] != bg['h'] or per['BB'] != bg['bb'] or per['K'] != bg['k']:
@@ -612,8 +629,8 @@ def pitcher_card(player, mobile=False):
             [f'WORKLOAD{" & DEFENSE" if drows else ""}',
              [['APP', str(app)], ['IP', ip_s], ['IP/APP', '%.1f' % (ip / app if app else 0)],
               ['BF', str(bf)], ['R', str(r)], ['ER', str(er)], ['#P', str(np_) if np_ else '—'],
-              ['W-L', f'{w}-{l}']] + drows,
-             'IP/APP = innings per appearance · #P = total pitches' + (' · ' + dleg if dleg else '')]
+              ['W-L', f'{w}-{l}'], ['HBP', str(hbp)]] + drows,
+             'IP/APP = innings per appearance · #P = total pitches · HBP = batters he hit' + (' · ' + dleg if dleg else '')]
         ],
         'key': [],  # legends moved into each panel (3rd element of its group)
         'logTitle': 'Game by Game — Pitching',

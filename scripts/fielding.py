@@ -92,8 +92,10 @@ def lineup_from_box(g, team=GATORS):
             if not th: continue
             cls, inner = th.group(1), th.group(2)
             pm = re.search(r'<span>([a-z0-9/]+)</span>', inner)
-            # drop the position chip and the a-/b- sublet marker before reading the name
-            nm = clean_name(text(re.sub(r'<span[^>]*>.*?</span>', ' ', inner, flags=re.S)))
+            # drop the position chip and the a-/b- sublet marker before reading
+            # the name — but a pitching row can put the NAME itself in a span,
+            # so fall back to the raw text rather than losing the pitcher.
+            nm = clean_name(text(re.sub(r'<span[^>]*>.*?</span>', ' ', inner, flags=re.S))) or clean_name(text(inner))
             if not nm or nm in ('Hitters', 'Pitchers', 'Totals'): continue
             names.add(key(nm)); by_key.setdefault(key(nm), nm)
             if not batting:
@@ -237,7 +239,13 @@ def apply_play(seg, book, lineup, orphans=None):
 
 
 def line_errors(g, team=GATORS):
-    """The Gators' error count from the official line score (R/H/E)."""
+    """The club's error count from the official line score (R/H/E).
+
+    None when the page carries no line score — Presto sometimes never renders
+    one for a finished game. That leaves the error gate with nothing to check
+    against, which is reported as ungraded rather than counted as a pass.
+    """
+    if not g.get('line'): return None
     rows = re.findall(r'<tr[^>]*>(.*?)</tr>', g['line'], re.S)
     for r in rows:
         cells = [text(c) for c in re.findall(r'<t[dh][^>]*>(.*?)</t[dh]>', r, re.S)]
@@ -292,13 +300,28 @@ def game_fielding(g, team=GATORS):
     }
 
 
+def load_boxes():
+    """box-seed plus the supplements the card pipeline uses: a prior club's
+    games, and any finished game whose line score Presto never rendered."""
+    boxes = json.load(open(os.path.join(ROOT, 'box-seed.json')))['boxes']
+    for extra in ('data/prior-stint-seed.json', 'data/late-box-repair.json'):
+        try:
+            for gid, g in json.load(open(os.path.join(ROOT, extra)))['boxes'].items():
+                boxes.setdefault(gid, g)
+        except FileNotFoundError:
+            pass
+    return boxes
+
+
 def season(box=None, team=GATORS):
-    box = box or json.load(open(os.path.join(ROOT, 'box-seed.json')))['boxes']
+    box = box if box is not None else load_boxes()
     tot = collections.defaultdict(lambda: collections.defaultdict(int))
     log = collections.defaultdict(list)
     gates = {'po': [], 'e': [], 'seed': [], 'orphan': [], 'thin': []}
     for gid in sorted(box):
         g = box[gid]['data']
+        # supplements carry other clubs' games; a club's season is its own
+        if team not in (g.get('teams') or [team]): continue
         r = game_fielding(g, team)
         gates['po'].append((gid, r['po'], r['outs']))
         gates['e'].append((gid, r['errors'], r['official_errors']))
@@ -347,12 +370,16 @@ def summary(tot, who, where='all'):
 if __name__ == '__main__':
     tot, log, gates = season()
     bad_po = [x for x in gates['po'] if x[1] != x[2]]
-    bad_e = [x for x in gates['e'] if x[1] != x[2]]
+    ungraded = [x for x in gates['e'] if x[2] is None]      # no line score on the page
+    bad_e = [x for x in gates['e'] if x[2] is not None and x[1] != x[2]]
     print(f"games: {len(gates['po'])}", file=sys.stderr)
     print(f"PO gate: {len(gates['po']) - len(bad_po)}/{len(gates['po'])} games exact", file=sys.stderr)
     for gid, got, want in bad_po: print(f'   {gid}: credited {got} PO vs {want} outs', file=sys.stderr)
-    print(f"E  gate: {len(gates['e']) - len(bad_e)}/{len(gates['e'])} games match the line score", file=sys.stderr)
+    gradeable = len(gates['e']) - len(ungraded)
+    print(f"E  gate: {gradeable - len(bad_e)}/{gradeable} games match the line score"
+          + (f' ({len(ungraded)} ungraded — no line score published)' if ungraded else ''), file=sys.stderr)
     for gid, got, want in bad_e: print(f'   {gid}: credited {got} E vs line score {want}', file=sys.stderr)
+    for gid, got, _ in ungraded: print(f'   {gid}: {got} E credited, no line score to check against', file=sys.stderr)
     n = len(gates['po'])
     print(f"LINEUP gate: {n - len(gates['seed'])}/{n} games seed the nine at Presto's own listed positions", file=sys.stderr)
     for gid, offs in gates['seed']: print(f'   {gid}: {offs}', file=sys.stderr)
