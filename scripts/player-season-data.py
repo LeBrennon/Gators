@@ -117,14 +117,22 @@ ALIASES = {
     'Matt Scott': ['Matthew Scott'],       # the Gators box spells him Matthew; the club calls him Matt
     'Landon Hennen': ['Landon Hennan'],
 }
-# A name the play-by-play uses for one player in one game and nowhere else.
-# Presto's 7/8 Brazos Valley play-by-play calls Matt Scott's plate appearances
-# "Eddie Castillo": the box has Scott in left field with 3 AB / 2 H / 2 BB, no
-# Castillo row exists in any box all season, and Scott's 23 box lines sum
-# exactly to Presto's own season line (23 G, 87 AB, 18 R, 23 H, 18 RBI, 12 BB,
-# 30 K). Scoped to the one game so it can never silently claim another player's
-# work elsewhere.
-GAME_ALIASES = {('20260708_kmej', 'Matt Scott'): ['Eddie Castillo']}
+# Sources that contradict each other on who batted, left unresolved on purpose.
+#
+# 7/8 at Brazos Valley: the box has Matt Scott in left field with 3 AB / 2 H /
+# 2 BB / 3 RBI and no Castillo row; the play-by-play for that same lineup slot
+# names Eddie Castillo throughout and never mentions Scott. This was briefly
+# resolved in Scott's favour on the grounds that Castillo appeared nowhere else
+# — but the league's own gameday roster for 7/7 lists Eddie Castillo on the
+# Brazos Valley roster, wearing the #8 that had been Scott's, so he was there
+# the day before. Presto's player page for Scott does carry the game, but that
+# page is built from the same box, so it is not independent evidence.
+#
+# The counting stats still come from the box line, which is what Presto's own
+# season totals reflect. The play-by-play detail for those five plate
+# appearances is NOT claimed for either player, so the game shows as a
+# reconciliation mismatch rather than being quietly assigned to the wrong man.
+GAME_ALIASES = {}
 
 def aka(player, gid=None):
     return [player] + ALIASES.get(player, []) + (GAME_ALIASES.get((gid, player), []) if gid else [])
