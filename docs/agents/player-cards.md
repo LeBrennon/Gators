@@ -14,13 +14,36 @@ and which gates have to be green before anything is sent to a player.
 The owner stopped sending mobile cards. Render with:
 
 ```
-python3 scripts/render-batch.py --print "Name:b" "Name:p" "Name:both" ...
+python3 scripts/render-batch.py --print --roster data/active-batch.json
+python3 scripts/render-batch.py --print --dry-run --roster data/active-batch.json   # gates only
 ```
+
+A roster file holds the whole batch and every role in one reviewed place, so a
+long command line can't quietly drop a player or send someone the wrong card.
+`--dry-run` resolves every name and runs the validation gate without rendering —
+run it first; it is cheap and it is the thing that says the batch is sendable.
+
+Ad-hoc form still works: `--print "Name:b" "Name:p" "Name:both"`.
 
 `--print` skips mobile rendering entirely. `defense()` in
 `scripts/player-season-data.py` returns nothing when `--mobile` is passed, so the
 mobile templates keep rendering their old four panels if anyone ever runs them.
 Don't add new stats to the mobile cards.
+
+## Who gets two cards
+
+A player with appearances in both roles gets two cards **only when both roles are
+substantial**. The owner set this on the active-roster batch: Jack Garcille (10
+batting / 9 pitching) gets both; the other six two-way players get the single card
+matching how they were actually used — Corrales, Degeyter, Robin and Hollier
+pitching, Sparks and Bandiero hitting. Don't infer "both" from a player merely
+having a line in each table; a card built on one or two games in a secondary role
+reads as filler next to a full season.
+
+Use the box-score spelling of a name in a roster file — that is what
+`find_player` matches. The roster in `server.js` says "Matt Scott" and the box
+says "Matthew Scott"; the roster-file spelling has to be the latter or the script
+exits without finding him.
 
 ## What's on a card
 

@@ -4,8 +4,12 @@ render-batch.py — render print PDF + mobile HTML for a list of players.
 
   python3 scripts/render-batch.py Ramos:b Walker:b Thompson:p Levy:both ...
   python3 scripts/render-batch.py --print Ramos:b ...        # skip the mobile cards
+  python3 scripts/render-batch.py --print --roster data/active-batch.json
 
   suffix :b = batter card, :p = pitcher card, :both = double report card
+A --roster file is {"players": [{"name": ..., "role": "b|p|both"}, ...]} — the
+whole batch and its roles in one reviewed place, so a long command line can't
+quietly drop a player or send someone the wrong card.
 Splices DATA from player-season-data.py into the locked card templates,
 node-renders each, and verifies 1-page PDFs.
 """
@@ -65,7 +69,29 @@ def run(job, print_only=False):
 if __name__ == '__main__':
     args = sys.argv[1:]
     print_only = '--print' in args
-    jobs = [a for a in args if not a.startswith('--')]
+    dry_run = '--dry-run' in args
+    skip = set()
+    if '--roster' in args: skip.add(args.index('--roster') + 1)     # the flag's value, not a job
+    jobs = [a for i, a in enumerate(args) if not a.startswith('--') and i not in skip]
+    if '--roster' in args:
+        path = args[args.index('--roster') + 1]
+        jobs += [f"{p['name']}:{p['role']}" for p in json.load(open(path))['players']]
     if not jobs: print(__doc__); sys.exit(1)
+    if dry_run:
+        # Resolve every player and run the validation gate without rendering —
+        # the cheap way to confirm a batch is sendable before committing to it.
+        bad = []
+        for j in jobs:
+            name, kind = j.split(':')
+            for r in (['b', 'p'] if kind == 'both' else [kind]):
+                res = subprocess.run(['python3', 'scripts/player-season-data.py', name, JOBS[r][2]],
+                                     capture_output=True, text=True)
+                note = (res.stderr.strip().splitlines() or ['no output'])[-1]
+                ok = res.returncode == 0 and '0 mismatched' in note
+                print(f"  {'ok  ' if ok else 'FAIL'} {name} ({r}): {note[:70]}")
+                if not ok: bad.append(f'{name}:{r}')
+        print(f'\n{len(jobs)} players, {sum(2 if j.endswith(":both") else 1 for j in jobs)} cards')
+        print('FAILED:', bad if bad else 'none')
+        sys.exit(1 if bad else 0)
     bad = [j for j in jobs if not run(j, print_only)]
     print('FAILED:', bad if bad else 'none')

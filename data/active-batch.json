@@ -1,0 +1,129 @@
+{
+  "_comment": "Active-roster season-card batch, 2026. Roles set by the owner: a player with appearances in both roles gets two cards only when both are substantial (Garcille, 10 batting / 9 pitching). The other six two-way players get the one card that matches how they were used. Names are the BOX-SCORE spelling, which is what scripts/player-season-data.py resolves - the roster calls Matthew Scott 'Matt Scott' and that spelling will not be found.",
+  "_open": {
+    "Matthew Scott": "Transferred from Brazos Valley mid-season; this card covers his 9 Gators games only. Owner has not yet said whether to note the prior stint on the card.",
+    "Landon Hennen": "Batter card only: the seed shows 4 batting games and no pitching line. An earlier batch produced a pitching card for him; unconfirmed whether he ever pitched. Box spells him both Hennen and Hennan - the script handles both."
+  },
+  "players": [
+    {
+      "name": "Ayden Sunday",
+      "role": "b"
+    },
+    {
+      "name": "Bankston Lembcke",
+      "role": "b"
+    },
+    {
+      "name": "Brayden Guillory",
+      "role": "p"
+    },
+    {
+      "name": "Brenyn Ebarb",
+      "role": "p"
+    },
+    {
+      "name": "Cade Robin",
+      "role": "p"
+    },
+    {
+      "name": "Cannon Faulk",
+      "role": "p"
+    },
+    {
+      "name": "Daniel Midkiff",
+      "role": "p"
+    },
+    {
+      "name": "Davis Duhon",
+      "role": "p"
+    },
+    {
+      "name": "Diego Corrales",
+      "role": "p"
+    },
+    {
+      "name": "Gabe Guidry",
+      "role": "b"
+    },
+    {
+      "name": "Gavin Gary",
+      "role": "b"
+    },
+    {
+      "name": "Hunter Degeyter",
+      "role": "p"
+    },
+    {
+      "name": "Jack Garcille",
+      "role": "both"
+    },
+    {
+      "name": "Jackson Beddoe",
+      "role": "b"
+    },
+    {
+      "name": "Jake Rider",
+      "role": "p"
+    },
+    {
+      "name": "Jaxon Landreneau",
+      "role": "b"
+    },
+    {
+      "name": "Jay Michael Stelly",
+      "role": "b"
+    },
+    {
+      "name": "Jeremiah Torres",
+      "role": "b"
+    },
+    {
+      "name": "John Munnerlyn",
+      "role": "p"
+    },
+    {
+      "name": "Landon Hennen",
+      "role": "b"
+    },
+    {
+      "name": "Landon Victorian",
+      "role": "p"
+    },
+    {
+      "name": "Lane Sparks",
+      "role": "b"
+    },
+    {
+      "name": "Marco Bandiero",
+      "role": "b"
+    },
+    {
+      "name": "Matthew Scott",
+      "role": "b"
+    },
+    {
+      "name": "Reed Dupre",
+      "role": "p"
+    },
+    {
+      "name": "Reid Snider",
+      "role": "b"
+    },
+    {
+      "name": "Sawyer Simmons",
+      "role": "p"
+    },
+    {
+      "name": "Shyler Smith",
+      "role": "b"
+    },
+    {
+      "name": "Taylor Hollier",
+      "role": "p"
+    },
+    {
+      "name": "Yuichiro Kumagami",
+      "role": "b"
+    }
+  ]
+}
