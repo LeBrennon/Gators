@@ -316,15 +316,23 @@ function bsPitcherNames(tableHtml) {
   }
   return names;
 }
-// Every TCL game uses a DH, so a pitcher never bats. Drop a Hitters-table row
-// when its position reads "p" or its player appears in the Pitchers table —
-// relievers list as blank-position 0-for-0 lines the position filter misses.
+// Every TCL game uses a DH, so a pitcher listed among the hitters is normally a
+// blank 0-for-0 artifact — drop those. But a two-way player really does bat on
+// days he also pitches, and dropping his line erased those plate appearances
+// from the box (and from his season card). So a row only goes when it is empty:
+// if it carries any batting activity at all, it is a real line and it stays.
+function bsRowHasBatting(row) {
+  const cells = (row.match(/<td\b[\s\S]*?<\/td>/gi) || []).map(bsText);
+  // AB R H RBI BB K LOB — any non-zero number means he came to the plate
+  return cells.slice(0, 7).some(c => /^\d+$/.test(c.trim()) && +c.trim() > 0);
+}
 function bsDropPitchers(tableHtml, pitchers) {
   const rows = tableHtml.match(/<tr\b[\s\S]*?<\/tr>/gi) || [];
   let out = tableHtml;
   for (const r of rows) {
     const name = bsRowName(r);
-    if (bsRowPos(r) === 'p' || (pitchers && name && name !== 'totals' && pitchers.has(name))) out = out.replace(r, '');
+    const isPitcher = bsRowPos(r) === 'p' || (pitchers && name && name !== 'totals' && pitchers.has(name));
+    if (isPitcher && !bsRowHasBatting(r)) out = out.replace(r, '');
   }
   return out;
 }

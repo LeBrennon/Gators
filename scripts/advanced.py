@@ -25,10 +25,11 @@ What it computes, and why each is trustworthy here:
 Deliberately NOT computed:
   - Whiff / swinging-strike rate. It requires trusting that scorers entered
     swing-and-miss versus called strikes correctly, which the owner does not.
-  - wOBA / wRC+. Both need run values for THIS run environment. Deriving them
-    needs league-wide base-out data; box-seed only holds games involving the
-    Gators, so any weights would be imported from another league and the number
-    would look precise while being wrong.
+  - wOBA / wRC+ — not yet. scripts/runvalues.py derives this league's own run
+    values rather than borrowing MLB's, and its two official gates (runs against
+    the line score, runners left on base against the inning summary) currently
+    clear only 58% of half-innings. Weights built on the subset that passes would
+    be biased toward quiet innings. See that module for what still needs work.
 
 Every split is gated: the buckets must add back up to the plate appearances the
 card already reports, and spray must add up to balls in play.
@@ -119,8 +120,17 @@ def batter_splits(player):
                     hit = bool(re.search(r'singled|doubled|tripled|homered', seg))
                     venue['home' if home else 'away']['PA'] += 1
                     month[mon]['PA'] += 1
-    return {'bats': bats, 'spray': dict(spray), 'count': {k: dict(v) for k, v in count.items()},
-            'pa_seen': pa_total, 'bip_placed': bip_total}
+    placed = sum(v for k, v in spray.items() if k != 'unplaced')
+    omitted = spray.get('unplaced', 0)
+    return {'bats': bats, 'spray': {k: v for k, v in spray.items() if k != 'unplaced'},
+            'count': {k: dict(v) for k, v in count.items()},
+            'pa_seen': pa_total,
+            # Spray is only as complete as the text: Presto often writes "singled"
+            # with no direction. Those balls are omitted, never guessed, and the
+            # count travels with the numbers so a card can print it.
+            'spray_placed': placed, 'spray_omitted': omitted, 'spray_bip': placed + omitted,
+            'spray_note': (f'{placed} of {placed + omitted} balls in play located; '
+                           f'{omitted} omitted — no direction recorded')}
 
 
 def avg(d):
@@ -134,13 +144,13 @@ if __name__ == '__main__':
                  if p['role'] in ('b', 'both')]
     for n in names:
         r = batter_splits(n)
-        sp = r['spray']; placed = sum(v for k, v in sp.items() if k != 'unplaced')
-        tot = placed + sp.get('unplaced', 0)
+        sp = r['spray']
         print(f"\n{n}  (bats {r['bats']})")
-        if tot:
+        if r['spray_placed']:
             print('  SPRAY   ' + '  '.join(
-                f"{k} {sp.get(k,0)} ({100*sp.get(k,0)/placed:.0f}%)" for k in ('pull', 'center', 'oppo'))
-                + f"   [{sp.get('unplaced',0)} of {tot} balls in play had no location in the text]")
+                f"{k} {sp.get(k,0)} ({100*sp.get(k,0)/r['spray_placed']:.0f}%)"
+                for k in ('pull', 'center', 'oppo')))
+            print(f"          {r['spray_note']}")
         for k in ('first pitch', 'ahead', 'even', 'behind', 'two-strike'):
             d = r['count'].get(k)
             if d: print(f"  {k:12} {d['PA']:3} PA   {d.get('H',0):2} H / {d.get('AB',0):2} AB   AVG {avg(d)}")
