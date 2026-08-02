@@ -31,8 +31,9 @@ const BUILD = {
 };
 const BUILD_LABEL = 'build ' + BUILD.commit + (BUILD.branch ? ' · ' + BUILD.branch : '');
 // Manual incident banner shown atop the live tracker. Empty string hides it —
-// clear this out once play resumes and the feed is moving again.
-const SITE_NOTICE = 'Weather delay — the championship is paused. Play is expected to resume in about 30 minutes. We’ll update here as we hear more.';
+// fill it in for an incident (weather delay, a stalled feed) and clear it again
+// once the game is back to normal.
+const SITE_NOTICE = '';
 // Manual score override for the featured game, used when the source feed lags
 // behind a confirmed final. Clear gameId to null once the feed catches up to
 // the same score to fall back to the scraped data.
