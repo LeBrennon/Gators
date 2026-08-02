@@ -29,24 +29,26 @@ The second is what actually validates the base tracking; runs alone will pass
 while runners are being dropped, so runs are counted from the text independently
 of the tracking rather than derived from it.
 
-STATUS: 89% of half-innings clear both gates (1048 of 1174), and all 24 base-out
-states have a usable sample. That is still NOT enough to publish wOBA from, and
-the reason is measurable rather than theoretical:
+STATUS: 90% of half-innings clear both gates (1061 of 1174) and all 24 base-out
+states have a usable sample. wOBA still does not ship, and the reason is
+measured rather than assumed:
 
-    kept       1048 half-innings, mean 0.668 runs
-    discarded   126 half-innings, mean 1.429 runs
-    league                        mean 0.750 runs
+    kept       1061 half-innings, mean 0.664 runs
+    discarded   113 half-innings, mean 1.549 runs
+    league     1174 half-innings, mean 0.750 runs
 
-The innings the replay cannot reconstruct are the busy ones — more baserunners,
-more chances for it to lose someone — so the surviving sample scores 11% below
-the league and under-represents exactly the loaded base states that drive the
-run values for extra-base hits and walks. Weights fitted to it would be biased
-low in a way nothing on the finished card would reveal.
+The surviving sample scores 11.4% below the league. The important part is that
+raising the pass rate from 51% to 90% did NOT shrink that gap (it was 11.0% at
+89%): the innings that still fail are not random, they are the busiest ones, so
+each fix removes innings from the failure pile without changing its character.
+The kept sample keeps under-representing the loaded base states that set the run
+values for extra-base hits and walks, and weights fitted to it would be biased
+low with nothing on the card to reveal it.
 
-What would close it: the 126 failures are concentrated in innings with errors
-advancing multiple runners, fielder's-choice chains, and steal-plus-advance
-sequences on the same play. Until they reconcile, wOBA and wRC+ stay off the
-cards.
+Closing this needs the pass rate near 98%, not 90% — the remaining 113 are
+innings with errors advancing several runners at once, fielder's-choice chains,
+and a steal plus an advance on the same play. Until then wOBA and wRC+ stay off
+the cards.
 """
 import json, re, sys, collections, importlib.util, os
 
@@ -92,6 +94,14 @@ def half_innings(g, team):
         yield (int(m.group(1)) if m else 0), re.sub(r'\s+', ' ', txt)
 
 
+def strip_summary(txt):
+    """Drop the trailing "Inning Summary: ..." but keep the play in front of it.
+    Presto often runs the last out of an inning into the same sentence as the
+    summary, and skipping the whole sentence lost that out."""
+    i = txt.find('Inning Summary')
+    return txt[:i] if i >= 0 else txt
+
+
 def line_runs(g, team):
     """Runs per inning for a club, from the official line score."""
     if not g.get('line'): return None
@@ -114,7 +124,8 @@ BASE_WORD = {'first': 1, 'second': 2, 'third': 3}
 NAME_RE = r"[A-Z][A-Za-z.'\-]+(?:\s+[A-Z][A-Za-z.'\-]+)+"
 LOB_RE = re.compile(r'Inning Summary:.*?(\d+)\s+LOB')
 MOVE_RE = re.compile(r'(' + NAME_RE + r')\s+(?:picked off,?\s+)?'
-                     r'(scored|advanced to (?:first|second|third)|'
+                     r'(advanced to (?:first|second|third),\s*out at (?:first|second|third|home)|'
+                     r'scored|advanced to (?:first|second|third)|'
                      r'out at (?:first|second|third|home)|out on the play|picked off|'
                      r'stole (?:second|third|home)|pinch ran for (' + NAME_RE + r'))')
 
@@ -140,8 +151,8 @@ def walk(txt):
         if b: bases[b] = None
         if dest: bases[dest] = who
 
-    for chunk in re.split(r'(?<=\.)\s+', txt):
-        if not chunk.strip() or 'Inning Summary' in chunk: continue
+    for chunk in re.split(r'(?<=\.)\s+', strip_summary(txt)):
+        if not chunk.strip(): continue
         head = chunk.split(';')[0]
         ev = None
         for name, pat in EVENTS:
@@ -172,7 +183,9 @@ def walk(txt):
         for m in moves:
             who, what = m.group(1), m.group(2)
             if at(who) is None: continue          # not a runner yet; handled below
-            if what == 'scored':
+            if 'out at' in what:                   # advanced then thrown out
+                move(who, None); outs += 1
+            elif what == 'scored':
                 move(who, None)
             elif what.startswith('advanced'):
                 move(who, BASE_WORD[what.rsplit(' ', 1)[-1]])
@@ -209,7 +222,8 @@ def walk(txt):
         for m in MOVE_RE.finditer(chunk):
             who, what = m.group(1), m.group(2)
             if who != batter or at(who) is None: continue
-            if what == 'scored': move(who, None)
+            if 'out at' in what: move(who, None); outs += 1
+            elif what == 'scored': move(who, None)
             elif what.startswith('advanced'): move(who, BASE_WORD[what.rsplit(' ', 1)[-1]])
             elif what.startswith('stole'):
                 dest = what.rsplit(' ', 1)[-1]
