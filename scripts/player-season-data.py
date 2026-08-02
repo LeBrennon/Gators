@@ -134,6 +134,15 @@ ALIASES = {
 # reconciliation mismatch rather than being quietly assigned to the wrong man.
 GAME_ALIASES = {}
 
+# A game the box credits to a player who was not on that club's roster for it.
+# The league's own transactions log (2026 TCL Transactions, shared in Drive)
+# records Matt Scott DE-ACTIVATED from Brazos Valley on 7/07 and Eddie Castillo
+# ACTIVATED the same day into his #8. The 7/8 box still prints Scott in left
+# field; the play-by-play for that lineup slot names Castillo throughout. Scott
+# was not eligible, so the game is not his — and Presto's season line for him,
+# built from that box, is overstated by it.
+EXCLUDE_GAMES = {('20260708_kmej', 'Matt Scott')}
+
 def aka(player, gid=None):
     return [player] + ALIASES.get(player, []) + (GAME_ALIASES.get((gid, player), []) if gid else [])
 
@@ -317,6 +326,7 @@ def batter_card(player, mobile=False):
         pa_re, sb_re, cs_re = pats(gid)   # a game-scoped alias changes the patterns
         mine = team_of(gid, player)
         if not mine: continue                       # he wasn't in this game at all
+        if (gid, player) in EXCLUDE_GAMES: continue # box credits a game he was not rostered for
         opp, home, res = game_meta(g, mine, gid)
         starter = None
         for sec in g['data']['box']:

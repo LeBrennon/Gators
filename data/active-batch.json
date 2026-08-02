@@ -1,8 +1,7 @@
 {
   "_comment": "Active-roster season-card batch, 2026. Roles set by the owner: a player with appearances in both roles gets two cards only when both are substantial (Garcille, 10 batting / 9 pitching). The other six two-way players get the one card that matches how they were used. Names are the BOX-SCORE spelling, which is what scripts/player-season-data.py resolves - one exception: Matt Scott is 'Matthew Scott' in the Gators box and 'Matt Scott' at Brazos Valley, and the card prints the club's spelling, Matt Scott.",
   "_open": {
-    "Landon Hennen": "Batter card only: the seed shows 4 batting games and no pitching line. An earlier batch produced a pitching card for him; unconfirmed whether he ever pitched. Box spells him both Hennen and Hennan - the script handles both.",
-    "Matt Scott 7/8": "Sources conflict on who batted in the Brazos Valley left-field slot on 7/8: the box says Matt Scott (3 AB / 2 H / 2 BB / 3 RBI), the play-by-play says Eddie Castillo, and the league's 7/7 gameday roster shows Castillo on the Brazos Valley roster wearing Scott's old #8. His card keeps the box line, which is what Presto's season totals reflect, but the play-by-play detail for those 5 plate appearances is not claimed for either player \u2014 so his card reports 1 reconciliation mismatch by design. Owner decision needed: keep the game, or drop it."
+    "Landon Hennen": "Batter card only: the seed shows 4 batting games and no pitching line. An earlier batch produced a pitching card for him; unconfirmed whether he ever pitched. Box spells him both Hennen and Hennan - the script handles both."
   },
   "players": [
     {
@@ -127,6 +126,6 @@
     }
   ],
   "_full_season": {
-    "Matt Scott": "Full-season card by owner decision: 23 Brazos Valley games + 9 Gators games, one set of totals, with a Tm column in the game log marking BV vs LC. His Brazos Valley boxes are in data/prior-stint-seed.json and sum exactly to Presto's own Brazos Valley season line (23 G / 102 PA / 87 AB / 18 R / 23 H / 18 RBI / 12 BB / 30 K)."
+    "Matt Scott": "Full-season card by owner decision: 22 Brazos Valley games + 10 Gators games, one set of totals, with a Tm column in the game log marking BV vs LC. His Brazos Valley boxes are in data/prior-stint-seed.json. The 7/8 Brazos Valley game is EXCLUDED: the league's transactions log has him de-activated 7/07 with Eddie Castillo activated into his #8 the same day, so he was not eligible; the box still prints his name and Presto's season line inherits that error."
   }
 }
