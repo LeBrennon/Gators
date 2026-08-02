@@ -20,7 +20,10 @@ NAME = r"[A-Z][A-Za-z.'\-]*(?:\s+[A-Z][A-Za-z.'\-]*)*"
 HDR_RE = re.compile(r"[A-Z][A-Za-z .&'\-]*?\b(?:Top|Bottom)\s+of\s+\d+(?:st|nd|rd|th)\s+Inning")
 OUT_RE = re.compile(r"\(\d+\s*outs?\)")
 SWAP_RE = re.compile(rf"({NAME}) to p(?: for ({NAME}))?")
-DEC_RE = re.compile(r"\s*\(([WLSV]+),\s*([\d-]+)\)$")
+# Presto writes saves as "(Sv, 1)" — lowercase v. Missing it left the suffix on
+# the name, so the pitcher never matched himself and the whole save appearance
+# dropped out of his card.
+DEC_RE = re.compile(r"\s*\(([WLSVwlsv]+),\s*([\d-]+)\)$")
 POS_RE = r'(?:(?:ph|pr|c|1b|2b|3b|ss|lf|cf|rf|dh|of|p)/)*(?:ph|pr|c|1b|2b|3b|ss|lf|cf|rf|dh|of|p)'
 MON = {'01': 'Jan', '02': 'Feb', '03': 'Mar', '04': 'Apr', '05': 'May', '06': 'Jun', '07': 'Jul', '08': 'Aug'}
 # The Gators are an opponent too, on a card covering another club's games.
@@ -106,7 +109,7 @@ GATORS = 'Lake Charles Gumbeaux Gators'
 # player can change when he changes clubs, so a full-season card has to match
 # both — Matthew Scott is "Matt Scott" in every Brazos Valley box.
 ALIASES = {
-    'Matthew Scott': ['Matt Scott'],
+    'Matt Scott': ['Matthew Scott'],       # the Gators box spells him Matthew; the club calls him Matt
     'Landon Hennen': ['Landon Hennan'],
 }
 # A name the play-by-play uses for one player in one game and nowhere else.
@@ -116,13 +119,22 @@ ALIASES = {
 # exactly to Presto's own season line (23 G, 87 AB, 18 R, 23 H, 18 RBI, 12 BB,
 # 30 K). Scoped to the one game so it can never silently claim another player's
 # work elsewhere.
-GAME_ALIASES = {('20260708_kmej', 'Matthew Scott'): ['Eddie Castillo']}
+GAME_ALIASES = {('20260708_kmej', 'Matt Scott'): ['Eddie Castillo']}
 
 def aka(player, gid=None):
     return [player] + ALIASES.get(player, []) + (GAME_ALIASES.get((gid, player), []) if gid else [])
 
 def is_player(name, player):
     return clean(name) in aka(player)
+
+def canonical(name):
+    """The name the card should print. Presto's spelling varies by club and the
+    owner's roster is the authority — the Gators box says "Matthew Scott", the
+    club (and his card) says "Matt Scott"."""
+    n = clean(name)
+    for canon, alts in ALIASES.items():
+        if n == canon or n in alts: return canon
+    return n
 
 _TEAMS = {}
 def team_of(gid, player):
@@ -368,7 +380,7 @@ def batter_card(player, mobile=False):
     avg = h / ab if ab else 0; obp = (h + bb + hbp) / pa if pa else 0; slg = tb / ab if ab else 0
     babip_den = ab - k - hr + sf
     babip = (h - hr) / babip_den if babip_den else 0
-    bio = ROSTER.get(player, {})
+    bio = ROSTER.get(player) or next((ROSTER[a] for a in aka(player) if a in ROSTER), {})
     bt = bio.get('bt') or '—'
     def slash(S):
         sab, sh_ = S['AB'], S['H']
@@ -539,7 +551,7 @@ def pitcher_card(player, mobile=False):
     slg = tb / ab if ab else 0
     babip_den = ab - k - hr + sf
     babip = (ha - hr) / babip_den if babip_den else 0
-    bio = ROSTER.get(player, {})
+    bio = ROSTER.get(player) or next((ROSTER[a] for a in aka(player) if a in ROSTER), {})
     def slash(S):
         sab, sh_ = S['AB'], S['H']
         spa = S['PA']  # SF events already incremented PA above
@@ -618,7 +630,8 @@ def main():
     last, role = sys.argv[1], sys.argv[2]
     kind = '--batter' if role == '--batter' else '--pitcher'
     player = find_player(last, 'Batting' if kind == '--batter' else 'Pitching')
-    if not player: print(f'"{last}" not found in Gators box scores'); sys.exit(1)
+    if not player: print(f'"{last}" not found in the box scores'); sys.exit(1)
+    player = canonical(player)      # print the club's spelling, not Presto's
     mobile = '--mobile' in sys.argv
     if kind == '--batter':
         DATA, v = batter_card(player, mobile)

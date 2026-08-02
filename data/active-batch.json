@@ -1,5 +1,5 @@
 {
-  "_comment": "Active-roster season-card batch, 2026. Roles set by the owner: a player with appearances in both roles gets two cards only when both are substantial (Garcille, 10 batting / 9 pitching). The other six two-way players get the one card that matches how they were used. Names are the BOX-SCORE spelling, which is what scripts/player-season-data.py resolves - the roster calls Matthew Scott 'Matt Scott' and that spelling will not be found.",
+  "_comment": "Active-roster season-card batch, 2026. Roles set by the owner: a player with appearances in both roles gets two cards only when both are substantial (Garcille, 10 batting / 9 pitching). The other six two-way players get the one card that matches how they were used. Names are the BOX-SCORE spelling, which is what scripts/player-season-data.py resolves - one exception: Matt Scott is 'Matthew Scott' in the Gators box and 'Matt Scott' at Brazos Valley, and the card prints the club's spelling, Matt Scott.",
   "_open": {
     "Landon Hennen": "Batter card only: the seed shows 4 batting games and no pitching line. An earlier batch produced a pitching card for him; unconfirmed whether he ever pitched. Box spells him both Hennen and Hennan - the script handles both."
   },
@@ -97,7 +97,7 @@
       "role": "b"
     },
     {
-      "name": "Matthew Scott",
+      "name": "Matt Scott",
       "role": "b"
     },
     {
@@ -126,6 +126,6 @@
     }
   ],
   "_full_season": {
-    "Matthew Scott": "Full-season card by owner decision: 23 Brazos Valley games + 9 Gators games, one set of totals, with a Tm column in the game log marking BV vs LC. His Brazos Valley boxes are in data/prior-stint-seed.json and sum exactly to Presto's own Brazos Valley season line (23 G / 102 PA / 87 AB / 18 R / 23 H / 18 RBI / 12 BB / 30 K)."
+    "Matt Scott": "Full-season card by owner decision: 23 Brazos Valley games + 9 Gators games, one set of totals, with a Tm column in the game log marking BV vs LC. His Brazos Valley boxes are in data/prior-stint-seed.json and sum exactly to Presto's own Brazos Valley season line (23 G / 102 PA / 87 AB / 18 R / 23 H / 18 RBI / 12 BB / 30 K)."
   }
 }
