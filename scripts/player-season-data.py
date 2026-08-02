@@ -13,7 +13,7 @@ Validation discipline (same as the Sunday/Guillory cards):
 Sources: box-seed.json, data/batch-roster.json (bios), data/league-throws.json,
 data/league-bt.json (batter bats for pitcher splits), photos/manifest.json.
 """
-import json, re, sys, collections
+import json, re, sys, collections, glob, os
 from html.parser import HTMLParser
 
 NAME = r"[A-Z][A-Za-z.'\-]*(?:\s+[A-Z][A-Za-z.'\-]*)*"
@@ -68,13 +68,20 @@ def photo_slug(player):
         try: _MANIFEST = json.load(open('photos/manifest.json'))
         except Exception: _MANIFEST = {}
     base = re.sub(r'[^a-z]', '', player.lower())
-    import glob, os
     hits = sorted(glob.glob(f'photos/{base}*.*'))
     hits = [h for h in hits if h.rsplit('.', 1)[-1].lower() in ('webp', 'jpg', 'jpeg', 'png', 'avif')]
     if hits: return os.path.basename(hits[0]).rsplit('.', 1)[0]
     keys = list(_MANIFEST) if isinstance(_MANIFEST, dict) else []
     for k in keys:
-        if k.startswith(base): return k
+        if not k.startswith(base): continue
+        # The manifest key is a Presto slug, not a filename — a transferred
+        # player's headshot sits under his previous team's slug (Matthew Scott
+        # is filed as mattscottjzw4.webp). Hand back the stem of the file the
+        # manifest points at, since the templates glob photos/<stem>.<ext>;
+        # returning the key would render an empty headshot frame.
+        stem = str(_MANIFEST[k]).rsplit('/', 1)[-1].rsplit('.', 1)[0]
+        if stem and glob.glob(f'photos/{stem}.*'): return stem
+        return k
     return base
 
 BOX = json.load(open('box-seed.json'))['boxes']
