@@ -5660,7 +5660,11 @@ background:radial-gradient(1100px 550px at 50% -10%,rgba(111,79,212,.10),transpa
 .jumbo{position:relative;border-radius:22px;overflow:hidden;border:1px solid var(--line);box-shadow:0 18px 40px -18px rgba(0,0,0,.8);padding:18px 16px;
 background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gradient(180deg,var(--panel),var(--bayou2));}
 .jumbo::before{content:"";position:absolute;inset:0;border-radius:22px;padding:1px;background:linear-gradient(135deg,rgba(236,201,19,.5),transparent 40%,rgba(139,92,246,.35));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;}
-.sl{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;}
+/* The middle column is auto-sized, so a wide pill in it takes the row's whole
+   width and starves the team columns — names and score digits then spill out of
+   the card. The floor keeps each team column wide enough for its logo and name;
+   anything long enough to fight for that space belongs in .jpoff below instead. */
+.sl{display:grid;grid-template-columns:minmax(76px,1fr) minmax(0,auto) minmax(76px,1fr);align-items:center;gap:6px;}
 .tm{display:flex;flex-direction:column;align-items:center;gap:8px;min-width:0;}
 .tm img{width:54px;height:54px;border-radius:14px;object-fit:contain;background:transparent;}
 .tm .tlogo{display:block;line-height:0;border-radius:14px;}
@@ -5677,7 +5681,7 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .tm.lose .sc{color:var(--gator);text-shadow:0 0 24px rgba(113,74,210,.35);}
 .sc.flash{animation:fl .9s ease;}@keyframes fl{0%{transform:scale(1)}30%{transform:scale(1.18);filter:brightness(1.5)}100%{transform:scale(1)}}
 #fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9999;display:none;}
-.mid{display:flex;flex-direction:column;align-items:center;gap:8px;padding:0 2px;}
+.mid{display:flex;flex-direction:column;align-items:center;gap:8px;padding:0 2px;min-width:0;}
 .statpill{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12px;letter-spacing:.06em;color:var(--gold2);background:rgba(236,201,19,.08);border:1px solid rgba(236,201,19,.25);border-radius:999px;padding:6px 11px;text-align:center;text-transform:uppercase;white-space:nowrap;}
 .statpill.live{color:var(--gator);background:rgba(113,74,210,.08);border-color:rgba(113,74,210,.3);}
 .watchpill{display:inline-flex;align-items:center;gap:5px;font-family:'Oswald',sans-serif;font-weight:700;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:#1a1330;background:linear-gradient(180deg,var(--gold2),var(--gold));border:1px solid var(--gold);border-radius:999px;padding:6px 12px;text-decoration:none;white-space:nowrap;}
@@ -5696,7 +5700,16 @@ background:linear-gradient(180deg,rgba(79,49,145,.30),transparent 40%),linear-gr
 .brkseries{margin:-2px 0 8px;text-align:center;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.05em;text-transform:uppercase;font-size:10px;color:var(--bone);line-height:1.35;}
 .brkseries b{color:var(--gold2);font-weight:700;}
 .brkseries .jsg{color:var(--mute);}
-.jtheme{margin-top:6px;text-align:center;font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-size:10.5px;color:#1a1330;background:linear-gradient(180deg,var(--gold2),var(--gold));border-radius:999px;padding:4px 11px;line-height:1.2;}
+.jtheme{margin-top:6px;text-align:center;font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-size:10.5px;color:#1a1330;background:linear-gradient(180deg,var(--gold2),var(--gold));border-radius:999px;padding:4px 11px;line-height:1.2;max-width:100%;box-sizing:border-box;}
+/* The playoff block (tag, series log, note) sits under the score line rather than
+   in the middle column: these run long — "TCL Championship — Winner Take All",
+   a whole series log — and the full card width is the only place they fit on one
+   line without squeezing the teams. All three hidden collapses this to nothing,
+   so a game with no playoff context is spaced exactly as before. */
+.jpoff{display:flex;flex-direction:column;align-items:center;}
+.jpoff .jtheme{margin-top:14px;}
+.jpoff .jseries{margin-top:12px;}
+.jpoff .jplayoffnote{margin-top:6px;}
 .jpromos{display:flex;flex-direction:column;align-items:center;}
 .jpromo{margin-top:10px;text-align:center;font-size:10.5px;color:var(--mute);line-height:1.35;max-width:320px;}
 .jpromo b{color:var(--gold2);font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.03em;font-weight:700;}
@@ -6098,9 +6111,10 @@ __SITE_NOTICE__
 <div class="jumbo">
 <div class="sl">
 <div class="tm" id="awayTm"><a class="tlogo" id="awayLogoLink" rel="noopener"><img id="awayLogo" alt=""></a><div class="nm" id="awayNm">—</div><div class="rec" id="awayRec"></div><div class="sc" id="awaySc">0</div></div>
-<div class="mid"><a class="watchpill" id="watchBtn" target="_blank" rel="noopener" style="display:none">Watch</a><div class="statpill" id="statpill">—</div><div class="vs" id="vs">vs</div><div class="jloc" id="jloc"></div><div class="jtheme" id="themeTag" style="display:none"></div><div class="jtheme" id="specialName" style="display:none"></div><div class="jtheme" id="playoffTag" style="display:none"></div><div class="jseries" id="playoffSeries" style="display:none"></div><div class="jplayoffnote" id="playoffNote" style="display:none"></div></div>
+<div class="mid"><a class="watchpill" id="watchBtn" target="_blank" rel="noopener" style="display:none">Watch</a><div class="statpill" id="statpill">—</div><div class="vs" id="vs">vs</div><div class="jloc" id="jloc"></div><div class="jtheme" id="themeTag" style="display:none"></div><div class="jtheme" id="specialName" style="display:none"></div></div>
 <div class="tm" id="homeTm"><a class="tlogo" id="homeLogoLink" rel="noopener"><img id="homeLogo" alt=""></a><div class="nm" id="homeNm">—</div><div class="rec" id="homeRec"></div><div class="sc" id="homeSc">0</div></div>
 </div>
+<div class="jpoff"><div class="jtheme" id="playoffTag" style="display:none"></div><div class="jseries" id="playoffSeries" style="display:none"></div><div class="jplayoffnote" id="playoffNote" style="display:none"></div></div>
 <div class="jpromos"><div class="jpromo" id="specialDetail" style="display:none"></div><div class="jpromo" id="promoTag" style="display:none"></div></div>
 <div class="live" id="livePanel" style="display:none"></div>
 <a class="watchbtn ticket" id="ticketBtn" target="_blank" rel="noopener" style="display:none">Buy Tickets</a>
