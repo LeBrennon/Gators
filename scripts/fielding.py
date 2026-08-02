@@ -73,7 +73,7 @@ def match_gator(nm, gators):
     return nm if close else None
 
 
-def lineup_from_box(g):
+def lineup_from_box(g, team=GATORS):
     """Starters by position, the Gators' name set, and each player's listed positions.
 
     The listed positions are Presto's own record of where a player appeared
@@ -85,7 +85,7 @@ def lineup_from_box(g):
     listed = collections.defaultdict(set)
     unchipped, by_key = [], {}
     for sec in g['box']:
-        if GATORS not in sec['label']: continue
+        if team not in sec['label']: continue
         batting = 'Batting' in sec['label']
         for row in re.findall(r'<tr>(.*?)</tr>', sec['html'], re.S):
             th = re.search(r'<th([^>]*)>(.*?)</th>', row, re.S)
@@ -152,7 +152,10 @@ ERR_RE = re.compile(rf'error by ({POS_RE})\b')
 ENUM_RE = re.compile(r'\bE([1-9])\b')
 ENUM_POS = {'1': 'p', '2': 'c', '3': '1b', '4': '2b', '5': '3b', '6': 'ss', '7': 'lf', '8': 'cf', '9': 'rf'}
 GRD_RE = re.compile(rf'grounded out(?:\s+to)?\s+({POS_RE})\b(\s+unassisted)?')
-AIR_RE = re.compile(rf'(?:flied out|popped up|lined out|fouled out|flied into)\s+to\s+({POS_RE})\b')
+AIR_RE = re.compile(rf'(?:flied out|popped up|popped out|lined out|fouled out|flied into)\s+to\s+({POS_RE})\b')
+# A strikeout the batter survives — wild pitch, passed ball, dropped third he
+# beats out — is not an out, so nobody gets a putout for it.
+REACHED_RE = re.compile(r'reached (?:first|base)\b')
 OUT_RE = re.compile(rf'out at (?:first|second|third|home)\s+((?:{POS_RE})(?:\s+to\s+(?:{POS_RE}))*)(\s+unassisted)?')
 DP_RE = re.compile(rf'(?:double|triple) play\s+((?:{POS_RE})(?:\s+to\s+(?:{POS_RE}))*)(\s+unassisted)?')
 CHAIN_RE = re.compile(POS_RE)
@@ -212,7 +215,8 @@ def apply_play(seg, book, lineup, orphans=None):
     # A strikeout is a putout for the catcher unless the play ended with a
     # throw (dropped third strike) — that out is already credited above.
     # Batter's interference is also the catcher's putout.
-    if ('struck out' in seg or "out on batter's interference" in seg) and not outs:
+    if ('struck out' in seg or "out on batter's interference" in seg) \
+            and not outs and not REACHED_RE.search(seg):
         give('c', 'PO'); po += 1
 
     for m in GRD_RE.finditer(seg):
@@ -232,20 +236,20 @@ def apply_play(seg, book, lineup, orphans=None):
     return po
 
 
-def line_errors(g):
+def line_errors(g, team=GATORS):
     """The Gators' error count from the official line score (R/H/E)."""
     rows = re.findall(r'<tr[^>]*>(.*?)</tr>', g['line'], re.S)
     for r in rows:
         cells = [text(c) for c in re.findall(r'<t[dh][^>]*>(.*?)</t[dh]>', r, re.S)]
-        if cells and 'Gators' in cells[0]:
+        if cells and team.split()[-1] in cells[0]:
             try: return int(cells[-1])
             except ValueError: return None
     return None
 
 
-def game_fielding(g):
+def game_fielding(g, team=GATORS):
     """Per-player PO/A/E for one game, with all three validation gates."""
-    lineup, gators, listed, by_key = lineup_from_box(g)
+    lineup, gators, listed, by_key = lineup_from_box(g, team)
     seeded = dict(lineup)
     book = collections.defaultdict(lambda: collections.defaultdict(int))
     orphans, thin, afield = [], [], {}
@@ -253,7 +257,7 @@ def game_fielding(g):
     for i, blk in enumerate(g['pbp']):
         t = text(blk['html'])
         t = re.sub(re.escape(blk['title']), ' ', t)
-        fielding = GATORS not in blk['title']                  # opponent batting -> Gators in the field
+        fielding = team not in blk['title']                    # opponent batting -> we're in the field
         if fielding:
             outs += half_outs(t, last=(i == len(g['pbp']) - 1))
             if len(lineup) != 9 or len(set(map(key, lineup.values()))) != 9:
@@ -274,7 +278,7 @@ def game_fielding(g):
                 if pos in POS: lineup[pos] = who
                 elif pos == 'dh': pass                          # the DH does not field
     err = sum(n for v in book.values() for k, n in v.items() if k.endswith(':E'))
-    official = line_errors(g)
+    official = line_errors(g, team)
     # The seeded nine are the one part of the lineup not backed by an explicit
     # announcement, so they are what needs checking against Presto's own chips.
     off_book = sorted(f'{who} at {p}' for p, who in seeded.items()
@@ -288,14 +292,14 @@ def game_fielding(g):
     }
 
 
-def season(box=None):
+def season(box=None, team=GATORS):
     box = box or json.load(open(os.path.join(ROOT, 'box-seed.json')))['boxes']
     tot = collections.defaultdict(lambda: collections.defaultdict(int))
     log = collections.defaultdict(list)
     gates = {'po': [], 'e': [], 'seed': [], 'orphan': [], 'thin': []}
     for gid in sorted(box):
         g = box[gid]['data']
-        r = game_fielding(g)
+        r = game_fielding(g, team)
         gates['po'].append((gid, r['po'], r['outs']))
         gates['e'].append((gid, r['errors'], r['official_errors']))
         if r['seed_off_book']: gates['seed'].append((gid, r['seed_off_book']))

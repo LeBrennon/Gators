@@ -23,10 +23,16 @@ SWAP_RE = re.compile(rf"({NAME}) to p(?: for ({NAME}))?")
 DEC_RE = re.compile(r"\s*\(([WLSV]+),\s*([\d-]+)\)$")
 POS_RE = r'(?:(?:ph|pr|c|1b|2b|3b|ss|lf|cf|rf|dh|of|p)/)*(?:ph|pr|c|1b|2b|3b|ss|lf|cf|rf|dh|of|p)'
 MON = {'01': 'Jan', '02': 'Feb', '03': 'Mar', '04': 'Apr', '05': 'May', '06': 'Jun', '07': 'Jul', '08': 'Aug'}
-SHORT = {'Abilene Flying Bison': 'Abilene', 'Baton Rouge Rougarou': 'Baton Rouge', 'Acadiana Cane Cutters': 'Acadiana',
+# The Gators are an opponent too, on a card covering another club's games.
+SHORT = {'Lake Charles Gumbeaux Gators': 'Lake Charles', 'Abilene Flying Bison': 'Abilene', 'Baton Rouge Rougarou': 'Baton Rouge', 'Acadiana Cane Cutters': 'Acadiana',
          'Victoria Generals': 'Victoria', 'Sherman Shadowcats': 'Sherman', 'Brazos Valley Bombers': 'Brazos Valley',
          'San Antonio River Monsters': 'San Antonio'}
-ABBR = {'Abilene Flying Bison': 'ABI', 'Baton Rouge Rougarou': 'BR', 'Acadiana Cane Cutters': 'ACA',
+# Short club codes for the game log's Tm column on a multi-stint card.
+CLUB = {'Lake Charles Gumbeaux Gators': 'LC', 'Brazos Valley Bombers': 'BV',
+        'Abilene Flying Bison': 'ABI', 'Baton Rouge Rougarou': 'BR',
+        'Acadiana Cane Cutters': 'ACA', 'Victoria Generals': 'VIC',
+        'Sherman Shadowcats': 'SHE', 'San Antonio River Monsters': 'SA'}
+ABBR = {'Lake Charles Gumbeaux Gators': 'LC', 'Abilene Flying Bison': 'ABI', 'Baton Rouge Rougarou': 'BR', 'Acadiana Cane Cutters': 'ACA',
         'Victoria Generals': 'VIC', 'Sherman Shadowcats': 'SHE', 'Brazos Valley Bombers': 'BV',
         'San Antonio River Monsters': 'SA'}
 
@@ -85,12 +91,87 @@ def photo_slug(player):
     return base
 
 BOX = json.load(open('box-seed.json'))['boxes']
+# A player who transferred mid-season played games this club's seed never saw.
+# data/prior-stint-seed.json holds those boxes (same shape, fetched through the
+# live site's box proxy) so a full-season card can span both teams.
+try:
+    for _gid, _g in json.load(open('data/prior-stint-seed.json'))['boxes'].items():
+        BOX.setdefault(_gid, _g)          # never shadow a validated box-seed game
+except FileNotFoundError:
+    pass
 ROSTER = json.load(open('data/batch-roster.json'))['players']
+
+GATORS = 'Lake Charles Gumbeaux Gators'
+# One player, more than one spelling in the sources. Presto's own name for a
+# player can change when he changes clubs, so a full-season card has to match
+# both — Matthew Scott is "Matt Scott" in every Brazos Valley box.
+ALIASES = {
+    'Matthew Scott': ['Matt Scott'],
+    'Landon Hennen': ['Landon Hennan'],
+}
+# A name the play-by-play uses for one player in one game and nowhere else.
+# Presto's 7/8 Brazos Valley play-by-play calls Matt Scott's plate appearances
+# "Eddie Castillo": the box has Scott in left field with 3 AB / 2 H / 2 BB, no
+# Castillo row exists in any box all season, and Scott's 23 box lines sum
+# exactly to Presto's own season line (23 G, 87 AB, 18 R, 23 H, 18 RBI, 12 BB,
+# 30 K). Scoped to the one game so it can never silently claim another player's
+# work elsewhere.
+GAME_ALIASES = {('20260708_kmej', 'Matthew Scott'): ['Eddie Castillo']}
+
+def aka(player, gid=None):
+    return [player] + ALIASES.get(player, []) + (GAME_ALIASES.get((gid, player), []) if gid else [])
+
+def is_player(name, player):
+    return clean(name) in aka(player)
+
+_TEAMS = {}
+def team_of(gid, player):
+    """Which club the player appeared for in this game.
+
+    Everything downstream — his batting line, which half-innings are his team's,
+    who the opponent was, whether the result was a win — used to assume the
+    Gators. For a transferred player it has to follow him, so it is read off the
+    box itself: his team is whichever side lists him.
+    """
+    k = (gid, player)
+    if k in _TEAMS: return _TEAMS[k]
+    found = None
+    for sec in BOX[gid]['data']['box']:
+        p = Table(); p.feed(sec['html'])
+        if any(r and is_player(r[0], player) for r in p.rows):
+            found = sec['label'].split('—')[0].strip(); break
+    _TEAMS[k] = found
+    return found
 
 import fielding
 _FIELD = None
 POS_LABEL = {'p': 'P', 'c': 'C', '1b': '1B', '2b': '2B', '3b': '3B', 'ss': 'SS',
              'lf': 'LF', 'cf': 'CF', 'rf': 'RF'}
+
+def all_fielding():
+    """Fielding totals across every club a player appeared for.
+
+    The Gators run comes off box-seed.json. A prior stint is a different club in
+    a different set of boxes, so it needs its own run with that club's name —
+    "we're in the field" is decided by the team in the half-inning title. Alias
+    spellings are folded onto the canonical name so one player's two stints add
+    up instead of sitting in two buckets.
+    """
+    tot = fielding.season()[0]
+    try:
+        prior = json.load(open('data/prior-stint-seed.json'))['boxes']
+    except FileNotFoundError:
+        return tot
+    teams = {t for g in prior.values() for t in g['data'].get('teams', []) if t != GATORS}
+    for team in sorted(teams):
+        games = {gid: g for gid, g in prior.items() if team in g['data'].get('teams', [])}
+        for who, counts in fielding.season(box=games, team=team)[0].items():
+            for k, v in counts.items(): tot[who][k] += v
+    for canon, alts in ALIASES.items():                        # fold "Matt Scott" into "Matthew Scott"
+        for alt in alts:
+            if alt in tot:
+                for k, v in tot[alt].items(): tot[canon][k] += v
+    return tot
 
 def defense(player, where, mobile):
     """Defensive rows for a card panel, print only — PO/A/E/FLD%/PO-per-game.
@@ -103,7 +184,7 @@ def defense(player, where, mobile):
     """
     global _FIELD
     if mobile: return [], ''                                   # print cards only
-    if _FIELD is None: _FIELD = fielding.season()[0]
+    if _FIELD is None: _FIELD = all_fielding()
     s = fielding.summary(_FIELD, player, where)
     if not s['G'] or not s['CH']: return [], ''
     # "/" not " · " — the card templates split panel legends on " · ", so a
@@ -140,23 +221,30 @@ def lookup(table, nm):
     return v
 
 def find_player(last, table_kind):
-    for g in BOX.values():
-        for sec in g['data']['box']:
-            if 'Gators' in sec['label'] and table_kind in sec['label']:
+    # Prefer a Gators row: a transferred player appears in two clubs' tables and
+    # the Gators spelling is the one the roster and bios are keyed to.
+    fallback = None
+    for pass_gators in (True, False):
+        for g in BOX.values():
+            for sec in g['data']['box']:
+                if table_kind not in sec['label']: continue
+                if pass_gators and 'Gators' not in sec['label']: continue
                 p = Table(); p.feed(sec['html'])
                 for r in p.rows:
                     if r and last.lower() in r[0].lower():
-                        return clean(r[0])
-    return None
+                        if pass_gators: return clean(r[0])
+                        fallback = fallback or clean(r[0])
+    return fallback
 
-def game_meta(g):
+def game_meta(g, team=GATORS):
     teams = g['data']['teams']
-    gi = teams.index('Lake Charles Gumbeaux Gators')
+    gi = teams.index(team)
     opp = teams[1 - gi]; home = gi == 1
     p = Table(); p.feed(g['data']['line'])
+    short = team.split()[-1]
     gr = er = None
     for r in p.rows:
-        if 'Gators' in r[0]: gr = int(r[-3])
+        if short in r[0]: gr = int(r[-3])
         elif 'Final' not in r[0] and len(r) > 3:
             try: er = int(r[-3])
             except Exception: pass
@@ -182,22 +270,26 @@ def parse_pitch_seqs(txt):
     return strikes, balls, fps, pa
 
 def batter_card(player, mobile=False):
-    p_pat = re.escape(player)
-    if player == 'Landon Hennen': p_pat = r'Landon Henn[ae]n'
-    pa_re = re.compile(p_pat + r'\s+(?:' + BVERBS + ')')
-    sb_re = re.compile(p_pat + r' stole (?:second|third|home)')
-    cs_re = re.compile(p_pat + r' out at \w+ [^.;]*?caught stealing')
+    def pats(gid=None):
+        p_pat = '(?:' + '|'.join(re.escape(n) for n in aka(player, gid)) + ')'
+        return (re.compile(p_pat + r'\s+(?:' + BVERBS + ')'),
+                re.compile(p_pat + r' stole (?:second|third|home)'),
+                re.compile(p_pat + r' out at \w+ [^.;]*?caught stealing'))
     splits = {'L': collections.defaultdict(int), 'R': collections.defaultdict(int)}
     tot = collections.defaultdict(int)
     box = collections.defaultdict(lambda: [0, 0, 0, 0, 0, 0])  # keyed by gid, not date — 7/12 was a doubleheader
     games = []
+    stints = set()          # every club he appeared for; drives the Tm column
     bad = 0
     for gid, g in sorted(BOX.items()):
         dt = gid[:8]
-        opp, home, res = game_meta(g)
+        pa_re, sb_re, cs_re = pats(gid)   # a game-scoped alias changes the patterns
+        mine = team_of(gid, player)
+        if not mine: continue                       # he wasn't in this game at all
+        opp, home, res = game_meta(g, mine)
         starter = None
         for sec in g['data']['box']:
-            if 'Pitching' in sec['label'] and 'Gators' not in sec['label']:
+            if 'Pitching' in sec['label'] and mine not in sec['label']:
                 p = Table(); p.feed(sec['html'])
                 for r in p.rows:
                     if len(r) < 3 or 'Pitchers' in r[0]: continue
@@ -205,17 +297,17 @@ def batter_card(player, mobile=False):
         cur = starter
         line = None
         for sec in g['data']['box']:
-            if 'Gators' in sec['label'] and 'Batting' in sec['label']:
+            if mine in sec['label'] and 'Batting' in sec['label']:
                 p = Table(); p.feed(sec['html'])
                 for r in p.rows:
                     if len(r) < 8: continue
-                    if clean(r[0]) == player:
+                    if is_player(r[0], player):
                         line = [int(x) for x in r[1:7]]
                         for i in range(6): box[gid][i] += line[i]
         if not line: continue
         per = collections.defaultdict(int)
         for sec in g['data'].get('pbp', []):
-            if 'Gators' not in sec['title']: continue
+            if mine not in sec['title']: continue           # his team's half-innings
             p = Text(); p.feed(sec['html'])
             txt = re.sub(r'\s+', ' ', ' '.join(p.t))
             txt = HDR_RE.sub(' ', txt); txt = OUT_RE.sub(' ', txt)
@@ -250,12 +342,18 @@ def batter_card(player, mobile=False):
         label = f"{MON[dt[4:6]]} {int(dt[6:8])}" if not mobile else f"{int(dt[4:6])}/{int(dt[6:8])}"
         pa = line[0] + line[4] + per['HBP'] + per['SF'] + per['SH']
         avg = '—' if line[0] == 0 else ('%.3f' % (line[2] / line[0])).replace('0.', '.')
+        stints.add(mine)
+        row_tm = [CLUB.get(mine, mine[:3].upper())]
         if mobile:
-            games.append([label, ('vs ' if home else 'at ') + ABBR[opp], res.replace(', ', ' '), str(pa),
+            games.append([label] + row_tm + [('vs ' if home else 'at ') + ABBR[opp], res.replace(', ', ' '), str(pa),
                           str(line[0]), str(line[1]), str(line[2]), str(line[3]), str(line[4]), str(line[5]), str(per['SB']), avg])
         else:
-            games.append([label, ('' if home else 'at ') + SHORT[opp], res, str(pa), str(line[0]), str(line[1]),
+            games.append([label] + row_tm + [('' if home else 'at ') + SHORT[opp], res, str(pa), str(line[0]), str(line[1]),
                           str(line[2]), str(line[3]), str(line[4]), str(line[5]), str(per['SB']), avg])
+    # A one-club season keeps the original 12-column log: the Tm column only
+    # earns its place when the card actually spans two clubs.
+    multi = len(stints) > 1
+    if not multi: games = [[x[0]] + x[2:] for x in games]
     # doubleheader labels
     cnt = collections.Counter(x[0] for x in games); seen = collections.Counter()
     for x in games:
@@ -313,25 +411,42 @@ def batter_card(player, mobile=False):
         ],
         'key': [],  # legends moved into each panel (3rd element of its group)
         'logTitle': 'Game by Game — Hitting',
-        'logCols': ['Date', 'Opponent' if not mobile else 'Opp', 'Result' if not mobile else 'Res',
-                    'PA', 'AB', 'R', 'H', 'RBI', 'BB', 'K', 'SB', 'AVG'],
+        'logCols': ['Date'] + (['Tm'] if multi else []) + ['Opponent' if not mobile else 'Opp',
+                    'Result' if not mobile else 'Res', 'PA', 'AB', 'R', 'H', 'RBI', 'BB', 'K', 'SB', 'AVG'],
         'log': games,
-        'totals': ['TOTAL', f'{len(box)} G', '', str(pa), str(ab), str(r), str(h), str(rbi), str(bb), str(k), str(tot['SB']), f3(avg)]
+        'totals': ['TOTAL'] + ([''] if multi else []) + [f'{len(box)} G', '', str(pa), str(ab), str(r), str(h),
+                   str(rbi), str(bb), str(k), str(tot['SB']), f3(avg)]
     }
     return DATA, {'games': len(box), 'mismatched': bad}
+
+_ARMS = {}
+def club_arms(gid, team):
+    """Name keys of every pitcher that club used in this game."""
+    k = (gid, team)
+    if k not in _ARMS:
+        names = set()
+        for sec in BOX[gid]['data']['box']:
+            if team in sec['label'] and 'Pitching' in sec['label']:
+                p = Table(); p.feed(sec['html'])
+                for r in p.rows:
+                    if r and 'Pitchers' not in r[0]: names.add(tkey(clean(r[0])))
+        _ARMS[k] = names
+    return _ARMS[k]
 
 def pitcher_card(player, mobile=False):
     box_games = []
     dec = collections.Counter()
     for gid, g in sorted(BOX.items()):
         dt = gid[:8]
-        opp, home, res = game_meta(g)
+        mine = team_of(gid, player)
+        if not mine: continue                       # not his game — a prior stint's box, say
+        opp, home, res = game_meta(g, mine)
         for sec in g['data']['box']:
-            if 'Gators' in sec['label'] and 'Pitching' in sec['label']:
+            if mine in sec['label'] and 'Pitching' in sec['label']:
                 p = Table(); p.feed(sec['html'])
                 for r in p.rows:
                     if len(r) < 8 or 'Pitchers' in r[0]: continue
-                    if clean(r[0]) == player:
+                    if is_player(r[0], player):
                         m = DEC_RE.search(r[0])
                         if m:
                             for ch in m.group(1): dec[ch] += 1
@@ -346,11 +461,12 @@ def pitcher_card(player, mobile=False):
     for gid, g in sorted(BOX.items()):
         dt = gid[:8]
         if not any(b['gid'] == gid for b in box_games): continue
-        # find which pbp blocks are opponent batting: blocks whose title has the opponent (not Gators)
-        cur = None  # Gators pitcher on mound; starter = first Gators pitcher in box
+        mine = team_of(gid, player)
+        # find which pbp blocks are opponent batting: blocks whose title names the opponent
+        cur = None  # his club's pitcher on the mound; starter = first such pitcher in the box
         starter = None
         for sec in g['data']['box']:
-            if 'Gators' in sec['label'] and 'Pitching' in sec['label']:
+            if mine in sec['label'] and 'Pitching' in sec['label']:
                 p = Table(); p.feed(sec['html'])
                 for r in p.rows:
                     if len(r) < 3 or 'Pitchers' in r[0]: continue
@@ -358,19 +474,22 @@ def pitcher_card(player, mobile=False):
         cur = starter
         per = collections.defaultdict(int)
         for sec in g['data'].get('pbp', []):
-            if 'Gators' in sec['title']: continue  # opponent batting only
+            if mine in sec['title']: continue      # opponent batting only
             p = Text(); p.feed(sec['html'])
             txt = re.sub(r'\s+', ' ', ' '.join(p.t))
             txt = HDR_RE.sub(' ', txt); txt = OUT_RE.sub(' ', txt)
-            # only Gators arms count as pitching changes here — "X to p for <pitcher>"
-            # can also be a pinch hitter taking the P lineup spot
+            # only his club's arms count as pitching changes here — "X to p for
+            # <pitcher>" can also be a pinch hitter taking the P lineup spot.
+            # On a prior-stint game the roster keys are the wrong club's, so the
+            # names come off that game's own pitching table instead.
+            arms = GATOR_KEYS if mine == GATORS else club_arms(gid, mine)
             swaps = [(m.start(), clean(m.group(1))) for m in SWAP_RE.finditer(txt)
-                     if tkey(clean(m.group(1))) in GATOR_KEYS or clean(m.group(1)) == 'Landon Hennan']
+                     if tkey(clean(m.group(1))) in arms or clean(m.group(1)) == 'Landon Hennan']
             # batter events: "<Name> singled..." for any batter while cur == player
             ev_re = re.compile(rf"({NAME}) ({BVERBS})")
             for m in ev_re.finditer(txt):
                 while swaps and swaps[0][0] < m.start(): cur = swaps.pop(0)[1]
-                if cur != player: continue
+                if not is_player(cur or '', player): continue
                 batter, verb = m.group(1), m.group(2)
                 tail = txt[m.end():m.end() + 80].split(';')[0]
                 if ('sacrifice fly' in tail or re.search(r',\s*SAC\b', tail)) and verb in ('flied out', 'lined out', 'popped up'): ev = 'SF'
