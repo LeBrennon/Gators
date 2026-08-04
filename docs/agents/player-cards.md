@@ -85,6 +85,33 @@ alone lands in PLATOON SPLITS; `wide:TITLE` opens a strip with that title. The
 data still says which of the four panels the row belongs to — BY COUNT is
 PLATE DISCIPLINE's, BATTED BALL is HIT BREAKDOWN's.
 
+### TCL ranks (batter cards)
+
+A small gold number beside a stat is its rank in the Texas Collegiate League —
+the same thing the website's player bio shows, from the same source. The ranks
+are **Presto's own**, read off each player's league player page and cached by
+`scripts/fetch-ranks.py` into `data/league-ranks.json`. Re-run that script when
+the league updates; the cache is committed so a card render stays reproducible.
+
+Three rules decide whether a rank prints:
+
+1. **Top 50 only.** Below that a rank is not a distinction, it is a headcount —
+   Gabe Guidry's best is 58th, so his card carries none.
+2. **Only when our number equals Presto's for that stat.** The rank describes
+   Presto's line. Where the two disagree the rank would be labelling a number it
+   does not belong to, so it is withheld — that is why Matt Scott's full-season
+   card (Presto has only his Gators half) shows almost none, and why the two-way
+   players short of plate appearances show fewer than they will after a reseed.
+3. **Hitting only.** Presto publishes no pitching ranks at all — not for the
+   league ERA leader, not for anyone. Pitcher cards carry none, and the website
+   says the same in its own legend.
+
+Do **not** compute ranks from the league leaderboard. That was tried and thrown
+out: the board pages out around 216 hitters, short of the league, and Presto
+applies a minimum-AB qualifier to the rate stats that the raw board does not.
+Landreneau's AVG rank came out 70th against Presto's 49th — small enough to look
+right and be wrong.
+
 ### wOBA and wRC+ (batter cards)
 
 In PRODUCTION, after the slash line, where Baseball Savant puts them: the rate

@@ -88,6 +88,52 @@ def sibling(name):
     spec.loader.exec_module(mod)
     return mod
 
+# TCL league ranks, hitting only, cached by scripts/fetch-ranks.py straight from
+# Presto's own player pages — the same source the website's player bio uses.
+# Presto publishes no pitching ranks at all, so pitcher cards carry none.
+_RANKS = None
+# Card stat label -> the key it goes by in Presto's season line and rank table.
+RANK_KEYS = {'G': 'gp', 'PA': 'pa', 'AB': 'ab', 'H': 'h', '2B': '2b', '3B': '3b',
+             'HR': 'hr', 'RBI': 'rbi', 'R': 'r', 'BB': 'bb', 'K': 'k', 'HBP': 'hbp',
+             'SF': 'sf', 'SB': 'sb', 'CS': 'cs', 'TB': 'tb', 'AVG': 'avg',
+             'OBP': 'obp', 'SLG': 'slg'}
+RANK_TOP = 50   # below this the number stops being a distinction worth printing
+
+def _rank_num(s):
+    m = re.match(r'(\d+)', str(s or ''))
+    return int(m.group(1)) if m else None
+
+def _same(ours, theirs):
+    """Presto writes a zero as a dash; otherwise compare as printed."""
+    f = lambda v: (str(v).strip().replace('—', '-') or '-')
+    a, b = f(ours), f(theirs)
+    a = '0' if a == '-' else a.lstrip('0') or '0'
+    b = '0' if b == '-' else b.lstrip('0') or '0'
+    return a == b
+
+def ranker(player):
+    """Returns rank_of(label, value) -> 'Nth' or None for this player.
+
+    A rank is attached ONLY when our number equals Presto's for that same stat.
+    The rank describes Presto's line, so if the two disagree — a two-way player
+    whose hitting rows the box parser dropped, or Matt Scott, whose card combines
+    two clubs where Presto's page has only his Gators half — the rank would be
+    labelling a number it does not belong to. Withhold it instead.
+    """
+    global _RANKS
+    if _RANKS is None:
+        try: _RANKS = json.load(open('data/league-ranks.json'))['players']
+        except (FileNotFoundError, KeyError): _RANKS = {}
+    rec = _RANKS.get(player) or {}
+    ranks, line = rec.get('ranks') or {}, rec.get('line') or {}
+    def rank_of(label, value):
+        key = RANK_KEYS.get(label)
+        if not key or key not in ranks or key not in line: return None
+        if not _same(value, line[key]): return None
+        n = _rank_num(ranks[key])
+        return ranks[key] if n and n <= RANK_TOP else None
+    return rank_of
+
 _MANIFEST = None
 def photo_slug(player):
     global _MANIFEST
@@ -424,7 +470,13 @@ def batter_card(player, mobile=False):
     one = tot['1B']; two = tot['2B']; thr = tot['3B']; hr = tot['HR']
     tb = one + 2 * two + 3 * thr + 4 * hr
     pa = ab + bb + hbp + sf + tot['SH']
-    avg = h / ab if ab else 0; obp = (h + bb + hbp) / pa if pa else 0; slg = tb / ab if ab else 0
+    avg = h / ab if ab else 0; slg = tb / ab if ab else 0
+    # Standard OBP denominator: AB + BB + HBP + SF. Sacrifice bunts are NOT in it,
+    # so this can't be PA — dividing by PA understated every bunter's OBP by a few
+    # points against Presto's own number (Ramos .370 where the league says .385).
+    # The platoon splits below already had this right.
+    obp_den = ab + bb + hbp + sf
+    obp = (h + bb + hbp) / obp_den if obp_den else 0
     babip_den = ab - k - hr + sf
     babip = (h - hr) / babip_den if babip_den else 0
     bio = ROSTER.get(player) or next((ROSTER[a] for a in aka(player) if a in ROSTER), {})
@@ -465,6 +517,7 @@ def batter_card(player, mobile=False):
                        f"{adv['count'][k].get('H', 0)}-FOR-{adv['count'][k].get('AB', 0)} · {adv['count'][k]['PA']} PA"]
                       for k in ('first pitch', 'ahead', 'even', 'behind', 'two-strike')
                       if adv['count'].get(k)]
+    rank_of = ranker(player)
     DATA = {
         'name': player, 'num': str(bio.get('num') or ''), 'pos': bio.get('pos') or '—',
         'bt': bt, 'cls': bio.get('cls') or '—', 'school': bio.get('school') or '—',
@@ -504,7 +557,20 @@ def batter_card(player, mobile=False):
         'totals': ['TOTAL'] + ([''] if multi else []) + [f'{len(box)} G', '', str(pa), str(ab), str(r), str(h),
                    str(rbi), str(bb), str(k), str(tot['SB']), f3(avg)]
     }
-    return DATA, {'games': len(box), 'mismatched': bad}
+    # Hang each TCL rank on the stat it belongs to: season tiles carry it in slot
+    # 2, panel rows in slot 4 (slot 2 is the "wide" marker, 3 the sub-label).
+    ranked = 0
+    for tile in DATA['season']:
+        rk = rank_of(tile[0], tile[1])
+        if rk: tile.append(rk); ranked += 1
+    for g in DATA['groups']:
+        for row in g[1]:
+            if str(row[2] if len(row) > 2 else '').startswith('wide'): continue
+            rk = rank_of(row[0], row[1])
+            if not rk: continue
+            while len(row) < 4: row.append(None)
+            row.append(rk); ranked += 1
+    return DATA, {'games': len(box), 'mismatched': bad, 'ranked': ranked}
 
 _ARMS = {}
 def club_arms(gid, team):
@@ -718,7 +784,8 @@ def main():
         DATA, v = batter_card(player, mobile)
     else:
         DATA, v = pitcher_card(player, mobile)
-    print(f'{player}: {v["games"]} games, {v["mismatched"]} mismatched', file=sys.stderr)
+    rk = f', {v["ranked"]} TCL ranks' if v.get('ranked') else ''
+    print(f'{player}: {v["games"]} games, {v["mismatched"]} mismatched{rk}', file=sys.stderr)
     print(json.dumps(DATA, indent=1))
 
 if __name__ == '__main__':

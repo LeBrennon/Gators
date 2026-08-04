@@ -68,8 +68,13 @@ function render(DATA, stemArg) {
   const fLek = b64('scripts/assets/fonts/leckerli-one-400.ttf', 'font/ttf');
 
   // Relievers never start — hide the GS tile entirely when it's 0.
+  // A third element on a tile is its TCL rank, shown in gold under the label the
+  // same way the website's player bio does it.
+  let anyRank = false;
   const seasonTiles = DATA.season.filter(([k, v]) => !(k === 'GS' && String(v) === '0'))
-    .map(([k, v]) => `<div class="stat"><div class="sv">${esc(v)}</div><div class="sl">${esc(k)}</div></div>`).join('');
+    .map(([k, v, rk]) => { if (rk) anyRank = true;
+      return `<div class="stat"><div class="sv">${esc(v)}</div><div class="sl">${esc(k)}</div>` +
+             (rk ? `<div class="srk">${esc(rk)}</div>` : '') + `</div>`; }).join('');
   const keyRow = (DATA.key || []).length
     ? `<div class="keytitle">Advanced Metrics Key</div><div class="key">` +
       DATA.key.map(([a, m]) => `<span class="ki"><b>${esc(a)}</b> ${esc(m)}</span>`).join('<span class="ksep">&middot;</span> ') + `</div>`
@@ -83,12 +88,13 @@ function render(DATA, stemArg) {
     if (legend) legends.push([title, legend]);
     return `<div class="panel"><div class="ptitle">${esc(title)}</div>` +
     `<div class="sg">` +
-    rows.map(([l, v, w, sub]) =>
-      `<div class="sr"><span class="sl2">${esc(l)}</span>` +
+    rows.map(([l, v, w, sub, rk]) => { if (rk) anyRank = true;
+      return `<div class="sr"><span class="sl2">${esc(l)}</span>` +
       (sub
         ? `<span class="sv2sub"><span class="sv2">${esc(v)}</span><span class="svsub">${esc(sub)}</span></span>`
         : `<span class="sv2">${esc(v)}</span>`) +
-      `</div>`).join('') +
+      (rk ? `<span class="rk">${esc(rk)}</span>` : '') +
+      `</div>`; }).join('') +
     `</div></div>`;
   };
 
@@ -132,6 +138,9 @@ function render(DATA, stemArg) {
     else if (i + 1 < units.length && !units[i + 1].full) { panels += `<div class="prow">${units[i].html}${units[i + 1].html}</div>`; i += 2; }
     else { panels += `<div class="prow">${units[i].html}</div>`; i++; }
   }
+  const rankNote = anyRank
+    ? `<div class="ranknote">The <b>gold number</b> beside a stat is its rank in the Texas Collegiate League — shown when it is top ${DATA.rankTop || 50}.</div>`
+    : '';
   const legendBlock = legends.length
     ? `<div class="legends">` + legends.map(([t, l]) =>
         `<span class="lgrp"><b>${esc(t)}</b> ` +
@@ -205,6 +214,10 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
 .strip .stat { text-align: center; }
 .strip .sv { font-family: Georgia, serif; font-size: 23px; font-weight: 800; color: #ecc913; }
 .strip .sl { font-size: 8.5px; color: #fcef9d; letter-spacing: 1.2px; margin-top: 3px; }
+/* TCL rank, the website's gold number. Bright gold on the dark strip; a deeper
+   gold in the panels, where the page is cream and #ecc913 all but disappears. */
+.strip .srk { font-size: 8.5px; font-weight: 700; color: #ecc913; margin-top: 3px; }
+.sr .rk { font-size: calc(9px * var(--s)); font-weight: 700; color: #8a6b00; margin-left: 6px; align-self: center; white-space: nowrap; }
 .p1 { --s: ${sp.toFixed(3)}; }
 .keytitle { font-family: 'Poppins', Georgia, serif; margin: calc(8px * var(--s)) 45px 0; font-size: 8px; font-weight: 800; letter-spacing: 2px; color: #33205e; text-transform: uppercase; }
 .key { margin: 2px 45px 0; font-size: calc(9.5px * var(--s)); color: #33205e; line-height: 1.5; }
@@ -219,6 +232,8 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
 /* A legend is one long sentence per panel, so it has to wrap inside its half.
    Its size is deliberately NOT scaled: it is reference text, and letting it
    grow with the panel would take the room away from the numbers. */
+.ranknote { margin: calc(7px * var(--s)) 49px 0; font-size: 8.6px; color: #33205e; }
+.ranknote b { color: #8a6b00; font-weight: 800; }
 .legends { margin: calc(6px * var(--s)) 49px 0; font-size: 8.2px; line-height: 1.55; color: #33205e; }
 .legends .lgrp { display: inline; }
 .legends .lgrp b { font-family: 'Poppins', Georgia, serif; letter-spacing: .8px; }
@@ -281,7 +296,7 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
 </div>
 <div class="striptitle">${esc(DATA.seasonTitle)}</div>
 <div class="strip">${seasonTiles}</div>
-${keyRow}<div class="grid">${panels}</div>${legendBlock}
+${keyRow}<div class="grid">${panels}</div>${rankNote}${legendBlock}
 </div>
 <div class="page p2">
 <div class="band slim">
