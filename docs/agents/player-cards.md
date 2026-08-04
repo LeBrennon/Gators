@@ -75,34 +75,52 @@ before it gives back a point of type. The owner asked for double-size stats, so
 the ceiling** — the card never sets larger than asked, only smaller when the page
 cannot hold it.
 
-With everything currently on the card, a batter card reaches about **0.69 of
-double** (~19px against the 12.6px it set before) with the spacing already pinned
+With everything currently on the card, a batter card reaches about **0.65 of
+double** (~18px against the 12.6px it set before) with the spacing already pinned
 at its floor. The constraint is content volume, not padding — and it is flat
-across the batch: a 7-game card and a 44-game card both land at 0.69, because
-page 1's content barely varies with games played. Pitcher cards reach ~0.85,
-having one fewer strip and no ranks.
+across the batch: a 7-game card and a 44-game card land within a whisker of each
+other, because page 1's content barely varies with games played. Pitcher cards
+reach ~0.85, having one fewer strip and no ranks.
 
 **The shortfall is accepted, and nothing comes off the card to close it.** That
 is an owner decision, taken against measured alternatives, so don't "fix" the
-0.69 later by deleting content or by rebalancing the fit:
+shortfall later by deleting content or by rebalancing the fit:
 
 | Page-1 content | Type reached |
 |---|---|
-| Everything (what ships) | 0.69 |
+| Everything (what ships) | 0.65 |
 | − key/legend block | 0.88–0.95 |
 | − key/legend − BY COUNT | 0.96 |
 | − key/legend − BY COUNT − platoon splits | 1.00 |
+
+(The alternatives were measured before the strips were made to stack, which cost
+the shipping card about 0.04; they are still the right order of magnitude.)
 
 Moving the legend or the strips to page 2 was measured too, and it is worse, not
 better: on a 36–44 game card the log already fills page 2, so the moved block
 sets at ~5px. Page 2 has spare room only on the light cards, which are the ones
 that least need it.
 
-One guard exists because this change needed it: a `.sr` is pinned to half its
-panel, so type that outgrows its label and value does **not** reflow — it
-silently runs over the column beside it. Only `scrollWidth` reports that, so the
-fit refuses any size where it happens and fails the card outright if the final
-choice still does.
+**Nothing on page 1 reflows when it runs out of room — it overlaps.** A `.sr` is
+pinned to half its panel and a `.splitcell` to its share of a strip, so type that
+outgrows the space just paints over whatever is beside it. Only `scrollWidth`
+reports that, so the fit refuses any size where it happens and fails the card
+outright if the final choice still does.
+
+The guard has to measure the **label and value themselves**, not just the box
+around them. A nowrap child that is allowed to shrink below its own text
+overflows its own box while its parent's `scrollWidth` stays clean — so the fit
+is told everything is fine. That is exactly how the platoon splits shipped with
+the label printed over the slash line ("Total (165 P**.331**/.469/.575"): the
+old guard looked only at `.sr` and `.splitcell` and reported zero overflows on a
+page that was visibly scrambled. Don't narrow that selector list, and don't
+reintroduce a `min-width: 0` on `.sl2` / `.sv2` that lets them shrink below
+their text.
+
+For the same reason **every full-width strip stacks** — label above value. Five
+count buckets only fit that way, and at this type size so do three platoon
+splits: side by side, the label and the slash line each want most of a third of
+the page.
 
 ## What's on a card
 
@@ -119,9 +137,10 @@ to BASE RUNNING and WORKLOAD rather than as a fifth panel for exactly this reaso
 The full-width strips are not a fifth panel: they are a print-layout move. A row
 tagged `wide` in a panel's data is hoisted out and laid across the page, because
 a slash line or five count buckets do not fit in a half-width column. `wide`
-alone lands in PLATOON SPLITS; `wide:TITLE` opens a strip with that title. The
-data still says which of the four panels the row belongs to — BY COUNT is
-PLATE DISCIPLINE's, BATTED BALL is HIT BREAKDOWN's.
+alone lands in PLATOON SPLITS; `wide:TITLE` opens a strip with that title. Every
+strip stacks its label above its value. The data still says which of the four
+panels the row belongs to — BY COUNT is PLATE DISCIPLINE's, BATTED BALL is
+HIT BREAKDOWN's.
 
 ### The league's line is the official number
 

@@ -118,12 +118,12 @@ function render(DATA, stemArg) {
   // Order: Total, then RH side, then LH side
   const splitOrder = r => (/^Total/.test(r[0]) ? 0 : r[0].includes('RH') ? 1 : 2);
   splitRows.sort((a, b) => splitOrder(a) - splitOrder(b));
-  // Horizontal cells stretch the rows across the full panel width. Platoon
-  // splits read label-then-slash-line on one line; the shorter buckets stack so
-  // five of them still fit across the page.
+  // Horizontal cells stretch the rows across the full panel width, each one
+  // setting its label above its value so a long label and a long value don't
+  // have to share a line they can't both fit on.
   const mkWidePanel = (title, rows) =>
     `<div class="panel full"><div class="ptitle">${esc(title)}</div>` +
-    `<div class="sg splitrow${title === 'PLATOON SPLITS' ? '' : ' stack'}">` +
+    `<div class="sg splitrow">` +
     rows.map(([l, v, , sub]) =>
       `<div class="splitcell"><span class="sl2">${esc(l)}</span><span class="sv2sub"><span class="sv2">${esc(v)}</span>` +
       (sub ? `<span class="svsub">${esc(sub)}</span>` : '') + `</span></div>`).join('') +
@@ -247,11 +247,17 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
 .sg { display: flex; flex-wrap: wrap; }
 .sr { width: 50%; display: flex; justify-content: flex-start; gap: 4px; padding: calc(4px * var(--g)) 8px; font-size: calc(28px * var(--s)); }
 .sg.splitrow { display: flex; gap: 10px; font-size: calc(28px * var(--s)); }
-.splitcell { flex: 1; display: flex; gap: 8px; align-items: flex-start; justify-content: center; padding: calc(4px * var(--s)) 2px; min-width: 0; }
-.splitcell .sl2 { min-width: 0; }
-/* five count buckets across the page only fit if the label sits above the value */
-.sg.splitrow.stack .splitcell { flex-direction: column; align-items: center; gap: 2px; text-align: center; }
-.sg.splitrow.stack .sv2sub { align-items: center; }
+/* Every strip sets its label above its value. Five count buckets only fit that
+   way, and at double type so do three platoon splits: side-by-side, the label
+   and the slash line each want most of a third of the page, and a cell that
+   narrow used to let them overlap rather than admit it didn't fit. */
+.splitcell { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center;
+             padding: calc(4px * var(--s)) 2px; min-width: 0; }
+.splitcell .sv2sub { align-items: center; }
+/* Never let a nowrap label or value shrink below its own text. It doesn't
+   reflow when it does — it paints over whatever is beside it, and the cell's
+   scrollWidth stays clean, so the fit is told everything is fine. */
+.splitcell .sl2, .splitcell .sv2 { flex-shrink: 0; min-width: 0; max-width: 100%; }
 .sl2 { color: #33205e; font-weight: 700; letter-spacing: .5px; display: inline-block; min-width: calc(62px * var(--s)); white-space: nowrap; }
 .sv2 { color: #020200; font-weight: 800; font-variant-numeric: tabular-nums; }
 .sv2sub { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.25; }
@@ -337,7 +343,12 @@ ${DATA.logNote ? `<div class="lognote">${esc(DATA.logNote)}</div>` : ''}
   // A .sr is pinned to half its panel. When the type grows past what the label
   // and value fit in, nothing reflows — the text just runs over the column
   // beside it, so scrollWidth is the only thing that reports it.
-  var wide=[].slice.call(document.querySelectorAll('.p1 .sr, .p1 .splitcell')).some(function(e){
+  //
+  // Measure the nowrap label and value too, not just the box around them. A
+  // shrunk-to-nothing child overflows its OWN box while the parent's scrollWidth
+  // stays clean, which is exactly how the platoon splits shipped overlapping.
+  var wide=[].slice.call(document.querySelectorAll(
+      '.p1 .sr, .p1 .splitcell, .p1 .sl2, .p1 .sv2, .p1 .svsub')).some(function(e){
     return e.scrollWidth > e.clientWidth + 1; });
   document.title=pages.join(',')+','+(over?1:0)+','+(wide?1:0);
 })</script></body></html>`;
