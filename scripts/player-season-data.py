@@ -95,10 +95,19 @@ _RANKS = None
 # Card stat label -> the key it goes by in Presto's season line and rank table.
 RANK_KEYS = {'G': 'gp', 'PA': 'pa', 'AB': 'ab', 'H': 'h', '2B': '2b', '3B': '3b',
              'HR': 'hr', 'RBI': 'rbi', 'R': 'r', 'BB': 'bb', 'K': 'k', 'HBP': 'hbp',
-             'SF': 'sf', 'SB': 'sb', 'TB': 'tb', 'AVG': 'avg',
+             'SF': 'sf', 'SB': 'sb', 'TB': 'tb', 'CS': 'cs', 'AVG': 'avg',
              'OBP': 'obp', 'SLG': 'slg'}
-# CS is deliberately absent: a rank for being thrown out reads as a distinction
-# when it is the opposite, so caught stealing shows its number and no rank.
+# Stats where placing high is the opposite of a distinction. They print their
+# number and no rank: a hitter should not learn from his own card that he was
+# 6th in the league for striking out, or 4th at being thrown out stealing.
+# Owner's call, and the same one behind the original caught-stealing rule.
+#
+# Presto ranks every one of these — the refusal is ours, not a gap in the data —
+# so they stay in RANK_KEYS and are turned away here, where the reason is
+# written down. An absence from that map would look like an oversight and get
+# "fixed". GIDP and E have no Presto key today and rank nowhere; they are listed
+# so that adding one later doesn't quietly put a rank on them.
+NO_RANK = {'K', 'CS', 'GIDP', 'E'}
 RANK_TOP = 50   # below this the number stops being a distinction worth printing
 
 def _rank_num(s):
@@ -151,6 +160,7 @@ def ranker(player):
     rec = _RANKS.get(player) or {}
     ranks, line = rec.get('ranks') or {}, rec.get('line') or {}
     def rank_of(label, value):
+        if label in NO_RANK: return None
         key = RANK_KEYS.get(label)
         if not key or key not in ranks or key not in line: return None
         if not _same(value, line[key]): return None

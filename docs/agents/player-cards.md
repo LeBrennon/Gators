@@ -206,19 +206,27 @@ are **Presto's own**, read off each player's league player page and cached by
 `scripts/fetch-ranks.py` into `data/league-ranks.json`. Re-run that script when
 the league updates; the cache is committed so a card render stays reproducible.
 
-Three rules decide whether a rank prints:
+Four rules decide whether a rank prints:
 
 1. **Top 50 only.** Below that a rank is not a distinction, it is a headcount —
    Gabe Guidry's best is 58th, so his card carries none.
-   **CS is never ranked**, at any position: a rank for being thrown out reads as
-   a distinction when it is the opposite. Caught stealing shows its number and no
-   gold badge. The stat still takes the league's figure like every other.
-2. **Only when the number on the card equals Presto's for that stat.** Since the
+2. **Never on a stat where placing high is bad.** `NO_RANK` in
+   `player-season-data.py` holds them: **K**, **CS**, and GIDP/E against the day
+   they get a Presto key. A hitter should not learn from his own card that he was
+   6th in the league for striking out, or 4th at being thrown out stealing — the
+   badge reads as a distinction when it is the opposite. The stats still print
+   their number, and still take the league's figure like every other.
+
+   Presto ranks all of them, so the refusal is ours and not a gap in the data.
+   That is why they stay in `RANK_KEYS` and are turned away in `rank_of`: a stat
+   simply missing from the map looks like an oversight and invites a "fix".
+   This cost Landreneau his K 6th and Sunday his K 11th, which is the point.
+3. **Only when the number on the card equals Presto's for that stat.** Since the
    league's line is now what the card prints, this normally holds by
    construction; it is the backstop for the cases that rule can't cover — a card
    whose scope isn't a TCL line (Matt Scott), a stat Presto doesn't publish, and
    a player it has no line for.
-3. **Hitting only.** Presto publishes no pitching ranks at all — not for the
+4. **Hitting only.** Presto publishes no pitching ranks at all — not for the
    league ERA leader, not for anyone. Pitcher cards carry none, and the website
    says the same in its own legend.
 
