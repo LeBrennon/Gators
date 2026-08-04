@@ -263,7 +263,10 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
 .strip { margin: 6px 45px 0; background: #33205e; border-radius: 8px; padding: 11px 6px; display: flex; justify-content: space-around; border: 2px solid #ecc913; }
 .strip .stat { text-align: center; }
 .strip .sv { font-family: Georgia, serif; font-size: 23px; font-weight: 800; color: #ecc913; }
-.strip .sl { font-size: 8.5px; color: #fcef9d; letter-spacing: 1.2px; margin-top: 3px; }
+/* Extra-bold rather than the unstyled default weight — thin light-on-purple
+   text at 8.5px is the first thing to wash out on a real printer, even though
+   it reads fine on screen. */
+.strip .sl { font-size: 8.5px; font-weight: 800; color: #fcef9d; letter-spacing: 1.2px; margin-top: 3px; }
 /* TCL rank, the website's gold number. Bright gold on the dark strip; a deeper
    gold in the panels, where the page is cream and #ecc913 all but disappears. */
 .strip .srk { font-size: 8.5px; font-weight: 700; color: #ecc913; margin-top: 3px; }
