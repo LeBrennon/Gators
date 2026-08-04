@@ -122,6 +122,26 @@ def _same(ours, theirs):
     b = '0' if b == '-' else b.lstrip('0') or '0'
     return a == b
 
+# League honors, keyed by full name, printed on both batter and pitcher cards.
+# All-TCL Team is from the league's own TCL Updates email. Weekly Player/Pitcher
+# of the Week are from texascollegiateleague.com, each confirmed by opening that
+# week's own article and reading its headline — not taken off a category listing,
+# which returned conflicting winners for the same week slot more than once.
+#
+# Week 8 Pitcher of the Week is deliberately NOT here. texascollegiateleague.com
+# carries two different articles for that slot: one names Drew Wenske (Victoria),
+# the other Parker Primeaux, credited to the Gators. Primeaux appears nowhere in
+# box-seed.json or either supplemental box file for any game all season — no
+# Gators pitcher by that name threw a single inning we have a record of. Flagged
+# to the owner rather than guessed at; worth reporting to the league as a site
+# error either way.
+AWARDS = {
+    'Bankston Lembcke': ['2026 All-TCL Team — Utility'],
+    'Cole Flanagan': ['2026 All-TCL Team — Pitcher', 'TCL Week 4 Pitcher of the Week'],
+    'Diego Corrales': ['2026 All-TCL Team — Pitcher', 'TCL Week 1 Pitcher of the Week'],
+    'Matt Scott': ['TCL Week 7 Player of the Week'],
+}
+
 # A card whose scope is not "this player's TCL line" can't take the league's
 # totals, and a slug the site itself never resolved isn't his line to take.
 NO_OFFICIAL = {
@@ -594,6 +614,7 @@ def batter_card(player, mobile=False):
     rank_of = ranker(player)
     DATA = {
         'name': player, 'num': str(bio.get('num') or ''), 'pos': bio.get('pos') or '—',
+        'awards': AWARDS.get(player, []),
         'bt': bt, 'cls': bio.get('cls') or '—', 'school': bio.get('school') or '—',
         'home': bio.get('home') or '—', 'htwt': bio.get('htwt') or '—', 'bday': '—',
         'photoSlug': photo_slug(player),
@@ -821,6 +842,7 @@ def pitcher_card(player, mobile=False):
     drows, dleg = defense(player, 'p', mobile)
     DATA = {
         'name': player, 'num': str(bio.get('num') or ''), 'pos': bio.get('pos') or 'P',
+        'awards': AWARDS.get(player, []),
         'bt': bio.get('bt') or '—', 'cls': bio.get('cls') or '—', 'school': bio.get('school') or '—',
         'home': bio.get('home') or '—', 'htwt': bio.get('htwt') or '—', 'bday': '—',
         'photoSlug': photo_slug(player),
