@@ -224,14 +224,10 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
 .band img.mark { width: 102px; height: 102px; object-fit: contain; margin-right: 22px; }
 .band .org { font-family: 'Poppins', Georgia, serif; font-weight: 800; font-size: 23px; color: #ffd633; letter-spacing: 1.2px; }
 .band .sub { font-family: 'Leckerli One', cursive; font-size: 14px; font-weight: 700; color: #cfc6ea; letter-spacing: 1px; margin-top: 6px; }
-/* page 2 repeats the branding in a slimmer band and names the player again */
-.band.slim { height: 86px; }
-.band.slim img.mark { width: 66px; height: 66px; margin-right: 16px; }
-.band.slim .org { font-size: 16.5px; letter-spacing: 1px; }
-.band.slim .sub { font-size: 11px; margin-top: 3px; }
-.band.slim .who2 { margin-left: auto; text-align: right; }
-.band.slim .who2 .nm { font-family: 'Poppins', Georgia, serif; font-weight: 800; font-size: 21px; color: #fff; letter-spacing: .6px; }
-.band.slim .who2 .rl { font-size: 10.5px; font-weight: 700; color: #ecc913; letter-spacing: 1.6px; margin-top: 4px; text-transform: uppercase; }
+/* Page 2 doesn't repeat the branded band — just names the player, plain text,
+   above the log. Owner's call: page 1 already carries the club identity. */
+.p2name { margin: 26px 45px 0; font-family: 'Poppins', Georgia, serif; font-weight: 800; font-size: 18px; color: #33205e; letter-spacing: .5px; }
+.p2name .p2role { font-family: "Helvetica Neue", Arial, sans-serif; font-weight: 700; font-size: 11px; color: #8a6b00; letter-spacing: 1.2px; margin-left: 10px; text-transform: uppercase; }
 .id { display: flex; padding: 16px 45px 8px; }
 .id .ph { margin-left: 16px; width: 132px; height: 132px; border-radius: 9px; object-fit: cover; object-position: center 15%; border: 4px solid #ecc913; background: #ddd; }
 .id .who { margin-left: 22px; flex: 1; text-align: center; }
@@ -384,21 +380,7 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
 ${keyRow}<div class="grid">${panels}</div>${legendBlock}
 </div>
 <div class="page p2">
-<div class="band slim">
-  <img class="texture" src="${croc}" alt="">
-  <div class="shade"></div>
-  <div class="inner">
-    <img class="mark" src="${logo}" alt="">
-    <div>
-      <div class="org">LAKE CHARLES GUMBEAUX GATORS</div>
-      <div class="sub">2026 Summer Season &middot; Texas Collegiate League</div>
-    </div>
-    <div class="who2">
-      <div class="nm">${esc(DATA.name.toUpperCase())}</div>
-      <div class="rl">#${esc(DATA.num)} &middot; ${esc(DATA.pos)}</div>
-    </div>
-  </div>
-</div>
+<div class="p2name">${esc(DATA.name.toUpperCase())}<span class="p2role">#${esc(DATA.num)} &middot; ${esc(DATA.pos)}</span></div>
 <div class="logbox"><div class="logwrap">
 <h2>${esc(DATA.logTitle)}</h2>
 ${DATA.logNote ? `<div class="lognote">${esc(DATA.logNote)}</div>` : ''}
