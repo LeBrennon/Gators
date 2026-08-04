@@ -323,7 +323,11 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
 .splitcell .sl2 { padding-left: 0; }
 .sv2 { color: #020200; font-weight: 800; font-variant-numeric: tabular-nums; }
 .sv2sub { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.25; }
-.svsub { font-size: calc(8px * var(--s)); color: #33205e; font-weight: 700; letter-spacing: 1.1px; }
+/* The line under a strip value — "8-for-37 · 58 PA" beneath a count bucket. It
+   was 8px against the value's 28px and tracked out at 1.1px, which is the worst
+   combination small type can have: wide letter-spacing stops short strings
+   reading as words at all once they are this small. Bigger and tighter. */
+.svsub { font-size: calc(13px * var(--s)); color: #33205e; font-weight: 700; letter-spacing: .4px; }
 /* A slash line set as columns: each part's label centred under its own number,
    the dividers baseline-aligned with the numbers rather than with the labels.
    The labels are set well above .svsub's size — they name the three numbers a

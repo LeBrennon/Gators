@@ -585,7 +585,10 @@ def batter_card(player, mobile=False):
         _adv_mod = sibling('advanced')
         adv = _adv_mod.batter_splits(player)
         count_rows = [[k.capitalize(), _adv_mod.avg(adv['count'][k]), 'wide:BY COUNT',
-                       f"{adv['count'][k].get('H', 0)}-FOR-{adv['count'][k].get('AB', 0)} · {adv['count'][k]['PA']} PA"]
+                       # "8-for-37", not "8-FOR-37": this prints as fine type under the
+                       # bucket, and a capitalised word is harder to read there than a
+                       # lower-case one. PA stays capital — it is an abbreviation.
+                       f"{adv['count'][k].get('H', 0)}-for-{adv['count'][k].get('AB', 0)} · {adv['count'][k]['PA']} PA"]
                       for k in ('first pitch', 'ahead', 'even', 'behind', 'two-strike')
                       if adv['count'].get(k)]
     rank_of = ranker(player)
