@@ -70,6 +70,24 @@ def clean(nm):
 
 def tkey(nm): return re.sub(r'[^a-z ]', '', nm.lower()).strip()
 
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+def sibling(name):
+    """Import scripts/<name>.py, handing it this module instead of a second copy.
+
+    advanced.py and runvalues.py both load this module for its parsers, so
+    importing either at the top would recurse — and a second copy would re-read
+    box-seed.json. Publishing ourselves as 'psd' first is what they look for.
+    """
+    if name in sys.modules: return sys.modules[name]
+    import importlib.util
+    sys.modules.setdefault('psd', sys.modules[__name__])
+    spec = importlib.util.spec_from_file_location(name, os.path.join(ROOT, 'scripts', name + '.py'))
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
 _MANIFEST = None
 def photo_slug(player):
     global _MANIFEST
@@ -424,6 +442,29 @@ def batter_card(player, mobile=False):
     lpa, lavg, lobp, lslg = slash(splits['L']); rpa, ravg, robp, rslg = slash(splits['R'])
     f3 = lambda v: ('%.3f' % v).replace('0.', '.')
     drows, dleg = defense(player, 'field', mobile)
+    # wOBA / wRC+ off this league's own run values (scripts/runvalues.py), not MLB's.
+    woba, wrc = sibling('runvalues').player_rates(
+        {'AB': ab, 'BB': bb, 'HBP': hbp, 'SF': sf, 'PA': pa,
+         '1B': one, '2B': two, '3B': thr, 'HR': hr})
+    # Batted-ball direction and count buckets, rebuilt from play-by-play.
+    # Print cards hoist "wide:" rows into a full-width panel of their own.
+    spray_rows, count_rows = [], []
+    if not mobile:
+        _adv_mod = sibling('advanced')
+        adv = _adv_mod.batter_splits(player)
+        sp, placed, omitted = adv['spray'], adv['spray_placed'], adv['spray_omitted']
+        if placed:
+            spray_rows = [[k.capitalize(), '%.0f%%' % (100 * sp.get(k, 0) / placed),
+                           'wide:BATTED BALL', f"{sp.get(k, 0)} BALLS IN PLAY"]
+                          for k in ('pull', 'center', 'oppo')]
+            # The omitted count travels with the numbers: Presto often writes
+            # "singled" with no direction, and those are dropped, never guessed.
+            spray_rows.append(['Located', f'{placed} of {placed + omitted}', 'wide:BATTED BALL',
+                               f'{omitted} OMITTED — NO DIRECTION RECORDED'])
+        count_rows = [[k.capitalize(), _adv_mod.avg(adv['count'][k]), 'wide:BY COUNT',
+                       f"{adv['count'][k].get('H', 0)}-FOR-{adv['count'][k].get('AB', 0)} · {adv['count'][k]['PA']} PA"]
+                      for k in ('first pitch', 'ahead', 'even', 'behind', 'two-strike')
+                      if adv['count'].get(k)]
     DATA = {
         'name': player, 'num': str(bio.get('num') or ''), 'pos': bio.get('pos') or '—',
         'bt': bt, 'cls': bio.get('cls') or '—', 'school': bio.get('school') or '—',
@@ -433,17 +474,22 @@ def batter_card(player, mobile=False):
         'season': [['G', str(len(box))], ['PA', str(pa)], ['AVG', f3(avg)], ['OBP', f3(obp)],
                    ['SLG', f3(slg)], ['OPS', f3(obp + slg)], ['HR', str(hr)], ['RBI', str(rbi)], ['SB', str(tot['SB'])]],
         'groups': [
+            # Order follows Baseball Savant: the slash line, then the run-value
+            # rate stats it rolls up to, then the derived and counting stats.
             ['PRODUCTION', [['AVG', f3(avg)], ['OBP', f3(obp)], ['SLG', f3(slg)], ['OPS', f3(obp + slg)],
+                            ['wOBA', f3(woba) if woba is not None else '—'],
+                            ['wRC+', '%.0f' % wrc if wrc is not None else '—'],
                             ['ISO', f3(slg - avg)], ['BABIP', f3(babip)], ['XBH', str(two + thr + hr)], ['TB', str(tb)],
                             [f'vs LHP ({lpa} PA)', f'{f3(lavg)}/{f3(lobp)}/{f3(lslg)}', 'wide', f'AVG · OBP · SLG — OPS {f3(lobp + lslg)}'],
                             [f'vs RHP ({rpa} PA)', f'{f3(ravg)}/{f3(robp)}/{f3(rslg)}', 'wide', f'AVG · OBP · SLG — OPS {f3(robp + rslg)}']],
-             'OBP = on-base pct (H+BB+HBP per PA) · SLG = total bases per AB · OPS = OBP + SLG · ISO = isolated power (SLG − AVG) · BABIP = batting avg on balls in play · XBH = extra-base hits · TB = total bases'],
+             'OBP = on-base pct (H+BB+HBP per PA) · SLG = total bases per AB · OPS = OBP + SLG · wOBA = on-base value weighted by what each outcome is worth, on TCL run values · wRC+ = runs created vs the TCL average (100 = average, no park factor) · ISO = isolated power (SLG − AVG) · BABIP = batting avg on balls in play · XBH = extra-base hits · TB = total bases'],
             ['PLATE DISCIPLINE', [['BB%', '%.1f' % (100 * bb / pa if pa else 0)], ['K%', '%.1f' % (100 * k / pa if pa else 0)],
                                   ['BB:K', '%.2f' % (bb / k if k else 0)], ['PA', str(pa)], ['BB', str(bb)], ['K', str(k)],
-                                  ['HBP', str(hbp)], ['SF', str(sf)]],
-             'BB% = walks per PA · K% = strikeouts per PA · SF = sacrifice flies (not an AB)'],
+                                  ['HBP', str(hbp)], ['SF', str(sf)]] + count_rows,
+             'BB% = walks per PA · K% = strikeouts per PA · SF = sacrifice flies (not an AB) · BY COUNT = batting average in the count the plate appearance ended on'],
             ['HIT BREAKDOWN', [['H', str(h)], ['1B', str(one)], ['2B', str(two)], ['3B', str(thr)],
-                               ['HR', str(hr)], ['RBI', str(rbi)], ['R', str(r)], ['GIDP', str(tot.get('GIDP', 0))]]],
+                               ['HR', str(hr)], ['RBI', str(rbi)], ['R', str(r)], ['GIDP', str(tot.get('GIDP', 0))]] + spray_rows,
+             'BATTED BALL = where the ball was hit, from his own side of the plate — pull, up the middle, opposite field'],
             [f'BASE RUNNING{" & DEFENSE" if drows else ""}',
              [['SB', str(tot['SB'])], ['CS', str(tot['CS'])],
               ['SB%', '%.1f' % (100 * tot['SB'] / (tot['SB'] + tot['CS']) if tot['SB'] + tot['CS'] else 0)],

@@ -54,12 +54,17 @@ import json, re, sys, collections, importlib.util, os
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, 'scripts'))
-_s = importlib.util.spec_from_file_location('psd', os.path.join(ROOT, 'scripts', 'player-season-data.py'))
-psd = importlib.util.module_from_spec(_s)
-_a, sys.argv = sys.argv, ['psd']
-try: _s.loader.exec_module(psd)
-except SystemExit: pass
-sys.argv = _a
+# Reuse the caller's copy when there is one — player-season-data.py calls in
+# here for wOBA, and loading it again would re-parse box-seed.json.
+psd = sys.modules.get('psd')
+if psd is None:
+    _s = importlib.util.spec_from_file_location('psd', os.path.join(ROOT, 'scripts', 'player-season-data.py'))
+    psd = importlib.util.module_from_spec(_s)
+    sys.modules['psd'] = psd
+    _a, sys.argv = sys.argv, ['psd']
+    try: _s.loader.exec_module(psd)
+    except SystemExit: pass
+    sys.argv = _a
 
 # A run is usually "X scored", but Presto also writes "advanced to home" — on a
 # fielder's choice, for instance — and that is a run too. "out at home" is not.
@@ -302,6 +307,7 @@ def collect():
     events = collections.defaultdict(list)    # event -> (state_before, outs, runs_on_play, state_after)
     ok = bad = 0
     badlob = [0]
+    lg = [0, 0]                    # league runs, league plate appearances
     for gid, g in sorted(psd.BOX.items()):
         d = g['data']
         for team in (d.get('teams') or []):
@@ -317,6 +323,7 @@ def collect():
                 if want_lob is not None and lob != want_lob:
                     badlob[0] += 1; continue
                 ok += 1
+                lg[0] += runs; lg[1] += len(plays)
                 total = runs
                 sofar = 0
                 for i, (ev, bases, outs, sc) in enumerate(plays):
@@ -325,7 +332,7 @@ def collect():
                     seen[key].append(total - sofar)
                     events[ev].append((key, total - sofar, sc))
                     sofar += sc
-    return seen, events, ok, bad, badlob[0]
+    return seen, events, ok, bad, badlob[0], (lg[0] / lg[1] if lg[1] else 0)
 
 
 def weights():
@@ -337,7 +344,7 @@ def weights():
     league OBP — the standard normalisation, with this league's numbers rather
     than another league's.
     """
-    seen, events, ok, bad, badlob = collect()
+    seen, events, ok, bad, badlob, lg_r_pa = collect()
     re24 = {k: sum(v) / len(v) for k, v in seen.items() if len(v) >= 15}
     rv = {}
     for ev, occ in events.items():
@@ -364,10 +371,32 @@ def weights():
     lg_woba = sum(w[e] * len(events[e]) for e in w) / den if den else 0
     return {'weights': w, 'weight_stderr': se, 'n': {e: len(events[e]) for e in w},
             'lgOBP': round(lg_obp, 4), 'lgwOBA': round(lg_woba, 4), 'scale': round(scale, 4),
-            'runsPerPA': round(sum(sum(v) for v in seen.values()) / sum(len(v) for v in seen.values()), 4),
+            'lgRperPA': round(lg_r_pa, 5),
             'gates': {'passed': ok, 'total': ok + bad + badlob},
             're24': {f'{"".join("123"[i] for i, b in enumerate(k[0]) if b) or "_"}|{k[1]}': round(v, 3)
                      for k, v in sorted(re24.items(), key=lambda kv: (kv[0][1], kv[0][0]))}}
+
+
+
+def player_rates(line, w=None):
+    """wOBA and wRC+ for one hitter's counting line.
+
+    wOBA uses this league's weights; wRC+ indexes it against this league's own
+    runs per plate appearance, so 100 is a league-average TCL hitter. No park
+    factor is applied — we have no park factors, and inventing one would be
+    worse than leaving it out.
+    """
+    w = w or json.load(open(os.path.join(ROOT, 'data/run-values.json')))
+    W, sc, lg_woba, lg_r = w['weights'], w['scale'], w['lgwOBA'], w['lgRperPA']
+    den = line['AB'] + line['BB'] + line['SF'] + line['HBP']
+    if not den: return None, None
+    num = (W['BB'] * line['BB'] + W['HBP'] * line['HBP'] + W['1B'] * line['1B'] +
+           W['2B'] * line['2B'] + W['3B'] * line['3B'] + W['HR'] * line['HR'])
+    woba = num / den
+    pa = line['PA']
+    if not pa or not lg_r: return woba, None
+    wraa_pa = (woba - lg_woba) / sc
+    return woba, 100 * (wraa_pa + lg_r) / lg_r
 
 
 if __name__ == '__main__':

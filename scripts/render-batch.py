@@ -11,9 +11,16 @@ A --roster file is {"players": [{"name": ..., "role": "b|p|both"}, ...]} — the
 whole batch and its roles in one reviewed place, so a long command line can't
 quietly drop a player or send someone the wrong card.
 Splices DATA from player-season-data.py into the locked card templates,
-node-renders each, and verifies 1-page PDFs.
+node-renders each, and verifies the PDF came out at exactly two pages
+(page 1 all stats, page 2 the game log).
 """
 import json, re, subprocess, sys, os
+
+PAGES = 2   # every print card: stats page + game-log page
+
+def page_count(pdf):
+    with open(pdf, 'rb') as f:
+        return len(re.findall(rb'/Type\s*/Page[^s]', f.read()))
 
 JOBS = {
     'b': ('scripts/player-season-card-batter.js', 'scripts/player-season-card-mobile-batter.js', '--batter'),
@@ -51,6 +58,12 @@ def run(job, print_only=False):
             rn = subprocess.run(['node', tmp], capture_output=True, text=True)
             if rn.returncode != 0:
                 print(f'  RENDER FAIL {name}: {rn.stderr[-200:]}'); ok = False; continue
+            fit = rn.stdout.strip().split('  ', 1)[-1] if '  ' in rn.stdout else ''
+            if not extra:
+                pdf = f"reports/players/{data['name']} - 2026 Summer Stats.pdf"
+                n = page_count(pdf)
+                if n != PAGES:
+                    print(f'  PAGE FAIL {name}: {n} pages, expected {PAGES}'); ok = False; continue
             if label:  # double report card: disambiguate filename
                 import glob, shutil
                 d = 'reports/players-mobile' if extra else 'reports/players'
@@ -63,7 +76,7 @@ def run(job, print_only=False):
                     for _try in range(4):
                         try: shutil.move(f, dst); break
                         except FileNotFoundError: time.sleep(2)
-            print(f'  rendered {name} {flag}{" mobile" if extra else " print"}  [{note}]')
+            print(f'  rendered {name} {flag}{" mobile" if extra else " print"}  [{note}] {fit}')
     return ok
 
 if __name__ == '__main__':

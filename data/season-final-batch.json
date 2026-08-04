@@ -1,0 +1,267 @@
+{
+ "_comment": "Season-final card batch, 2026: every player who wore the uniform this summer, active roster and departed alike, with his role in one reviewed place. Names are the BOX-SCORE spelling, which is what scripts/player-season-data.py resolves - one exception: Matt Scott is 'Matthew Scott' in the Gators box and 'Matt Scott' at Brazos Valley, and the card prints the club's spelling.",
+ "_roles": "A player with appearances in both roles gets two cards only when both are substantial. That rule is the owner's, set on the active-roster batch (Jack Garcille, 10 batting / 9 pitching), and it is applied to the departed players here too: Levy (9/8), Pierce (10/6) and McKinley (12/5) get both cards; Griffin Hebert (13 batting / 2 pitching) and Griffin Cooley (6 / 1) get the batter card only. An earlier unsent batch gave those two a pitching card built on one or two outings.",
+ "_open": {
+  "Landon Hennen": "Batter card only: the seed shows 4 batting games and no pitching line. An earlier batch produced a pitching card for him; unconfirmed whether he ever pitched. Box spells him both Hennen and Hennan - the script handles both."
+ },
+ "_full_season": {
+  "Matt Scott": "Full-season card by owner decision: 22 Brazos Valley games + 10 Gators games, one set of totals, with a Tm column in the game log marking BV vs LC. His Brazos Valley boxes are in data/prior-stint-seed.json. The 7/8 Brazos Valley game is EXCLUDED: the league's transactions log has him de-activated 7/07 with Eddie Castillo activated into his #8 the same day, so he was not eligible; the box still prints his name and Presto's season line inherits that error."
+ },
+ "players": [
+  {
+   "name": "Ayden Sunday",
+   "role": "b",
+   "active": true
+  },
+  {
+   "name": "Bankston Lembcke",
+   "role": "b",
+   "active": true
+  },
+  {
+   "name": "Brayden Guillory",
+   "role": "p",
+   "active": true
+  },
+  {
+   "name": "Brenyn Ebarb",
+   "role": "p",
+   "active": true
+  },
+  {
+   "name": "Cade Robin",
+   "role": "p",
+   "active": true
+  },
+  {
+   "name": "Cannon Faulk",
+   "role": "p",
+   "active": true
+  },
+  {
+   "name": "Daniel Midkiff",
+   "role": "p",
+   "active": true
+  },
+  {
+   "name": "Davis Duhon",
+   "role": "p",
+   "active": true
+  },
+  {
+   "name": "Diego Corrales",
+   "role": "p",
+   "active": true
+  },
+  {
+   "name": "Gabe Guidry",
+   "role": "b",
+   "active": true
+  },
+  {
+   "name": "Gavin Gary",
+   "role": "b",
+   "active": true
+  },
+  {
+   "name": "Hunter Degeyter",
+   "role": "p",
+   "active": true
+  },
+  {
+   "name": "Jack Garcille",
+   "role": "both",
+   "active": true
+  },
+  {
+   "name": "Jackson Beddoe",
+   "role": "b",
+   "active": true
+  },
+  {
+   "name": "Jake Rider",
+   "role": "p",
+   "active": true
+  },
+  {
+   "name": "Jaxon Landreneau",
+   "role": "b",
+   "active": true
+  },
+  {
+   "name": "Jay Michael Stelly",
+   "role": "b",
+   "active": true
+  },
+  {
+   "name": "Jeremiah Torres",
+   "role": "b",
+   "active": true
+  },
+  {
+   "name": "John Munnerlyn",
+   "role": "p",
+   "active": true
+  },
+  {
+   "name": "Landon Hennen",
+   "role": "b",
+   "active": true
+  },
+  {
+   "name": "Landon Victorian",
+   "role": "p",
+   "active": true
+  },
+  {
+   "name": "Lane Sparks",
+   "role": "b",
+   "active": true
+  },
+  {
+   "name": "Marco Bandiero",
+   "role": "b",
+   "active": true
+  },
+  {
+   "name": "Matt Scott",
+   "role": "b",
+   "active": true
+  },
+  {
+   "name": "Reed Dupre",
+   "role": "p",
+   "active": true
+  },
+  {
+   "name": "Reid Snider",
+   "role": "b",
+   "active": true
+  },
+  {
+   "name": "Sawyer Simmons",
+   "role": "p",
+   "active": true
+  },
+  {
+   "name": "Shyler Smith",
+   "role": "b",
+   "active": true
+  },
+  {
+   "name": "Taylor Hollier",
+   "role": "p",
+   "active": true
+  },
+  {
+   "name": "Yuichiro Kumagami",
+   "role": "b",
+   "active": true
+  },
+  {
+   "name": "Andrew Ramos",
+   "role": "b",
+   "active": false
+  },
+  {
+   "name": "Asa Thompson",
+   "role": "p",
+   "active": false
+  },
+  {
+   "name": "Brandon Levy",
+   "role": "both",
+   "active": false
+  },
+  {
+   "name": "Bryson Pierce",
+   "role": "both",
+   "active": false
+  },
+  {
+   "name": "Chance Fouts",
+   "role": "p",
+   "active": false
+  },
+  {
+   "name": "Chris Melvin",
+   "role": "p",
+   "active": false
+  },
+  {
+   "name": "Cole Flanagan",
+   "role": "p",
+   "active": false
+  },
+  {
+   "name": "Connor Walker",
+   "role": "b",
+   "active": false
+  },
+  {
+   "name": "Easton Culp",
+   "role": "b",
+   "active": false
+  },
+  {
+   "name": "Griffin Cooley",
+   "role": "b",
+   "active": false
+  },
+  {
+   "name": "Griffin Hebert",
+   "role": "b",
+   "active": false
+  },
+  {
+   "name": "Jake Smith",
+   "role": "b",
+   "active": false
+  },
+  {
+   "name": "James Reina",
+   "role": "b",
+   "active": false
+  },
+  {
+   "name": "Kale Cropper",
+   "role": "p",
+   "active": false
+  },
+  {
+   "name": "Kasen Bellard",
+   "role": "b",
+   "active": false
+  },
+  {
+   "name": "Kash Martin",
+   "role": "b",
+   "active": false
+  },
+  {
+   "name": "Landon Richards",
+   "role": "p",
+   "active": false
+  },
+  {
+   "name": "Matthew McKinley",
+   "role": "both",
+   "active": false
+  },
+  {
+   "name": "Nathan McDonald",
+   "role": "b",
+   "active": false
+  },
+  {
+   "name": "Pierce Boles",
+   "role": "p",
+   "active": false
+  },
+  {
+   "name": "Ty Dagley",
+   "role": "p",
+   "active": false
+  }
+ ]
+}

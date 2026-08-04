@@ -1,6 +1,6 @@
 # Player season card conventions
 
-How the one-page player season cards are built and what has to stay true of them.
+How the player season cards are built and what has to stay true of them.
 Follow this whenever you produce a batch — including for teams other than the
 Gators. The rules live in code, so a normal run reproduces them; this doc is the
 intent, so a future session doesn't regress them by "cleaning up."
@@ -14,8 +14,8 @@ and which gates have to be green before anything is sent to a player.
 The owner stopped sending mobile cards. Render with:
 
 ```
-python3 scripts/render-batch.py --print --roster data/active-batch.json
-python3 scripts/render-batch.py --print --dry-run --roster data/active-batch.json   # gates only
+python3 scripts/render-batch.py --print --roster data/season-final-batch.json
+python3 scripts/render-batch.py --print --dry-run --roster data/season-final-batch.json   # gates only
 ```
 
 A roster file holds the whole batch and every role in one reviewed place, so a
@@ -45,16 +45,69 @@ Use the box-score spelling of a name in a roster file — that is what
 says "Matthew Scott"; the roster-file spelling has to be the latter or the script
 exits without finding him.
 
+## Two pages
+
+A print card is **two letter pages**: page 1 is every stat, page 2 is the
+game-by-game log on its own. The log used to share page 1 and, on a long season,
+squeezed itself into two columns at 8.8px to fit. Giving it a page of its own is
+what lets both the stats and the log be set at a size a player can actually read.
+
+`scripts/lib/season-card-print.js` holds the whole layout; the two templates carry
+nothing but a DATA block and a call into it, so the batter and pitcher cards
+cannot drift apart. Each page auto-fits by binary-searching scale factors against
+a headless measurement — page 1 scales its panels, page 2 scales the log's type
+(limited by page width) and its row height (limited by page height) separately,
+because a short log runs out of width long before it runs out of height. Nothing
+is allowed to overflow, and `render-batch.py` fails a card whose PDF is not
+exactly two pages.
+
+Panel legends are collected into one key block at the foot of page 1 rather than
+sitting inside each panel. Four ragged legend blocks in half-width panels cost
+far more height than one paragraph wrapping across the page, and that height is
+what decides how large the numbers print.
+
 ## What's on a card
 
 Batter card panels: PRODUCTION / PLATE DISCIPLINE / HIT BREAKDOWN / BASE RUNNING
-& DEFENSE, plus a full-width PLATOON SPLITS strip and the game log.
+& DEFENSE, plus the full-width PLATOON SPLITS, BY COUNT and BATTED BALL strips
+and the game log.
 Pitcher card panels: RUN PREVENTION / COMMAND & RATES / HITTERS AGAINST /
 WORKLOAD & DEFENSE.
 
 **Four panels, always.** New stats go INSIDE an existing panel — that is a
 standing owner preference, not an accident of layout. The defense rows were added
 to BASE RUNNING and WORKLOAD rather than as a fifth panel for exactly this reason.
+
+The full-width strips are not a fifth panel: they are a print-layout move. A row
+tagged `wide` in a panel's data is hoisted out and laid across the page, because
+a slash line or five count buckets do not fit in a half-width column. `wide`
+alone lands in PLATOON SPLITS; `wide:TITLE` opens a strip with that title. The
+data still says which of the four panels the row belongs to — BY COUNT is
+PLATE DISCIPLINE's, BATTED BALL is HIT BREAKDOWN's.
+
+### wOBA and wRC+ (batter cards)
+
+In PRODUCTION, after the slash line, where Baseball Savant puts them: the rate
+stats that the slash line rolls up to, ahead of the derived and counting stats.
+Both come from `scripts/runvalues.py`, which replays the league's own
+play-by-play to derive TCL run values rather than borrowing MLB's. wRC+ is
+indexed to TCL runs per plate appearance, so 100 is an average TCL hitter. **No
+park factor** is applied — the league publishes none, and inventing one would be
+worse than leaving it out. Say so if anyone asks why a card's wRC+ differs from a
+site that parks-adjusts.
+
+### Count splits and batted-ball direction (batter cards)
+
+From `scripts/advanced.py`. The count bucket comes from the count Presto printed
+for the plate appearance, never from reading the pitch letters, so it doesn't
+depend on a scorer telling a swinging strike from a called one. Direction comes
+from where the scorer said the ball went. **Whiff rate is deliberately absent** —
+it would require trusting swing-and-miss entry, which the owner does not.
+
+The BATTED BALL strip always carries a `Located` cell: how many balls in play had
+a direction recorded and how many were omitted. Presto often writes "singled"
+with no direction, and those are dropped, never guessed. Print the count so the
+percentages can't be mistaken for the whole season.
 
 ### Defense (every card)
 

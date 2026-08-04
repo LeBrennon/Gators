@@ -25,11 +25,11 @@ What it computes, and why each is trustworthy here:
 Deliberately NOT computed:
   - Whiff / swinging-strike rate. It requires trusting that scorers entered
     swing-and-miss versus called strikes correctly, which the owner does not.
-  - wOBA / wRC+ — not yet. scripts/runvalues.py derives this league's own run
-    values rather than borrowing MLB's, and its two official gates (runs against
-    the line score, runners left on base against the inning summary) currently
-    clear only 58% of half-innings. Weights built on the subset that passes would
-    be biased toward quiet innings. See that module for what still needs work.
+
+wOBA and wRC+ live in scripts/runvalues.py, which derives this league's own run
+values rather than borrowing MLB's. They ship now that its two official gates
+(runs against the line score, runners left on base against the inning summary)
+clear 97% of half-innings.
 
 Every split is gated: the buckets must add back up to the plate appearances the
 card already reports, and spray must add up to balls in play.
@@ -38,12 +38,17 @@ import json, re, sys, collections, importlib.util, os
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, 'scripts'))
-_spec = importlib.util.spec_from_file_location('psd', os.path.join(ROOT, 'scripts', 'player-season-data.py'))
-psd = importlib.util.module_from_spec(_spec)
-_argv, sys.argv = sys.argv, ['psd']
-try: _spec.loader.exec_module(psd)
-except SystemExit: pass
-sys.argv = _argv
+# Reuse the caller's copy when there is one — player-season-data.py calls in
+# here, and loading it again would re-parse box-seed.json.
+psd = sys.modules.get('psd')
+if psd is None:
+    _spec = importlib.util.spec_from_file_location('psd', os.path.join(ROOT, 'scripts', 'player-season-data.py'))
+    psd = importlib.util.module_from_spec(_spec)
+    sys.modules['psd'] = psd
+    _argv, sys.argv = sys.argv, ['psd']
+    try: _spec.loader.exec_module(psd)
+    except SystemExit: pass
+    sys.argv = _argv
 
 # Where the ball went -> which third of the field, from the batter's side.
 # Infield positions count as the side they are on; p and c are up the middle.
