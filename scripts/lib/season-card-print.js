@@ -241,7 +241,11 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
 .meta { display: flex; flex-wrap: wrap; justify-content: center; margin-top: 14px; }
 .meta div { font-size: 11.5px; color: #33205e; margin-right: 24px; line-height: 1.7; }
 .meta b { color: #33205e; font-size: 9px; text-transform: uppercase; letter-spacing: .7px; display: block; }
-.striptitle { font-family: 'Poppins', Georgia, serif; margin: 12px 45px 0; font-size: 10.5px; font-weight: 700; letter-spacing: 2.2px; color: #33205e; text-transform: uppercase; }
+/* Title left, gold-number line right, on one row above the strip — the note
+   belongs at the top right of the purple bubble. It wraps to its own line rather
+   than squeezing the title if a card ever sets the note wide enough to collide. */
+.striphead { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 14px; margin: 12px 45px 0; }
+.striptitle { font-family: 'Poppins', Georgia, serif; font-size: 10.5px; font-weight: 700; letter-spacing: 2.2px; color: #33205e; text-transform: uppercase; }
 .strip { margin: 6px 45px 0; background: #33205e; border-radius: 8px; padding: 11px 6px; display: flex; justify-content: space-around; border: 2px solid #ecc913; }
 .strip .stat { text-align: center; }
 .strip .sv { font-family: Georgia, serif; font-size: 23px; font-weight: 800; color: #ecc913; }
@@ -271,7 +275,7 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
 /* A legend is one long sentence per panel, so it has to wrap inside its half.
    Its size is deliberately NOT scaled: it is reference text, and letting it
    grow with the panel would take the room away from the numbers. */
-.ranknote { margin: calc(7px * var(--g)) 49px 0; font-size: calc(17px * var(--s)); color: #33205e; }
+.ranknote { margin-left: auto; text-align: right; font-size: calc(17px * var(--s)); color: #33205e; }
 .ranknote b { color: #8a6b00; font-weight: 800; }
 .legends { margin: calc(6px * var(--g)) 49px 0; font-size: calc(16.4px * var(--s)); line-height: 1.45; color: #33205e; }
 .legends .lgrp { display: inline; }
@@ -369,9 +373,9 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
   </div>
   <img class="tclid" src="${tcl}" alt="">
 </div>
-<div class="striptitle">${esc(DATA.seasonTitle)}</div>
+<div class="striphead"><div class="striptitle">${esc(DATA.seasonTitle)}</div>${rankNote}</div>
 <div class="strip">${seasonTiles}</div>
-${rankNote}${keyRow}<div class="grid">${panels}</div>${legendBlock}
+${keyRow}<div class="grid">${panels}</div>${legendBlock}
 </div>
 <div class="page p2">
 <div class="band slim">

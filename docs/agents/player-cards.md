@@ -206,9 +206,14 @@ are **Presto's own**, read off each player's league player page and cached by
 `scripts/fetch-ranks.py` into `data/league-ranks.json`. Re-run that script when
 the league updates; the cache is committed so a card render stays reproducible.
 
-The line explaining the gold number sits **directly under the season strip**, not
-in the key block at the foot — the strip is where a reader meets his first gold
-number, so that is where the explanation belongs.
+The line explaining the gold number sits at the **top right of the season strip**,
+sharing a row with the "Season Totals" title, not in the key block at the foot —
+the strip is where a reader meets his first gold number, so that is where the
+explanation belongs. Sharing the title's row rather than taking one of its own is
+also worth a little type: it bought the fullest batter card 0.65 → 0.67.
+
+It appears only when the card has at least one rank, so pitcher cards and a
+batter with none (Cooley, Guidry) carry the title alone.
 
 Four rules decide whether a rank prints:
 
