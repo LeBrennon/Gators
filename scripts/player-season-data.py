@@ -95,8 +95,19 @@ _RANKS = None
 # Card stat label -> the key it goes by in Presto's season line and rank table.
 RANK_KEYS = {'G': 'gp', 'PA': 'pa', 'AB': 'ab', 'H': 'h', '2B': '2b', '3B': '3b',
              'HR': 'hr', 'RBI': 'rbi', 'R': 'r', 'BB': 'bb', 'K': 'k', 'HBP': 'hbp',
-             'SF': 'sf', 'SB': 'sb', 'CS': 'cs', 'TB': 'tb', 'AVG': 'avg',
+             'SF': 'sf', 'SB': 'sb', 'TB': 'tb', 'CS': 'cs', 'AVG': 'avg',
              'OBP': 'obp', 'SLG': 'slg'}
+# Stats where placing high is the opposite of a distinction. They print their
+# number and no rank: a hitter should not learn from his own card that he was
+# 6th in the league for striking out, or 4th at being thrown out stealing.
+# Owner's call, and the same one behind the original caught-stealing rule.
+#
+# Presto ranks every one of these — the refusal is ours, not a gap in the data —
+# so they stay in RANK_KEYS and are turned away here, where the reason is
+# written down. An absence from that map would look like an oversight and get
+# "fixed". GIDP and E have no Presto key today and rank nowhere; they are listed
+# so that adding one later doesn't quietly put a rank on them.
+NO_RANK = {'K', 'CS', 'GIDP', 'E'}
 RANK_TOP = 50   # below this the number stops being a distinction worth printing
 
 def _rank_num(s):
@@ -110,6 +121,26 @@ def _same(ours, theirs):
     a = '0' if a == '-' else a.lstrip('0') or '0'
     b = '0' if b == '-' else b.lstrip('0') or '0'
     return a == b
+
+# League honors, keyed by full name, printed on both batter and pitcher cards.
+# All-TCL Team is from the league's own TCL Updates email. Weekly Player/Pitcher
+# of the Week are from texascollegiateleague.com, each confirmed by opening that
+# week's own article and reading its headline — not taken off a category listing,
+# which returned conflicting winners for the same week slot more than once.
+#
+# Week 8 Pitcher of the Week is deliberately NOT here. texascollegiateleague.com
+# carries two different articles for that slot: one names Drew Wenske (Victoria)
+# for 2026, the other Parker Primeaux credited to the Gators — confirmed by the
+# owner to be a 2025 Gator, a season box-seed.json doesn't cover, which is why
+# he turns up nowhere in it. The site's article URLs carry no season, so a
+# search or category listing can hand back either year under the same "Week 8"
+# slug. Owner-confirmed, not just excluded on suspicion.
+AWARDS = {
+    'Bankston Lembcke': ['2026 All-TCL Team — Utility'],
+    'Cole Flanagan': ['2026 All-TCL Team — Pitcher', 'TCL Week 4 Pitcher of the Week'],
+    'Diego Corrales': ['2026 All-TCL Team — Pitcher', 'TCL Week 1 Pitcher of the Week'],
+    'Matt Scott': ['TCL Week 7 Player of the Week'],
+}
 
 # A card whose scope is not "this player's TCL line" can't take the league's
 # totals, and a slug the site itself never resolved isn't his line to take.
@@ -149,6 +180,7 @@ def ranker(player):
     rec = _RANKS.get(player) or {}
     ranks, line = rec.get('ranks') or {}, rec.get('line') or {}
     def rank_of(label, value):
+        if label in NO_RANK: return None
         key = RANK_KEYS.get(label)
         if not key or key not in ranks or key not in line: return None
         if not _same(value, line[key]): return None
@@ -561,34 +593,38 @@ def batter_card(player, mobile=False):
     woba, wrc = sibling('runvalues').player_rates(
         {'AB': ab, 'BB': bb, 'HBP': hbp, 'SF': sf, 'PA': pa,
          '1B': one, '2B': two, '3B': thr, 'HR': hr})
-    # Batted-ball direction and count buckets, rebuilt from play-by-play.
-    # Print cards hoist "wide:" rows into a full-width panel of their own.
-    spray_rows, count_rows = [], []
+    # Count buckets, rebuilt from play-by-play. Print cards hoist "wide:" rows
+    # into a full-width panel of their own.
+    #
+    # The BATTED BALL strip (pull/centre/oppo) is deliberately off the card by
+    # owner decision. scripts/advanced.py still derives it — the numbers are
+    # sound and the omitted count was printed alongside them — so restoring it
+    # is a matter of emitting the rows again, not rebuilding anything.
+    count_rows = []
     if not mobile:
         _adv_mod = sibling('advanced')
         adv = _adv_mod.batter_splits(player)
-        sp, placed, omitted = adv['spray'], adv['spray_placed'], adv['spray_omitted']
-        if placed:
-            spray_rows = [[k.capitalize(), '%.0f%%' % (100 * sp.get(k, 0) / placed),
-                           'wide:BATTED BALL', f"{sp.get(k, 0)} BALLS IN PLAY"]
-                          for k in ('pull', 'center', 'oppo')]
-            # The omitted count travels with the numbers: Presto often writes
-            # "singled" with no direction, and those are dropped, never guessed.
-            spray_rows.append(['Located', f'{placed} of {placed + omitted}', 'wide:BATTED BALL',
-                               f'{omitted} OMITTED — NO DIRECTION RECORDED'])
         count_rows = [[k.capitalize(), _adv_mod.avg(adv['count'][k]), 'wide:BY COUNT',
-                       f"{adv['count'][k].get('H', 0)}-FOR-{adv['count'][k].get('AB', 0)} · {adv['count'][k]['PA']} PA"]
+                       # "8-for-37", not "8-FOR-37": this prints as fine type under the
+                       # bucket, and a capitalised word is harder to read there than a
+                       # lower-case one. PA stays capital — it is an abbreviation.
+                       f"{adv['count'][k].get('H', 0)}-for-{adv['count'][k].get('AB', 0)} · {adv['count'][k]['PA']} PA"]
                       for k in ('first pitch', 'ahead', 'even', 'behind', 'two-strike')
                       if adv['count'].get(k)]
     rank_of = ranker(player)
     DATA = {
         'name': player, 'num': str(bio.get('num') or ''), 'pos': bio.get('pos') or '—',
+        'awards': AWARDS.get(player, []),
         'bt': bt, 'cls': bio.get('cls') or '—', 'school': bio.get('school') or '—',
         'home': bio.get('home') or '—', 'htwt': bio.get('htwt') or '—', 'bday': '—',
         'photoSlug': photo_slug(player),
         'seasonTitle': 'Season Totals — Hitting',
+        # Every tile here is a stat the TCL ranks, so the strip reads as a row of
+        # league placings rather than a row of numbers with one gap in it. OPS is
+        # the one headline stat Presto publishes no rank for, so it comes off —
+        # owner's call. It still prints in PRODUCTION below.
         'season': [['G', str(gp)], ['PA', str(pa)], ['AVG', f3(avg)], ['OBP', f3(obp)],
-                   ['SLG', f3(slg)], ['OPS', f3(obp + slg)], ['HR', str(hr)], ['RBI', str(rbi)], ['SB', str(sb)]],
+                   ['SLG', f3(slg)], ['HR', str(hr)], ['RBI', str(rbi)], ['SB', str(sb)]],
         'groups': [
             # Order follows Baseball Savant: the slash line, then the run-value
             # rate stats it rolls up to, then the derived and counting stats.
@@ -596,16 +632,15 @@ def batter_card(player, mobile=False):
                             ['wOBA', f3(woba) if woba is not None else '—'],
                             ['wRC+', '%.0f' % wrc if wrc is not None else '—'],
                             ['ISO', f3(slg - avg)], ['BABIP', f3(babip)], ['XBH', str(two + thr + hr)], ['TB', str(tb)],
-                            [f'vs LHP ({lpa} PA)', f'{f3(lavg)}/{f3(lobp)}/{f3(lslg)}', 'wide', f'AVG · OBP · SLG — OPS {f3(lobp + lslg)}'],
-                            [f'vs RHP ({rpa} PA)', f'{f3(ravg)}/{f3(robp)}/{f3(rslg)}', 'wide', f'AVG · OBP · SLG — OPS {f3(robp + rslg)}']],
+                            [f'vs LHP ({lpa} PA)', f'{f3(lavg)}/{f3(lobp)}/{f3(lslg)}', 'wide', 'AVG · OBP · SLG'],
+                            [f'vs RHP ({rpa} PA)', f'{f3(ravg)}/{f3(robp)}/{f3(rslg)}', 'wide', 'AVG · OBP · SLG']],
              'OBP = on-base pct (H+BB+HBP per PA) · SLG = total bases per AB · OPS = OBP + SLG · wOBA = on-base value weighted by what each outcome is worth, on TCL run values · wRC+ = runs created vs the TCL average (100 = average, no park factor) · ISO = isolated power (SLG − AVG) · BABIP = batting avg on balls in play · XBH = extra-base hits · TB = total bases'],
             ['PLATE DISCIPLINE', [['BB%', '%.1f' % (100 * bb / pa if pa else 0)], ['K%', '%.1f' % (100 * k / pa if pa else 0)],
                                   ['BB:K', '%.2f' % (bb / k if k else 0)], ['PA', str(pa)], ['BB', str(bb)], ['K', str(k)],
                                   ['HBP', str(hbp)], ['SF', str(sf)]] + count_rows,
              'BB% = walks per PA · K% = strikeouts per PA · SF = sacrifice flies (not an AB) · BY COUNT = batting average in the count the plate appearance ended on'],
             ['HIT BREAKDOWN', [['H', str(h)], ['1B', str(one)], ['2B', str(two)], ['3B', str(thr)],
-                               ['HR', str(hr)], ['RBI', str(rbi)], ['R', str(r)], ['GIDP', str(tot.get('GIDP', 0))]] + spray_rows,
-             'BATTED BALL = where the ball was hit, from his own side of the plate — pull, up the middle, opposite field'],
+                               ['HR', str(hr)], ['RBI', str(rbi)], ['R', str(r)], ['GIDP', str(tot.get('GIDP', 0))]]],
             [f'BASE RUNNING{" & DEFENSE" if drows else ""}',
              [['SB', str(sb)], ['CS', str(cs)],
               ['SB%', '%.1f' % (100 * sb / (sb + cs) if sb + cs else 0)],
@@ -614,9 +649,11 @@ def batter_card(player, mobile=False):
         ],
         'key': [],  # legends moved into each panel (3rd element of its group)
         'logTitle': 'Game by Game — Hitting',
-        'logNote': ('These are the games in our box-score store; the season totals on page 1 are '
-                    f"the league's official line, which credits {gp} G / {pa} PA / {h} H."
-                    if took else ''),
+        # Owner call: no note on page 2 explaining a page-1/log mismatch, even
+        # when official_line() means one exists (a two-way player short on box
+        # rows, Matt Scott's two-club scope). The TOTAL row below still sums what
+        # is actually printed above it, so the page itself stays internally
+        # consistent — only the explanation of a mismatch against page 1 is gone.
         'logCols': ['Date'] + (['Tm'] if multi else []) + ['Opponent' if not mobile else 'Opp',
                     'Result' if not mobile else 'Res', 'PA', 'AB', 'R', 'H', 'RBI', 'BB', 'K', 'SB', 'AVG'],
         'log': games,
@@ -805,6 +842,7 @@ def pitcher_card(player, mobile=False):
     drows, dleg = defense(player, 'p', mobile)
     DATA = {
         'name': player, 'num': str(bio.get('num') or ''), 'pos': bio.get('pos') or 'P',
+        'awards': AWARDS.get(player, []),
         'bt': bio.get('bt') or '—', 'cls': bio.get('cls') or '—', 'school': bio.get('school') or '—',
         'home': bio.get('home') or '—', 'htwt': bio.get('htwt') or '—', 'bday': '—',
         'photoSlug': photo_slug(player),

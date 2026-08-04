@@ -88,12 +88,16 @@ function render(DATA, stemArg) {
     if (legend) legends.push([title, legend]);
     return `<div class="panel"><div class="ptitle">${esc(title)}</div>` +
     `<div class="sg">` +
+    // Label, value and rank are laid on shared columns across the whole panel
+    // (see .sg), so every row contributes exactly three cells — the rank span is
+    // emitted even when empty. Drop it on the rankless rows and every following
+    // row shifts a column left.
     rows.map(([l, v, w, sub, rk]) => { if (rk) anyRank = true;
       return `<div class="sr"><span class="sl2">${esc(l)}</span>` +
       (sub
         ? `<span class="sv2sub"><span class="sv2">${esc(v)}</span><span class="svsub">${esc(sub)}</span></span>`
         : `<span class="sv2">${esc(v)}</span>`) +
-      (rk ? `<span class="rk">${esc(rk)}</span>` : '') +
+      `<span class="rk">${rk ? esc(rk) : ''}</span>` +
       `</div>`; }).join('') +
     `</div></div>`;
   };
@@ -114,19 +118,42 @@ function render(DATA, stemArg) {
   const splitRows = wideGroups.get('PLATOON SPLITS') || [];
   if (splitRows.length && !splitRows.some(r => /^Total/.test(r[0])))
     splitRows.unshift([`Total (${seasonMap['PA'] || ''} PA)`, `${seasonMap['AVG']}/${seasonMap['OBP']}/${seasonMap['SLG']}`,
-                       'wide', `AVG · OBP · SLG — OPS ${seasonMap['OPS']}`]);
+                       'wide', 'AVG · OBP · SLG']);
   // Order: Total, then RH side, then LH side
   const splitOrder = r => (/^Total/.test(r[0]) ? 0 : r[0].includes('RH') ? 1 : 2);
   splitRows.sort((a, b) => splitOrder(a) - splitOrder(b));
-  // Horizontal cells stretch the rows across the full panel width. Platoon
-  // splits read label-then-slash-line on one line; the shorter buckets stack so
-  // five of them still fit across the page.
+  // A slash line whose sub-label names its own parts ("AVG · OBP · SLG") is laid
+  // out as columns, so each label sits centred under the number it belongs to
+  // instead of running the three together on one line underneath all of them.
+  // Derived from the sub rather than hardcoded, so the pitcher card's vs LHB /
+  // vs RHB lines get the same treatment without knowing about them here.
+  //
+  // Anything after the em dash — the OPS roll-up — is dropped: it has no column
+  // to sit under, and OPS is already on the card in PRODUCTION and the season
+  // strip. Returns null for a value that isn't a slash line (the count buckets),
+  // which fall through to the plain label-under-value form.
+  const slashCols = (v, sub) => {
+    const nums = String(v).split('/');
+    const labs = String(sub || '').split('—')[0].split('·').map(s => s.trim()).filter(Boolean);
+    if (nums.length < 2 || labs.length !== nums.length) return null;
+    return `<span class="slash">` + nums.map((n, i) =>
+      (i ? `<span class="sldiv">/</span>` : '') +
+      `<span class="slcol"><span class="sv2">${esc(n)}</span>` +
+      `<span class="svsub slab">${esc(labs[i])}</span></span>`).join('') + `</span>`;
+  };
+  // Horizontal cells stretch the rows across the full panel width, each one
+  // setting its label above its value so a long label and a long value don't
+  // have to share a line they can't both fit on.
   const mkWidePanel = (title, rows) =>
     `<div class="panel full"><div class="ptitle">${esc(title)}</div>` +
-    `<div class="sg splitrow${title === 'PLATOON SPLITS' ? '' : ' stack'}">` +
-    rows.map(([l, v, , sub]) =>
-      `<div class="splitcell"><span class="sl2">${esc(l)}</span><span class="sv2sub"><span class="sv2">${esc(v)}</span>` +
-      (sub ? `<span class="svsub">${esc(sub)}</span>` : '') + `</span></div>`).join('') +
+    `<div class="sg splitrow">` +
+    rows.map(([l, v, , sub]) => {
+      const cols = slashCols(v, sub);
+      return `<div class="splitcell"><span class="sl2">${esc(l)}</span>` +
+        (cols || `<span class="sv2sub"><span class="sv2">${esc(v)}</span>` +
+                 (sub ? `<span class="svsub">${esc(sub)}</span>` : '') + `</span>`) +
+        `</div>`;
+    }).join('') +
     `</div></div>`;
 
   const units = halfGroups.map(g => ({ html: mkPanel(g), full: false }));
@@ -138,8 +165,13 @@ function render(DATA, stemArg) {
     else if (i + 1 < units.length && !units[i + 1].full) { panels += `<div class="prow">${units[i].html}${units[i + 1].html}</div>`; i += 2; }
     else { panels += `<div class="prow">${units[i].html}</div>`; i++; }
   }
+  // Sits directly under the season strip rather than at the foot of the page:
+  // the strip is where a reader meets his first gold number, so that is where
+  // the line explaining it belongs. It no longer says the cutoff — a player has
+  // no use for the threshold, and naming it invites him to read a missing rank
+  // as a placing just outside it. RANK_TOP still governs which ranks print.
   const rankNote = anyRank
-    ? `<div class="ranknote">The <b>gold number</b> beside a stat is its rank in the Texas Collegiate League — shown when it is top ${DATA.rankTop || 50}.</div>`
+    ? `<div class="ranknote">The <b>gold number</b> beside a stat is its rank in the Texas Collegiate League.</div>`
     : '';
   const legendBlock = legends.length
     ? `<div class="legends">` + legends.map(([t, l]) =>
@@ -170,7 +202,7 @@ function render(DATA, stemArg) {
   // sp scales the stat panels on page 1; f and p scale the log's type and row
   // height on page 2. All three are plain multipliers on a comfortable base
   // size, so a page that runs long shrinks and a page with room to spare grows.
-  function buildHtml(sp, f, p) {
+  function buildHtml(sp, f, p, gap) {
     return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><title>${esc(DATA.name)} — 2026 Summer Stats</title>
 <style>
@@ -181,6 +213,16 @@ function render(DATA, stemArg) {
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #020200; }
 .page { width: 816px; height: 1056px; position: relative; overflow: hidden; background: #f4f2ec; padding-bottom: 46px; display: flex; flex-direction: column; }
+/* Sits inside the page's own 46px foot padding — absolutely positioned, so it is
+   never part of the flex flow the fit measures and costs the type search
+   nothing. Same close on both pages: a card that ends mid-table or mid-panel
+   with no sign-off reads as unfinished. */
+/* bottom:14px (0.15in from the true page edge) got clipped on a real printer —
+   the page had zero PDF margin, but consumer printers still refuse to lay ink
+   within about a quarter inch of the edge regardless. 26px/0.27in clears that
+   with room to spare, and the 46px foot pad still has 11px above the footer
+   before it reaches the content boundary at TARGET. */
+.pagefoot { position: absolute; left: 0; right: 0; bottom: 26px; text-align: center; font-size: 8px; font-weight: 700; letter-spacing: 1.6px; color: #33205e; text-transform: uppercase; opacity: .5; }
 .page.p1 { justify-content: space-between; }
 .page.p2 { justify-content: flex-start; }
 .page + .page { page-break-before: always; break-before: page; }
@@ -192,66 +234,125 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
 .band img.mark { width: 102px; height: 102px; object-fit: contain; margin-right: 22px; }
 .band .org { font-family: 'Poppins', Georgia, serif; font-weight: 800; font-size: 23px; color: #ffd633; letter-spacing: 1.2px; }
 .band .sub { font-family: 'Leckerli One', cursive; font-size: 14px; font-weight: 700; color: #cfc6ea; letter-spacing: 1px; margin-top: 6px; }
-/* page 2 repeats the branding in a slimmer band and names the player again */
-.band.slim { height: 86px; }
-.band.slim img.mark { width: 66px; height: 66px; margin-right: 16px; }
-.band.slim .org { font-size: 16.5px; letter-spacing: 1px; }
-.band.slim .sub { font-size: 11px; margin-top: 3px; }
-.band.slim .who2 { margin-left: auto; text-align: right; }
-.band.slim .who2 .nm { font-family: 'Poppins', Georgia, serif; font-weight: 800; font-size: 21px; color: #fff; letter-spacing: .6px; }
-.band.slim .who2 .rl { font-size: 10.5px; font-weight: 700; color: #ecc913; letter-spacing: 1.6px; margin-top: 4px; text-transform: uppercase; }
+/* Page 2 doesn't repeat the branded band — just names the player, plain text,
+   above the log. Owner's call: page 1 already carries the club identity. A
+   gold rule under it, matching every panel title's rule on page 1, closes it
+   off as a header rather than leaving it floating over white space. */
+.p2name { margin: 26px 45px 0; padding-bottom: 8px; border-bottom: 1.5px solid #ecc913; font-family: 'Poppins', Georgia, serif; font-weight: 800; font-size: 18px; color: #33205e; letter-spacing: .5px; }
+.p2name .p2role { font-family: "Helvetica Neue", Arial, sans-serif; font-weight: 700; font-size: 11px; color: #8a6b00; letter-spacing: 1.2px; margin-left: 10px; text-transform: uppercase; }
 .id { display: flex; padding: 16px 45px 8px; }
 .id .ph { margin-left: 16px; width: 132px; height: 132px; border-radius: 9px; object-fit: cover; object-position: center 15%; border: 4px solid #ecc913; background: #ddd; }
 .id .who { margin-left: 22px; flex: 1; text-align: center; }
 .id .tclid { height: 118px; width: auto; align-self: center; margin-left: 24px; margin-right: 16px; }
 .id h1 { font-family: 'Poppins', Georgia, serif; font-size: 35px; font-weight: 800; color: #33205e; white-space: nowrap; }
 .id .role { font-size: 14px; font-weight: 700; color: #33205e; letter-spacing: 1.4px; margin-top: 3px; }
+/* League honors — a solid gold pill per award, read off the TCL's own
+   announcement (AWARDS in player-season-data.py), never inferred. Sized fixed
+   like the rest of the identity block, so a card carrying one spends a little
+   of its type ceiling on it; only three cards do today. */
+.awards { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 8px; }
+.award { background: #ecc913; color: #33205e; font-family: 'Poppins', Georgia, serif; font-weight: 800; font-size: 10.5px; letter-spacing: .5px; text-transform: uppercase; padding: 4px 12px; border-radius: 20px; white-space: nowrap; }
 .meta { display: flex; flex-wrap: wrap; justify-content: center; margin-top: 14px; }
 .meta div { font-size: 11.5px; color: #33205e; margin-right: 24px; line-height: 1.7; }
 .meta b { color: #33205e; font-size: 9px; text-transform: uppercase; letter-spacing: .7px; display: block; }
-.striptitle { font-family: 'Poppins', Georgia, serif; margin: 12px 45px 0; font-size: 10.5px; font-weight: 700; letter-spacing: 2.2px; color: #33205e; text-transform: uppercase; }
+/* Title left, gold-number line right, on one row above the strip — the note
+   belongs at the top right of the purple bubble. It wraps to its own line rather
+   than squeezing the title if a card ever sets the note wide enough to collide. */
+.striphead { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 14px; margin: 12px 45px 0; }
+.striptitle { font-family: 'Poppins', Georgia, serif; font-size: 10.5px; font-weight: 700; letter-spacing: 2.2px; color: #33205e; text-transform: uppercase; }
 .strip { margin: 6px 45px 0; background: #33205e; border-radius: 8px; padding: 11px 6px; display: flex; justify-content: space-around; border: 2px solid #ecc913; }
 .strip .stat { text-align: center; }
 .strip .sv { font-family: Georgia, serif; font-size: 23px; font-weight: 800; color: #ecc913; }
-.strip .sl { font-size: 8.5px; color: #fcef9d; letter-spacing: 1.2px; margin-top: 3px; }
+/* Extra-bold rather than the unstyled default weight — thin light-on-purple
+   text at 8.5px is the first thing to wash out on a real printer, even though
+   it reads fine on screen. */
+.strip .sl { font-size: 11px; font-weight: 800; color: #fcef9d; letter-spacing: 1.2px; margin-top: 3px; }
 /* TCL rank, the website's gold number. Bright gold on the dark strip; a deeper
    gold in the panels, where the page is cream and #ecc913 all but disappears. */
-.strip .srk { font-size: 8.5px; font-weight: 700; color: #ecc913; margin-top: 3px; }
-.sr .rk { font-size: calc(9px * var(--s)); font-weight: 700; color: #8a6b00; margin-left: 6px; align-self: center; white-space: nowrap; }
-.p1 { --s: ${sp.toFixed(3)}; }
-.keytitle { font-family: 'Poppins', Georgia, serif; margin: calc(8px * var(--s)) 45px 0; font-size: 8px; font-weight: 800; letter-spacing: 2px; color: #33205e; text-transform: uppercase; }
-.key { margin: 2px 45px 0; font-size: calc(9.5px * var(--s)); color: #33205e; line-height: 1.5; }
+.strip .srk { font-size: 11px; font-weight: 700; color: #ecc913; margin-top: 3px; }
+/* The rank sits in its own track, so it lines up down the panel too. It is
+   CENTRED against the stat, not baselined with it: the rank is smaller type, so
+   sharing a baseline drops its whole body to the foot of the number and it reads
+   as hanging off the bottom rather than belonging to it. */
+.sr .rk { font-size: calc(18px * var(--s)); font-weight: 700; color: #8a6b00; white-space: nowrap;
+  margin-left: calc(4px * var(--s)); align-self: center; }
+/* Below the season strip the type size (--s) and the space between things (--g)
+   scale independently, because the owner asked for double-size stats on one
+   page: the fit spends --g down to nothing before it will give back a point of
+   --s. Type bases below are DOUBLE what they were when the two moved together. */
+.p1 { --s: ${sp.toFixed(3)}; --g: ${gap.toFixed(3)}; }
+.keytitle { font-family: 'Poppins', Georgia, serif; margin: calc(8px * var(--g)) 45px 0; font-size: 8px; font-weight: 800; letter-spacing: 2px; color: #33205e; text-transform: uppercase; }
+.key { margin: 2px 45px 0; font-size: calc(19px * var(--s)); color: #33205e; line-height: 1.4; }
 .key .ki { white-space: nowrap; }
 .key .ki b { color: #33205e; letter-spacing: .3px; }
 .key .ksep { color: #fcef9d; margin: 0 5px; font-weight: 800; }
-.grid { margin: calc(14px * var(--s)) 40px 0; }
-.prow { display: flex; margin-bottom: calc(4px * var(--s)); }
-.panel { padding: calc(7px * var(--s)) 9px calc(6px * var(--s)); width: 50%; min-width: 0; }
+.grid { margin: calc(14px * var(--g)) 40px 0; }
+.prow { display: flex; margin-bottom: calc(4px * var(--g)); }
+.panel { padding: calc(7px * var(--g)) 9px calc(6px * var(--g)); width: 50%; min-width: 0; }
 .panel.full { width: 100%; }
-.ptitle { font-family: 'Poppins', Georgia, serif; font-size: calc(12px * var(--s)); font-weight: 800; letter-spacing: 1.8px; color: #33205e; border-bottom: 1.5px solid #ecc913; padding-bottom: 4px; margin-bottom: calc(7px * var(--s)); }
+.ptitle { font-family: 'Poppins', Georgia, serif; font-size: calc(24px * var(--s)); font-weight: 800; letter-spacing: 1.8px; color: #33205e; border-bottom: 1.5px solid #ecc913; padding-bottom: calc(4px * var(--g)); margin-bottom: calc(7px * var(--g)); }
 /* A legend is one long sentence per panel, so it has to wrap inside its half.
    Its size is deliberately NOT scaled: it is reference text, and letting it
    grow with the panel would take the room away from the numbers. */
-.ranknote { margin: calc(7px * var(--s)) 49px 0; font-size: 8.6px; color: #33205e; }
+.ranknote { margin-left: auto; text-align: right; font-size: calc(17px * var(--s)); color: #33205e; }
 .ranknote b { color: #8a6b00; font-weight: 800; }
-.legends { margin: calc(6px * var(--s)) 49px 0; font-size: 8.2px; line-height: 1.55; color: #33205e; }
+.legends { margin: calc(6px * var(--g)) 49px 0; font-size: calc(16.4px * var(--s)); line-height: 1.45; color: #33205e; }
 .legends .lgrp { display: inline; }
-.legends .lgrp b { font-family: 'Poppins', Georgia, serif; letter-spacing: .8px; }
+/* The panel name each definition belongs to is underlined, so a run-in heading
+   reads as a heading rather than as the first term being defined. Underlined in
+   the text's own purple, not the gold used for the panel rules above — gold is
+   nearly invisible against the cream page at this size, which is the same reason
+   the ranks are set in #8a6b00. */
+.legends .lgrp b { font-family: 'Poppins', Georgia, serif; letter-spacing: .8px;
+  text-decoration: underline; text-decoration-thickness: .8px; text-underline-offset: 2.5px; }
 .legends .lgrp + .lgrp:before { content: ''; display: block; }
 .ld { white-space: nowrap; }
 .lsep { color: #ecc913; margin-right: 3px; }
-.sg { display: flex; flex-wrap: wrap; }
-.sr { width: 50%; display: flex; justify-content: flex-start; gap: 4px; padding: calc(4px * var(--s)) 8px; font-size: calc(14px * var(--s)); }
-.sg.splitrow { display: flex; gap: 10px; font-size: calc(14px * var(--s)); }
-.splitcell { flex: 1; display: flex; gap: 8px; align-items: flex-start; justify-content: center; padding: calc(4px * var(--s)) 2px; min-width: 0; }
-.splitcell .sl2 { min-width: 0; }
-/* five count buckets across the page only fit if the label sits above the value */
-.sg.splitrow.stack .splitcell { flex-direction: column; align-items: center; gap: 2px; text-align: center; }
-.sg.splitrow.stack .sv2sub { align-items: center; }
-.sl2 { color: #33205e; font-weight: 700; letter-spacing: .5px; display: inline-block; min-width: calc(62px * var(--s)); white-space: nowrap; }
+/* A panel's stats sit on SHARED columns, not one flex row each. Row-by-row, a
+   value started wherever its own label happened to end, so BB% 15.2 / BB:K 1.19
+   / BB 25 each began at a different x and the panel read as ragged. Six tracks —
+   label, value, rank for the left stat, the same three for the right — put every
+   label, every value and every rank of a panel in one line with each other.
+   Auto-placement keeps the old order: odd rows fill the left three, even the
+   right three, which is exactly what the 50%-wide rows used to do. */
+.sg { display: grid; grid-template-columns: repeat(2, max-content max-content minmax(0, 1fr));
+      column-gap: calc(6px * var(--s)); row-gap: calc(7px * var(--g));
+      align-items: baseline; justify-items: start; }
+/* The row itself generates no box — its three children are the grid items. Its
+   old padding therefore moves onto the label (the row's first cell) and into
+   the grid's own gaps. */
+.sr { display: contents; font-size: calc(28px * var(--s)); }
+.sg.splitrow { display: flex; gap: 10px; font-size: calc(28px * var(--s)); }
+/* Every strip sets its label above its value. Five count buckets only fit that
+   way, and at double type so do three platoon splits: side-by-side, the label
+   and the slash line each want most of a third of the page, and a cell that
+   narrow used to let them overlap rather than admit it didn't fit. */
+.splitcell { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center;
+             padding: calc(4px * var(--s)) 2px; min-width: 0; }
+.splitcell .sv2sub { align-items: center; }
+/* Never let a nowrap label or value shrink below its own text. It doesn't
+   reflow when it does — it paints over whatever is beside it, and the cell's
+   scrollWidth stays clean, so the fit is told everything is fine. */
+.splitcell .sl2, .splitcell .sv2 { flex-shrink: 0; min-width: 0; max-width: 100%; }
+.sl2 { color: #33205e; font-weight: 700; letter-spacing: .5px; display: inline-block; min-width: calc(62px * var(--s)); white-space: nowrap; padding-left: 8px; }
+/* A strip cell is still its own flex column, so it must not inherit the panel
+   grid's label indent. */
+.splitcell .sl2 { padding-left: 0; }
 .sv2 { color: #020200; font-weight: 800; font-variant-numeric: tabular-nums; }
 .sv2sub { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.25; }
-.svsub { font-size: calc(8px * var(--s)); color: #33205e; font-weight: 700; letter-spacing: 1.1px; }
+/* The line under a strip value — "8-for-37 · 58 PA" beneath a count bucket. It
+   was 8px against the value's 28px and tracked out at 1.1px, which is the worst
+   combination small type can have: wide letter-spacing stops short strings
+   reading as words at all once they are this small. Bigger and tighter. */
+.svsub { font-size: calc(13px * var(--s)); color: #33205e; font-weight: 700; letter-spacing: .4px; }
+/* A slash line set as columns: each part's label centred under its own number,
+   the dividers baseline-aligned with the numbers rather than with the labels.
+   The labels are set well above .svsub's size — they name the three numbers a
+   player looks at first, and at the old size they read as a footnote. */
+.slash { display: flex; align-items: baseline; justify-content: center; gap: 2px; min-width: 0; }
+.slcol { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+.sldiv { flex-shrink: 0; color: #020200; font-weight: 800; }
+.slab { font-size: calc(14px * var(--s)); letter-spacing: .6px; margin-top: 1px; }
 /* A short log can't fill the page by type alone — a 13-column table runs out of
    width long before it runs out of height. So the log has two scales: --f sizes
    the type up to whatever the page is wide enough for, and --p opens the rows
@@ -288,6 +389,7 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
   <div class="who">
     <h1 style="font-size: ${Math.round(35 * Math.min(1, 16 / DATA.name.length) * 10) / 10}px; white-space: nowrap;">${esc(DATA.name.toUpperCase())}</h1>
     <div class="role">#${esc(DATA.num)} &middot; ${esc(DATA.pos)} &middot; B/T: ${esc(DATA.bt)}</div>
+    ${(DATA.awards || []).length ? `<div class="awards">${DATA.awards.map(a => `<span class="award">${esc(a)}</span>`).join('')}</div>` : ''}
     <div class="meta">${[['Class', DATA.cls], ['School', DATA.school], ['Hometown', DATA.home], ['Ht / Wt', DATA.htwt], ['Born', DATA.bday]]
       .filter(([, v]) => v && String(v).trim() !== '' && String(v).trim() !== '—' && String(v).trim().toUpperCase() !== 'N/A')
       .map(([k, v]) => `<div><b>${k}</b>${esc(v)}</div>`).join('')}
@@ -295,26 +397,13 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
   </div>
   <img class="tclid" src="${tcl}" alt="">
 </div>
-<div class="striptitle">${esc(DATA.seasonTitle)}</div>
+<div class="striphead"><div class="striptitle">${esc(DATA.seasonTitle)}</div>${rankNote}</div>
 <div class="strip">${seasonTiles}</div>
-${keyRow}<div class="grid">${panels}</div>${rankNote}${legendBlock}
+${keyRow}<div class="grid">${panels}</div>${legendBlock}
+<div class="pagefoot">Lake Charles Gumbeaux Gators &middot; 2026 Summer Season</div>
 </div>
 <div class="page p2">
-<div class="band slim">
-  <img class="texture" src="${croc}" alt="">
-  <div class="shade"></div>
-  <div class="inner">
-    <img class="mark" src="${logo}" alt="">
-    <div>
-      <div class="org">LAKE CHARLES GUMBEAUX GATORS</div>
-      <div class="sub">2026 Summer Season &middot; Texas Collegiate League</div>
-    </div>
-    <div class="who2">
-      <div class="nm">${esc(DATA.name.toUpperCase())}</div>
-      <div class="rl">#${esc(DATA.num)} &middot; ${esc(DATA.pos)}</div>
-    </div>
-  </div>
-</div>
+<div class="p2name">${esc(DATA.name.toUpperCase())}<span class="p2role">#${esc(DATA.num)} &middot; ${esc(DATA.pos)}</span></div>
 <div class="logbox"><div class="logwrap">
 <h2>${esc(DATA.logTitle)}</h2>
 ${DATA.logNote ? `<div class="lognote">${esc(DATA.logNote)}</div>` : ''}
@@ -323,6 +412,7 @@ ${DATA.logNote ? `<div class="lognote">${esc(DATA.logNote)}</div>` : ''}
 <tbody>${bodyRows}<tr class="tot">${totCells}</tr><tr class="totlab">${labCells}</tr></tbody>
 </table>
 </div></div>
+<div class="pagefoot">Lake Charles Gumbeaux Gators &middot; 2026 Summer Season</div>
 </div>
 <script>window.addEventListener('load',function(){
   var pages=[].slice.call(document.querySelectorAll('.page')).map(function(p){return p.scrollHeight});
@@ -330,7 +420,20 @@ ${DATA.logNote ? `<div class="lognote">${esc(DATA.logNote)}</div>` : ''}
   // reports the overflow — compare it to the wrapper that is pinned to the page.
   var over=[].slice.call(document.querySelectorAll('table')).some(function(t){
     return t.getBoundingClientRect().width > t.parentElement.clientWidth + 1; });
-  document.title=pages.join(',')+','+(over?1:0);
+  // A .sr is pinned to half its panel. When the type grows past what the label
+  // and value fit in, nothing reflows — the text just runs over the column
+  // beside it, so scrollWidth is the only thing that reports it.
+  //
+  // Measure the nowrap label and value too, not just the box around them. A
+  // shrunk-to-nothing child overflows its OWN box while the parent's scrollWidth
+  // stays clean, which is exactly how the platoon splits shipped overlapping.
+  // .sg is in the list because the panel grid sizes its columns to content: when
+  // the type outgrows the panel the tracks stay whole and the GRID overflows,
+  // which no single cell would report. (.sr generates no box at all now.)
+  var wide=[].slice.call(document.querySelectorAll(
+      '.p1 .sg, .p1 .splitcell, .p1 .sl2, .p1 .sv2, .p1 .svsub')).some(function(e){
+    return e.scrollWidth > e.clientWidth + 1; });
+  document.title=pages.join(',')+','+(over?1:0)+','+(wide?1:0);
 })</script></body></html>`;
   }
 
@@ -345,46 +448,55 @@ ${DATA.logNote ? `<div class="lognote">${esc(DATA.logNote)}</div>` : ''}
     const dom = execFileSync(findChromium(), ['--headless=new', '--no-sandbox', '--disable-gpu',
       '--virtual-time-budget=5000', '--dump-dom', 'file://' + path.resolve(f)], { encoding: 'utf8', maxBuffer: 1 << 26 });
     try { fs.unlinkSync(f); } catch (e) {}
-    const m = dom.match(/<title>(\d+),(\d+),(\d)<\/title>/);
-    return m ? { h1: +m[1], h2: +m[2], over: m[3] === '1' } : { h1: 0, h2: 0, over: false };
+    const m = dom.match(/<title>(\d+),(\d+),(\d),(\d)<\/title>/);
+    return m ? { h1: +m[1], h2: +m[2], over: m[3] === '1', wide: m[4] === '1' }
+             : { h1: 0, h2: 0, over: false, wide: false };
   }
 
-  let sp = 0.5, f = 0.55, p = 0.6;            // known-good floor for both pages
-  const floor = measure(buildHtml(sp, f, p), 'floor');
+  let sp = 0.35, gap = 0.08, f = 0.55, p = 0.6;   // known-good floor for both pages
+  const floor = measure(buildHtml(sp, f, p, gap), 'floor');
   if (floor.h1 > TARGET) console.error('  WARN: page 1 overflows even at its smallest (' + floor.h1 + 'px)');
   if (floor.h2 > TARGET) console.error('  WARN: page 2 overflows even at its smallest (' + floor.h2 + 'px)');
-  // Type size is bounded by BOTH: the page's width (a 13-column log runs out of
-  // width first on a short season) and its height (a 44-game log runs out of
-  // height first). Measuring at the row floor separates the two — whatever
-  // height the type leaves is what pass 2 has to give back to the rows.
-  let lo1 = sp, hi1 = 1.9, lo2 = f, hi2 = 1.7;
+  // Pass 1 — type. Page 1's stat type is searched with its spacing pinned at the
+  // floor, so the layout surrenders every pixel of padding before it gives back
+  // a point of type: the owner asked for double-size stats below the season
+  // strip, on one page. 1.0 is exactly double, and it is the ceiling — the card
+  // never sets larger than asked, only smaller when the page cannot hold it.
+  // Page 2's log type rides along here; it is bounded by page width (a
+  // 13-column log runs out of width first on a short season) and page height
+  // (a 44-game log runs out of height first), measured at the row floor.
+  let lo1 = sp, hi1 = 1.0, lo2 = f, hi2 = 1.7;
   for (let i = 0; i < 8; i++) {
     const m1 = (lo1 + hi1) / 2, m2 = (lo2 + hi2) / 2;
-    const r = measure(buildHtml(m1, m2, p), 'a' + i);
-    if (r.h1 <= TARGET) { sp = m1; lo1 = m1; } else { hi1 = m1; }
-    if (!r.over && r.h2 <= TARGET) { f = m2; lo2 = m2; } else { hi2 = m2; }
+    const r = measure(buildHtml(m1, m2, p, gap), 'a' + i);
+    if (r.h1 <= TARGET && !r.wide) { sp = m1; lo1 = m1; } else { hi1 = m1; }
+    if (r.h2 <= TARGET && !r.over) { f = m2; lo2 = m2; } else { hi2 = m2; }
   }
-  // Rows open up to fill what the type left over, but only so far: past this a
-  // short log reads as a handful of stripes floating on an empty page, and the
-  // leftover space looks better as margin around a centered table.
-  let lo3 = p, hi3 = 2.6;
+  // Pass 2 — space. Whatever the type left over becomes breathing room: page 1's
+  // padding back up toward its natural size, page 2's rows opened out. Both cap
+  // out, because past a point a short log reads as a few stripes floating on an
+  // empty page and the slack looks better as margin around a centred table.
+  let lo3 = p, hi3 = 2.6, lo4 = gap, hi4 = 1.0;
   for (let i = 0; i < 7; i++) {
-    const m3 = (lo3 + hi3) / 2;
-    if (measure(buildHtml(sp, f, m3), 'b' + i).h2 <= TARGET) { p = m3; lo3 = m3; } else { hi3 = m3; }
+    const m3 = (lo3 + hi3) / 2, m4 = (lo4 + hi4) / 2;
+    const r = measure(buildHtml(sp, f, m3, m4), 'b' + i);
+    if (r.h2 <= TARGET) { p = m3; lo3 = m3; } else { hi3 = m3; }
+    if (r.h1 <= TARGET) { gap = m4; lo4 = m4; } else { hi4 = m4; }
   }
   // Last word: a page that still overflows is a page with content cut off it,
   // and the PDF gives no sign of that — it is still two pages. Fail the card.
-  const final = measure(buildHtml(sp, f, p), 'final');
-  if (final.h1 > TARGET || final.h2 > TARGET || final.over) {
+  const final = measure(buildHtml(sp, f, p, gap), 'final');
+  if (final.h1 > TARGET || final.h2 > TARGET || final.over || final.wide) {
     console.error(`  OVERFLOW ${DATA.name}: page 1 ${final.h1}px, page 2 ${final.h2}px` +
-      (final.over ? ', log wider than the page' : '') + ` (limit ${TARGET}px)`);
+      (final.over ? ', log wider than the page' : '') +
+      (final.wide ? ', a stat row wider than its column' : '') + ` (limit ${TARGET}px)`);
     process.exit(1);
   }
 
   fs.mkdirSync(OUT_DIR, { recursive: true });
   const stem = stemArg || path.join(OUT_DIR, DATA.name + ' - 2026 Summer Stats');
   const tmp = path.join(os.tmpdir(), 'player-season-card-' + Date.now() + '.html');
-  fs.writeFileSync(tmp, buildHtml(sp, f, p));
+  fs.writeFileSync(tmp, buildHtml(sp, f, p, gap));
   const out = stem.endsWith('.pdf') ? stem : stem + '.pdf';
   execFileSync(findChromium(), ['--headless=new', '--no-sandbox', '--disable-gpu', '--no-pdf-header-footer',
     '--print-to-pdf=' + out, 'file://' + path.resolve(tmp)], { stdio: 'ignore' });
@@ -392,7 +504,7 @@ ${DATA.logNote ? `<div class="lognote">${esc(DATA.logNote)}</div>` : ''}
   // eyeball the layout in an environment with no PDF viewer.
   if (process.env.PSC_KEEP_HTML) fs.copyFileSync(tmp, out.replace(/\.pdf$/, '.html'));
   try { fs.unlinkSync(tmp); } catch (e) {}
-  console.log('wrote ' + out + `  (page 1 ${sp.toFixed(2)}, page 2 type ${f.toFixed(2)} rows ${p.toFixed(2)})`);
+  console.log('wrote ' + out + `  (page 1 type ${sp.toFixed(2)}x of double, space ${gap.toFixed(2)}; page 2 type ${f.toFixed(2)} rows ${p.toFixed(2)})`);
 }
 
 module.exports = { render };

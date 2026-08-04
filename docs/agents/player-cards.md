@@ -45,6 +45,19 @@ Use the box-score spelling of a name in a roster file — that is what
 says "Matthew Scott"; the roster-file spelling has to be the latter or the script
 exits without finding him.
 
+## League awards
+
+`AWARDS` in `player-season-data.py`, keyed by full name, prints as a gold pill
+under the role line on page 1 — All-TCL Team, TCL Player/Pitcher of the Week.
+**An award goes in only after its own article or announcement has been opened
+and read**, never off a category-listing summary: texascollegiateleague.com's
+listing page returned a different winner for the same week slot than the
+week's own article more than once while this was researched. Cross-check a weekly-award name against `box-seed.json` before adding it: the
+site's article URLs carry no season, so the same "Week N" slug can hand back a
+prior year's winner. That's why Week 8 Pitcher of the Week is unset — the
+credited name never appears in a 2026 Gators box score, and the owner confirmed
+he's a 2025 Gator.
+
 ## Two pages
 
 A print card is **two letter pages**: page 1 is every stat, page 2 is the
@@ -66,11 +79,98 @@ sitting inside each panel. Four ragged legend blocks in half-width panels cost
 far more height than one paragraph wrapping across the page, and that height is
 what decides how large the numbers print.
 
+### Page 1's type target, and why it lands short
+
+Below the season strip, page 1 scales its **type** (`--s`) separately from the
+**space between things** (`--g`), and the fit spends every pixel of padding
+before it gives back a point of type. The owner asked for double-size stats, so
+`--s` is expressed as a fraction of double: **1.0 is exactly double, and it is
+the ceiling** — the card never sets larger than asked, only smaller when the page
+cannot hold it.
+
+With everything currently on the card, a batter card reaches about **0.65 of
+double** (~18px against the 12.6px it set before) with the spacing already pinned
+at its floor. The constraint is content volume, not padding — and it is flat
+across the batch: a 7-game card and a 44-game card land within a whisker of each
+other, because page 1's content barely varies with games played. Pitcher cards
+reach ~0.85, having one fewer strip and no ranks.
+
+**The shortfall is accepted, and nothing comes off the card to close it.** That
+is an owner decision, taken against measured alternatives, so don't "fix" the
+shortfall later by deleting content or by rebalancing the fit:
+
+| Page-1 content | Type reached |
+|---|---|
+| Everything (what ships) | 0.65 |
+| − key/legend block | 0.88–0.95 |
+| − key/legend − BY COUNT | 0.96 |
+| − key/legend − BY COUNT − platoon splits | 1.00 |
+
+(The alternatives were measured before the strips were made to stack, which cost
+the shipping card about 0.04; they are still the right order of magnitude.)
+
+Moving the legend or the strips to page 2 was measured too, and it is worse, not
+better: on a 36–44 game card the log already fills page 2, so the moved block
+sets at ~5px. Page 2 has spare room only on the light cards, which are the ones
+that least need it.
+
+### A panel's stats sit on shared columns
+
+Each of the four panels is **one grid**, not a stack of independent rows: six
+tracks — label, value, rank for the left stat, the same three for the right.
+Every label, every value and every rank in a panel therefore lines up with the
+others. Laid out row by row instead, a value starts wherever its own label
+happens to end, which is how `BB% 15.2` / `BB:K 1.19` / `BB 25` each came to
+begin at a different x.
+
+Two things this depends on, both easy to undo by accident:
+
+- **Every row emits exactly three cells.** The rank span is written even when the
+  row has no rank. Drop it on the rankless rows and every following row shifts a
+  column left, shearing the panel.
+- **Auto-placement carries the left/right order.** Odd rows fill the first three
+  tracks, even rows the last three — the same thing the old 50%-wide rows did. So
+  the order rows arrive in still decides which side a stat lands on.
+
+`.sr` generates no box at all now (`display: contents`), so its old padding lives
+on the label and in the grid's gaps — and it is useless to the overflow guard,
+which watches `.sg` instead.
+
+**Nothing on page 1 reflows when it runs out of room — it overlaps.** A `.sg` is
+a grid sized to its own content and a `.splitcell` is pinned to its share of a
+strip, so type that outgrows the space either overflows the panel whole or paints
+over whatever is beside it. Only `scrollWidth` reports either, so the fit refuses
+any size where it happens and fails the card outright if the final choice does.
+
+The guard has to measure the **label and value themselves**, not just the box
+around them. A nowrap child that is allowed to shrink below its own text
+overflows its own box while its parent's `scrollWidth` stays clean — so the fit
+is told everything is fine. That is exactly how the platoon splits shipped with
+the label printed over the slash line ("Total (165 P**.331**/.469/.575"): the
+old guard looked only at `.sr` and `.splitcell` and reported zero overflows on a
+page that was visibly scrambled. Don't narrow that selector list, and don't
+reintroduce a `min-width: 0` on `.sl2` / `.sv2` that lets them shrink below
+their text.
+
+For the same reason **every full-width strip stacks** — label above value. Five
+count buckets only fit that way, and at this type size so do three platoon
+splits: side by side, the label and the slash line each want most of a third of
+the page.
+
+A **slash line is set as columns**, each part's label centred under its own
+number rather than the three run together underneath all of them. The labels are
+read off the row's own sub-label ("AVG · OBP · SLG"), not hardcoded, so the
+pitcher card's vs LHB / vs RHB lines get it without the layout knowing about
+them. Anything after the em dash — the OPS roll-up — is dropped: it has no
+column to sit under, and OPS is already in PRODUCTION and the season strip. A
+value that isn't a slash line (the count buckets) falls through to the plain
+label-under-value form.
+
 ## What's on a card
 
 Batter card panels: PRODUCTION / PLATE DISCIPLINE / HIT BREAKDOWN / BASE RUNNING
-& DEFENSE, plus the full-width PLATOON SPLITS, BY COUNT and BATTED BALL strips
-and the game log.
+& DEFENSE, plus the full-width PLATOON SPLITS and BY COUNT strips and the game
+log.
 Pitcher card panels: RUN PREVENTION / COMMAND & RATES / HITTERS AGAINST /
 WORKLOAD & DEFENSE.
 
@@ -81,9 +181,10 @@ to BASE RUNNING and WORKLOAD rather than as a fifth panel for exactly this reaso
 The full-width strips are not a fifth panel: they are a print-layout move. A row
 tagged `wide` in a panel's data is hoisted out and laid across the page, because
 a slash line or five count buckets do not fit in a half-width column. `wide`
-alone lands in PLATOON SPLITS; `wide:TITLE` opens a strip with that title. The
-data still says which of the four panels the row belongs to — BY COUNT is
-PLATE DISCIPLINE's, BATTED BALL is HIT BREAKDOWN's.
+alone lands in PLATOON SPLITS; `wide:TITLE` opens a strip with that title. Every
+strip stacks its label above its value. The data still says which of the four
+panels the row belongs to — BY COUNT is PLATE DISCIPLINE's, BATTED BALL is
+HIT BREAKDOWN's.
 
 ### The league's line is the official number
 
@@ -118,18 +219,48 @@ are **Presto's own**, read off each player's league player page and cached by
 `scripts/fetch-ranks.py` into `data/league-ranks.json`. Re-run that script when
 the league updates; the cache is committed so a card render stays reproducible.
 
-Three rules decide whether a rank prints:
+The line explaining the gold number sits at the **top right of the season strip**,
+sharing a row with the "Season Totals" title, not in the key block at the foot —
+the strip is where a reader meets his first gold number, so that is where the
+explanation belongs. Sharing the title's row rather than taking one of its own is
+also worth a little type: it bought the fullest batter card 0.65 → 0.67.
+
+It appears only when the card has at least one rank, so pitcher cards and a
+batter with none (Cooley, Guidry) carry the title alone.
+
+Four rules decide whether a rank prints:
 
 1. **Top 50 only.** Below that a rank is not a distinction, it is a headcount —
-   Gabe Guidry's best is 58th, so his card carries none.
-2. **Only when the number on the card equals Presto's for that stat.** Since the
+   Gabe Guidry's best is 58th, so his card carries none. The card does not say
+   this: the line explaining the gold number names no cutoff, because a player
+   has no use for the threshold and printing it invites him to read a missing
+   rank as a placing just outside it. `RANK_TOP` still governs which ranks print.
+2. **Never on a stat where placing high is bad.** `NO_RANK` in
+   `player-season-data.py` holds them: **K**, **CS**, and GIDP/E against the day
+   they get a Presto key. A hitter should not learn from his own card that he was
+   6th in the league for striking out, or 4th at being thrown out stealing — the
+   badge reads as a distinction when it is the opposite. The stats still print
+   their number, and still take the league's figure like every other.
+
+   Presto ranks all of them, so the refusal is ours and not a gap in the data.
+   That is why they stay in `RANK_KEYS` and are turned away in `rank_of`: a stat
+   simply missing from the map looks like an oversight and invites a "fix".
+   This cost Landreneau his K 6th and Sunday his K 11th, which is the point.
+3. **Only when the number on the card equals Presto's for that stat.** Since the
    league's line is now what the card prints, this normally holds by
    construction; it is the backstop for the cases that rule can't cover — a card
    whose scope isn't a TCL line (Matt Scott), a stat Presto doesn't publish, and
    a player it has no line for.
-3. **Hitting only.** Presto publishes no pitching ranks at all — not for the
+4. **Hitting only.** Presto publishes no pitching ranks at all — not for the
    league ERA leader, not for anyone. Pitcher cards carry none, and the website
    says the same in its own legend.
+
+**Every tile in the season strip is a stat the TCL ranks**, so the strip reads as
+a row of league placings rather than a row of numbers with one gap in it. OPS was
+the exception — the one headline stat Presto publishes no rank for — and the
+owner took it off the strip for exactly that reason. It still prints in
+PRODUCTION, so nothing left the card. Before adding a tile, check it has a key in
+`RANK_KEYS`; if it doesn't, it will sit there permanently blank.
 
 Do **not** compute ranks from the league leaderboard. That was tried and thrown
 out: the board pages out around 216 hitters, short of the league, and Presto
@@ -148,18 +279,21 @@ park factor** is applied — the league publishes none, and inventing one would 
 worse than leaving it out. Say so if anyone asks why a card's wRC+ differs from a
 site that parks-adjusts.
 
-### Count splits and batted-ball direction (batter cards)
+### Count splits (batter cards)
 
 From `scripts/advanced.py`. The count bucket comes from the count Presto printed
 for the plate appearance, never from reading the pitch letters, so it doesn't
-depend on a scorer telling a swinging strike from a called one. Direction comes
-from where the scorer said the ball went. **Whiff rate is deliberately absent** —
-it would require trusting swing-and-miss entry, which the owner does not.
+depend on a scorer telling a swinging strike from a called one. **Whiff rate is
+deliberately absent** — it would require trusting swing-and-miss entry, which the
+owner does not.
 
-The BATTED BALL strip always carries a `Located` cell: how many balls in play had
-a direction recorded and how many were omitted. Presto often writes "singled"
-with no direction, and those are dropped, never guessed. Print the count so the
-percentages can't be mistaken for the whole season.
+**BATTED BALL is off the card by owner decision.** `advanced.py` still derives
+pull/centre/oppo and still counts how many balls in play had no direction
+recorded, so putting the strip back is a matter of emitting the rows again, not
+rebuilding anything. If it ever returns, the `Located` cell goes with it: Presto
+often writes "singled" with no direction, those are dropped rather than guessed,
+and the count has to travel with the percentages so they can't be read as the
+whole season.
 
 ### Defense (every card)
 

@@ -2602,7 +2602,7 @@ const ROSTER = [
   // (Gators live/box matching is by name; the box/feed list him as "Matthew Scott",
   // so that stays as an `aka` alias — registered in GATOR_BY_NORM —
   // while the roster card shows "Matt".)
-  { num: 22, name: 'Matt Scott', slug: 'matthewscott79tr', pos: 'OF', cls: 'Freshman', ht: '6-4', wt: '190', b: 'R', t: 'R', bday: '07/17/2005', home: 'Lake Charles, LA', school: 'McNeese State', aka: ['Matthew Scott'], priorStint: { slug: 'mattscottjzw4', team: 'Brazos Valley Bombers' } },
+  { num: 22, name: 'Matt Scott', slug: 'matthewscott79tr', pos: 'OF', cls: 'Sophomore', ht: '6-4', wt: '190', b: 'R', t: 'R', bday: '07/17/2005', home: 'Lake Charles, LA', school: 'McNeese State', aka: ['Matthew Scott'], priorStint: { slug: 'mattscottjzw4', team: 'Brazos Valley Bombers' } },
   // Added off the 7/16 gameday roster (pitchers). HS Senior committed to McNeese; bio
   // per the gameday sheet. Now pitching, so his real Presto slug (jackgarcille9sq9, resolved
   // from the team roster page) is set directly so his bundled headshot shows and season stats flow.
