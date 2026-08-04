@@ -331,12 +331,16 @@ ${keyRow}<div class="grid">${panels}</div>${legendBlock}
   const floor = measure(buildHtml(sp, f, p), 'floor');
   if (floor.h1 > TARGET) console.error('  WARN: page 1 overflows even at its smallest (' + floor.h1 + 'px)');
   if (floor.h2 > TARGET) console.error('  WARN: page 2 overflows even at its smallest (' + floor.h2 + 'px)');
+  // Type size is bounded by BOTH: the page's width (a 13-column log runs out of
+  // width first on a short season) and its height (a 44-game log runs out of
+  // height first). Measuring at the row floor separates the two — whatever
+  // height the type leaves is what pass 2 has to give back to the rows.
   let lo1 = sp, hi1 = 1.9, lo2 = f, hi2 = 1.7;
   for (let i = 0; i < 8; i++) {
     const m1 = (lo1 + hi1) / 2, m2 = (lo2 + hi2) / 2;
     const r = measure(buildHtml(m1, m2, p), 'a' + i);
     if (r.h1 <= TARGET) { sp = m1; lo1 = m1; } else { hi1 = m1; }
-    if (!r.over) { f = m2; lo2 = m2; } else { hi2 = m2; }
+    if (!r.over && r.h2 <= TARGET) { f = m2; lo2 = m2; } else { hi2 = m2; }
   }
   // Rows open up to fill what the type left over, but only so far: past this a
   // short log reads as a handful of stripes floating on an empty page, and the
@@ -345,6 +349,14 @@ ${keyRow}<div class="grid">${panels}</div>${legendBlock}
   for (let i = 0; i < 7; i++) {
     const m3 = (lo3 + hi3) / 2;
     if (measure(buildHtml(sp, f, m3), 'b' + i).h2 <= TARGET) { p = m3; lo3 = m3; } else { hi3 = m3; }
+  }
+  // Last word: a page that still overflows is a page with content cut off it,
+  // and the PDF gives no sign of that — it is still two pages. Fail the card.
+  const final = measure(buildHtml(sp, f, p), 'final');
+  if (final.h1 > TARGET || final.h2 > TARGET || final.over) {
+    console.error(`  OVERFLOW ${DATA.name}: page 1 ${final.h1}px, page 2 ${final.h2}px` +
+      (final.over ? ', log wider than the page' : '') + ` (limit ${TARGET}px)`);
+    process.exit(1);
   }
 
   fs.mkdirSync(OUT_DIR, { recursive: true });
