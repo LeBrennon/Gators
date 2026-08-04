@@ -213,6 +213,11 @@ function render(DATA, stemArg) {
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #020200; }
 .page { width: 816px; height: 1056px; position: relative; overflow: hidden; background: #f4f2ec; padding-bottom: 46px; display: flex; flex-direction: column; }
+/* Sits inside the page's own 46px foot padding — absolutely positioned, so it is
+   never part of the flex flow the fit measures and costs the type search
+   nothing. Same close on both pages: a card that ends mid-table or mid-panel
+   with no sign-off reads as unfinished. */
+.pagefoot { position: absolute; left: 0; right: 0; bottom: 14px; text-align: center; font-size: 8px; font-weight: 700; letter-spacing: 1.6px; color: #33205e; text-transform: uppercase; opacity: .5; }
 .page.p1 { justify-content: space-between; }
 .page.p2 { justify-content: flex-start; }
 .page + .page { page-break-before: always; break-before: page; }
@@ -225,8 +230,10 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
 .band .org { font-family: 'Poppins', Georgia, serif; font-weight: 800; font-size: 23px; color: #ffd633; letter-spacing: 1.2px; }
 .band .sub { font-family: 'Leckerli One', cursive; font-size: 14px; font-weight: 700; color: #cfc6ea; letter-spacing: 1px; margin-top: 6px; }
 /* Page 2 doesn't repeat the branded band — just names the player, plain text,
-   above the log. Owner's call: page 1 already carries the club identity. */
-.p2name { margin: 26px 45px 0; font-family: 'Poppins', Georgia, serif; font-weight: 800; font-size: 18px; color: #33205e; letter-spacing: .5px; }
+   above the log. Owner's call: page 1 already carries the club identity. A
+   gold rule under it, matching every panel title's rule on page 1, closes it
+   off as a header rather than leaving it floating over white space. */
+.p2name { margin: 26px 45px 0; padding-bottom: 8px; border-bottom: 1.5px solid #ecc913; font-family: 'Poppins', Georgia, serif; font-weight: 800; font-size: 18px; color: #33205e; letter-spacing: .5px; }
 .p2name .p2role { font-family: "Helvetica Neue", Arial, sans-serif; font-weight: 700; font-size: 11px; color: #8a6b00; letter-spacing: 1.2px; margin-left: 10px; text-transform: uppercase; }
 .id { display: flex; padding: 16px 45px 8px; }
 .id .ph { margin-left: 16px; width: 132px; height: 132px; border-radius: 9px; object-fit: cover; object-position: center 15%; border: 4px solid #ecc913; background: #ddd; }
@@ -234,6 +241,12 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
 .id .tclid { height: 118px; width: auto; align-self: center; margin-left: 24px; margin-right: 16px; }
 .id h1 { font-family: 'Poppins', Georgia, serif; font-size: 35px; font-weight: 800; color: #33205e; white-space: nowrap; }
 .id .role { font-size: 14px; font-weight: 700; color: #33205e; letter-spacing: 1.4px; margin-top: 3px; }
+/* League honors — a solid gold pill per award, read off the TCL's own
+   announcement (AWARDS in player-season-data.py), never inferred. Sized fixed
+   like the rest of the identity block, so a card carrying one spends a little
+   of its type ceiling on it; only three cards do today. */
+.awards { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 8px; }
+.award { background: #ecc913; color: #33205e; font-family: 'Poppins', Georgia, serif; font-weight: 800; font-size: 10.5px; letter-spacing: .5px; text-transform: uppercase; padding: 4px 12px; border-radius: 20px; white-space: nowrap; }
 .meta { display: flex; flex-wrap: wrap; justify-content: center; margin-top: 14px; }
 .meta div { font-size: 11.5px; color: #33205e; margin-right: 24px; line-height: 1.7; }
 .meta b { color: #33205e; font-size: 9px; text-transform: uppercase; letter-spacing: .7px; display: block; }
@@ -368,6 +381,7 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
   <div class="who">
     <h1 style="font-size: ${Math.round(35 * Math.min(1, 16 / DATA.name.length) * 10) / 10}px; white-space: nowrap;">${esc(DATA.name.toUpperCase())}</h1>
     <div class="role">#${esc(DATA.num)} &middot; ${esc(DATA.pos)} &middot; B/T: ${esc(DATA.bt)}</div>
+    ${(DATA.awards || []).length ? `<div class="awards">${DATA.awards.map(a => `<span class="award">${esc(a)}</span>`).join('')}</div>` : ''}
     <div class="meta">${[['Class', DATA.cls], ['School', DATA.school], ['Hometown', DATA.home], ['Ht / Wt', DATA.htwt], ['Born', DATA.bday]]
       .filter(([, v]) => v && String(v).trim() !== '' && String(v).trim() !== '—' && String(v).trim().toUpperCase() !== 'N/A')
       .map(([k, v]) => `<div><b>${k}</b>${esc(v)}</div>`).join('')}
@@ -378,6 +392,7 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
 <div class="striphead"><div class="striptitle">${esc(DATA.seasonTitle)}</div>${rankNote}</div>
 <div class="strip">${seasonTiles}</div>
 ${keyRow}<div class="grid">${panels}</div>${legendBlock}
+<div class="pagefoot">Lake Charles Gumbeaux Gators &middot; 2026 Summer Season</div>
 </div>
 <div class="page p2">
 <div class="p2name">${esc(DATA.name.toUpperCase())}<span class="p2role">#${esc(DATA.num)} &middot; ${esc(DATA.pos)}</span></div>
@@ -389,6 +404,7 @@ ${DATA.logNote ? `<div class="lognote">${esc(DATA.logNote)}</div>` : ''}
 <tbody>${bodyRows}<tr class="tot">${totCells}</tr><tr class="totlab">${labCells}</tr></tbody>
 </table>
 </div></div>
+<div class="pagefoot">Lake Charles Gumbeaux Gators &middot; 2026 Summer Season</div>
 </div>
 <script>window.addEventListener('load',function(){
   var pages=[].slice.call(document.querySelectorAll('.page')).map(function(p){return p.scrollHeight});
