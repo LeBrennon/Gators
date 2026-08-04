@@ -260,6 +260,7 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
 .logwrap { margin: 16px 45px 0; }
 .p2 { --f: ${f.toFixed(3)}; --p: ${p.toFixed(3)}; }
 .p2 h2 { font-family: 'Poppins', Georgia, serif; font-size: calc(15px * var(--f)); color: #33205e; border-bottom: 1.9px solid #ecc913; padding-bottom: calc(4px * var(--f)); margin-bottom: calc(6px * var(--f)); }
+.p2 .lognote { font-size: calc(9px * var(--f)); line-height: 1.45; color: #33205e; margin: calc(-2px * var(--f)) 0 calc(8px * var(--f)); }
 .p2 table { width: 100%; border-collapse: collapse; font-size: calc(11px * var(--f)); }
 .p2 th { background: #33205e; color: #fff; font-size: calc(8px * var(--f)); letter-spacing: .8px; text-transform: uppercase; padding: calc(6px * var(--p)) 4px; text-align: center; }
 .p2 th.l, .p2 td.l { text-align: left; }
@@ -316,6 +317,7 @@ ${keyRow}<div class="grid">${panels}</div>${rankNote}${legendBlock}
 </div>
 <div class="logbox"><div class="logwrap">
 <h2>${esc(DATA.logTitle)}</h2>
+${DATA.logNote ? `<div class="lognote">${esc(DATA.logNote)}</div>` : ''}
 <table>
 <thead><tr>${headCells}</tr></thead>
 <tbody>${bodyRows}<tr class="tot">${totCells}</tr><tr class="totlab">${labCells}</tr></tbody>

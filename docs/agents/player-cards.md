@@ -85,6 +85,31 @@ alone lands in PLATOON SPLITS; `wide:TITLE` opens a strip with that title. The
 data still says which of the four panels the row belongs to — BY COUNT is
 PLATE DISCIPLINE's, BATTED BALL is HIT BREAKDOWN's.
 
+### The league's line is the official number
+
+**Where our play-by-play total and the TCL leaderboard disagree, the leaderboard
+wins and its number goes on the card.** That is an owner ruling, and it is the
+right one: the league's line is what a player sees on his own page, and our
+per-game reconstruction exists to produce the stats Presto does *not* publish —
+platoon splits, spray, count buckets, fielding — not to argue with it about the
+ones it does. `official_line()` in `player-season-data.py` applies it; the rate
+stats are taken as Presto prints them rather than recomputed, because Presto
+rounds where it rounds.
+
+Two players are excluded, and both exclusions are about scope, not doubt:
+
+- **Matt Scott** — his card is a full-season line across Brazos Valley and Lake
+  Charles by owner decision. The TCL page holds only his Gators half, so its
+  totals describe a different season than the card does.
+- **Landon Hennen** — `server.js` carries him as slug `landonhennen` with
+  `findSlug: true`, a placeholder the site never resolved. The page it reaches
+  (1 game, 3 AB) is not the 4 games the boxes credit him.
+
+The game log keeps OUR per-game rows and OUR total — it has to add up to the
+rows printed above it. When that total differs from the league's line, page 2
+says so in a note rather than letting two numbers contradict each other in
+silence.
+
 ### TCL ranks (batter cards)
 
 A small gold number beside a stat is its rank in the Texas Collegiate League —
@@ -97,11 +122,11 @@ Three rules decide whether a rank prints:
 
 1. **Top 50 only.** Below that a rank is not a distinction, it is a headcount —
    Gabe Guidry's best is 58th, so his card carries none.
-2. **Only when our number equals Presto's for that stat.** The rank describes
-   Presto's line. Where the two disagree the rank would be labelling a number it
-   does not belong to, so it is withheld — that is why Matt Scott's full-season
-   card (Presto has only his Gators half) shows almost none, and why the two-way
-   players short of plate appearances show fewer than they will after a reseed.
+2. **Only when the number on the card equals Presto's for that stat.** Since the
+   league's line is now what the card prints, this normally holds by
+   construction; it is the backstop for the cases that rule can't cover — a card
+   whose scope isn't a TCL line (Matt Scott), a stat Presto doesn't publish, and
+   a player it has no line for.
 3. **Hitting only.** Presto publishes no pitching ranks at all — not for the
    league ERA leader, not for anyone. Pitcher cards carry none, and the website
    says the same in its own legend.
