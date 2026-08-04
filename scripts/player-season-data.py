@@ -491,7 +491,8 @@ def batter_card(player, mobile=False):
     hbp = tot['HBP']; sf = tot['SF']
     one = tot['1B']; two = tot['2B']; thr = tot['3B']; hr = tot['HR']
     sb = tot['SB']; cs = tot['CS']; sh = tot['SH']
-    games = len(box)
+    # NOT `games` — that name already holds the game-log rows a few lines up.
+    gp = len(box)
     # What the game log below adds up to, kept separately: those rows are the
     # boxes we hold, and their TOTAL has to equal them whatever the league says.
     log_ab, log_h, log_bb, log_k, log_r, log_rbi = ab, h, bb, k, r, rbi
@@ -513,7 +514,7 @@ def batter_card(player, mobile=False):
             except ValueError: return ours
             if v != ours: took.append(f'{key.upper()} {ours}->{v}')
             return v
-        games = O('gp', games)
+        gp = O('gp', gp)
         ab = O('ab', ab); h = O('h', h); bb = O('bb', bb); k = O('k', k)
         r = O('r', r); rbi = O('rbi', rbi); hbp = O('hbp', hbp); sf = O('sf', sf)
         sh = O('sh', sh); sb = O('sb', sb); cs = O('cs', cs)
@@ -586,7 +587,7 @@ def batter_card(player, mobile=False):
         'home': bio.get('home') or '—', 'htwt': bio.get('htwt') or '—', 'bday': '—',
         'photoSlug': photo_slug(player),
         'seasonTitle': 'Season Totals — Hitting',
-        'season': [['G', str(games)], ['PA', str(pa)], ['AVG', f3(avg)], ['OBP', f3(obp)],
+        'season': [['G', str(gp)], ['PA', str(pa)], ['AVG', f3(avg)], ['OBP', f3(obp)],
                    ['SLG', f3(slg)], ['OPS', f3(obp + slg)], ['HR', str(hr)], ['RBI', str(rbi)], ['SB', str(sb)]],
         'groups': [
             # Order follows Baseball Savant: the slash line, then the run-value
@@ -614,7 +615,7 @@ def batter_card(player, mobile=False):
         'key': [],  # legends moved into each panel (3rd element of its group)
         'logTitle': 'Game by Game — Hitting',
         'logNote': ('These are the games in our box-score store; the season totals on page 1 are '
-                    f"the league's official line, which credits {games} G / {pa} PA / {h} H."
+                    f"the league's official line, which credits {gp} G / {pa} PA / {h} H."
                     if took else ''),
         'logCols': ['Date'] + (['Tm'] if multi else []) + ['Opponent' if not mobile else 'Opp',
                     'Result' if not mobile else 'Res', 'PA', 'AB', 'R', 'H', 'RBI', 'BB', 'K', 'SB', 'AVG'],
@@ -638,7 +639,7 @@ def batter_card(player, mobile=False):
             if not rk: continue
             while len(row) < 4: row.append(None)
             row.append(rk); ranked += 1
-    return DATA, {'games': games, 'mismatched': bad, 'ranked': ranked, 'official': took}
+    return DATA, {'games': gp, 'mismatched': bad, 'ranked': ranked, 'official': took}
 
 _ARMS = {}
 def club_arms(gid, team):
