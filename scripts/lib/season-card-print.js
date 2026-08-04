@@ -266,10 +266,10 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
 /* Extra-bold rather than the unstyled default weight — thin light-on-purple
    text at 8.5px is the first thing to wash out on a real printer, even though
    it reads fine on screen. */
-.strip .sl { font-size: 8.5px; font-weight: 800; color: #fcef9d; letter-spacing: 1.2px; margin-top: 3px; }
+.strip .sl { font-size: 11px; font-weight: 800; color: #fcef9d; letter-spacing: 1.2px; margin-top: 3px; }
 /* TCL rank, the website's gold number. Bright gold on the dark strip; a deeper
    gold in the panels, where the page is cream and #ecc913 all but disappears. */
-.strip .srk { font-size: 8.5px; font-weight: 700; color: #ecc913; margin-top: 3px; }
+.strip .srk { font-size: 11px; font-weight: 700; color: #ecc913; margin-top: 3px; }
 /* The rank sits in its own track, so it lines up down the panel too. It is
    CENTRED against the stat, not baselined with it: the rank is smaller type, so
    sharing a baseline drops its whole body to the foot of the number and it reads
