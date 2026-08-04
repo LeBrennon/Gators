@@ -88,12 +88,16 @@ function render(DATA, stemArg) {
     if (legend) legends.push([title, legend]);
     return `<div class="panel"><div class="ptitle">${esc(title)}</div>` +
     `<div class="sg">` +
+    // Label, value and rank are laid on shared columns across the whole panel
+    // (see .sg), so every row contributes exactly three cells — the rank span is
+    // emitted even when empty. Drop it on the rankless rows and every following
+    // row shifts a column left.
     rows.map(([l, v, w, sub, rk]) => { if (rk) anyRank = true;
       return `<div class="sr"><span class="sl2">${esc(l)}</span>` +
       (sub
         ? `<span class="sv2sub"><span class="sv2">${esc(v)}</span><span class="svsub">${esc(sub)}</span></span>`
         : `<span class="sv2">${esc(v)}</span>`) +
-      (rk ? `<span class="rk">${esc(rk)}</span>` : '') +
+      `<span class="rk">${rk ? esc(rk) : ''}</span>` +
       `</div>`; }).join('') +
     `</div></div>`;
   };
@@ -240,7 +244,10 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
 /* TCL rank, the website's gold number. Bright gold on the dark strip; a deeper
    gold in the panels, where the page is cream and #ecc913 all but disappears. */
 .strip .srk { font-size: 8.5px; font-weight: 700; color: #ecc913; margin-top: 3px; }
-.sr .rk { font-size: calc(18px * var(--s)); font-weight: 700; color: #8a6b00; margin-left: 6px; align-self: center; white-space: nowrap; }
+/* The rank sits in its own track, so it lines up down the panel too. Spacing off
+   the value is the grid's column-gap now, and it baselines with the value rather
+   than centring on the row. */
+.sr .rk { font-size: calc(18px * var(--s)); font-weight: 700; color: #8a6b00; white-space: nowrap; margin-left: calc(4px * var(--s)); }
 /* Below the season strip the type size (--s) and the space between things (--g)
    scale independently, because the owner asked for double-size stats on one
    page: the fit spends --g down to nothing before it will give back a point of
@@ -273,8 +280,20 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
 .legends .lgrp + .lgrp:before { content: ''; display: block; }
 .ld { white-space: nowrap; }
 .lsep { color: #ecc913; margin-right: 3px; }
-.sg { display: flex; flex-wrap: wrap; }
-.sr { width: 50%; display: flex; justify-content: flex-start; gap: 4px; padding: calc(4px * var(--g)) 8px; font-size: calc(28px * var(--s)); }
+/* A panel's stats sit on SHARED columns, not one flex row each. Row-by-row, a
+   value started wherever its own label happened to end, so BB% 15.2 / BB:K 1.19
+   / BB 25 each began at a different x and the panel read as ragged. Six tracks —
+   label, value, rank for the left stat, the same three for the right — put every
+   label, every value and every rank of a panel in one line with each other.
+   Auto-placement keeps the old order: odd rows fill the left three, even the
+   right three, which is exactly what the 50%-wide rows used to do. */
+.sg { display: grid; grid-template-columns: repeat(2, max-content max-content minmax(0, 1fr));
+      column-gap: calc(6px * var(--s)); row-gap: calc(7px * var(--g));
+      align-items: baseline; justify-items: start; }
+/* The row itself generates no box — its three children are the grid items. Its
+   old padding therefore moves onto the label (the row's first cell) and into
+   the grid's own gaps. */
+.sr { display: contents; font-size: calc(28px * var(--s)); }
 .sg.splitrow { display: flex; gap: 10px; font-size: calc(28px * var(--s)); }
 /* Every strip sets its label above its value. Five count buckets only fit that
    way, and at double type so do three platoon splits: side-by-side, the label
@@ -287,7 +306,10 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
    reflow when it does — it paints over whatever is beside it, and the cell's
    scrollWidth stays clean, so the fit is told everything is fine. */
 .splitcell .sl2, .splitcell .sv2 { flex-shrink: 0; min-width: 0; max-width: 100%; }
-.sl2 { color: #33205e; font-weight: 700; letter-spacing: .5px; display: inline-block; min-width: calc(62px * var(--s)); white-space: nowrap; }
+.sl2 { color: #33205e; font-weight: 700; letter-spacing: .5px; display: inline-block; min-width: calc(62px * var(--s)); white-space: nowrap; padding-left: 8px; }
+/* A strip cell is still its own flex column, so it must not inherit the panel
+   grid's label indent. */
+.splitcell .sl2 { padding-left: 0; }
 .sv2 { color: #020200; font-weight: 800; font-variant-numeric: tabular-nums; }
 .sv2sub { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.25; }
 .svsub { font-size: calc(8px * var(--s)); color: #33205e; font-weight: 700; letter-spacing: 1.1px; }
@@ -384,8 +406,11 @@ ${DATA.logNote ? `<div class="lognote">${esc(DATA.logNote)}</div>` : ''}
   // Measure the nowrap label and value too, not just the box around them. A
   // shrunk-to-nothing child overflows its OWN box while the parent's scrollWidth
   // stays clean, which is exactly how the platoon splits shipped overlapping.
+  // .sg is in the list because the panel grid sizes its columns to content: when
+  // the type outgrows the panel the tracks stay whole and the GRID overflows,
+  // which no single cell would report. (.sr generates no box at all now.)
   var wide=[].slice.call(document.querySelectorAll(
-      '.p1 .sr, .p1 .splitcell, .p1 .sl2, .p1 .sv2, .p1 .svsub')).some(function(e){
+      '.p1 .sg, .p1 .splitcell, .p1 .sl2, .p1 .sv2, .p1 .svsub')).some(function(e){
     return e.scrollWidth > e.clientWidth + 1; });
   document.title=pages.join(',')+','+(over?1:0)+','+(wide?1:0);
 })</script></body></html>`;

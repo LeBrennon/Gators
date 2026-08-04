@@ -101,11 +101,33 @@ better: on a 36–44 game card the log already fills page 2, so the moved block
 sets at ~5px. Page 2 has spare room only on the light cards, which are the ones
 that least need it.
 
-**Nothing on page 1 reflows when it runs out of room — it overlaps.** A `.sr` is
-pinned to half its panel and a `.splitcell` to its share of a strip, so type that
-outgrows the space just paints over whatever is beside it. Only `scrollWidth`
-reports that, so the fit refuses any size where it happens and fails the card
-outright if the final choice still does.
+### A panel's stats sit on shared columns
+
+Each of the four panels is **one grid**, not a stack of independent rows: six
+tracks — label, value, rank for the left stat, the same three for the right.
+Every label, every value and every rank in a panel therefore lines up with the
+others. Laid out row by row instead, a value starts wherever its own label
+happens to end, which is how `BB% 15.2` / `BB:K 1.19` / `BB 25` each came to
+begin at a different x.
+
+Two things this depends on, both easy to undo by accident:
+
+- **Every row emits exactly three cells.** The rank span is written even when the
+  row has no rank. Drop it on the rankless rows and every following row shifts a
+  column left, shearing the panel.
+- **Auto-placement carries the left/right order.** Odd rows fill the first three
+  tracks, even rows the last three — the same thing the old 50%-wide rows did. So
+  the order rows arrive in still decides which side a stat lands on.
+
+`.sr` generates no box at all now (`display: contents`), so its old padding lives
+on the label and in the grid's gaps — and it is useless to the overflow guard,
+which watches `.sg` instead.
+
+**Nothing on page 1 reflows when it runs out of room — it overlaps.** A `.sg` is
+a grid sized to its own content and a `.splitcell` is pinned to its share of a
+strip, so type that outgrows the space either overflows the panel whole or paints
+over whatever is beside it. Only `scrollWidth` reports either, so the fit refuses
+any size where it happens and fails the card outright if the final choice does.
 
 The guard has to measure the **label and value themselves**, not just the box
 around them. A nowrap child that is allowed to shrink below its own text
