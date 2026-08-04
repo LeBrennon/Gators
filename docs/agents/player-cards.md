@@ -45,6 +45,18 @@ Use the box-score spelling of a name in a roster file — that is what
 says "Matthew Scott"; the roster-file spelling has to be the latter or the script
 exits without finding him.
 
+## League awards
+
+`AWARDS` in `player-season-data.py`, keyed by full name, prints as a gold pill
+under the role line on page 1 — All-TCL Team, TCL Player/Pitcher of the Week.
+**An award goes in only after its own article or announcement has been opened
+and read**, never off a category-listing summary: texascollegiateleague.com's
+listing page returned a different winner for the same week slot than the
+week's own article more than once while this was researched. Cross-check a
+weekly-award name against `box-seed.json` before adding it — Week 8 Pitcher of
+the Week is deliberately unset because the credited name never appears in a
+Gators box score all season.
+
 ## Two pages
 
 A print card is **two letter pages**: page 1 is every stat, page 2 is the
