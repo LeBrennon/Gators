@@ -230,6 +230,13 @@ Four rules decide whether a rank prints:
    league ERA leader, not for anyone. Pitcher cards carry none, and the website
    says the same in its own legend.
 
+**Every tile in the season strip is a stat the TCL ranks**, so the strip reads as
+a row of league placings rather than a row of numbers with one gap in it. OPS was
+the exception — the one headline stat Presto publishes no rank for — and the
+owner took it off the strip for exactly that reason. It still prints in
+PRODUCTION, so nothing left the card. Before adding a tile, check it has a key in
+`RANK_KEYS`; if it doesn't, it will sit there permanently blank.
+
 Do **not** compute ranks from the league leaderboard. That was tried and thrown
 out: the board pages out around 216 hitters, short of the league, and Presto
 applies a minimum-AB qualifier to the rate stats that the raw board does not.

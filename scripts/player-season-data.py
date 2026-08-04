@@ -595,8 +595,12 @@ def batter_card(player, mobile=False):
         'home': bio.get('home') or '—', 'htwt': bio.get('htwt') or '—', 'bday': '—',
         'photoSlug': photo_slug(player),
         'seasonTitle': 'Season Totals — Hitting',
+        # Every tile here is a stat the TCL ranks, so the strip reads as a row of
+        # league placings rather than a row of numbers with one gap in it. OPS is
+        # the one headline stat Presto publishes no rank for, so it comes off —
+        # owner's call. It still prints in PRODUCTION below.
         'season': [['G', str(gp)], ['PA', str(pa)], ['AVG', f3(avg)], ['OBP', f3(obp)],
-                   ['SLG', f3(slg)], ['OPS', f3(obp + slg)], ['HR', str(hr)], ['RBI', str(rbi)], ['SB', str(sb)]],
+                   ['SLG', f3(slg)], ['HR', str(hr)], ['RBI', str(rbi)], ['SB', str(sb)]],
         'groups': [
             # Order follows Baseball Savant: the slash line, then the run-value
             # rate stats it rolls up to, then the derived and counting stats.
@@ -604,8 +608,8 @@ def batter_card(player, mobile=False):
                             ['wOBA', f3(woba) if woba is not None else '—'],
                             ['wRC+', '%.0f' % wrc if wrc is not None else '—'],
                             ['ISO', f3(slg - avg)], ['BABIP', f3(babip)], ['XBH', str(two + thr + hr)], ['TB', str(tb)],
-                            [f'vs LHP ({lpa} PA)', f'{f3(lavg)}/{f3(lobp)}/{f3(lslg)}', 'wide', f'AVG · OBP · SLG — OPS {f3(lobp + lslg)}'],
-                            [f'vs RHP ({rpa} PA)', f'{f3(ravg)}/{f3(robp)}/{f3(rslg)}', 'wide', f'AVG · OBP · SLG — OPS {f3(robp + rslg)}']],
+                            [f'vs LHP ({lpa} PA)', f'{f3(lavg)}/{f3(lobp)}/{f3(lslg)}', 'wide', 'AVG · OBP · SLG'],
+                            [f'vs RHP ({rpa} PA)', f'{f3(ravg)}/{f3(robp)}/{f3(rslg)}', 'wide', 'AVG · OBP · SLG']],
              'OBP = on-base pct (H+BB+HBP per PA) · SLG = total bases per AB · OPS = OBP + SLG · wOBA = on-base value weighted by what each outcome is worth, on TCL run values · wRC+ = runs created vs the TCL average (100 = average, no park factor) · ISO = isolated power (SLG − AVG) · BABIP = batting avg on balls in play · XBH = extra-base hits · TB = total bases'],
             ['PLATE DISCIPLINE', [['BB%', '%.1f' % (100 * bb / pa if pa else 0)], ['K%', '%.1f' % (100 * k / pa if pa else 0)],
                                   ['BB:K', '%.2f' % (bb / k if k else 0)], ['PA', str(pa)], ['BB', str(bb)], ['K', str(k)],

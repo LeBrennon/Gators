@@ -118,7 +118,7 @@ function render(DATA, stemArg) {
   const splitRows = wideGroups.get('PLATOON SPLITS') || [];
   if (splitRows.length && !splitRows.some(r => /^Total/.test(r[0])))
     splitRows.unshift([`Total (${seasonMap['PA'] || ''} PA)`, `${seasonMap['AVG']}/${seasonMap['OBP']}/${seasonMap['SLG']}`,
-                       'wide', `AVG · OBP · SLG — OPS ${seasonMap['OPS']}`]);
+                       'wide', 'AVG · OBP · SLG']);
   // Order: Total, then RH side, then LH side
   const splitOrder = r => (/^Total/.test(r[0]) ? 0 : r[0].includes('RH') ? 1 : 2);
   splitRows.sort((a, b) => splitOrder(a) - splitOrder(b));
