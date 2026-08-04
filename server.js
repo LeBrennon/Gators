@@ -1967,10 +1967,6 @@ let games = [], featured = null, prevFeatured = null;
 // refreshFeatured with the featured game's live result folded in. Module state
 // because the schedule API and the hero both need it and neither owns it.
 let semifinal = null;
-// Last Gators game we saw pitching for via the live feed. Kept so the rest chart
-// survives the live→final→scraped-box handoff even after `featured` rotates to the
-// next game and before Presto's (bot-gated) final box XML can be scraped.
-let lastGatorsFeedGame = null;
 let lastHtml = '', lastFetchAt = 0;
 const sseClients = new Set(), subscribers = new Set(), startedAnnounced = new Set();
 
@@ -2482,16 +2478,6 @@ async function refreshFeatured() {
       return (s && s.fromBox) || !lineIsShowable(s) || !recIsFull(playerCache[pl.slug]);
     })).then(saveCache).catch(e => logErr('fillStatsFromBoxes(final)', e));
   }
-  // Snapshot the Gators' own game's live-feed pitching (live or just-final) so the
-  // rest chart can keep showing tonight's outings after featured rotates away.
-  if (norm && (norm.status === 'live' || norm.status === 'final') && Array.isArray(norm.pitchers)) {
-    const side = norm.pitchers.find(t => t.isGators);
-    if (side && Array.isArray(side.rows) && side.rows.length) {
-      lastGatorsFeedGame = { id: norm.id, date: norm.date || String(norm.id).slice(0, 8), dateLabel: norm.dateLabel,
-        oppShort: (norm.opponent && (norm.opponent.short || norm.opponent.name)) || '',
-        gatorsHome: !!norm.gatorsHome, live: norm.status === 'live', rows: side.rows };
-    }
-  }
   // Pre-stage the box score: from the 8th inning on, keep the full live pitching
   // feed so the finished box reconciles correctly even after Presto empties the
   // feed at the last out (see retainPrebuildFeed).
@@ -2614,7 +2600,7 @@ const ROSTER = [
   // a "prev." chip on his card), so it's shown but never mistaken for — or added into — his
   // Gators stats. His bundled headshot is re-keyed to the Gators slug in photos/manifest.json.
   // (Gators live/box matching is by name; the box/feed list him as "Matthew Scott",
-  // so that stays as an `aka` alias — registered in GATOR_BY_NORM / ROSTER_BY_NAMEKEY —
+  // so that stays as an `aka` alias — registered in GATOR_BY_NORM —
   // while the roster card shows "Matt".)
   { num: 22, name: 'Matt Scott', slug: 'matthewscott79tr', pos: 'OF', cls: 'Freshman', ht: '6-4', wt: '190', b: 'R', t: 'R', bday: '07/17/2005', home: 'Lake Charles, LA', school: 'McNeese State', aka: ['Matthew Scott'], priorStint: { slug: 'mattscottjzw4', team: 'Brazos Valley Bombers' } },
   // Added off the 7/16 gameday roster (pitchers). HS Senior committed to McNeese; bio
@@ -3462,172 +3448,6 @@ function parsePitchingBB(tableHtml){
     out[k]=bsText(c[bbi]);
   }
   return out;
-}
-// nameKey -> roster player, so a box-score pitcher line can adopt the canonical
-// roster name/number even when Presto abbreviates or reorders it.
-const ROSTER_BY_NAMEKEY={}; for(const _p of ROSTER){ ROSTER_BY_NAMEKEY[nameKey(_p.name)]=_p; for(const a of _p.aka||[]) ROSTER_BY_NAMEKEY[nameKey(a)]=_p; }
-// Whole calendar days between two YYYYMMDD dates (b - a), timezone-agnostic.
-function ymdToUTC(ymd){ return Date.UTC(+ymd.slice(0,4), +ymd.slice(4,6)-1, +ymd.slice(6,8)); }
-function daysBetweenYmd(a,b){ return Math.round((ymdToUTC(b)-ymdToUTC(a))/86400000); }
-// One pitcher's line from a box-score pitching table (headers already lower-cased,
-// first token). Presto's NP column is renamed to "#P" in parseBoxscore, so accept
-// either. Returns null for header/totals rows.
-function pitcherLineFromRow(head, row){
-  const c=cellsOf(row); if(!c.length) return null;
-  const name=bsPitcherName(c[0]); if(!name || /^totals?$/i.test(name)) return null;
-  const key=nameKey(name); if(!key) return null;
-  const g=k=>{ const j=head.indexOf(k); return (j>=0 && c[j]!=null) ? bsText(c[j]) : ''; };
-  const npCol=head.indexOf('#p')>=0 ? '#p' : 'np';
-  return { key, name, np:NUM(g(npCol)), h:g('h'), r:g('r'), er:g('er'), bb:g('bb'), k:g('k') };
-}
-// Manual pitcher-rest outings, used when Presto never publishes a scrapeable box
-// score for a final Gators game — the box XML stays bot-gated past the day-of live
-// window, so the game would otherwise silently drop off the rest chart the next
-// day. Each entry is one game: the date (YYYYMMDD, Central), opponent short name,
-// whether the Gators were home, and every Gators pitcher's final pitch count (#P)
-// read off the box score. Only current-roster names are kept (same as the scraped
-// path). Deduped against scraped finals by date, so once Presto's box becomes
-// available the scraped data takes over and the manual entry self-suppresses —
-// remove it then. Currently empty: Presto is scraping the recent finals fine, so
-// no game needs a manual backfill.
-const MANUAL_REST_OUTINGS = [];
-// Season pitcher-rest chart: for each current-roster Gators pitcher, every
-// appearance (date, opponent, pitch count) across all final games, plus a
-// per-game breakdown that mirrors the coach's hand-written pitch-count sheets for
-// cross-checking. Pitchers who've since left the roster are excluded (only names
-// that match ROSTER are kept). Final
-// boxes are cached/persisted, so this walks the season cheaply. daysRest is left
-// to the caller (it depends on "today"), so the result is date-independent and
-// safe to memoize across a request or two.
-async function computePitcherRest(){
-  const finals=(games||[]).filter(g=>g.state==='final').sort((a,b)=>a.sortKey-b.sortKey);
-  const acc={};              // key -> { key, name, num, outings:[] }
-  const byGame=[];
-  for(const g of finals){
-    let res; try{ res=await fetchBoxPage(g.id); }catch(e){ continue; }
-    if(!(res && res.ok && res.data && res.data.box)) continue;
-    const sec=res.data.box.find(b => /gator/i.test(b.label) && /pitching/i.test(b.label));
-    if(!sec) continue;
-    const rows=rowsOf(sec.html); if(rows.length<2) continue;
-    const head=cellsOf(rows[0]).map(x=>bsText(x).split(/\s+/)[0].toLowerCase());
-    const oppShort=g.opponent.short || g.opponent.name || '';
-    const gamePitchers=[];
-    for(let i=1;i<rows.length;i++){
-      const line=pitcherLineFromRow(head, rows[i]); if(!line) continue;
-      const rp=ROSTER_BY_NAMEKEY[line.key];
-      if(!rp) continue;        // only current-roster pitchers; skip players who've since left
-      const disp=rp.name;
-      const outing={ id:g.id, date:g.date, dateLabel:g.dateLabel, oppShort, gatorsHome:!!g.gatorsHome, np:line.np };
-      const a=acc[line.key] || (acc[line.key]={ key:line.key, name:disp, num:rp.num, outings:[] });
-      a.outings.push(outing);
-      gamePitchers.push({ name:disp, num:rp.num, np:line.np });
-    }
-    if(gamePitchers.length) byGame.push({ id:g.id, date:g.date, dateLabel:g.dateLabel, oppShort, gatorsHome:!!g.gatorsHome, pitchers:gamePitchers });
-  }
-  // Fold in any manually-entered games (MANUAL_REST_OUTINGS) whose Presto box never
-  // became scrapeable, so a real final still shows on the chart. Skip dates already
-  // covered by a scraped final so nothing double-counts.
-  const scrapedDates=new Set(byGame.map(b=>b.date));
-  let manualGames=0;
-  for(const mg of MANUAL_REST_OUTINGS){
-    if(scrapedDates.has(mg.date)) continue;
-    const dateLabel=ymdLabel(mg.date);
-    const gamePitchers=[];
-    for(const mp of mg.pitchers){
-      const key=nameKey(mp.name); const rp=ROSTER_BY_NAMEKEY[key];
-      if(!rp) continue;            // only current-roster pitchers, same as the scraped path
-      const outing={ id:'manual_'+mg.date, date:mg.date, dateLabel, oppShort:mg.oppShort, gatorsHome:!!mg.gatorsHome, np:mp.np };
-      const a=acc[key] || (acc[key]={ key, name:rp.name, num:rp.num, outings:[] });
-      a.outings.push(outing);
-      gamePitchers.push({ name:rp.name, num:rp.num, np:mp.np });
-    }
-    if(gamePitchers.length){ byGame.push({ id:'manual_'+mg.date, date:mg.date, dateLabel, oppShort:mg.oppShort, gatorsHome:!!mg.gatorsHome, pitchers:gamePitchers }); manualGames++; }
-  }
-  const pitchers=Object.values(acc).map(p=>{
-    p.outings.sort((x,y)=>x.date.localeCompare(y.date));
-    for(let i=0;i<p.outings.length;i++) p.outings[i].restBefore = i>0 ? daysBetweenYmd(p.outings[i-1].date, p.outings[i].date) : null;
-    const last=p.outings[p.outings.length-1];
-    p.lastDate=last.date; p.lastLabel=last.dateLabel; p.lastOpp=last.oppShort; p.lastHome=last.gatorsHome; p.lastNp=last.np;
-    p.appearances=p.outings.length;
-    p.totalPitches=p.outings.reduce((s,o)=>s+(o.np||0),0);
-    return p;
-  });
-  byGame.sort((a,b)=>b.date.localeCompare(a.date));
-  return { computedAt:Date.now(), finals:finals.length+manualGames, pitchers, byGame };
-}
-// Memoize the chart briefly — finals rarely change and box pages are cached, but
-// this avoids re-walking the season on every request. daysRest is applied later.
-let _restCache={ at:0, data:null, inflight:null };
-async function getPitcherRest(){
-  if(_restCache.data && Date.now()-_restCache.at < 5*60*1000) return _restCache.data;
-  if(_restCache.inflight) return _restCache.inflight;
-  _restCache.inflight=(async()=>{ try{ const d=await computePitcherRest(); _restCache={ at:Date.now(), data:d, inflight:null }; return d; }
-    catch(e){ logErr('getPitcherRest', e); _restCache.inflight=null; return _restCache.data || { computedAt:0, finals:0, pitchers:[], byGame:[] }; } })();
-  return _restCache.inflight;
-}
-// Today's outings from the featured game's live feed (featured.pitchers), which
-// powers the gamecast. Presto gates the in-game AND freshly-final box XML behind
-// a bot challenge, and the schedule page lags the final by minutes, so the feed
-// is the only timely source: use it both while the game is LIVE and once the feed
-// calls it FINAL, until the official box gets scraped into the finals set (the
-// caller dedupes by game id so it never double-counts). Roster-matched.
-function gatorsOutingsFrom(src){
-  if(!src || !Array.isArray(src.rows)) return null;
-  const outings = [];
-  for(const row of src.rows){
-    const np = row.np != null ? (Number(row.np) || 0) : 0;
-    if(!(np > 0 || (row.ip && parseFloat(row.ip) > 0))) continue;   // actually took the mound
-    const key = nameKey(row.name); const rp = ROSTER_BY_NAMEKEY[key];
-    if(!rp) continue;
-    outings.push({ key, name: rp.name, num: rp.num, np, ip: row.ip });
-  }
-  return outings.length ? { id:src.id, date:src.date, dateLabel:src.dateLabel, oppShort:src.oppShort, gatorsHome:!!src.gatorsHome, live:!!src.live, outings } : null;
-}
-function liveGatorsOutings(){
-  const f = featured;
-  // Prefer the current featured game when it's the Gators playing (live or just-final).
-  if(f && (f.status === 'live' || f.status === 'final') && Array.isArray(f.pitchers)){
-    const side = f.pitchers.find(t => t.isGators);
-    if(side && Array.isArray(side.rows) && side.rows.length){
-      const r = gatorsOutingsFrom({ id:f.id, date:f.date || String(f.id).slice(0,8), dateLabel:f.dateLabel,
-        oppShort:(f.opponent && (f.opponent.short || f.opponent.name)) || '', gatorsHome:f.gatorsHome, live:f.status === 'live', rows:side.rows });
-      if(r) return r;
-    }
-  }
-  // Featured has rotated away: fall back to the remembered Gators game, but only
-  // for today, so a prior-day snapshot never lingers on the chart.
-  if(lastGatorsFeedGame && lastGatorsFeedGame.date === todayCentralYmd()) return gatorsOutingsFrom(lastGatorsFeedGame);
-  return null;
-}
-// Overlay today's featured-game outings onto the (cached, finals-only) chart
-// without mutating the cache: clone each pitcher, append the outing, and recompute
-// the derived fields so a pitcher who threw today shows 0 days rest with his
-// current pitch count. Skipped once the official final box is already in the
-// finals set (dedupe by game id), so live → final → scraped-final is seamless.
-function restWithLive(data){
-  const live = liveGatorsOutings();
-  const finalsIds = new Set((data.byGame || []).map(g => g.id));
-  const apply = live && !finalsIds.has(live.id);
-  const byKey = {};
-  const pitchers = data.pitchers.map(p => { const c = Object.assign({}, p, { outings: p.outings.slice() }); byKey[c.key] = c; return c; });
-  let byGame = data.byGame;
-  if(apply){
-    for(const o of live.outings){
-      let p = byKey[o.key];
-      if(!p){ p = { key:o.key, name:o.name, num:o.num, outings:[] }; byKey[o.key] = p; pitchers.push(p); }
-      p.outings.push({ id:live.id, date:live.date, dateLabel:live.dateLabel, oppShort:live.oppShort, gatorsHome:live.gatorsHome, np:o.np, live:live.live });
-    }
-    for(const p of pitchers){
-      p.outings.sort((x,y)=>x.date.localeCompare(y.date));
-      const last = p.outings[p.outings.length-1];
-      p.lastDate=last.date; p.lastLabel=last.dateLabel; p.lastOpp=last.oppShort; p.lastHome=last.gatorsHome; p.lastNp=last.np; p.lastLive=!!last.live;
-      p.appearances=p.outings.length;
-      p.totalPitches=p.outings.reduce((s,o)=>s+(o.np||0),0);
-    }
-    byGame = [{ id:live.id, date:live.date, dateLabel:live.dateLabel, oppShort:live.oppShort, gatorsHome:live.gatorsHome, live:live.live,
-      pitchers: live.outings.map(o=>({ name:o.name, num:o.num, np:o.np })) }].concat(data.byGame);
-  }
-  return { computedAt:data.computedAt, finals:data.finals, live:!!(apply && live.live), liveGame: apply ? live : null, pitchers, byGame };
 }
 async function boxWalks(gid){
   const c=boxWalkCache[gid];
@@ -4828,87 +4648,6 @@ app.get('/stats', (q, r) => {
   r.set('Cache-Control', 'no-store');
   r.type('html').send(reportPage('Site Visitors', body));
 });
-// Pitchers' rest chart JSON: every Gators pitcher's appearances + days of rest
-// since their last outing, plus a per-game pitch-count breakdown. daysRest is
-// computed here against today's Central date.
-app.get('/api/rest', async (_q, r) => {
-  try {
-    const data = restWithLive(await getPitcherRest());
-    const today = todayCentralYmd();
-    const pitchers = data.pitchers.map(p => Object.assign({}, p, { daysRest: daysBetweenYmd(p.lastDate, today) }))
-      .sort((a, b) => b.lastDate.localeCompare(a.lastDate) || (b.lastNp || 0) - (a.lastNp || 0));
-    r.set('Cache-Control', 'no-store');
-    r.json({ today, finals: data.finals, live: data.live, computedAt: data.computedAt, pitchers, byGame: data.byGame });
-  } catch (err) {
-    r.status(500).json({ error: String(err && err.message || err) });
-  }
-});
-// Pitchers' rest chart page for the pitching coach — mirrors the layout of their
-// hand-written pitch-count sheets so numbers can be cross-checked. Open (unlike
-// /stats): the owner wants to pull it on demand without a key. A ?key= is still
-// accepted but ignored, so the post-game Action's keyed render keeps working.
-app.get('/rest', async (q, r) => {
-  try {
-    const data = restWithLive(await getPitcherRest());
-    const today = todayCentralYmd();
-    const vs = g => (g ? 'vs ' : '@ ');
-    const mmdd = ymd => (+ymd.slice(4, 6)) + '/' + (+ymd.slice(6, 8));
-    const restClass = d => d <= 1 ? 'hot' : d >= 4 ? 'cool' : 'warm';
-    const showGames = !!(q.query && q.query.games);           // by-game detail is opt-in so the chart stays one screen
-    // Compact, mobile-first styling: a single-line-per-pitcher list that fits a
-    // phone width with no horizontal scroll. Injected here so the shared
-    // reportPage shell stays generic.
-    let body = '<style>'
-      + '.rd{margin-bottom:8px;}'
-      + '.rl{list-style:none;margin:6px 0 0;padding:0;border:1px solid var(--line);border-radius:12px;background:var(--bayou2);overflow:hidden;}'
-      + '.rl li{display:flex;align-items:center;gap:8px;padding:3px 12px;border-top:1px solid var(--line);}'
-      + '.rl li:first-child{border-top:none;}'
-      + '.rn{flex:0 0 auto;min-width:18px;text-align:right;font-size:10px;font-weight:800;color:var(--gold2);font-variant-numeric:tabular-nums;}'
-      + '.rnm{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700;font-size:14px;}'
-      + '.rmeta{flex:0 0 auto;color:var(--mute);font-size:11px;font-variant-numeric:tabular-nums;text-align:right;}'
-      + '.rmeta b{color:var(--gold2);font-weight:700;}'
-      + '.rrd{flex:0 0 auto;min-width:32px;text-align:right;font-size:16px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;}'
-      + '.rrd i{font-size:9px;font-weight:700;color:var(--mute);font-style:normal;margin-left:1px;}'
-      + '.rrd.hot{color:var(--loss);}.rrd.warm{color:var(--bone);}.rrd.cool{color:var(--win);}'
-      + '.rd .hot{color:var(--loss);font-weight:700;}.rd .cool{color:var(--win);font-weight:700;}'
-      + '.rlive{display:inline-block;font-size:9px;font-weight:800;letter-spacing:.06em;color:#16102b;background:var(--gold2);border-radius:4px;padding:1px 4px;vertical-align:1px;}'
-      + '.rmeta .lv{color:var(--gold2);font-weight:800;}'
-      + '</style>';
-    body += '<div class="rh"><div class="rt">Pitchers’ Rest</div></div>'
-      + '<div class="rd">' + repEsc(ymdLabel(today))
-      + (data.liveGame ? ' · <span style="color:var(--gold2);font-weight:700">' + (data.liveGame.live ? 'LIVE ' : 'FINAL ') + repEsc(vs(data.liveGame.gatorsHome) + data.liveGame.oppShort) + '</span>' : '')
-      + ' · <span class="hot">red=just threw</span> · <span class="cool">green=rested</span></div>';
-    const pitchers = data.pitchers.map(p => Object.assign({}, p, { daysRest: daysBetweenYmd(p.lastDate, today) }))
-      .sort((a, b) => b.lastDate.localeCompare(a.lastDate) || (b.lastNp || 0) - (a.lastNp || 0));
-    if (!pitchers.length) {
-      body += '<div class="empty">No finished games with Gators pitching yet.</div>';
-    } else {
-      // One line per pitcher: number · name · last outing (pitches + date) · days rest.
-      body += '<ul class="rl">' + pitchers.map(p =>
-        '<li><span class="rn">' + (p.num != null ? p.num : '') + '</span>'
-        + '<span class="rnm">' + repEsc(p.name) + (p.lastLive ? ' <span class="rlive">LIVE</span>' : '') + '</span>'
-        + '<span class="rmeta"><b>' + (p.lastNp || 0) + 'p</b> · ' + (p.lastDate === today ? '<span class="lv">tonight</span>' : repEsc(mmdd(p.lastDate))) + '</span>'
-        + '<span class="rrd ' + restClass(p.daysRest) + '">' + p.daysRest + '<i>d</i></span></li>').join('') + '</ul>';
-      // Per-game pitch counts (for cross-checking hand-written sheets) are opt-in
-      // via ?games=1 so the default view stays a single mobile screen.
-      // Per-game pitch counts are opt-in via ?games=1 so the default view stays a
-      // single mobile screen. No on-page link — it can't work inside an exported
-      // PDF (it would resolve to the render host), so it's reachable by URL only.
-      if (showGames) {
-        body += '<div class="sec">By game</div>';
-        for (const g of data.byGame) {
-          body += '<div class="subh">' + repEsc(g.dateLabel + ' · ' + vs(g.gatorsHome) + g.oppShort) + (g.live ? ' <span class="rlive">LIVE</span>' : (data.liveGame && g.id === data.liveGame.id ? ' <span class="rlive">FINAL</span>' : '')) + '</div>';
-          body += '<ul class="plist">' + g.pitchers.map(pt =>
-            '<li><span class="pinn">' + (pt.np || 0) + ' #P</span> ' + repEsc(pt.name) + '</li>').join('') + '</ul>';
-        }
-      }
-    }
-    r.set('Cache-Control', 'no-store');
-    r.type('html').send(reportPage('Pitchers’ Rest', body));
-  } catch (err) {
-    r.status(500).type('html').send(reportError(String(err && err.message || err)));
-  }
-});
 // The Gators schedule only changes on pollSchedule (~15s); live scores ride on
 // /api/game, not here. So decorate+serialize at most once every few seconds and
 // let concurrent viewers (a full stadium during a game) share the one payload
@@ -5581,7 +5320,7 @@ if (require.main === module) {
     // This is exactly the gap that hid a whole season of missing end-of-inning
     // texts — surface it instead of failing quietly.
     if (INNING_ALERT_TO.length && !mailReady) console.warn('[inning-alert] mailer NOT configured: INNING_ALERT_TO is set but GMAIL_USER/GMAIL_APP_PASSWORD are missing — no texts will send until they are set.');
-    (function scheduleLoop() { pollSchedule().catch(e => logErr('pollSchedule', e)).finally(() => setTimeout(scheduleLoop, schedulePollDelay())); })(); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleRosterRefresh(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); setTimeout(pollStrikePct, 15000); setInterval(pollStrikePct, 3 * 60 * 60 * 1000); setTimeout(getPitcherRest, 20000); scheduleDailyStats(); });
+    (function scheduleLoop() { pollSchedule().catch(e => logErr('pollSchedule', e)).finally(() => setTimeout(scheduleLoop, schedulePollDelay())); })(); setInterval(pollLive, LIVE_POLL_MS); pollRoster(); scheduleRosterRefresh(); pollWatch(); setInterval(pollWatch, 10 * 60 * 1000); pollReplays(); setInterval(pollReplays, 30 * 60 * 1000); loadLocalPhotos(); pollStandings(); setInterval(pollStandings, 30 * 60 * 1000); setTimeout(pollTickets, 8000); setInterval(pollTickets, 30 * 60 * 1000); setTimeout(pollStrikePct, 15000); setInterval(pollStrikePct, 3 * 60 * 60 * 1000); scheduleDailyStats(); });
 }
 module.exports = { parseSchedule, classify, teamsFromChunk, normalizeFeatured, summarizeLive, teamLineScores, summarizePlays, lineupsFromFeed, attachLineupSubLegend, pitchersFromFeed, extractEventAuth,
   dateFromId, ordinal, cap, shortName, fullName, scoreBetween, inningParts, parseBoxscore, parseStandings, applyStandingsOverride, MANUAL_STANDINGS_OVERRIDE, parseReplayList, msUntilNextCentralMidnight, parseLeagueStats, parseLeagueSlugs, parseTeamRosterSlugs, parseGameLog, boxRowsForPlayer, aggBat, aggPit, buildRecord, lineIsShowable, bsAddSeasonAvg, bsBatterName, bsBattingSlugs, ticketCandidates, parseLeagueScoreboard, todayCentralYmd, applyLiveScores, liveScoreCache, pickBoardDate, manualLeagueGame, withManualLeagueGames, MANUAL_LEAGUE_GAMES, pick, finalIsFresh, noteFinals, finalSeenAt, assumedEndMs, feedGameOver, batterPriorPAs, summarizePlays, applyLivePitchCount, applyPitcherOverrides, pitchingTotals, strikeCounts, inningAlertText, finalAlertText,

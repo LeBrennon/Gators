@@ -50,7 +50,7 @@ const names = pdfs.map(p => path.basename(p));
   const nodemailer = require('nodemailer');
   const t = nodemailer.createTransport({ service: 'gmail', auth: { user: USER, pass: PASS } });
   // Subject/body default to the post-game report wording; a caller (e.g. the
-  // GM report cards or the pitchers' rest chart) can override them via env.
+  // GM report cards) can override them via env.
   const subject = process.env.REPORT_SUBJECT || ('Gators Post-Game Report — ' + stem);
   const body = process.env.REPORT_BODY || ('Your Gumbeaux Gators post-game report is attached.\n\n(' + names.join('\n') + ')\n');
   await t.sendMail({
