@@ -263,7 +263,13 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
 .ranknote b { color: #8a6b00; font-weight: 800; }
 .legends { margin: calc(6px * var(--g)) 49px 0; font-size: calc(16.4px * var(--s)); line-height: 1.45; color: #33205e; }
 .legends .lgrp { display: inline; }
-.legends .lgrp b { font-family: 'Poppins', Georgia, serif; letter-spacing: .8px; }
+/* The panel name each definition belongs to is underlined, so a run-in heading
+   reads as a heading rather than as the first term being defined. Underlined in
+   the text's own purple, not the gold used for the panel rules above — gold is
+   nearly invisible against the cream page at this size, which is the same reason
+   the ranks are set in #8a6b00. */
+.legends .lgrp b { font-family: 'Poppins', Georgia, serif; letter-spacing: .8px;
+  text-decoration: underline; text-decoration-thickness: .8px; text-underline-offset: 2.5px; }
 .legends .lgrp + .lgrp:before { content: ''; display: block; }
 .ld { white-space: nowrap; }
 .lsep { color: #ecc913; margin-right: 3px; }
