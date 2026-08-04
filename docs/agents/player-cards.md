@@ -206,10 +206,17 @@ are **Presto's own**, read off each player's league player page and cached by
 `scripts/fetch-ranks.py` into `data/league-ranks.json`. Re-run that script when
 the league updates; the cache is committed so a card render stays reproducible.
 
+The line explaining the gold number sits **directly under the season strip**, not
+in the key block at the foot — the strip is where a reader meets his first gold
+number, so that is where the explanation belongs.
+
 Four rules decide whether a rank prints:
 
 1. **Top 50 only.** Below that a rank is not a distinction, it is a headcount —
-   Gabe Guidry's best is 58th, so his card carries none.
+   Gabe Guidry's best is 58th, so his card carries none. The card does not say
+   this: the line explaining the gold number names no cutoff, because a player
+   has no use for the threshold and printing it invites him to read a missing
+   rank as a placing just outside it. `RANK_TOP` still governs which ranks print.
 2. **Never on a stat where placing high is bad.** `NO_RANK` in
    `player-season-data.py` holds them: **K**, **CS**, and GIDP/E against the day
    they get a Presto key. A hitter should not learn from his own card that he was

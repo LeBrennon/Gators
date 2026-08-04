@@ -165,8 +165,13 @@ function render(DATA, stemArg) {
     else if (i + 1 < units.length && !units[i + 1].full) { panels += `<div class="prow">${units[i].html}${units[i + 1].html}</div>`; i += 2; }
     else { panels += `<div class="prow">${units[i].html}</div>`; i++; }
   }
+  // Sits directly under the season strip rather than at the foot of the page:
+  // the strip is where a reader meets his first gold number, so that is where
+  // the line explaining it belongs. It no longer says the cutoff — a player has
+  // no use for the threshold, and naming it invites him to read a missing rank
+  // as a placing just outside it. RANK_TOP still governs which ranks print.
   const rankNote = anyRank
-    ? `<div class="ranknote">The <b>gold number</b> beside a stat is its rank in the Texas Collegiate League — shown when it is top ${DATA.rankTop || 50}.</div>`
+    ? `<div class="ranknote">The <b>gold number</b> beside a stat is its rank in the Texas Collegiate League.</div>`
     : '';
   const legendBlock = legends.length
     ? `<div class="legends">` + legends.map(([t, l]) =>
@@ -366,7 +371,7 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
 </div>
 <div class="striptitle">${esc(DATA.seasonTitle)}</div>
 <div class="strip">${seasonTiles}</div>
-${keyRow}<div class="grid">${panels}</div>${rankNote}${legendBlock}
+${rankNote}${keyRow}<div class="grid">${panels}</div>${legendBlock}
 </div>
 <div class="page p2">
 <div class="band slim">
