@@ -134,3 +134,89 @@ test('applyLiveScores: a non-featured game the feed reports over is marked final
   assert.equal(out[0].status, 'Final');
   assert.equal(out[0].away.score, 6);
 });
+
+// ---- which day the board shows ----------------------------------------------
+// The board follows the featured game's day, which is right while the Gators are
+// playing. Once they're off the schedule (between rounds, waiting on a semifinal
+// opponent) `featured` sticks on their last final, and the board would freeze on
+// that date — hiding the game that decides who they play next.
+const { pickBoardDate } = require('../server');
+
+test('pickBoardDate: stays on the featured game while it is today or ahead', () => {
+  assert.equal(pickBoardDate('20260730', '20260730', true), '20260730');
+  assert.equal(pickBoardDate('20260801', '20260730', true), '20260801');
+  // No featured date at all falls back to today.
+  assert.equal(pickBoardDate(null, '20260730', true), '20260730');
+});
+
+test('pickBoardDate: falls forward to today once the featured game is behind', () => {
+  assert.equal(pickBoardDate('20260729', '20260730', true), '20260730');
+});
+
+test('pickBoardDate: holds the featured game when today has no league games', () => {
+  // An off day would otherwise trade a real result for an empty board.
+  assert.equal(pickBoardDate('20260729', '20260730', false), '20260729');
+});
+
+// ---- stand-ins for league games the schedule page hasn't posted -------------
+// Presto adds a playoff game only once it's official — for semifinal Game 2 that
+// was the afternoon of. MANUAL_PLAYOFF_GAMES covers the Gators' own schedule;
+// these cover a game between two OTHER teams, which the board had no source for.
+const { manualLeagueGame, withManualLeagueGames, MANUAL_LEAGUE_GAMES } = require('../server');
+
+const VIC = 'jm9r4btii24hhtfp'; // Generals (BOMBERS is already declared above)
+
+// A parsed board row.
+function boardGame(id, date, awayId, homeId, state) {
+  return { id, date, state: state || 'scheduled', status: 'x', isGators: false, url: 'u',
+    away: { id: awayId, short: 'A', logo: null, score: null },
+    home: { id: homeId, short: 'H', logo: null, score: null } };
+}
+
+test('manualLeagueGame builds a scheduled board row at 7:05', () => {
+  const g = manualLeagueGame({ date: '20260730', awayId: BOMBERS, homeId: VIC });
+  assert.equal(g.date, '20260730');
+  assert.equal(g.state, 'scheduled');
+  assert.equal(g.status, '7:05 PM CDT');
+  assert.equal(g.away.id, BOMBERS);
+  assert.equal(g.home.id, VIC);
+  assert.equal(g.isGators, false);
+  assert.equal(g.url, null);       // no box page to link to until the league posts it
+  assert.match(g.id, /^20260730_/);
+});
+
+test('the configured stand-in is semifinal Game 3 at Victoria', () => {
+  const [m] = MANUAL_LEAGUE_GAMES;
+  assert.equal(m.date, '20260730');
+  assert.equal(m.awayId, BOMBERS);   // higher seed hosts Games 2 & 3
+  assert.equal(m.homeId, VIC);
+});
+
+test('withManualLeagueGames fills an empty day', () => {
+  const out = withManualLeagueGames([], '20260730');
+  assert.equal(out.length, 1);
+  assert.equal(out[0].home.id, VIC);
+});
+
+test('withManualLeagueGames only adds stand-ins for the day being shown', () => {
+  assert.deepEqual(withManualLeagueGames([], '20260729'), []);
+});
+
+test('a real posting displaces its stand-in, either orientation', () => {
+  const real = boardGame('20260730_abcd', '20260730', BOMBERS, VIC, 'live');
+  const out = withManualLeagueGames([real], '20260730');
+  assert.equal(out.length, 1);
+  assert.equal(out[0].id, real.id);
+  // Home/away listed the other way round is still the same matchup.
+  const flipped = boardGame('20260730_abcd', '20260730', VIC, BOMBERS, 'live');
+  const out2 = withManualLeagueGames([flipped], '20260730');
+  assert.equal(out2.length, 1);
+  assert.equal(out2[0].id, flipped.id);
+});
+
+test('an unrelated game that day does not displace the stand-in', () => {
+  const other = boardGame('20260730_zzzz', '20260730', 'aaa', 'bbb', 'final');
+  const out = withManualLeagueGames([other], '20260730');
+  assert.equal(out.length, 2);
+  assert.ok(out.some(g => /_tbd$/.test(g.id)));
+});

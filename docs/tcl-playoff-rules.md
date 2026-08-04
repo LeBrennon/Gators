@@ -88,6 +88,45 @@ Season run differential shows as a **DIFF** column on the standings table; the p
 picture shows each seed's reason and any overlap note. Tests live in
 `test/playoffs.test.js`.
 
+## Series scores, and the feed lag behind them
+
+Both the schedule page and the league results page can sit on a finished playoff game
+for hours — Game 2 of the 2026 semifinal was still listed *live with no score* long
+after the last out, while the per-game live feed already had it final. Anything that
+read the series off those pages alone would keep reporting a series a game behind,
+which in a best-of-3 is the difference between "leads 1–0" and "won it".
+
+- **`seriesStatus(list)`** — the Gators' own series (wins, losses, a line per game
+  played) off their schedule. Drives the hero's series line and `/api/standings.series`.
+- **`matchupSeries(log, a, b)`** — the same thing for *any* semifinal, read off the
+  league game log, so the bracket can carry the other series too. Neutral wording —
+  each game is credited to its winner by name.
+- **`withFeaturedResult(list, feat)`** — a **copy** of the schedule with the featured
+  game's live-feed result folded in. Everything that reads a series goes through this
+  first, so the score is right at the last out rather than whenever Presto catches up.
+  Non-mutating on purpose: the cached `games` array keeps whatever the feed said.
+- **`withSemifinalLog(log, sched)`** — the same top-up for the league results log,
+  rebuilding rows for the Gators' semifinal games it hasn't published. Only ever covers
+  the Gators' series; the other semifinal has no second source and waits on the league.
+- **`playoffInfo(date, series)`** — the hero's playoff tag + note for a date. Once a
+  series has a two-win side there is no Game 3, so the "Game 3 (if needed)" note is
+  swapped for where the winner goes next (`SEMIFINAL_WON_NOTE` / `SEMIFINAL_LOST_NOTE`).
+- **`finalistOf(series, slotA, slotB)`** — the team through to the championship out of
+  one semifinal, as a seeded slot noting how they got there ("Beat Cane Cutters 2–0").
+  Null while the series is alive, so the bracket keeps its "Semifinal winner"
+  placeholder for that side. Served as `playoffs.finalists`, one entry per matchup.
+
+Tests live in `test/playoffseries.test.js`.
+
+### 2026 result
+
+The Gators (#3) **swept #2 Acadiana 2–0** — G1 W 2–1 at home 7/28, G2 W 3–1 at Acadiana
+7/29 — so their Game 3 was never played, and they advance to the **championship on
+Saturday, August 1**. Their opponent comes out of #1 Victoria vs #4 Brazos Valley, which
+went to a Game 3 on 7/30. Lake Charles finished 28-19; Victoria 31-18 and Brazos Valley
+24-22 — so the Gators host the championship if Brazos Valley advances, and travel to
+Victoria if the Generals do.
+
 ## Mathematical elimination
 
 `computeElimination(rows, remaining)` marks a non-champion team **Out** on the
