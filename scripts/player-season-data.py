@@ -628,9 +628,11 @@ def batter_card(player, mobile=False):
         ],
         'key': [],  # legends moved into each panel (3rd element of its group)
         'logTitle': 'Game by Game — Hitting',
-        'logNote': ('These are the games in our box-score store; the season totals on page 1 are '
-                    f"the league's official line, which credits {gp} G / {pa} PA / {h} H."
-                    if took else ''),
+        # Owner call: no note on page 2 explaining a page-1/log mismatch, even
+        # when official_line() means one exists (a two-way player short on box
+        # rows, Matt Scott's two-club scope). The TOTAL row below still sums what
+        # is actually printed above it, so the page itself stays internally
+        # consistent — only the explanation of a mismatch against page 1 is gone.
         'logCols': ['Date'] + (['Tm'] if multi else []) + ['Opponent' if not mobile else 'Opp',
                     'Result' if not mobile else 'Res', 'PA', 'AB', 'R', 'H', 'RBI', 'BB', 'K', 'SB', 'AVG'],
         'log': games,
