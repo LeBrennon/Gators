@@ -170,7 +170,7 @@ function render(DATA, stemArg) {
   // sp scales the stat panels on page 1; f and p scale the log's type and row
   // height on page 2. All three are plain multipliers on a comfortable base
   // size, so a page that runs long shrinks and a page with room to spare grows.
-  function buildHtml(sp, f, p) {
+  function buildHtml(sp, f, p, gap) {
     return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><title>${esc(DATA.name)} — 2026 Summer Stats</title>
 <style>
@@ -217,32 +217,36 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
 /* TCL rank, the website's gold number. Bright gold on the dark strip; a deeper
    gold in the panels, where the page is cream and #ecc913 all but disappears. */
 .strip .srk { font-size: 8.5px; font-weight: 700; color: #ecc913; margin-top: 3px; }
-.sr .rk { font-size: calc(9px * var(--s)); font-weight: 700; color: #8a6b00; margin-left: 6px; align-self: center; white-space: nowrap; }
-.p1 { --s: ${sp.toFixed(3)}; }
-.keytitle { font-family: 'Poppins', Georgia, serif; margin: calc(8px * var(--s)) 45px 0; font-size: 8px; font-weight: 800; letter-spacing: 2px; color: #33205e; text-transform: uppercase; }
-.key { margin: 2px 45px 0; font-size: calc(9.5px * var(--s)); color: #33205e; line-height: 1.5; }
+.sr .rk { font-size: calc(18px * var(--s)); font-weight: 700; color: #8a6b00; margin-left: 6px; align-self: center; white-space: nowrap; }
+/* Below the season strip the type size (--s) and the space between things (--g)
+   scale independently, because the owner asked for double-size stats on one
+   page: the fit spends --g down to nothing before it will give back a point of
+   --s. Type bases below are DOUBLE what they were when the two moved together. */
+.p1 { --s: ${sp.toFixed(3)}; --g: ${gap.toFixed(3)}; }
+.keytitle { font-family: 'Poppins', Georgia, serif; margin: calc(8px * var(--g)) 45px 0; font-size: 8px; font-weight: 800; letter-spacing: 2px; color: #33205e; text-transform: uppercase; }
+.key { margin: 2px 45px 0; font-size: calc(19px * var(--s)); color: #33205e; line-height: 1.4; }
 .key .ki { white-space: nowrap; }
 .key .ki b { color: #33205e; letter-spacing: .3px; }
 .key .ksep { color: #fcef9d; margin: 0 5px; font-weight: 800; }
-.grid { margin: calc(14px * var(--s)) 40px 0; }
-.prow { display: flex; margin-bottom: calc(4px * var(--s)); }
-.panel { padding: calc(7px * var(--s)) 9px calc(6px * var(--s)); width: 50%; min-width: 0; }
+.grid { margin: calc(14px * var(--g)) 40px 0; }
+.prow { display: flex; margin-bottom: calc(4px * var(--g)); }
+.panel { padding: calc(7px * var(--g)) 9px calc(6px * var(--g)); width: 50%; min-width: 0; }
 .panel.full { width: 100%; }
-.ptitle { font-family: 'Poppins', Georgia, serif; font-size: calc(12px * var(--s)); font-weight: 800; letter-spacing: 1.8px; color: #33205e; border-bottom: 1.5px solid #ecc913; padding-bottom: 4px; margin-bottom: calc(7px * var(--s)); }
+.ptitle { font-family: 'Poppins', Georgia, serif; font-size: calc(24px * var(--s)); font-weight: 800; letter-spacing: 1.8px; color: #33205e; border-bottom: 1.5px solid #ecc913; padding-bottom: calc(4px * var(--g)); margin-bottom: calc(7px * var(--g)); }
 /* A legend is one long sentence per panel, so it has to wrap inside its half.
    Its size is deliberately NOT scaled: it is reference text, and letting it
    grow with the panel would take the room away from the numbers. */
-.ranknote { margin: calc(7px * var(--s)) 49px 0; font-size: 8.6px; color: #33205e; }
+.ranknote { margin: calc(7px * var(--g)) 49px 0; font-size: calc(17px * var(--s)); color: #33205e; }
 .ranknote b { color: #8a6b00; font-weight: 800; }
-.legends { margin: calc(6px * var(--s)) 49px 0; font-size: 8.2px; line-height: 1.55; color: #33205e; }
+.legends { margin: calc(6px * var(--g)) 49px 0; font-size: calc(16.4px * var(--s)); line-height: 1.45; color: #33205e; }
 .legends .lgrp { display: inline; }
 .legends .lgrp b { font-family: 'Poppins', Georgia, serif; letter-spacing: .8px; }
 .legends .lgrp + .lgrp:before { content: ''; display: block; }
 .ld { white-space: nowrap; }
 .lsep { color: #ecc913; margin-right: 3px; }
 .sg { display: flex; flex-wrap: wrap; }
-.sr { width: 50%; display: flex; justify-content: flex-start; gap: 4px; padding: calc(4px * var(--s)) 8px; font-size: calc(14px * var(--s)); }
-.sg.splitrow { display: flex; gap: 10px; font-size: calc(14px * var(--s)); }
+.sr { width: 50%; display: flex; justify-content: flex-start; gap: 4px; padding: calc(4px * var(--g)) 8px; font-size: calc(28px * var(--s)); }
+.sg.splitrow { display: flex; gap: 10px; font-size: calc(28px * var(--s)); }
 .splitcell { flex: 1; display: flex; gap: 8px; align-items: flex-start; justify-content: center; padding: calc(4px * var(--s)) 2px; min-width: 0; }
 .splitcell .sl2 { min-width: 0; }
 /* five count buckets across the page only fit if the label sits above the value */
@@ -330,7 +334,12 @@ ${DATA.logNote ? `<div class="lognote">${esc(DATA.logNote)}</div>` : ''}
   // reports the overflow — compare it to the wrapper that is pinned to the page.
   var over=[].slice.call(document.querySelectorAll('table')).some(function(t){
     return t.getBoundingClientRect().width > t.parentElement.clientWidth + 1; });
-  document.title=pages.join(',')+','+(over?1:0);
+  // A .sr is pinned to half its panel. When the type grows past what the label
+  // and value fit in, nothing reflows — the text just runs over the column
+  // beside it, so scrollWidth is the only thing that reports it.
+  var wide=[].slice.call(document.querySelectorAll('.p1 .sr, .p1 .splitcell')).some(function(e){
+    return e.scrollWidth > e.clientWidth + 1; });
+  document.title=pages.join(',')+','+(over?1:0)+','+(wide?1:0);
 })</script></body></html>`;
   }
 
@@ -345,46 +354,55 @@ ${DATA.logNote ? `<div class="lognote">${esc(DATA.logNote)}</div>` : ''}
     const dom = execFileSync(findChromium(), ['--headless=new', '--no-sandbox', '--disable-gpu',
       '--virtual-time-budget=5000', '--dump-dom', 'file://' + path.resolve(f)], { encoding: 'utf8', maxBuffer: 1 << 26 });
     try { fs.unlinkSync(f); } catch (e) {}
-    const m = dom.match(/<title>(\d+),(\d+),(\d)<\/title>/);
-    return m ? { h1: +m[1], h2: +m[2], over: m[3] === '1' } : { h1: 0, h2: 0, over: false };
+    const m = dom.match(/<title>(\d+),(\d+),(\d),(\d)<\/title>/);
+    return m ? { h1: +m[1], h2: +m[2], over: m[3] === '1', wide: m[4] === '1' }
+             : { h1: 0, h2: 0, over: false, wide: false };
   }
 
-  let sp = 0.5, f = 0.55, p = 0.6;            // known-good floor for both pages
-  const floor = measure(buildHtml(sp, f, p), 'floor');
+  let sp = 0.35, gap = 0.08, f = 0.55, p = 0.6;   // known-good floor for both pages
+  const floor = measure(buildHtml(sp, f, p, gap), 'floor');
   if (floor.h1 > TARGET) console.error('  WARN: page 1 overflows even at its smallest (' + floor.h1 + 'px)');
   if (floor.h2 > TARGET) console.error('  WARN: page 2 overflows even at its smallest (' + floor.h2 + 'px)');
-  // Type size is bounded by BOTH: the page's width (a 13-column log runs out of
-  // width first on a short season) and its height (a 44-game log runs out of
-  // height first). Measuring at the row floor separates the two — whatever
-  // height the type leaves is what pass 2 has to give back to the rows.
-  let lo1 = sp, hi1 = 1.9, lo2 = f, hi2 = 1.7;
+  // Pass 1 — type. Page 1's stat type is searched with its spacing pinned at the
+  // floor, so the layout surrenders every pixel of padding before it gives back
+  // a point of type: the owner asked for double-size stats below the season
+  // strip, on one page. 1.0 is exactly double, and it is the ceiling — the card
+  // never sets larger than asked, only smaller when the page cannot hold it.
+  // Page 2's log type rides along here; it is bounded by page width (a
+  // 13-column log runs out of width first on a short season) and page height
+  // (a 44-game log runs out of height first), measured at the row floor.
+  let lo1 = sp, hi1 = 1.0, lo2 = f, hi2 = 1.7;
   for (let i = 0; i < 8; i++) {
     const m1 = (lo1 + hi1) / 2, m2 = (lo2 + hi2) / 2;
-    const r = measure(buildHtml(m1, m2, p), 'a' + i);
-    if (r.h1 <= TARGET) { sp = m1; lo1 = m1; } else { hi1 = m1; }
-    if (!r.over && r.h2 <= TARGET) { f = m2; lo2 = m2; } else { hi2 = m2; }
+    const r = measure(buildHtml(m1, m2, p, gap), 'a' + i);
+    if (r.h1 <= TARGET && !r.wide) { sp = m1; lo1 = m1; } else { hi1 = m1; }
+    if (r.h2 <= TARGET && !r.over) { f = m2; lo2 = m2; } else { hi2 = m2; }
   }
-  // Rows open up to fill what the type left over, but only so far: past this a
-  // short log reads as a handful of stripes floating on an empty page, and the
-  // leftover space looks better as margin around a centered table.
-  let lo3 = p, hi3 = 2.6;
+  // Pass 2 — space. Whatever the type left over becomes breathing room: page 1's
+  // padding back up toward its natural size, page 2's rows opened out. Both cap
+  // out, because past a point a short log reads as a few stripes floating on an
+  // empty page and the slack looks better as margin around a centred table.
+  let lo3 = p, hi3 = 2.6, lo4 = gap, hi4 = 1.0;
   for (let i = 0; i < 7; i++) {
-    const m3 = (lo3 + hi3) / 2;
-    if (measure(buildHtml(sp, f, m3), 'b' + i).h2 <= TARGET) { p = m3; lo3 = m3; } else { hi3 = m3; }
+    const m3 = (lo3 + hi3) / 2, m4 = (lo4 + hi4) / 2;
+    const r = measure(buildHtml(sp, f, m3, m4), 'b' + i);
+    if (r.h2 <= TARGET) { p = m3; lo3 = m3; } else { hi3 = m3; }
+    if (r.h1 <= TARGET) { gap = m4; lo4 = m4; } else { hi4 = m4; }
   }
   // Last word: a page that still overflows is a page with content cut off it,
   // and the PDF gives no sign of that — it is still two pages. Fail the card.
-  const final = measure(buildHtml(sp, f, p), 'final');
-  if (final.h1 > TARGET || final.h2 > TARGET || final.over) {
+  const final = measure(buildHtml(sp, f, p, gap), 'final');
+  if (final.h1 > TARGET || final.h2 > TARGET || final.over || final.wide) {
     console.error(`  OVERFLOW ${DATA.name}: page 1 ${final.h1}px, page 2 ${final.h2}px` +
-      (final.over ? ', log wider than the page' : '') + ` (limit ${TARGET}px)`);
+      (final.over ? ', log wider than the page' : '') +
+      (final.wide ? ', a stat row wider than its column' : '') + ` (limit ${TARGET}px)`);
     process.exit(1);
   }
 
   fs.mkdirSync(OUT_DIR, { recursive: true });
   const stem = stemArg || path.join(OUT_DIR, DATA.name + ' - 2026 Summer Stats');
   const tmp = path.join(os.tmpdir(), 'player-season-card-' + Date.now() + '.html');
-  fs.writeFileSync(tmp, buildHtml(sp, f, p));
+  fs.writeFileSync(tmp, buildHtml(sp, f, p, gap));
   const out = stem.endsWith('.pdf') ? stem : stem + '.pdf';
   execFileSync(findChromium(), ['--headless=new', '--no-sandbox', '--disable-gpu', '--no-pdf-header-footer',
     '--print-to-pdf=' + out, 'file://' + path.resolve(tmp)], { stdio: 'ignore' });
@@ -392,7 +410,7 @@ ${DATA.logNote ? `<div class="lognote">${esc(DATA.logNote)}</div>` : ''}
   // eyeball the layout in an environment with no PDF viewer.
   if (process.env.PSC_KEEP_HTML) fs.copyFileSync(tmp, out.replace(/\.pdf$/, '.html'));
   try { fs.unlinkSync(tmp); } catch (e) {}
-  console.log('wrote ' + out + `  (page 1 ${sp.toFixed(2)}, page 2 type ${f.toFixed(2)} rows ${p.toFixed(2)})`);
+  console.log('wrote ' + out + `  (page 1 type ${sp.toFixed(2)}x of double, space ${gap.toFixed(2)}; page 2 type ${f.toFixed(2)} rows ${p.toFixed(2)})`);
 }
 
 module.exports = { render };
