@@ -217,7 +217,12 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
    never part of the flex flow the fit measures and costs the type search
    nothing. Same close on both pages: a card that ends mid-table or mid-panel
    with no sign-off reads as unfinished. */
-.pagefoot { position: absolute; left: 0; right: 0; bottom: 14px; text-align: center; font-size: 8px; font-weight: 700; letter-spacing: 1.6px; color: #33205e; text-transform: uppercase; opacity: .5; }
+/* bottom:14px (0.15in from the true page edge) got clipped on a real printer —
+   the page had zero PDF margin, but consumer printers still refuse to lay ink
+   within about a quarter inch of the edge regardless. 26px/0.27in clears that
+   with room to spare, and the 46px foot pad still has 11px above the footer
+   before it reaches the content boundary at TARGET. */
+.pagefoot { position: absolute; left: 0; right: 0; bottom: 26px; text-align: center; font-size: 8px; font-weight: 700; letter-spacing: 1.6px; color: #33205e; text-transform: uppercase; opacity: .5; }
 .page.p1 { justify-content: space-between; }
 .page.p2 { justify-content: flex-start; }
 .page + .page { page-break-before: always; break-before: page; }
