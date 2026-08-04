@@ -253,10 +253,12 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
 /* TCL rank, the website's gold number. Bright gold on the dark strip; a deeper
    gold in the panels, where the page is cream and #ecc913 all but disappears. */
 .strip .srk { font-size: 8.5px; font-weight: 700; color: #ecc913; margin-top: 3px; }
-/* The rank sits in its own track, so it lines up down the panel too. Spacing off
-   the value is the grid's column-gap now, and it baselines with the value rather
-   than centring on the row. */
-.sr .rk { font-size: calc(18px * var(--s)); font-weight: 700; color: #8a6b00; white-space: nowrap; margin-left: calc(4px * var(--s)); }
+/* The rank sits in its own track, so it lines up down the panel too. It is
+   CENTRED against the stat, not baselined with it: the rank is smaller type, so
+   sharing a baseline drops its whole body to the foot of the number and it reads
+   as hanging off the bottom rather than belonging to it. */
+.sr .rk { font-size: calc(18px * var(--s)); font-weight: 700; color: #8a6b00; white-space: nowrap;
+  margin-left: calc(4px * var(--s)); align-self: center; }
 /* Below the season strip the type size (--s) and the space between things (--g)
    scale independently, because the owner asked for double-size stats on one
    page: the fit spends --g down to nothing before it will give back a point of
