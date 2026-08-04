@@ -69,8 +69,8 @@ what decides how large the numbers print.
 ## What's on a card
 
 Batter card panels: PRODUCTION / PLATE DISCIPLINE / HIT BREAKDOWN / BASE RUNNING
-& DEFENSE, plus the full-width PLATOON SPLITS, BY COUNT and BATTED BALL strips
-and the game log.
+& DEFENSE, plus the full-width PLATOON SPLITS and BY COUNT strips and the game
+log.
 Pitcher card panels: RUN PREVENTION / COMMAND & RATES / HITTERS AGAINST /
 WORKLOAD & DEFENSE.
 
@@ -122,6 +122,9 @@ Three rules decide whether a rank prints:
 
 1. **Top 50 only.** Below that a rank is not a distinction, it is a headcount —
    Gabe Guidry's best is 58th, so his card carries none.
+   **CS is never ranked**, at any position: a rank for being thrown out reads as
+   a distinction when it is the opposite. Caught stealing shows its number and no
+   gold badge. The stat still takes the league's figure like every other.
 2. **Only when the number on the card equals Presto's for that stat.** Since the
    league's line is now what the card prints, this normally holds by
    construction; it is the backstop for the cases that rule can't cover — a card
@@ -148,18 +151,21 @@ park factor** is applied — the league publishes none, and inventing one would 
 worse than leaving it out. Say so if anyone asks why a card's wRC+ differs from a
 site that parks-adjusts.
 
-### Count splits and batted-ball direction (batter cards)
+### Count splits (batter cards)
 
 From `scripts/advanced.py`. The count bucket comes from the count Presto printed
 for the plate appearance, never from reading the pitch letters, so it doesn't
-depend on a scorer telling a swinging strike from a called one. Direction comes
-from where the scorer said the ball went. **Whiff rate is deliberately absent** —
-it would require trusting swing-and-miss entry, which the owner does not.
+depend on a scorer telling a swinging strike from a called one. **Whiff rate is
+deliberately absent** — it would require trusting swing-and-miss entry, which the
+owner does not.
 
-The BATTED BALL strip always carries a `Located` cell: how many balls in play had
-a direction recorded and how many were omitted. Presto often writes "singled"
-with no direction, and those are dropped, never guessed. Print the count so the
-percentages can't be mistaken for the whole season.
+**BATTED BALL is off the card by owner decision.** `advanced.py` still derives
+pull/centre/oppo and still counts how many balls in play had no direction
+recorded, so putting the strip back is a matter of emitting the rows again, not
+rebuilding anything. If it ever returns, the `Located` cell goes with it: Presto
+often writes "singled" with no direction, those are dropped rather than guessed,
+and the count has to travel with the percentages so they can't be read as the
+whole season.
 
 ### Defense (every card)
 

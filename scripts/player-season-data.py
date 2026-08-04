@@ -95,8 +95,10 @@ _RANKS = None
 # Card stat label -> the key it goes by in Presto's season line and rank table.
 RANK_KEYS = {'G': 'gp', 'PA': 'pa', 'AB': 'ab', 'H': 'h', '2B': '2b', '3B': '3b',
              'HR': 'hr', 'RBI': 'rbi', 'R': 'r', 'BB': 'bb', 'K': 'k', 'HBP': 'hbp',
-             'SF': 'sf', 'SB': 'sb', 'CS': 'cs', 'TB': 'tb', 'AVG': 'avg',
+             'SF': 'sf', 'SB': 'sb', 'TB': 'tb', 'AVG': 'avg',
              'OBP': 'obp', 'SLG': 'slg'}
+# CS is deliberately absent: a rank for being thrown out reads as a distinction
+# when it is the opposite, so caught stealing shows its number and no rank.
 RANK_TOP = 50   # below this the number stops being a distinction worth printing
 
 def _rank_num(s):
@@ -561,21 +563,17 @@ def batter_card(player, mobile=False):
     woba, wrc = sibling('runvalues').player_rates(
         {'AB': ab, 'BB': bb, 'HBP': hbp, 'SF': sf, 'PA': pa,
          '1B': one, '2B': two, '3B': thr, 'HR': hr})
-    # Batted-ball direction and count buckets, rebuilt from play-by-play.
-    # Print cards hoist "wide:" rows into a full-width panel of their own.
-    spray_rows, count_rows = [], []
+    # Count buckets, rebuilt from play-by-play. Print cards hoist "wide:" rows
+    # into a full-width panel of their own.
+    #
+    # The BATTED BALL strip (pull/centre/oppo) is deliberately off the card by
+    # owner decision. scripts/advanced.py still derives it — the numbers are
+    # sound and the omitted count was printed alongside them — so restoring it
+    # is a matter of emitting the rows again, not rebuilding anything.
+    count_rows = []
     if not mobile:
         _adv_mod = sibling('advanced')
         adv = _adv_mod.batter_splits(player)
-        sp, placed, omitted = adv['spray'], adv['spray_placed'], adv['spray_omitted']
-        if placed:
-            spray_rows = [[k.capitalize(), '%.0f%%' % (100 * sp.get(k, 0) / placed),
-                           'wide:BATTED BALL', f"{sp.get(k, 0)} BALLS IN PLAY"]
-                          for k in ('pull', 'center', 'oppo')]
-            # The omitted count travels with the numbers: Presto often writes
-            # "singled" with no direction, and those are dropped, never guessed.
-            spray_rows.append(['Located', f'{placed} of {placed + omitted}', 'wide:BATTED BALL',
-                               f'{omitted} OMITTED — NO DIRECTION RECORDED'])
         count_rows = [[k.capitalize(), _adv_mod.avg(adv['count'][k]), 'wide:BY COUNT',
                        f"{adv['count'][k].get('H', 0)}-FOR-{adv['count'][k].get('AB', 0)} · {adv['count'][k]['PA']} PA"]
                       for k in ('first pitch', 'ahead', 'even', 'behind', 'two-strike')
@@ -604,8 +602,7 @@ def batter_card(player, mobile=False):
                                   ['HBP', str(hbp)], ['SF', str(sf)]] + count_rows,
              'BB% = walks per PA · K% = strikeouts per PA · SF = sacrifice flies (not an AB) · BY COUNT = batting average in the count the plate appearance ended on'],
             ['HIT BREAKDOWN', [['H', str(h)], ['1B', str(one)], ['2B', str(two)], ['3B', str(thr)],
-                               ['HR', str(hr)], ['RBI', str(rbi)], ['R', str(r)], ['GIDP', str(tot.get('GIDP', 0))]] + spray_rows,
-             'BATTED BALL = where the ball was hit, from his own side of the plate — pull, up the middle, opposite field'],
+                               ['HR', str(hr)], ['RBI', str(rbi)], ['R', str(r)], ['GIDP', str(tot.get('GIDP', 0))]]],
             [f'BASE RUNNING{" & DEFENSE" if drows else ""}',
              [['SB', str(sb)], ['CS', str(cs)],
               ['SB%', '%.1f' % (100 * sb / (sb + cs) if sb + cs else 0)],
