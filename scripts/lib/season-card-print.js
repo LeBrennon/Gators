@@ -139,16 +139,21 @@ function render(DATA, stemArg) {
         `</span>`).join('') + `</div>`
     : '';
 
-  const headCells = DATA.logCols.map((c, i) => `<th${i < 3 ? ' class="l"' : ''}>${esc(c)}</th>`).join('');
+  // Columns up to and including Result are text, left-aligned, and carry no
+  // label in the repeated header under the totals. Count them rather than
+  // assuming three — a card spanning two clubs adds a Tm column, and hardcoding
+  // the count left "RESULT" printed as a stat label on Matt Scott's card.
+  const lead = (DATA.logCols.findIndex(c => /^Res/.test(c)) + 1) || 3;
+  const headCells = DATA.logCols.map((c, i) => `<th${i < lead ? ' class="l"' : ''}>${esc(c)}</th>`).join('');
   const bodyRows = DATA.log.map(r => '<tr>' + r.map((v, i) => {
-    if (i < 2) return `<td class="l">${esc(v)}</td>`;
-    if (i === 2) return `<td class="l res">${esc(v)}</td>`;
+    if (i < lead - 1) return `<td class="l">${esc(v)}</td>`;
+    if (i === lead - 1) return `<td class="l res">${esc(v)}</td>`;
     if (i === r.length - 1) return `<td><b>${esc(v)}</b></td>`;
     return `<td>${esc(v)}</td>`;
   }).join('') + '</tr>').join('');
-  const labCells = DATA.logCols.map((c, i) => i < 3 ? '<td></td>' : `<td>${esc(c)}</td>`).join('');
+  const labCells = DATA.logCols.map((c, i) => i < lead ? '<td></td>' : `<td>${esc(c)}</td>`).join('');
   const totCells = DATA.totals.map((v, i) => {
-    if (i < 3) return `<td class="l">${esc(v)}</td>`;
+    if (i < lead) return `<td class="l">${esc(v)}</td>`;
     if (i === DATA.totals.length - 1) return `<td><b>${esc(v)}</b></td>`;
     return `<td>${esc(v)}</td>`;
   }).join('');
