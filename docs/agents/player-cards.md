@@ -66,6 +66,44 @@ sitting inside each panel. Four ragged legend blocks in half-width panels cost
 far more height than one paragraph wrapping across the page, and that height is
 what decides how large the numbers print.
 
+### Page 1's type target, and why it lands short
+
+Below the season strip, page 1 scales its **type** (`--s`) separately from the
+**space between things** (`--g`), and the fit spends every pixel of padding
+before it gives back a point of type. The owner asked for double-size stats, so
+`--s` is expressed as a fraction of double: **1.0 is exactly double, and it is
+the ceiling** — the card never sets larger than asked, only smaller when the page
+cannot hold it.
+
+With everything currently on the card, a batter card reaches about **0.69 of
+double** (~19px against the 12.6px it set before) with the spacing already pinned
+at its floor. The constraint is content volume, not padding — and it is flat
+across the batch: a 7-game card and a 44-game card both land at 0.69, because
+page 1's content barely varies with games played. Pitcher cards reach ~0.85,
+having one fewer strip and no ranks.
+
+**The shortfall is accepted, and nothing comes off the card to close it.** That
+is an owner decision, taken against measured alternatives, so don't "fix" the
+0.69 later by deleting content or by rebalancing the fit:
+
+| Page-1 content | Type reached |
+|---|---|
+| Everything (what ships) | 0.69 |
+| − key/legend block | 0.88–0.95 |
+| − key/legend − BY COUNT | 0.96 |
+| − key/legend − BY COUNT − platoon splits | 1.00 |
+
+Moving the legend or the strips to page 2 was measured too, and it is worse, not
+better: on a 36–44 game card the log already fills page 2, so the moved block
+sets at ~5px. Page 2 has spare room only on the light cards, which are the ones
+that least need it.
+
+One guard exists because this change needed it: a `.sr` is pinned to half its
+panel, so type that outgrows its label and value does **not** reflow — it
+silently runs over the column beside it. Only `scrollWidth` reports that, so the
+fit refuses any size where it happens and fails the card outright if the final
+choice still does.
+
 ## What's on a card
 
 Batter card panels: PRODUCTION / PLATE DISCIPLINE / HIT BREAKDOWN / BASE RUNNING
