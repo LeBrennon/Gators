@@ -11,7 +11,7 @@ so a future session doesn't regress them by "cleaning up."
 When a Gators game goes final, the live server fires a `gators-final`
 `repository_dispatch` and the `Refresh seed + post-game report` Action
 (`.github/workflows/refresh-seed.yml`) builds the box-score PDF and **emails it**
-to the recipients — alongside the post-game report, GM cards, and rest chart. The
+to the recipients — alongside the post-game report and GM cards. The
 box step runs `box-score.js <game_id> --pdf --strict` in a retry loop; `--strict`
 fails until Presto has rendered the finished box (line score present), so it waits
 out the post-final gate lag before sending. So the owner gets the box in their

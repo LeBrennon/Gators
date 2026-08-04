@@ -11,7 +11,6 @@
     "report:game": "node scripts/postgame-report.js",
     "report:pdf": "node scripts/postgame-report.js latest --pdf",
     "report:box": "node scripts/box-score.js latest --pdf",
-    "report:rest": "node scripts/rest-chart-image.js --force",
     "report:mobile": "node scripts/player-season-card-mobile.js"
   },
   "engines": {
