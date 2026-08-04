@@ -122,6 +122,15 @@ count buckets only fit that way, and at this type size so do three platoon
 splits: side by side, the label and the slash line each want most of a third of
 the page.
 
+A **slash line is set as columns**, each part's label centred under its own
+number rather than the three run together underneath all of them. The labels are
+read off the row's own sub-label ("AVG · OBP · SLG"), not hardcoded, so the
+pitcher card's vs LHB / vs RHB lines get it without the layout knowing about
+them. Anything after the em dash — the OPS roll-up — is dropped: it has no
+column to sit under, and OPS is already in PRODUCTION and the season strip. A
+value that isn't a slash line (the count buckets) falls through to the plain
+label-under-value form.
+
 ## What's on a card
 
 Batter card panels: PRODUCTION / PLATE DISCIPLINE / HIT BREAKDOWN / BASE RUNNING

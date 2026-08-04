@@ -118,15 +118,38 @@ function render(DATA, stemArg) {
   // Order: Total, then RH side, then LH side
   const splitOrder = r => (/^Total/.test(r[0]) ? 0 : r[0].includes('RH') ? 1 : 2);
   splitRows.sort((a, b) => splitOrder(a) - splitOrder(b));
+  // A slash line whose sub-label names its own parts ("AVG · OBP · SLG") is laid
+  // out as columns, so each label sits centred under the number it belongs to
+  // instead of running the three together on one line underneath all of them.
+  // Derived from the sub rather than hardcoded, so the pitcher card's vs LHB /
+  // vs RHB lines get the same treatment without knowing about them here.
+  //
+  // Anything after the em dash — the OPS roll-up — is dropped: it has no column
+  // to sit under, and OPS is already on the card in PRODUCTION and the season
+  // strip. Returns null for a value that isn't a slash line (the count buckets),
+  // which fall through to the plain label-under-value form.
+  const slashCols = (v, sub) => {
+    const nums = String(v).split('/');
+    const labs = String(sub || '').split('—')[0].split('·').map(s => s.trim()).filter(Boolean);
+    if (nums.length < 2 || labs.length !== nums.length) return null;
+    return `<span class="slash">` + nums.map((n, i) =>
+      (i ? `<span class="sldiv">/</span>` : '') +
+      `<span class="slcol"><span class="sv2">${esc(n)}</span>` +
+      `<span class="svsub slab">${esc(labs[i])}</span></span>`).join('') + `</span>`;
+  };
   // Horizontal cells stretch the rows across the full panel width, each one
   // setting its label above its value so a long label and a long value don't
   // have to share a line they can't both fit on.
   const mkWidePanel = (title, rows) =>
     `<div class="panel full"><div class="ptitle">${esc(title)}</div>` +
     `<div class="sg splitrow">` +
-    rows.map(([l, v, , sub]) =>
-      `<div class="splitcell"><span class="sl2">${esc(l)}</span><span class="sv2sub"><span class="sv2">${esc(v)}</span>` +
-      (sub ? `<span class="svsub">${esc(sub)}</span>` : '') + `</span></div>`).join('') +
+    rows.map(([l, v, , sub]) => {
+      const cols = slashCols(v, sub);
+      return `<div class="splitcell"><span class="sl2">${esc(l)}</span>` +
+        (cols || `<span class="sv2sub"><span class="sv2">${esc(v)}</span>` +
+                 (sub ? `<span class="svsub">${esc(sub)}</span>` : '') + `</span>`) +
+        `</div>`;
+    }).join('') +
     `</div></div>`;
 
   const units = halfGroups.map(g => ({ html: mkPanel(g), full: false }));
@@ -262,6 +285,14 @@ body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0202
 .sv2 { color: #020200; font-weight: 800; font-variant-numeric: tabular-nums; }
 .sv2sub { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.25; }
 .svsub { font-size: calc(8px * var(--s)); color: #33205e; font-weight: 700; letter-spacing: 1.1px; }
+/* A slash line set as columns: each part's label centred under its own number,
+   the dividers baseline-aligned with the numbers rather than with the labels.
+   The labels are set well above .svsub's size — they name the three numbers a
+   player looks at first, and at the old size they read as a footnote. */
+.slash { display: flex; align-items: baseline; justify-content: center; gap: 2px; min-width: 0; }
+.slcol { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+.sldiv { flex-shrink: 0; color: #020200; font-weight: 800; }
+.slab { font-size: calc(14px * var(--s)); letter-spacing: .6px; margin-top: 1px; }
 /* A short log can't fill the page by type alone — a 13-column table runs out of
    width long before it runs out of height. So the log has two scales: --f sizes
    the type up to whatever the page is wide enough for, and --p opens the rows
