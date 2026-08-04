@@ -52,10 +52,11 @@ under the role line on page 1 — All-TCL Team, TCL Player/Pitcher of the Week.
 **An award goes in only after its own article or announcement has been opened
 and read**, never off a category-listing summary: texascollegiateleague.com's
 listing page returned a different winner for the same week slot than the
-week's own article more than once while this was researched. Cross-check a
-weekly-award name against `box-seed.json` before adding it — Week 8 Pitcher of
-the Week is deliberately unset because the credited name never appears in a
-Gators box score all season.
+week's own article more than once while this was researched. Cross-check a weekly-award name against `box-seed.json` before adding it: the
+site's article URLs carry no season, so the same "Week N" slug can hand back a
+prior year's winner. That's why Week 8 Pitcher of the Week is unset — the
+credited name never appears in a 2026 Gators box score, and the owner confirmed
+he's a 2025 Gator.
 
 ## Two pages
 

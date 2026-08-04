@@ -129,12 +129,12 @@ def _same(ours, theirs):
 # which returned conflicting winners for the same week slot more than once.
 #
 # Week 8 Pitcher of the Week is deliberately NOT here. texascollegiateleague.com
-# carries two different articles for that slot: one names Drew Wenske (Victoria),
-# the other Parker Primeaux, credited to the Gators. Primeaux appears nowhere in
-# box-seed.json or either supplemental box file for any game all season — no
-# Gators pitcher by that name threw a single inning we have a record of. Flagged
-# to the owner rather than guessed at; worth reporting to the league as a site
-# error either way.
+# carries two different articles for that slot: one names Drew Wenske (Victoria)
+# for 2026, the other Parker Primeaux credited to the Gators — confirmed by the
+# owner to be a 2025 Gator, a season box-seed.json doesn't cover, which is why
+# he turns up nowhere in it. The site's article URLs carry no season, so a
+# search or category listing can hand back either year under the same "Week 8"
+# slug. Owner-confirmed, not just excluded on suspicion.
 AWARDS = {
     'Bankston Lembcke': ['2026 All-TCL Team — Utility'],
     'Cole Flanagan': ['2026 All-TCL Team — Pitcher', 'TCL Week 4 Pitcher of the Week'],
