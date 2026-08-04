@@ -34,6 +34,24 @@ JOBS = {
     'p': ('scripts/player-season-card.js', 'scripts/player-season-card-mobile.js', '--pitcher'),
 }
 
+def shape_error(d):
+    """What's structurally wrong with this DATA, if anything.
+
+    The reconciliation gate only checks numbers, so it said nothing when a local
+    rename made 'log' the integer 44 instead of 44 rows — every batter card died
+    in the renderer instead. Cheap to check here, and it fails the batch rather
+    than a stack trace 30 cards in.
+    """
+    for key in ('season', 'groups', 'logCols', 'log', 'totals'):
+        if not isinstance(d.get(key), list): return f'{key} is {type(d.get(key)).__name__}, expected a list'
+    if not d['log']: return 'log is empty'
+    ncol = len(d['logCols'])
+    for i, row in enumerate(d['log']):
+        if not isinstance(row, list) or len(row) != ncol:
+            return f'log row {i} has {len(row) if isinstance(row, list) else "?"} cells, expected {ncol}'
+    if len(d['totals']) != ncol: return f'totals has {len(d["totals"])} cells, expected {ncol}'
+    return None
+
 def splice(template, data, out):
     s = open(template).read()
     start = s.index('const DATA = ')
@@ -65,6 +83,9 @@ def run(job, print_only=False):
                 print(f'  DATA FAIL {name} {flag}: {res.stderr[-200:]}'); ok = False; continue
             note = res.stderr.strip().splitlines()[-1]
             data = json.loads(res.stdout)
+            bad = shape_error(data)
+            if bad:
+                print(f'  SHAPE FAIL {name} {flag}: {bad}'); ok = False; continue
             tmp = tmp_path()   # template resolves ROOT from its own script location
             splice(tpl, data, tmp)
             chk = subprocess.run(['node', '--check', tmp], capture_output=True, text=True)
@@ -117,6 +138,9 @@ if __name__ == '__main__':
                                      capture_output=True, text=True)
                 note = (res.stderr.strip().splitlines() or ['no output'])[-1]
                 ok = res.returncode == 0 and '0 mismatched' in note
+                if ok:
+                    shape = shape_error(json.loads(res.stdout))
+                    if shape: ok, note = False, f'malformed DATA: {shape}'
                 print(f"  {'ok  ' if ok else 'FAIL'} {name} ({r}): {note[:70]}")
                 if not ok: bad.append(f'{name}:{r}')
         print(f'\n{len(jobs)} players, {sum(2 if j.endswith(":both") else 1 for j in jobs)} cards')

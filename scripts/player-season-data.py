@@ -88,6 +88,74 @@ def sibling(name):
     spec.loader.exec_module(mod)
     return mod
 
+# TCL league ranks, hitting only, cached by scripts/fetch-ranks.py straight from
+# Presto's own player pages — the same source the website's player bio uses.
+# Presto publishes no pitching ranks at all, so pitcher cards carry none.
+_RANKS = None
+# Card stat label -> the key it goes by in Presto's season line and rank table.
+RANK_KEYS = {'G': 'gp', 'PA': 'pa', 'AB': 'ab', 'H': 'h', '2B': '2b', '3B': '3b',
+             'HR': 'hr', 'RBI': 'rbi', 'R': 'r', 'BB': 'bb', 'K': 'k', 'HBP': 'hbp',
+             'SF': 'sf', 'SB': 'sb', 'CS': 'cs', 'TB': 'tb', 'AVG': 'avg',
+             'OBP': 'obp', 'SLG': 'slg'}
+RANK_TOP = 50   # below this the number stops being a distinction worth printing
+
+def _rank_num(s):
+    m = re.match(r'(\d+)', str(s or ''))
+    return int(m.group(1)) if m else None
+
+def _same(ours, theirs):
+    """Presto writes a zero as a dash; otherwise compare as printed."""
+    f = lambda v: (str(v).strip().replace('—', '-') or '-')
+    a, b = f(ours), f(theirs)
+    a = '0' if a == '-' else a.lstrip('0') or '0'
+    b = '0' if b == '-' else b.lstrip('0') or '0'
+    return a == b
+
+# A card whose scope is not "this player's TCL line" can't take the league's
+# totals, and a slug the site itself never resolved isn't his line to take.
+NO_OFFICIAL = {
+    'Matt Scott': 'full-season card spanning Brazos Valley and Lake Charles by owner '
+                  'decision; the TCL page holds only his Gators half, so its totals '
+                  'describe a different season than this card does',
+    'Landon Hennen': "server.js carries him as slug 'landonhennen' with findSlug:true — "
+                     'a placeholder the site never resolved, and the page it reaches '
+                     '(1 game, 3 AB) is not the 4 games the boxes credit him',
+}
+
+def official_line(player):
+    """The TCL leaderboard line for this player, or {} when it must not be used."""
+    if player in NO_OFFICIAL: return {}
+    global _RANKS
+    if _RANKS is None:
+        try: _RANKS = json.load(open('data/league-ranks.json'))['players']
+        except (FileNotFoundError, KeyError): _RANKS = {}
+    return (_RANKS.get(player) or {}).get('line') or {}
+
+def ranker(player):
+    """Returns rank_of(label, value) -> 'Nth' or None for this player.
+
+    A rank is attached ONLY when the number on the card equals Presto's for that
+    stat. Since official_line() now puts the league's own figure on the card
+    wherever it has one, that normally holds by construction — this is the
+    backstop for the cases it can't cover: a card whose scope isn't a TCL line
+    (Matt Scott, two clubs), a stat Presto doesn't publish, and a player it has
+    no line for. In those the rank would be labelling a number it does not
+    belong to, so it is withheld.
+    """
+    global _RANKS
+    if _RANKS is None:
+        try: _RANKS = json.load(open('data/league-ranks.json'))['players']
+        except (FileNotFoundError, KeyError): _RANKS = {}
+    rec = _RANKS.get(player) or {}
+    ranks, line = rec.get('ranks') or {}, rec.get('line') or {}
+    def rank_of(label, value):
+        key = RANK_KEYS.get(label)
+        if not key or key not in ranks or key not in line: return None
+        if not _same(value, line[key]): return None
+        n = _rank_num(ranks[key])
+        return ranks[key] if n and n <= RANK_TOP else None
+    return rank_of
+
 _MANIFEST = None
 def photo_slug(player):
     global _MANIFEST
@@ -422,9 +490,56 @@ def batter_card(player, mobile=False):
     r = sum(b[1] for b in box.values()); rbi = sum(b[3] for b in box.values())
     hbp = tot['HBP']; sf = tot['SF']
     one = tot['1B']; two = tot['2B']; thr = tot['3B']; hr = tot['HR']
-    tb = one + 2 * two + 3 * thr + 4 * hr
-    pa = ab + bb + hbp + sf + tot['SH']
-    avg = h / ab if ab else 0; obp = (h + bb + hbp) / pa if pa else 0; slg = tb / ab if ab else 0
+    sb = tot['SB']; cs = tot['CS']; sh = tot['SH']
+    # NOT `games` — that name already holds the game-log rows a few lines up.
+    gp = len(box)
+    # What the game log below adds up to, kept separately: those rows are the
+    # boxes we hold, and their TOTAL has to equal them whatever the league says.
+    log_ab, log_h, log_bb, log_k, log_r, log_rbi = ab, h, bb, k, r, rbi
+    log_pa = ab + bb + hbp + sf + sh
+    log_avg = h / ab if ab else 0
+    # THE LEAGUE'S LINE WINS. Where our play-by-play total and the TCL leaderboard
+    # disagree, the leaderboard is the official number and goes on the card — an
+    # owner ruling, and the right one: the league's line is what a player sees on
+    # his own page. Our per-game reconstruction is a means to the stats Presto
+    # does NOT publish (splits, spray, count buckets, fielding), not a rival
+    # source of truth for the ones it does.
+    off = official_line(player)
+    took = []
+    if off:
+        def O(key, ours):
+            v = off.get(key)
+            if v in (None, '', '-', '—'): return ours
+            try: v = int(v)
+            except ValueError: return ours
+            if v != ours: took.append(f'{key.upper()} {ours}->{v}')
+            return v
+        gp = O('gp', gp)
+        ab = O('ab', ab); h = O('h', h); bb = O('bb', bb); k = O('k', k)
+        r = O('r', r); rbi = O('rbi', rbi); hbp = O('hbp', hbp); sf = O('sf', sf)
+        sh = O('sh', sh); sb = O('sb', sb); cs = O('cs', cs)
+        two = O('2b', two); thr = O('3b', thr); hr = O('hr', hr)
+        one = h - two - thr - hr          # singles are the remainder, never their own column
+    tb = O('tb', one + 2 * two + 3 * thr + 4 * hr) if off else one + 2 * two + 3 * thr + 4 * hr
+    pa = O('pa', ab + bb + hbp + sf + sh) if off else ab + bb + hbp + sf + sh
+    avg = h / ab if ab else 0; slg = tb / ab if ab else 0
+    # Standard OBP denominator: AB + BB + HBP + SF. Sacrifice bunts are NOT in it,
+    # so this can't be PA — dividing by PA understated every bunter's OBP by a few
+    # points against Presto's own number (Ramos .370 where the league says .385).
+    # The platoon splits below already had this right.
+    obp_den = ab + bb + hbp + sf
+    obp = (h + bb + hbp) / obp_den if obp_den else 0
+    # Take the league's printed rate stats rather than recomputing them: Presto
+    # rounds where it rounds, and a card reading .312 beside a league page reading
+    # .313 is exactly the disagreement this rule exists to end.
+    def _rate(key, ours):
+        v = off.get(key) if off else None
+        if v in (None, '', '-', '—'): return ours
+        try: fv = float(v)
+        except ValueError: return ours
+        if abs(fv - ours) > 5e-4: took.append(f'{key.upper()} {ours:.3f}->{v}')
+        return fv
+    avg = _rate('avg', avg); obp = _rate('obp', obp); slg = _rate('slg', slg)
     babip_den = ab - k - hr + sf
     babip = (h - hr) / babip_den if babip_den else 0
     bio = ROSTER.get(player) or next((ROSTER[a] for a in aka(player) if a in ROSTER), {})
@@ -465,14 +580,15 @@ def batter_card(player, mobile=False):
                        f"{adv['count'][k].get('H', 0)}-FOR-{adv['count'][k].get('AB', 0)} · {adv['count'][k]['PA']} PA"]
                       for k in ('first pitch', 'ahead', 'even', 'behind', 'two-strike')
                       if adv['count'].get(k)]
+    rank_of = ranker(player)
     DATA = {
         'name': player, 'num': str(bio.get('num') or ''), 'pos': bio.get('pos') or '—',
         'bt': bt, 'cls': bio.get('cls') or '—', 'school': bio.get('school') or '—',
         'home': bio.get('home') or '—', 'htwt': bio.get('htwt') or '—', 'bday': '—',
         'photoSlug': photo_slug(player),
         'seasonTitle': 'Season Totals — Hitting',
-        'season': [['G', str(len(box))], ['PA', str(pa)], ['AVG', f3(avg)], ['OBP', f3(obp)],
-                   ['SLG', f3(slg)], ['OPS', f3(obp + slg)], ['HR', str(hr)], ['RBI', str(rbi)], ['SB', str(tot['SB'])]],
+        'season': [['G', str(gp)], ['PA', str(pa)], ['AVG', f3(avg)], ['OBP', f3(obp)],
+                   ['SLG', f3(slg)], ['OPS', f3(obp + slg)], ['HR', str(hr)], ['RBI', str(rbi)], ['SB', str(sb)]],
         'groups': [
             # Order follows Baseball Savant: the slash line, then the run-value
             # rate stats it rolls up to, then the derived and counting stats.
@@ -491,20 +607,39 @@ def batter_card(player, mobile=False):
                                ['HR', str(hr)], ['RBI', str(rbi)], ['R', str(r)], ['GIDP', str(tot.get('GIDP', 0))]] + spray_rows,
              'BATTED BALL = where the ball was hit, from his own side of the plate — pull, up the middle, opposite field'],
             [f'BASE RUNNING{" & DEFENSE" if drows else ""}',
-             [['SB', str(tot['SB'])], ['CS', str(tot['CS'])],
-              ['SB%', '%.1f' % (100 * tot['SB'] / (tot['SB'] + tot['CS']) if tot['SB'] + tot['CS'] else 0)],
-              ['SB-ATT', f"{tot['SB']}-{tot['SB'] + tot['CS']}"]] + drows,
+             [['SB', str(sb)], ['CS', str(cs)],
+              ['SB%', '%.1f' % (100 * sb / (sb + cs) if sb + cs else 0)],
+              ['SB-ATT', f'{sb}-{sb + cs}']] + drows,
              'SB% = stolen-base success (SB ÷ attempts)' + (' · ' + dleg if dleg else '')]
         ],
         'key': [],  # legends moved into each panel (3rd element of its group)
         'logTitle': 'Game by Game — Hitting',
+        'logNote': ('These are the games in our box-score store; the season totals on page 1 are '
+                    f"the league's official line, which credits {gp} G / {pa} PA / {h} H."
+                    if took else ''),
         'logCols': ['Date'] + (['Tm'] if multi else []) + ['Opponent' if not mobile else 'Opp',
                     'Result' if not mobile else 'Res', 'PA', 'AB', 'R', 'H', 'RBI', 'BB', 'K', 'SB', 'AVG'],
         'log': games,
-        'totals': ['TOTAL'] + ([''] if multi else []) + [f'{len(box)} G', '', str(pa), str(ab), str(r), str(h),
-                   str(rbi), str(bb), str(k), str(tot['SB']), f3(avg)]
+        # The log's TOTAL row stays OUR sum — it has to add up the rows printed
+        # above it. When the league's line differs, logNote says so rather than
+        # letting the two numbers sit there contradicting each other in silence.
+        'totals': ['TOTAL'] + ([''] if multi else []) + [f'{len(box)} G', '', str(log_pa), str(log_ab),
+                   str(log_r), str(log_h), str(log_rbi), str(log_bb), str(log_k), str(tot['SB']), f3(log_avg)]
     }
-    return DATA, {'games': len(box), 'mismatched': bad}
+    # Hang each TCL rank on the stat it belongs to: season tiles carry it in slot
+    # 2, panel rows in slot 4 (slot 2 is the "wide" marker, 3 the sub-label).
+    ranked = 0
+    for tile in DATA['season']:
+        rk = rank_of(tile[0], tile[1])
+        if rk: tile.append(rk); ranked += 1
+    for g in DATA['groups']:
+        for row in g[1]:
+            if str(row[2] if len(row) > 2 else '').startswith('wide'): continue
+            rk = rank_of(row[0], row[1])
+            if not rk: continue
+            while len(row) < 4: row.append(None)
+            row.append(rk); ranked += 1
+    return DATA, {'games': gp, 'mismatched': bad, 'ranked': ranked, 'official': took}
 
 _ARMS = {}
 def club_arms(gid, team):
@@ -718,7 +853,9 @@ def main():
         DATA, v = batter_card(player, mobile)
     else:
         DATA, v = pitcher_card(player, mobile)
-    print(f'{player}: {v["games"]} games, {v["mismatched"]} mismatched', file=sys.stderr)
+    rk = f', {v["ranked"]} TCL ranks' if v.get('ranked') else ''
+    of = f', {len(v["official"])} stats from the league line' if v.get('official') else ''
+    print(f'{player}: {v["games"]} games, {v["mismatched"]} mismatched{rk}{of}', file=sys.stderr)
     print(json.dumps(DATA, indent=1))
 
 if __name__ == '__main__':
