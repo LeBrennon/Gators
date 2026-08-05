@@ -1,0 +1,89 @@
+{
+  "_comment": "Departed-player season-card batch, 2026 (the inactive half of data/season-final-batch.json). Same roles/spelling rules as data/active-batch.json.",
+  "players": [
+    {
+      "name": "Andrew Ramos",
+      "role": "b"
+    },
+    {
+      "name": "Asa Thompson",
+      "role": "p"
+    },
+    {
+      "name": "Brandon Levy",
+      "role": "both"
+    },
+    {
+      "name": "Bryson Pierce",
+      "role": "both"
+    },
+    {
+      "name": "Chance Fouts",
+      "role": "p"
+    },
+    {
+      "name": "Chris Melvin",
+      "role": "p"
+    },
+    {
+      "name": "Cole Flanagan",
+      "role": "p"
+    },
+    {
+      "name": "Connor Walker",
+      "role": "b"
+    },
+    {
+      "name": "Easton Culp",
+      "role": "b"
+    },
+    {
+      "name": "Griffin Cooley",
+      "role": "b"
+    },
+    {
+      "name": "Griffin Hebert",
+      "role": "b"
+    },
+    {
+      "name": "Jake Smith",
+      "role": "b"
+    },
+    {
+      "name": "James Reina",
+      "role": "b"
+    },
+    {
+      "name": "Kale Cropper",
+      "role": "p"
+    },
+    {
+      "name": "Kasen Bellard",
+      "role": "b"
+    },
+    {
+      "name": "Kash Martin",
+      "role": "b"
+    },
+    {
+      "name": "Landon Richards",
+      "role": "p"
+    },
+    {
+      "name": "Matthew McKinley",
+      "role": "both"
+    },
+    {
+      "name": "Nathan McDonald",
+      "role": "b"
+    },
+    {
+      "name": "Pierce Boles",
+      "role": "p"
+    },
+    {
+      "name": "Ty Dagley",
+      "role": "p"
+    }
+  ]
+}
