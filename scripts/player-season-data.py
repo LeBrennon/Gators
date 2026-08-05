@@ -106,10 +106,10 @@ RANK_KEYS = {'H': 'h', '2B': '2b', '3B': '3b',
              'OBP': 'obp', 'SLG': 'slg'}
 # Same idea for the pitching card. Keep in sync with PITCH_KEYS in
 # build-league-ranks.py by hand — no shared import between the two.
-# IP, APP, GS, BF, HBP, BB, K%, BB% deliberately absent: owner's call, no rank
-# wanted on them.
+# IP, APP, GS, BF, HBP, BB, K%, BB%, H, HR deliberately absent: owner's call,
+# no rank wanted on them.
 PITCH_RANK_KEYS = {'W': 'w', 'SV': 'sv',
-                    'ERA': 'era', 'WHIP': 'whip', 'K': 'k', 'H': 'h', 'HR': 'hr',
+                    'ERA': 'era', 'WHIP': 'whip', 'K': 'k',
                     'K/9': 'k9', 'BB/9': 'bb9', 'H/9': 'h9', 'HR/9': 'hr9', 'K:BB': 'kbb'}
 # Stats where placing high is the opposite of a distinction. They print their
 # number and no rank: a hitter should not learn from his own card that he was
