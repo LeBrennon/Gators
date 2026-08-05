@@ -88,26 +88,45 @@ def sibling(name):
     spec.loader.exec_module(mod)
     return mod
 
-# TCL league ranks, hitting only, cached by scripts/fetch-ranks.py straight from
-# Presto's own player pages — the same source the website's player bio uses.
-# Presto publishes no pitching ranks at all, so pitcher cards carry none.
-_RANKS = None
-# Card stat label -> the key it goes by in Presto's season line and rank table.
-RANK_KEYS = {'G': 'gp', 'PA': 'pa', 'AB': 'ab', 'H': 'h', '2B': '2b', '3B': '3b',
+# TCL league ranks, computed by scripts/build-league-ranks.py from the owner's
+# own complete league export (data/league-stats/, all 8 teams) rather than
+# read off Presto's site. That source proved unreliable twice this season —
+# its bulk stat pages are Cloudflare-blocked from this dev environment, and
+# separately went down with a site-wide 500 the owner hit directly — and it
+# never published pitching ranks on any page at all, which is the whole
+# reason pitcher cards carried none until this. See build-league-ranks.py's
+# own header for the qualifier thresholds (50 AB, 25 IP) and the reasoning.
+_RANKS = None       # data/league-ranks.json — Presto-sourced, official_line() ONLY
+_COMPUTED = None    # data/league-ranks-computed.json — ranker()/pitch_ranker() ONLY
+# Card stat label -> the key it goes by in the computed hitting line/rank table.
+# G, PA, AB, SF deliberately absent: owner's call, no rank wanted on them.
+RANK_KEYS = {'H': 'h', '2B': '2b', '3B': '3b',
              'HR': 'hr', 'RBI': 'rbi', 'R': 'r', 'BB': 'bb', 'K': 'k', 'HBP': 'hbp',
-             'SF': 'sf', 'SB': 'sb', 'TB': 'tb', 'CS': 'cs', 'AVG': 'avg',
+             'SB': 'sb', 'TB': 'tb', 'CS': 'cs', 'AVG': 'avg',
              'OBP': 'obp', 'SLG': 'slg'}
+# Same idea for the pitching card. Keep in sync with PITCH_KEYS in
+# build-league-ranks.py by hand — no shared import between the two.
+# IP, APP, GS, BF, HBP, BB, K%, BB%, H, HR, HR/9 deliberately absent: owner's call,
+# no rank wanted on them.
+PITCH_RANK_KEYS = {'W': 'w', 'SV': 'sv',
+                    'ERA': 'era', 'WHIP': 'whip', 'K': 'k',
+                    'K/9': 'k9', 'BB/9': 'bb9', 'H/9': 'h9', 'K:BB': 'kbb'}
 # Stats where placing high is the opposite of a distinction. They print their
 # number and no rank: a hitter should not learn from his own card that he was
 # 6th in the league for striking out, or 4th at being thrown out stealing.
 # Owner's call, and the same one behind the original caught-stealing rule.
 #
-# Presto ranks every one of these — the refusal is ours, not a gap in the data —
-# so they stay in RANK_KEYS and are turned away here, where the reason is
-# written down. An absence from that map would look like an oversight and get
-# "fixed". GIDP and E have no Presto key today and rank nowhere; they are listed
+# The league ranks every one of these — the refusal is ours, not a gap in the
+# data — so they stay in RANK_KEYS and are turned away here, where the reason
+# is written down. An absence from that map would look like an oversight and
+# get "fixed". GIDP and E have no key today and rank nowhere; they are listed
 # so that adding one later doesn't quietly put a rank on them.
 NO_RANK = {'K', 'CS', 'GIDP', 'E'}
+# L (losses) is the pitching-side equivalent: not a meaningful skill signal on
+# its own (heavily confounded by decision luck and bullpen support), so it is
+# never mapped into PITCH_RANK_KEYS at all — listed here for the same reason
+# GIDP/E are, so a future addition doesn't quietly rank it.
+PITCH_NO_RANK = {'L'}
 RANK_TOP = 50   # below this the number stops being a distinction worth printing
 
 def _rank_num(s):
@@ -162,31 +181,60 @@ def official_line(player):
         except (FileNotFoundError, KeyError): _RANKS = {}
     return (_RANKS.get(player) or {}).get('line') or {}
 
-def ranker(player):
-    """Returns rank_of(label, value) -> 'Nth' or None for this player.
+def _computed_ranks():
+    global _COMPUTED
+    if _COMPUTED is None:
+        try: _COMPUTED = json.load(open('data/league-ranks-computed.json'))['players']
+        except (FileNotFoundError, KeyError): _COMPUTED = {}
+    return _COMPUTED
 
-    A rank is attached ONLY when the number on the card equals Presto's for that
-    stat. Since official_line() now puts the league's own figure on the card
-    wherever it has one, that normally holds by construction — this is the
-    backstop for the cases it can't cover: a card whose scope isn't a TCL line
-    (Matt Scott, two clubs), a stat Presto doesn't publish, and a player it has
-    no line for. In those the rank would be labelling a number it does not
-    belong to, so it is withheld.
+def _rank_matcher(ranks, line, keys, no_rank):
+    """Shared core for both sides: rank_of(label, value) -> 'Nth' or None.
+
+    A rank is attached ONLY when the number on the card equals our own computed
+    line for that stat. On the hitting side this backstops the cases
+    official_line() can't cover (Matt Scott's two-club scope, a player with no
+    line at all); on the pitching side, which has no official_line() equivalent,
+    it's the only gate there is. Either way a mismatch means the rank would be
+    labelling a number it does not belong to, so it is withheld rather than
+    guessed at.
     """
-    global _RANKS
-    if _RANKS is None:
-        try: _RANKS = json.load(open('data/league-ranks.json'))['players']
-        except (FileNotFoundError, KeyError): _RANKS = {}
-    rec = _RANKS.get(player) or {}
-    ranks, line = rec.get('ranks') or {}, rec.get('line') or {}
     def rank_of(label, value):
-        if label in NO_RANK: return None
-        key = RANK_KEYS.get(label)
+        if label in no_rank: return None
+        key = keys.get(label)
         if not key or key not in ranks or key not in line: return None
         if not _same(value, line[key]): return None
         n = _rank_num(ranks[key])
         return ranks[key] if n and n <= RANK_TOP else None
     return rank_of
+
+_NEVER_RANK = lambda label, value: None
+
+def ranker(player):
+    """Hitting ranks — see _rank_matcher for the matching rule.
+
+    NO_OFFICIAL players are excluded here too, not just from official_line().
+    Matt Scott exists as two separate rows in data/league-stats/ — "Matthew
+    Scott" (Lake Charles) and "Matt Scott" (Brazos Valley) — since that's how
+    each club's own export spells him. A flat name lookup only ever reaches
+    one stint, so a single stat from that ONE incomplete stint can coincide
+    with the card's real combined total by chance: his card's 3B is 2, his
+    Brazos Valley stint alone is ALSO 2 (the two stints actually sum to 3,
+    which is what his real season total is) — a rank_of() match that isn't
+    actually true, caught only by checking NO_OFFICIAL before it ships.
+    """
+    if player in NO_OFFICIAL: return _NEVER_RANK
+    rec = _computed_ranks().get(player) or {}
+    return _rank_matcher(rec.get('hitRanks') or {}, rec.get('hitLine') or {}, RANK_KEYS, NO_RANK)
+
+def pitch_ranker(player):
+    """Pitching ranks — see _rank_matcher for the matching rule and ranker()'s
+    own docstring for why NO_OFFICIAL is excluded here too. The league itself
+    publishes none of these on any page, for anyone; every pitching rank on a
+    card comes from build-league-ranks.py's own computation."""
+    if player in NO_OFFICIAL: return _NEVER_RANK
+    rec = _computed_ranks().get(player) or {}
+    return _rank_matcher(rec.get('pitchRanks') or {}, rec.get('pitchLine') or {}, PITCH_RANK_KEYS, PITCH_NO_RANK)
 
 _MANIFEST = None
 def photo_slug(player):
@@ -837,6 +885,7 @@ def pitcher_card(player, mobile=False):
                           str(b['np']) if b['np'] else '—', (str(b['spct']) + '%') if b['spct'] else '—', gera])
     w, l, sv = dec['W'], dec['L'], dec['SV'] + dec['S']
     app = len(box_games)
+    rank_of = pitch_ranker(player)
     season = [['APP', str(app)], ['GS', '0'], ['W', str(w)], ['L', str(l)], ['SV', str(sv)],
               ['ERA', '%.2f' % era], ['WHIP', '%.2f' % whip], ['K', str(k)], ['BB', str(bb)]]
     drows, dleg = defense(player, 'p', mobile)
@@ -877,7 +926,20 @@ def pitcher_card(player, mobile=False):
         'totals': ['TOTAL', f'{app} APP', '', ip_s, str(sum(int(x[4]) for x in games)), str(h), str(r), str(er), str(bb), str(k),
                    str(np_) if np_ else '—', ('%.0f%%' % (100 * sum(b['np'] * b['spct'] / 100 for b in box_games if b['np'] and b['spct']) / np_)) if np_ else '—', '%.2f' % era]
     }
-    return DATA, {'games': app, 'mismatched': bad}
+    # Same hang-the-rank-on-the-stat pass batter_card() runs — see there for
+    # why season tiles carry it in slot 2, panel rows in slot 4.
+    ranked = 0
+    for tile in DATA['season']:
+        rk = rank_of(tile[0], tile[1])
+        if rk: tile.append(rk); ranked += 1
+    for g in DATA['groups']:
+        for row in g[1]:
+            if str(row[2] if len(row) > 2 else '').startswith('wide'): continue
+            rk = rank_of(row[0], row[1])
+            if not rk: continue
+            while len(row) < 4: row.append(None)
+            row.append(rk); ranked += 1
+    return DATA, {'games': app, 'mismatched': bad, 'ranked': ranked}
 
 def main():
     if len(sys.argv) < 3: print(__doc__); sys.exit(1)

@@ -211,62 +211,116 @@ rows printed above it. When that total differs from the league's line, page 2
 says so in a note rather than letting two numbers contradict each other in
 silence.
 
-### TCL ranks (batter cards)
+### TCL ranks (batter AND pitcher cards)
 
-A small gold number beside a stat is its rank in the Texas Collegiate League —
-the same thing the website's player bio shows, from the same source. The ranks
-are **Presto's own**, read off each player's league player page and cached by
-`scripts/fetch-ranks.py` into `data/league-ranks.json`. Re-run that script when
-the league updates; the cache is committed so a card render stays reproducible.
+A small gold number beside a stat is its rank in the Texas Collegiate League.
+**We compute these ourselves now, off a complete league dataset we own** —
+`data/league-stats/` (all 8 TCL teams, 430 players, the owner's own CSV
+exports of each team's batting/running/pitching/fielding stats) run through
+`scripts/build-league-ranks.py` into `data/league-ranks-computed.json`.
+
+This replaced reading Presto's own ranks off each player's page. That source
+broke down twice in one season: its bulk stat pages are Cloudflare-blocked
+from the environment these cards get built in, and separately it went down
+with a site-wide 500 the owner hit directly in his own browser. It also
+published no pitching ranks anywhere, ever — the reason pitcher cards carried
+none until this rework.
+
+**An earlier attempt at computing ranks ourselves, from Presto's own raw
+leaderboard page, was thrown out for good reason**, and it's worth knowing
+why this one is different rather than assuming the old warning still applies.
+The old attempt scraped a live page that paged out short of the full league
+and quietly applied no qualifier at all, so a result like "Landreneau's AVG
+70th against Presto's real 49th" looked plausible and was wrong. This version
+starts from the complete league (nothing paged out, because it isn't a live
+page at all — it's the owner's own export, refreshed by hand) and applies its
+own explicit, documented qualifier instead of trusting an opaque one. Those
+were exactly the two failure modes; both are closed off structurally, not
+patched around.
+
+Refreshing it: when the owner sends new CSV exports for a team (same
+four-file shape — batting, running, pitching, fielding), run
+`python3 scripts/merge-team-stats.py <prefix> "<Team Name>"` to rebuild that
+team's `data/league-stats/<prefix>.json`, then
+`python3 scripts/build-league-ranks.py` to recompute every rank in the
+league against the refreshed numbers. See `data/league-stats/README.md`.
 
 The line explaining the gold number sits at the **top right of the season strip**,
 sharing a row with the "Season Totals" title, not in the key block at the foot —
 the strip is where a reader meets his first gold number, so that is where the
-explanation belongs. Sharing the title's row rather than taking one of its own is
-also worth a little type: it bought the fullest batter card 0.65 → 0.67.
+explanation belongs. It now appears on pitcher cards too, the first time they've
+ever had a reason to carry it.
 
-It appears only when the card has at least one rank, so pitcher cards and a
-batter with none (Cooley, Guidry) carry the title alone.
+It appears only when the card has at least one rank, so a batter with none
+(Cooley, Guidry) or a pitcher with none (Hunter Degeyter — genuinely too little
+usage to crack top 50 anywhere) carries the title alone.
 
-Four rules decide whether a rank prints:
+Rules deciding whether a rank prints, hitting and pitching both go through
+`_rank_matcher()` in `player-season-data.py`:
 
 1. **Top 50 only.** Below that a rank is not a distinction, it is a headcount —
-   Gabe Guidry's best is 58th, so his card carries none. The card does not say
-   this: the line explaining the gold number names no cutoff, because a player
-   has no use for the threshold and printing it invites him to read a missing
-   rank as a placing just outside it. `RANK_TOP` still governs which ranks print.
-2. **Never on a stat where placing high is bad.** `NO_RANK` in
-   `player-season-data.py` holds them: **K**, **CS**, and GIDP/E against the day
-   they get a Presto key. A hitter should not learn from his own card that he was
-   6th in the league for striking out, or 4th at being thrown out stealing — the
-   badge reads as a distinction when it is the opposite. The stats still print
-   their number, and still take the league's figure like every other.
+   Gabe Guidry's best AVG-adjacent finish doesn't clear it, so his card carries
+   none. The card does not say this: the line explaining the gold number names
+   no cutoff, because a player has no use for the threshold and printing it
+   invites him to read a missing rank as a placing just outside it. `RANK_TOP`
+   still governs which ranks print.
+2. **Never on a stat where placing high is bad.** `NO_RANK` (hitting: **K**,
+   **CS**, GIDP, E) and `PITCH_NO_RANK` (pitching: **L** — not a meaningful
+   skill signal alone, heavily confounded by decision luck and bullpen
+   support). A hitter should not learn from his own card that he was 6th in
+   the league for striking out; a pitcher shouldn't be credited for "fewest
+   losses" when that's mostly about who else was on the mound. The stats
+   still print their number.
+3. **A qualifier gates every rate-shaped stat**, because a rate computed on a
+   tiny sample can look extreme without being real — a hitter with 1 AB
+   batting 1.000, a pitcher with 1 IP and a 0.00 ERA. A counting stat mostly
+   doesn't have this problem: nobody racks up 20 HR in 5 games, which is why
+   only rate stats are gated, not counting ones.
+   - **AVG / OBP / SLG: 50 AB.** The owner's call, after checking what a real
+     comparable league uses (Cape Cod League, a summer wood-bat league of
+     similar season length: 70 AB).
+   - **Every pitching stat where a LOW value is the good outcome — ERA, WHIP,
+     BB/H/HR/HBP allowed, and their /9 and % derivatives: 25 IP.** Cape Cod's
+     own standard. A "lower is better" stat is not self-limiting by playing
+     time the way a counting stat is — 0.1 IP with 0 hits allowed doesn't
+     demonstrate anything — so these need the same guard rate stats do.
+   - **Pitching stats where a HIGH value is the good outcome — W, SV, K, APP,
+     GS, IP, BF — need no qualifier**, the same reasoning that already exempts
+     HR/RBI/SB on the hitting side: it takes real accumulated playing time to
+     rack them up. Their rate cousins (K/9, K%, K:BB) still get the 25 IP gate,
+     since a high rate is exactly as fluke-prone on a tiny sample as a low one.
+4. **Only when the number on the card equals our computed line for that stat.**
+   Mostly holds by construction, and is the backstop for the cases that don't:
+   a player with no matching entry, or (see below) a fragmented one.
+5. **NO_OFFICIAL players never rank, on either side of the card.** Matt Scott
+   and Landon Hennen are excluded from `official_line()` because their card's
+   scope can't take any single team's own bookkeeping as truth — and the same
+   fragmentation breaks ranking, not just headline numbers. Scott exists as
+   two separate rows in `data/league-stats/` — "Matthew Scott" (Lake Charles)
+   and "Matt Scott" (Brazos Valley), spelled differently because that's how
+   each club's own export spells him — so a name lookup only ever reaches one
+   stint. A single stat from that one incomplete stint can coincide with the
+   card's real combined total by chance: his card shows 2 triples: his Brazos
+   Valley stint alone is *also* 2 (the two stints really sum to 3), so a naive
+   rank_of() match said "5th" for a number that was never really his season
+   total. `ranker()`/`pitch_ranker()` check `NO_OFFICIAL` before ever touching
+   the computed dataset, exactly the same guard `official_line()` already had.
 
-   Presto ranks all of them, so the refusal is ours and not a gap in the data.
-   That is why they stay in `RANK_KEYS` and are turned away in `rank_of`: a stat
-   simply missing from the map looks like an oversight and invites a "fix".
-   This cost Landreneau his K 6th and Sunday his K 11th, which is the point.
-3. **Only when the number on the card equals Presto's for that stat.** Since the
-   league's line is now what the card prints, this normally holds by
-   construction; it is the backstop for the cases that rule can't cover — a card
-   whose scope isn't a TCL line (Matt Scott), a stat Presto doesn't publish, and
-   a player it has no line for.
-4. **Hitting only.** Presto publishes no pitching ranks at all — not for the
-   league ERA leader, not for anyone. Pitcher cards carry none, and the website
-   says the same in its own legend.
+**Every tile in the season strip is a stat that ranks**, so the strip reads as a
+row of league placings rather than a row of numbers with one gap in it. OPS is
+the one headline stat with no natural rank — a roll-up of OBP and SLG, not a
+category of its own — and the owner took it off the strip for exactly that
+reason. It still prints in PRODUCTION, so nothing left the card. Before adding a
+tile, check it has a key in `RANK_KEYS` (hitting) or `PITCH_RANK_KEYS`
+(pitching); if it doesn't, it will sit there permanently blank.
 
-**Every tile in the season strip is a stat the TCL ranks**, so the strip reads as
-a row of league placings rather than a row of numbers with one gap in it. OPS was
-the exception — the one headline stat Presto publishes no rank for — and the
-owner took it off the strip for exactly that reason. It still prints in
-PRODUCTION, so nothing left the card. Before adding a tile, check it has a key in
-`RANK_KEYS`; if it doesn't, it will sit there permanently blank.
-
-Do **not** compute ranks from the league leaderboard. That was tried and thrown
-out: the board pages out around 216 hitters, short of the league, and Presto
-applies a minimum-AB qualifier to the rate stats that the raw board does not.
-Landreneau's AVG rank came out 70th against Presto's 49th — small enough to look
-right and be wrong.
+**Found, not fixed, while wiring pitching ranks in:** the pitcher card's season
+strip hardcodes `['GS', '0']` rather than a real start count (`pitcher_card()`
+in `player-season-data.py` never computes one). That means GS never
+rank-matches for any pitcher no matter how many games he actually started —
+harmless (it just fails to show, the same as any other mismatch), but worth
+knowing before someone spends time wondering why a 15-start workhorse's GS
+never carries a badge.
 
 ### wOBA and wRC+ (batter cards)
 
