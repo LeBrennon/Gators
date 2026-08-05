@@ -285,7 +285,10 @@ def main():
            'abMin': AB_MIN, 'ipMin': IP_MIN, 'players': out_players}
     import time
     out['built'] = int(time.time() * 1000)
-    json.dump(out, open(OUT, 'w'), indent=1)
+    # sort_keys: HIT_KEYS/PITCH_KEYS are iterated via set(), whose order is not
+    # stable run to run — without this every rebuild produced a full-file diff
+    # of pure key reordering with no actual data change.
+    json.dump(out, open(OUT, 'w'), indent=1, sort_keys=True)
     n_hit_ranked = sum(1 for r in out_players.values() if r.get('hitRanks'))
     n_pitch_ranked = sum(1 for r in out_players.values() if r.get('pitchRanks'))
     print(f'wrote {OUT}', file=sys.stderr)

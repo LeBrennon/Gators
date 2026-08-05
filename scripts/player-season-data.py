@@ -188,6 +188,35 @@ def _computed_ranks():
         except (FileNotFoundError, KeyError): _COMPUTED = {}
     return _COMPUTED
 
+_LEAGUE_STATS = None
+def pitch_official_line(player):
+    """W/L/SV as the league's own CSV export records them, or {} when it must
+    not be used.
+
+    Decision credit is an official-scorer call, not something a box score's
+    own pitching-table text always settles — save-vs-win and reliever-vs-
+    reliever assignment can be revised after the box posts. A team-wide check
+    found our own box-derived decision count well short of one per game (37
+    of 49 Gators games) while the league CSV's own W+L totals came within 2 of
+    it — the CSV is the more complete record. Same principle as
+    official_line() on the batting side ('the league's line wins'), scoped to
+    W/L/SV only: IP/H/BB/K and everything derived from them stayed the box's
+    own number because those already reconciled cleanly against the league
+    data (Jack Garcille's missing-appearance case aside, and that one is
+    fixed at the source — see data/league-stats/README.md — not overridden
+    here)."""
+    if player in NO_OFFICIAL: return {}
+    global _LEAGUE_STATS
+    if _LEAGUE_STATS is None:
+        _LEAGUE_STATS = {}
+        for path in glob.glob('data/league-stats/*.json'):
+            for name, p in json.load(open(path))['players'].items():
+                _LEAGUE_STATS[name] = p
+    for nm in aka(player):
+        pt = (_LEAGUE_STATS.get(nm) or {}).get('pitching')
+        if pt: return {'w': pt.get('w'), 'l': pt.get('l'), 'sv': pt.get('sv')}
+    return {}
+
 def _rank_matcher(ranks, line, keys, no_rank):
     """Shared core for both sides: rank_of(label, value) -> 'Nth' or None.
 
@@ -884,6 +913,22 @@ def pitcher_card(player, mobile=False):
                           b['ip'], str(bf_g), str(b['h']), str(b['r']), str(b['er']), str(b['bb']), str(b['k']),
                           str(b['np']) if b['np'] else '—', (str(b['spct']) + '%') if b['spct'] else '—', gera])
     w, l, sv = dec['W'], dec['L'], dec['SV'] + dec['S']
+    # THE LEAGUE'S DECISION WINS. See pitch_official_line()'s own docstring —
+    # W/L/SV assignment is an official-scorer call our own box-text regex
+    # can't always settle, and a team-wide check showed the league's own
+    # totals are the more complete record. IP/H/BB/K etc. stay the box's own
+    # number; only the three decision counts take the league's number.
+    off_p = pitch_official_line(player)
+    took_p = []
+    def OP(key, ours):
+        v = off_p.get(key)
+        if v in (None, '', '-', '—'): return ours
+        try: v = int(v)
+        except ValueError: return ours
+        if v != ours: took_p.append(f'{key.upper()} {ours}->{v}')
+        return v
+    if off_p:
+        w = OP('w', w); l = OP('l', l); sv = OP('sv', sv)
     app = len(box_games)
     rank_of = pitch_ranker(player)
     season = [['APP', str(app)], ['GS', '0'], ['W', str(w)], ['L', str(l)], ['SV', str(sv)],
@@ -939,7 +984,7 @@ def pitcher_card(player, mobile=False):
             if not rk: continue
             while len(row) < 4: row.append(None)
             row.append(rk); ranked += 1
-    return DATA, {'games': app, 'mismatched': bad, 'ranked': ranked}
+    return DATA, {'games': app, 'mismatched': bad, 'ranked': ranked, 'official': took_p}
 
 def main():
     if len(sys.argv) < 3: print(__doc__); sys.exit(1)
