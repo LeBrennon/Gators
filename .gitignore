@@ -16,6 +16,8 @@ reports/season/
 reports/playoffs/
 # Generated player season cards (hand-fed per player, reproducible)
 reports/players/
+# Zipped batches of the above, for delivery
+reports/batches/
 # Renderer scratch (render-batch.py splices DATA into a temp copy of the template)
 scripts/.batch-tmp-*.js
 scripts/__pycache__/
