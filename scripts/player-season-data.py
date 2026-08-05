@@ -206,15 +206,31 @@ def _rank_matcher(ranks, line, keys, no_rank):
         return ranks[key] if n and n <= RANK_TOP else None
     return rank_of
 
+_NEVER_RANK = lambda label, value: None
+
 def ranker(player):
-    """Hitting ranks — see _rank_matcher for the matching rule."""
+    """Hitting ranks — see _rank_matcher for the matching rule.
+
+    NO_OFFICIAL players are excluded here too, not just from official_line().
+    Matt Scott exists as two separate rows in data/league-stats/ — "Matthew
+    Scott" (Lake Charles) and "Matt Scott" (Brazos Valley) — since that's how
+    each club's own export spells him. A flat name lookup only ever reaches
+    one stint, so a single stat from that ONE incomplete stint can coincide
+    with the card's real combined total by chance: his card's 3B is 2, his
+    Brazos Valley stint alone is ALSO 2 (the two stints actually sum to 3,
+    which is what his real season total is) — a rank_of() match that isn't
+    actually true, caught only by checking NO_OFFICIAL before it ships.
+    """
+    if player in NO_OFFICIAL: return _NEVER_RANK
     rec = _computed_ranks().get(player) or {}
     return _rank_matcher(rec.get('hitRanks') or {}, rec.get('hitLine') or {}, RANK_KEYS, NO_RANK)
 
 def pitch_ranker(player):
-    """Pitching ranks — see _rank_matcher for the matching rule. The league
-    itself publishes none of these on any page, for anyone; every pitching
-    rank on a card comes from build-league-ranks.py's own computation."""
+    """Pitching ranks — see _rank_matcher for the matching rule and ranker()'s
+    own docstring for why NO_OFFICIAL is excluded here too. The league itself
+    publishes none of these on any page, for anyone; every pitching rank on a
+    card comes from build-league-ranks.py's own computation."""
+    if player in NO_OFFICIAL: return _NEVER_RANK
     rec = _computed_ranks().get(player) or {}
     return _rank_matcher(rec.get('pitchRanks') or {}, rec.get('pitchLine') or {}, PITCH_RANK_KEYS, PITCH_NO_RANK)
 
