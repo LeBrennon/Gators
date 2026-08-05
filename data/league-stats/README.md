@@ -24,3 +24,17 @@ them as `<team>_batting.csv` / `_running.csv` / `_pitching.csv` / `_fielding.csv
 in this directory, run `python3 scripts/merge-team-stats.py <team> "<Team
 Name>"` to rebuild that team's `<team>.json`, then rerun
 `python3 scripts/build-league-ranks.py` to recompute every rank in the league.
+
+## Known correction: Jack Garcille (lakecharles.json)
+
+The league's own pitching export for Jack Garcille is missing his 7/17 relief
+appearance at Baton Rouge (3.0 IP, 2 H, 0 R, 0 ER, 1 BB, 4 K) — the box score
+for that game is unambiguous (his line plus the other two Gators pitchers'
+lines sum exactly to the game's own printed pitching totals), so this is a
+gap in the league's compilation, not a scope/identity issue like Matt Scott's.
+His `pitching` record here has been hand-corrected (app/ip/h/bb/k/bf/era/whip)
+to include that appearance. **If the owner sends a refreshed Lake Charles
+pitching CSV, re-check Garcille's line before re-running merge-team-stats.py**
+— if the league has since fixed their own record, the fresh CSV will already
+be correct and this note (and the need for the hand patch) goes away; if not,
+the same correction needs re-applying on top of the new export.
