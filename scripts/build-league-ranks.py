@@ -53,27 +53,29 @@ IP_MIN = 25
 
 # label -> raw key. 'hit' combines the batting + running CSVs (running's own
 # gp is dropped at merge time, so 'gp' below is always batting's).
-HIT_KEYS = {'G': 'gp', 'PA': 'pa', 'AB': 'ab', 'H': 'h', '2B': '2b', '3B': '3b',
+# G, PA, AB, SF deliberately absent: owner's call, no rank wanted on them.
+HIT_KEYS = {'H': 'h', '2B': '2b', '3B': '3b',
             'HR': 'hr', 'RBI': 'rbi', 'R': 'r', 'BB': 'bb', 'K': 'k', 'HBP': 'hbp',
-            'SF': 'sf', 'SB': 'sb', 'CS': 'cs', 'TB': 'tb',
+            'SB': 'sb', 'CS': 'cs', 'TB': 'tb',
             'AVG': 'avg', 'OBP': 'obp', 'SLG': 'slg'}
 HIT_RATE = {'avg', 'obp', 'slg'}   # need AB_MIN
 
 # label -> raw/derived key, for the pitching side.
-# IP deliberately absent: owner's call, no rank wanted on innings pitched. It
-# still computes into every /9 rate (k9/bb9/h9/hr9) and gates the IP_MIN
-# qualifier below — only the IP badge itself is suppressed.
-PITCH_KEYS = {'APP': 'app', 'GS': 'gs', 'W': 'w', 'SV': 'sv', 'BF': 'bf',
-              'ERA': 'era', 'WHIP': 'whip', 'K': 'k', 'BB': 'bb', 'H': 'h', 'HR': 'hr', 'HBP': 'hbp',
-              'K/9': 'k9', 'BB/9': 'bb9', 'H/9': 'h9', 'HR/9': 'hr9',
-              'K%': 'kpct', 'BB%': 'bbpct', 'K:BB': 'kbb'}
+# IP, APP, GS, BF, HBP, BB, K%, BB% deliberately absent: owner's call, no rank
+# wanted on them. IP/BF/BB still feed every derived rate (k9/bb9/h9/hr9/kpct/
+# bbpct/kbb) and IP still gates the IP_MIN qualifier below — only the badges
+# on the raw stats themselves are suppressed.
+PITCH_KEYS = {'W': 'w', 'SV': 'sv',
+              'ERA': 'era', 'WHIP': 'whip', 'K': 'k', 'H': 'h', 'HR': 'hr',
+              'K/9': 'k9', 'BB/9': 'bb9', 'H/9': 'h9', 'HR/9': 'hr9', 'K:BB': 'kbb'}
 # lower value = better rank. Everything else in PITCH_KEYS sorts descending.
-PITCH_ASC = {'era', 'whip', 'bb', 'h', 'hr', 'hbp', 'bb9', 'h9', 'hr9', 'bbpct'}
+# (Only keys still in PITCH_KEYS matter here — extra entries are harmless but
+# keep this trimmed to what's actually rankable, for clarity.)
+PITCH_ASC = {'era', 'whip', 'h', 'hr', 'bb9', 'h9', 'hr9'}
 # needs IP_MIN before it can rank: every ascending pitching stat, plus the
-# ascending-flavored rate stats already covered by PITCH_ASC, plus the
-# high-is-better RATE stats (k9, kpct, kbb) which are just as fluke-prone on
-# a tiny sample as an ascending one.
-PITCH_QUALIFY = PITCH_ASC | {'k9', 'kpct', 'kbb', 'era', 'whip'}
+# high-is-better RATE stats (k9, kbb) which are just as fluke-prone on a tiny
+# sample as an ascending one.
+PITCH_QUALIFY = PITCH_ASC | {'k9', 'kbb'}
 
 
 def num(v):

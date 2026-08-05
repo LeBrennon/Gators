@@ -99,17 +99,18 @@ def sibling(name):
 _RANKS = None       # data/league-ranks.json — Presto-sourced, official_line() ONLY
 _COMPUTED = None    # data/league-ranks-computed.json — ranker()/pitch_ranker() ONLY
 # Card stat label -> the key it goes by in the computed hitting line/rank table.
-RANK_KEYS = {'G': 'gp', 'PA': 'pa', 'AB': 'ab', 'H': 'h', '2B': '2b', '3B': '3b',
+# G, PA, AB, SF deliberately absent: owner's call, no rank wanted on them.
+RANK_KEYS = {'H': 'h', '2B': '2b', '3B': '3b',
              'HR': 'hr', 'RBI': 'rbi', 'R': 'r', 'BB': 'bb', 'K': 'k', 'HBP': 'hbp',
-             'SF': 'sf', 'SB': 'sb', 'TB': 'tb', 'CS': 'cs', 'AVG': 'avg',
+             'SB': 'sb', 'TB': 'tb', 'CS': 'cs', 'AVG': 'avg',
              'OBP': 'obp', 'SLG': 'slg'}
 # Same idea for the pitching card. Keep in sync with PITCH_KEYS in
 # build-league-ranks.py by hand — no shared import between the two.
-# IP deliberately absent: owner's call, no rank wanted on innings pitched.
-PITCH_RANK_KEYS = {'APP': 'app', 'GS': 'gs', 'W': 'w', 'SV': 'sv', 'BF': 'bf',
-                    'ERA': 'era', 'WHIP': 'whip', 'K': 'k', 'BB': 'bb', 'H': 'h', 'HR': 'hr', 'HBP': 'hbp',
-                    'K/9': 'k9', 'BB/9': 'bb9', 'H/9': 'h9', 'HR/9': 'hr9',
-                    'K%': 'kpct', 'BB%': 'bbpct', 'K:BB': 'kbb'}
+# IP, APP, GS, BF, HBP, BB, K%, BB% deliberately absent: owner's call, no rank
+# wanted on them.
+PITCH_RANK_KEYS = {'W': 'w', 'SV': 'sv',
+                    'ERA': 'era', 'WHIP': 'whip', 'K': 'k', 'H': 'h', 'HR': 'hr',
+                    'K/9': 'k9', 'BB/9': 'bb9', 'H/9': 'h9', 'HR/9': 'hr9', 'K:BB': 'kbb'}
 # Stats where placing high is the opposite of a distinction. They print their
 # number and no rank: a hitter should not learn from his own card that he was
 # 6th in the league for striking out, or 4th at being thrown out stealing.
