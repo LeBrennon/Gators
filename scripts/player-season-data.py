@@ -127,6 +127,12 @@ NO_RANK = {'K', 'CS', 'GIDP', 'E'}
 # never mapped into PITCH_RANK_KEYS at all — listed here for the same reason
 # GIDP/E are, so a future addition doesn't quietly rank it.
 PITCH_NO_RANK = {'L'}
+# A rank at a zero value isn't a real distinction — "47th" beside a "0" reads
+# as an achievement when it's really "tied for last with everyone who has
+# none." Unlike NO_RANK/PITCH_NO_RANK (which withhold a stat's badge always),
+# this only withholds it when the value is actually zero — a real save total
+# still ranks normally. Owner's call, seen on Cade Robin's card (SV 0, 47th).
+ZERO_NO_RANK = {'SV'}
 RANK_TOP = 50   # below this the number stops being a distinction worth printing
 
 def _rank_num(s):
@@ -230,6 +236,7 @@ def _rank_matcher(ranks, line, keys, no_rank):
     """
     def rank_of(label, value):
         if label in no_rank: return None
+        if label in ZERO_NO_RANK and _same(value, '0'): return None
         key = keys.get(label)
         if not key or key not in ranks or key not in line: return None
         if not _same(value, line[key]): return None
