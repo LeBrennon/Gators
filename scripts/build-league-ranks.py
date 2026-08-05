@@ -51,6 +51,26 @@ OUT = os.path.join(ROOT, 'data', 'league-ranks-computed.json')
 AB_MIN = 50
 IP_MIN = 25
 
+# Matt Scott's card is a full season across two clubs (Brazos Valley, then
+# Lake Charles) by owner decision, so no single team's own CSV export holds
+# his real total — the two rows this dataset actually has for him ("Matt
+# Scott" at Brazos Valley, "Matthew Scott" at Lake Charles, spelled
+# differently because that's how each club's own export spells him) sum to
+# MORE than his true season: Brazos Valley's export still credits a 7/8 game
+# the league's own transactions log says he wasn't rostered for that day
+# (see EXCLUDE_GAMES in player-season-data.py). Rather than leave him
+# unranked forever for a data-shape problem we can actually solve, his one
+# true line — box-validated, PBP-reconciled, and already what his card prints
+# — replaces both fragments below, so he competes for a rank on the same
+# footing as everyone else. Refresh this by re-running
+# `python3 scripts/player-season-data.py "Matt Scott" --batter` if his
+# underlying box data (or the excluded-game ruling) ever changes.
+MATT_SCOTT_HIT_LINE = {
+    'gp': 32, 'pa': 137, 'ab': 120, 'h': 34, '2b': 11, '3b': 2, 'hr': 3,
+    'rbi': 25, 'r': 25, 'bb': 13, 'k': 37, 'hbp': 1, 'sf': 2, 'sb': 6, 'cs': 2,
+    'tb': 58, 'avg': .283, 'obp': .353, 'slg': .483,
+}
+
 # label -> raw key. 'hit' combines the batting + running CSVs (running's own
 # gp is dropped at merge time, so 'gp' below is always batting's).
 # G, PA, AB, SF deliberately absent: owner's call, no rank wanted on them.
@@ -218,6 +238,13 @@ def main():
 
     hit_lines = {p['name']: build_hit_line(p) for p in players}
     pitch_lines = {p['name']: build_pitch_line(p) for p in players}
+    # Merge Matt Scott's two fragments into the one line that's actually his
+    # season — see MATT_SCOTT_HIT_LINE's own comment for why. Dropping the
+    # Lake Charles fragment ("Matthew Scott") rather than leaving it in the
+    # pool matters: left in, it would keep competing as if it were a second,
+    # separate player.
+    hit_lines.pop('Matthew Scott', None)
+    hit_lines['Matt Scott'] = dict(MATT_SCOTT_HIT_LINE)
     hit_entries = [(n, l) for n, l in hit_lines.items() if l]
     pitch_entries = [(n, l) for n, l in pitch_lines.items() if l]
 
@@ -280,6 +307,10 @@ def main():
             rec['pitchLine'] = pitch_vals
             rec['pitchRanks'] = pitch_ranks
         out_players[name] = rec
+    # The Lake Charles fragment has nothing of its own left to report — his
+    # numbers live under 'Matt Scott' now — so drop the empty leftover entry
+    # rather than ship a ghost row with a team and no stats.
+    out_players.pop('Matthew Scott', None)
 
     out = {'built': None, 'source': f'{len(players)} players, all 8 TCL teams, data/league-stats/',
            'abMin': AB_MIN, 'ipMin': IP_MIN, 'players': out_players}

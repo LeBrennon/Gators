@@ -178,6 +178,17 @@ NO_OFFICIAL = {
                      '(1 game, 3 AB) is not the 4 games the boxes credit him',
 }
 
+# ranker()/pitch_ranker()'s own exclusion — narrower than NO_OFFICIAL. Matt
+# Scott's two-club scope still means official_line() can't use the TCL page
+# (that's unchanged), but build-league-ranks.py now merges his Brazos Valley
+# + Lake Charles fragments into the one true line his card prints (see
+# MATT_SCOTT_HIT_LINE there) and ranks him against the full league on it, so
+# he no longer needs blocking here. Landon Hennen's league-stats entry hasn't
+# had the same treatment, so he stays excluded from ranking, same as always.
+RANK_EXCLUDE = {
+    'Landon Hennen': NO_OFFICIAL['Landon Hennen'],
+}
+
 def official_line(player):
     """The TCL leaderboard line for this player, or {} when it must not be used."""
     if player in NO_OFFICIAL: return {}
@@ -249,26 +260,29 @@ _NEVER_RANK = lambda label, value: None
 def ranker(player):
     """Hitting ranks — see _rank_matcher for the matching rule.
 
-    NO_OFFICIAL players are excluded here too, not just from official_line().
-    Matt Scott exists as two separate rows in data/league-stats/ — "Matthew
-    Scott" (Lake Charles) and "Matt Scott" (Brazos Valley) — since that's how
-    each club's own export spells him. A flat name lookup only ever reaches
-    one stint, so a single stat from that ONE incomplete stint can coincide
-    with the card's real combined total by chance: his card's 3B is 2, his
-    Brazos Valley stint alone is ALSO 2 (the two stints actually sum to 3,
-    which is what his real season total is) — a rank_of() match that isn't
-    actually true, caught only by checking NO_OFFICIAL before it ships.
+    RANK_EXCLUDE players are excluded here too, not just NO_OFFICIAL ones from
+    official_line(). Matt Scott used to be one of them: he exists as two
+    separate rows in data/league-stats/ — "Matthew Scott" (Lake Charles) and
+    "Matt Scott" (Brazos Valley) — since that's how each club's own export
+    spells him, and a flat name lookup only ever reached one stint, so a
+    single stat from that ONE incomplete stint could coincide with the card's
+    real combined total by chance (his card's 3B was 2, his Brazos Valley
+    stint alone was ALSO 2, even though the two stints actually summed to 3 —
+    a rank_of() match that wasn't really true). build-league-ranks.py now
+    merges both fragments into his one real line before ranking runs, so that
+    failure mode is closed and he's off this list; see MATT_SCOTT_HIT_LINE
+    there for how.
     """
-    if player in NO_OFFICIAL: return _NEVER_RANK
+    if player in RANK_EXCLUDE: return _NEVER_RANK
     rec = _computed_ranks().get(player) or {}
     return _rank_matcher(rec.get('hitRanks') or {}, rec.get('hitLine') or {}, RANK_KEYS, NO_RANK)
 
 def pitch_ranker(player):
     """Pitching ranks — see _rank_matcher for the matching rule and ranker()'s
-    own docstring for why NO_OFFICIAL is excluded here too. The league itself
+    own docstring for why RANK_EXCLUDE is checked here too. The league itself
     publishes none of these on any page, for anyone; every pitching rank on a
     card comes from build-league-ranks.py's own computation."""
-    if player in NO_OFFICIAL: return _NEVER_RANK
+    if player in RANK_EXCLUDE: return _NEVER_RANK
     rec = _computed_ranks().get(player) or {}
     return _rank_matcher(rec.get('pitchRanks') or {}, rec.get('pitchLine') or {}, PITCH_RANK_KEYS, PITCH_NO_RANK)
 
