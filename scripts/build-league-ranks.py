@@ -61,17 +61,17 @@ HIT_KEYS = {'H': 'h', '2B': '2b', '3B': '3b',
 HIT_RATE = {'avg', 'obp', 'slg'}   # need AB_MIN
 
 # label -> raw/derived key, for the pitching side.
-# IP, APP, GS, BF, HBP, BB, K%, BB%, H, HR deliberately absent: owner's call,
+# IP, APP, GS, BF, HBP, BB, K%, BB%, H, HR, HR/9 deliberately absent: owner's call,
 # no rank wanted on them. IP/BF/BB/H/HR still feed every derived rate
 # (k9/bb9/h9/hr9/kpct/bbpct/kbb) and IP still gates the IP_MIN qualifier below
 # — only the badges on the raw stats themselves are suppressed.
 PITCH_KEYS = {'W': 'w', 'SV': 'sv',
               'ERA': 'era', 'WHIP': 'whip', 'K': 'k',
-              'K/9': 'k9', 'BB/9': 'bb9', 'H/9': 'h9', 'HR/9': 'hr9', 'K:BB': 'kbb'}
+              'K/9': 'k9', 'BB/9': 'bb9', 'H/9': 'h9', 'K:BB': 'kbb'}
 # lower value = better rank. Everything else in PITCH_KEYS sorts descending.
 # (Only keys still in PITCH_KEYS matter here — extra entries are harmless but
 # keep this trimmed to what's actually rankable, for clarity.)
-PITCH_ASC = {'era', 'whip', 'bb9', 'h9', 'hr9'}
+PITCH_ASC = {'era', 'whip', 'bb9', 'h9'}
 # needs IP_MIN before it can rank: every ascending pitching stat, plus the
 # high-is-better RATE stats (k9, kbb) which are just as fluke-prone on a tiny
 # sample as an ascending one.
