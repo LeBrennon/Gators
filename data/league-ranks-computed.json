@@ -1,6 +1,6 @@
 {
  "abMin": 50,
- "built": 1785907743378,
+ "built": 1785946179365,
  "ipMin": 25,
  "players": {
   "AIDEN CLINE": {
@@ -39,16 +39,16 @@
     "tb": "10"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "bb": "100th",
     "cs": "26th",
-    "h": "132nd",
+    "h": "131st",
     "hbp": "89th",
     "k": "62nd",
-    "r": "115th",
-    "rbi": "111th",
-    "sb": "66th",
-    "tb": "132nd"
+    "r": "114th",
+    "rbi": "110th",
+    "sb": "67th",
+    "tb": "131st"
    },
    "team": "San Antonio River Monsters"
   },
@@ -90,9 +90,9 @@
     "avg": "72nd",
     "bb": "72nd",
     "cs": "8th",
-    "h": "25th",
+    "h": "26th",
     "hbp": "8th",
-    "k": "14th",
+    "k": "15th",
     "obp": "84th",
     "r": "50th",
     "rbi": "40th",
@@ -144,13 +144,13 @@
     "cs": "63rd",
     "h": "69th",
     "hbp": "131st",
-    "k": "11th",
-    "obp": "79th",
+    "k": "12th",
+    "obp": "78th",
     "r": "90th",
-    "rbi": "88th",
-    "sb": "118th",
+    "rbi": "87th",
+    "sb": "117th",
     "slg": "96th",
-    "tb": "84th"
+    "tb": "83rd"
    },
    "pitchLine": {
     "bb9": "0.00",
@@ -214,7 +214,7 @@
     "cs": "2nd",
     "h": "1st",
     "hbp": "11th",
-    "hr": "41st",
+    "hr": "40th",
     "k": "62nd",
     "obp": "1st",
     "r": "1st",
@@ -358,10 +358,10 @@
     "cs": "63rd",
     "h": "49th",
     "hbp": "61st",
-    "hr": "17th",
+    "hr": "18th",
     "k": "118th",
     "obp": "60th",
-    "r": "37th",
+    "r": "38th",
     "rbi": "44th",
     "sb": "25th",
     "slg": "30th",
@@ -412,16 +412,16 @@
     "avg": "29th",
     "bb": "9th",
     "cs": "13th",
-    "h": "21st",
+    "h": "22nd",
     "hbp": "89th",
     "hr": "3rd",
-    "k": "14th",
+    "k": "15th",
     "obp": "23rd",
     "r": "18th",
     "rbi": "14th",
     "sb": "6th",
     "slg": "11th",
-    "tb": "11th"
+    "tb": "12th"
    },
    "pitchLine": {
     "bb9": "10.50",
@@ -478,13 +478,13 @@
    "hitRanks": {
     "bb": "177th",
     "cs": "26th",
-    "h": "102nd",
+    "h": "101st",
     "hbp": "61st",
-    "k": "201st",
-    "r": "115th",
-    "rbi": "121st",
-    "sb": "118th",
-    "tb": "123rd"
+    "k": "200th",
+    "r": "114th",
+    "rbi": "120th",
+    "sb": "117th",
+    "tb": "122nd"
    },
    "team": "Abilene Flying Bison"
   },
@@ -550,17 +550,17 @@
     "tb": "20"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "3b": "15th",
-    "bb": "77th",
+    "bb": "78th",
     "cs": "13th",
-    "h": "102nd",
-    "hr": "17th",
+    "h": "101st",
+    "hr": "18th",
     "k": "130th",
     "r": "107th",
-    "rbi": "88th",
-    "sb": "118th",
-    "tb": "74th"
+    "rbi": "87th",
+    "sb": "117th",
+    "tb": "73rd"
    },
    "pitchLine": {
     "era": "0.00",
@@ -600,16 +600,16 @@
     "avg": "11th",
     "bb": "92nd",
     "cs": "13th",
-    "h": "12th",
+    "h": "13th",
     "hbp": "61st",
-    "hr": "17th",
+    "hr": "18th",
     "k": "31st",
     "obp": "50th",
-    "r": "32nd",
+    "r": "33rd",
     "rbi": "9th",
     "sb": "42nd",
     "slg": "20th",
-    "tb": "20th"
+    "tb": "21st"
    },
    "team": "Victoria Generals"
   },
@@ -644,11 +644,11 @@
     "tb": "1"
    },
    "hitRanks": {
-    "h": "205th",
+    "h": "204th",
     "hbp": "131st",
-    "r": "226th",
-    "rbi": "192nd",
-    "tb": "208th"
+    "r": "225th",
+    "rbi": "191st",
+    "tb": "207th"
    },
    "team": "Sherman Shadowcats"
   },
@@ -709,7 +709,7 @@
     "tb": "72"
    },
    "hitRanks": {
-    "2b": "7th",
+    "2b": "8th",
     "3b": "2nd",
     "avg": "27th",
     "bb": "7th",
@@ -717,12 +717,12 @@
     "h": "5th",
     "hbp": "4th",
     "hr": "8th",
-    "k": "11th",
+    "k": "12th",
     "obp": "29th",
     "r": "3rd",
     "rbi": "2nd",
     "sb": "8th",
-    "slg": "15th",
+    "slg": "16th",
     "tb": "3rd"
    },
    "team": "Lake Charles Gumbeaux Gators"
@@ -767,17 +767,17 @@
    "hitRanks": {
     "2b": "50th",
     "3b": "15th",
-    "avg": "38th",
+    "avg": "39th",
     "bb": "33rd",
     "cs": "63rd",
     "h": "46th",
     "hbp": "131st",
-    "hr": "17th",
+    "hr": "18th",
     "k": "51st",
     "obp": "40th",
     "r": "50th",
     "rbi": "59th",
-    "sb": "81st",
+    "sb": "82nd",
     "slg": "32nd",
     "tb": "36th"
    },
@@ -809,7 +809,7 @@
     "cs": "4th",
     "h": "6th",
     "hbp": "8th",
-    "hr": "17th",
+    "hr": "18th",
     "k": "51st",
     "obp": "14th",
     "r": "5th",
@@ -833,12 +833,12 @@
     "tb": "0"
    },
    "hitRanks": {
-    "bb": "209th",
-    "h": "222nd",
-    "k": "221st",
-    "r": "226th",
-    "rbi": "213th",
-    "tb": "222nd"
+    "bb": "208th",
+    "h": "221st",
+    "k": "220th",
+    "r": "225th",
+    "rbi": "212th",
+    "tb": "221st"
    },
    "pitchLine": {
     "bb9": "7.50",
@@ -879,13 +879,13 @@
     "bb": "118th",
     "h": "76th",
     "hbp": "61st",
-    "hr": "41st",
+    "hr": "40th",
     "k": "151st",
     "obp": "96th",
     "r": "79th",
     "rbi": "49th",
     "slg": "70th",
-    "tb": "74th"
+    "tb": "73rd"
    },
    "team": "Victoria Generals"
   },
@@ -954,12 +954,12 @@
     "cs": "63rd",
     "h": "69th",
     "hbp": "61st",
-    "hr": "17th",
+    "hr": "18th",
     "k": "130th",
     "obp": "87th",
     "r": "98th",
     "rbi": "40th",
-    "sb": "96th",
+    "sb": "97th",
     "slg": "24th",
     "tb": "56th"
    },
@@ -981,7 +981,7 @@
     "tb": "15"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "avg": "71st",
     "bb": "147th",
     "cs": "63rd",
@@ -990,9 +990,9 @@
     "k": "55th",
     "obp": "93rd",
     "r": "98th",
-    "rbi": "142nd",
+    "rbi": "141st",
     "slg": "83rd",
-    "tb": "105th"
+    "tb": "104th"
    },
    "team": "Victoria Generals"
   },
@@ -1038,11 +1038,11 @@
     "hbp": "43rd",
     "k": "46th",
     "obp": "59th",
-    "r": "37th",
+    "r": "38th",
     "rbi": "49th",
     "sb": "21st",
     "slg": "81st",
-    "tb": "70th"
+    "tb": "69th"
    },
    "team": "Victoria Generals"
   },
@@ -1062,15 +1062,15 @@
     "tb": "10"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "bb": "137th",
-    "h": "121st",
+    "h": "120th",
     "hbp": "89th",
     "k": "118th",
-    "r": "164th",
-    "rbi": "121st",
-    "sb": "66th",
-    "tb": "132nd"
+    "r": "163rd",
+    "rbi": "120th",
+    "sb": "67th",
+    "tb": "131st"
    },
    "team": "Abilene Flying Bison"
   },
@@ -1107,13 +1107,13 @@
     "tb": "7"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "bb": "147th",
-    "h": "153rd",
-    "k": "175th",
-    "r": "190th",
-    "rbi": "157th",
-    "tb": "159th"
+    "h": "152nd",
+    "k": "174th",
+    "r": "189th",
+    "rbi": "156th",
+    "tb": "158th"
    },
    "team": "Abilene Flying Bison"
   },
@@ -1134,12 +1134,12 @@
    "hitRanks": {
     "bb": "137th",
     "cs": "63rd",
-    "h": "182nd",
+    "h": "181st",
     "k": "151st",
-    "r": "190th",
-    "rbi": "213th",
-    "sb": "96th",
-    "tb": "186th"
+    "r": "189th",
+    "rbi": "212th",
+    "sb": "97th",
+    "tb": "185th"
    },
    "team": "Brazos Valley Bombers"
   },
@@ -1174,11 +1174,11 @@
     "tb": "0"
    },
    "hitRanks": {
-    "h": "222nd",
-    "k": "208th",
-    "r": "206th",
-    "rbi": "213th",
-    "tb": "222nd"
+    "h": "221st",
+    "k": "207th",
+    "r": "205th",
+    "rbi": "212th",
+    "tb": "221st"
    },
    "team": "Baton Rouge Rougarou"
   },
@@ -1218,16 +1218,16 @@
     "tb": "8"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "bb": "159th",
     "cs": "63rd",
-    "h": "145th",
+    "h": "144th",
     "hbp": "89th",
     "k": "130th",
-    "r": "123rd",
-    "rbi": "157th",
-    "sb": "81st",
-    "tb": "149th"
+    "r": "122nd",
+    "rbi": "156th",
+    "sb": "82nd",
+    "tb": "148th"
    },
    "pitchLine": {
     "bb9": "3.48",
@@ -1350,7 +1350,7 @@
     "obp": "13th",
     "r": "90th",
     "rbi": "63rd",
-    "sb": "96th",
+    "sb": "97th",
     "slg": "36th",
     "tb": "61st"
    },
@@ -1369,12 +1369,12 @@
     "tb": "0"
    },
    "hitRanks": {
-    "bb": "194th",
-    "h": "222nd",
-    "k": "208th",
-    "r": "206th",
-    "rbi": "192nd",
-    "tb": "222nd"
+    "bb": "193rd",
+    "h": "221st",
+    "k": "207th",
+    "r": "205th",
+    "rbi": "191st",
+    "tb": "221st"
    },
    "team": "Baton Rouge Rougarou"
   },
@@ -1413,13 +1413,13 @@
    },
    "hitRanks": {
     "bb": "108th",
-    "h": "172nd",
+    "h": "171st",
     "hbp": "43rd",
     "k": "118th",
-    "r": "123rd",
-    "rbi": "157th",
+    "r": "122nd",
+    "rbi": "156th",
     "sb": "56th",
-    "tb": "180th"
+    "tb": "179th"
    },
    "team": "Victoria Generals"
   },
@@ -1440,16 +1440,16 @@
     "tb": "20"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "bb": "147th",
     "h": "89th",
     "hbp": "89th",
-    "hr": "17th",
-    "k": "184th",
+    "hr": "18th",
+    "k": "183rd",
     "r": "90th",
-    "rbi": "79th",
-    "sb": "152nd",
-    "tb": "74th"
+    "rbi": "78th",
+    "sb": "151st",
+    "tb": "73rd"
    },
    "team": "Abilene Flying Bison"
   },
@@ -1476,14 +1476,14 @@
     "avg": "8th",
     "bb": "58th",
     "cs": "63rd",
-    "h": "27th",
+    "h": "28th",
     "hbp": "61st",
     "k": "125th",
     "obp": "20th",
     "r": "21st",
-    "rbi": "79th",
+    "rbi": "78th",
     "sb": "8th",
-    "slg": "14th",
+    "slg": "15th",
     "tb": "28th"
    },
    "team": "Victoria Generals"
@@ -1505,19 +1505,19 @@
     "tb": "11"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "avg": "94th",
     "bb": "52nd",
     "cs": "63rd",
-    "h": "111th",
+    "h": "110th",
     "hbp": "43rd",
     "k": "82nd",
     "obp": "41st",
     "r": "50th",
-    "rbi": "121st",
+    "rbi": "120th",
     "sb": "14th",
     "slg": "99th",
-    "tb": "123rd"
+    "tb": "122nd"
    },
    "team": "Baton Rouge Rougarou"
   },
@@ -1532,10 +1532,10 @@
     "tb": "0"
    },
    "hitRanks": {
-    "h": "222nd",
-    "r": "226th",
-    "rbi": "213th",
-    "tb": "222nd"
+    "h": "221st",
+    "r": "225th",
+    "rbi": "212th",
+    "tb": "221st"
    },
    "pitchLine": {
     "bb9": "6.66",
@@ -1617,20 +1617,20 @@
     "tb": "49"
    },
    "hitRanks": {
-    "2b": "4th",
-    "avg": "36th",
+    "2b": "5th",
+    "avg": "37th",
     "bb": "17th",
     "cs": "8th",
-    "h": "18th",
+    "h": "19th",
     "hbp": "11th",
     "hr": "8th",
     "k": "24th",
     "obp": "37th",
     "r": "18th",
-    "rbi": "21st",
-    "sb": "66th",
+    "rbi": "22nd",
+    "sb": "67th",
     "slg": "25th",
-    "tb": "15th"
+    "tb": "16th"
    },
    "pitchLine": {
     "bb9": "6.46",
@@ -1711,7 +1711,7 @@
     "tb": "16"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "avg": "74th",
     "bb": "22nd",
     "cs": "63rd",
@@ -1723,7 +1723,7 @@
     "rbi": "71st",
     "sb": "56th",
     "slg": "91st",
-    "tb": "96th"
+    "tb": "95th"
    },
    "team": "Victoria Generals"
   },
@@ -1746,15 +1746,15 @@
     "avg": "83rd",
     "bb": "92nd",
     "cs": "63rd",
-    "h": "98th",
+    "h": "97th",
     "hbp": "89th",
     "k": "82nd",
     "obp": "72nd",
     "r": "98th",
-    "rbi": "121st",
+    "rbi": "120th",
     "sb": "33rd",
     "slg": "98th",
-    "tb": "120th"
+    "tb": "119th"
    },
    "team": "Baton Rouge Rougarou"
   },
@@ -1776,13 +1776,13 @@
    "hitRanks": {
     "3b": "15th",
     "bb": "177th",
-    "h": "167th",
+    "h": "166th",
     "hbp": "89th",
     "k": "143rd",
-    "r": "190th",
-    "rbi": "192nd",
-    "sb": "118th",
-    "tb": "159th"
+    "r": "189th",
+    "rbi": "191st",
+    "sb": "117th",
+    "tb": "158th"
    },
    "pitchLine": {
     "bb9": "2.57",
@@ -1856,13 +1856,13 @@
    },
    "hitRanks": {
     "bb": "147th",
-    "h": "167th",
-    "hr": "41st",
+    "h": "166th",
+    "hr": "40th",
     "k": "130th",
-    "r": "152nd",
-    "rbi": "121st",
-    "sb": "118th",
-    "tb": "149th"
+    "r": "151st",
+    "rbi": "120th",
+    "sb": "117th",
+    "tb": "148th"
    },
    "team": "San Antonio River Monsters"
   },
@@ -1898,12 +1898,12 @@
     "tb": "0"
    },
    "hitRanks": {
-    "bb": "209th",
-    "h": "222nd",
-    "k": "221st",
-    "r": "206th",
-    "rbi": "213th",
-    "tb": "222nd"
+    "bb": "208th",
+    "h": "221st",
+    "k": "220th",
+    "r": "205th",
+    "rbi": "212th",
+    "tb": "221st"
    },
    "team": "San Antonio River Monsters"
   },
@@ -1920,12 +1920,12 @@
     "tb": "0"
    },
    "hitRanks": {
-    "bb": "209th",
-    "h": "222nd",
-    "k": "208th",
-    "r": "226th",
-    "rbi": "213th",
-    "tb": "222nd"
+    "bb": "208th",
+    "h": "221st",
+    "k": "207th",
+    "r": "225th",
+    "rbi": "212th",
+    "tb": "221st"
    },
    "team": "Baton Rouge Rougarou"
   },
@@ -1940,10 +1940,10 @@
     "tb": "0"
    },
    "hitRanks": {
-    "h": "222nd",
-    "r": "206th",
-    "rbi": "213th",
-    "tb": "222nd"
+    "h": "221st",
+    "r": "205th",
+    "rbi": "212th",
+    "tb": "221st"
    },
    "pitchLine": {
     "bb9": "5.66",
@@ -1979,15 +1979,15 @@
     "tb": "10"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "bb": "108th",
-    "h": "132nd",
+    "h": "131st",
     "hbp": "89th",
     "k": "110th",
-    "r": "164th",
-    "rbi": "142nd",
+    "r": "163rd",
+    "rbi": "141st",
     "sb": "56th",
-    "tb": "132nd"
+    "tb": "131st"
    },
    "team": "Acadiana Cane Cutters"
   },
@@ -2027,16 +2027,16 @@
     "tb": "28"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "avg": "50th",
     "bb": "12th",
     "cs": "4th",
-    "h": "30th",
+    "h": "31st",
     "hbp": "43rd",
     "k": "42nd",
     "obp": "36th",
     "r": "11th",
-    "rbi": "26th",
+    "rbi": "27th",
     "sb": "3rd",
     "slg": "81st",
     "tb": "54th"
@@ -2098,14 +2098,14 @@
    "hitRanks": {
     "bb": "159th",
     "cs": "63rd",
-    "h": "182nd",
+    "h": "181st",
     "hbp": "89th",
-    "hr": "41st",
-    "k": "194th",
-    "r": "164th",
-    "rbi": "174th",
-    "sb": "96th",
-    "tb": "174th"
+    "hr": "40th",
+    "k": "193rd",
+    "r": "163rd",
+    "rbi": "173rd",
+    "sb": "97th",
+    "tb": "173rd"
    },
    "pitchLine": {
     "bb9": "9.00",
@@ -2139,11 +2139,11 @@
    },
    "hitRanks": {
     "bb": "159th",
-    "h": "191st",
+    "h": "190th",
     "k": "151st",
-    "r": "164th",
-    "rbi": "213th",
-    "tb": "196th"
+    "r": "163rd",
+    "rbi": "212th",
+    "tb": "195th"
    },
    "team": "Acadiana Cane Cutters"
   },
@@ -2178,11 +2178,11 @@
     "tb": "0"
    },
    "hitRanks": {
-    "h": "222nd",
-    "k": "221st",
-    "r": "226th",
-    "rbi": "213th",
-    "tb": "222nd"
+    "h": "221st",
+    "k": "220th",
+    "r": "225th",
+    "rbi": "212th",
+    "tb": "221st"
    },
    "pitchLine": {
     "bb9": "3.75",
@@ -2228,10 +2228,10 @@
     "k": "19th",
     "obp": "65th",
     "r": "79th",
-    "rbi": "88th",
-    "sb": "81st",
+    "rbi": "87th",
+    "sb": "82nd",
     "slg": "95th",
-    "tb": "96th"
+    "tb": "95th"
    },
    "team": "Sherman Shadowcats"
   },
@@ -2311,12 +2311,12 @@
     "tb": "0"
    },
    "hitRanks": {
-    "bb": "209th",
-    "h": "222nd",
-    "k": "221st",
-    "r": "226th",
-    "rbi": "213th",
-    "tb": "222nd"
+    "bb": "208th",
+    "h": "221st",
+    "k": "220th",
+    "r": "225th",
+    "rbi": "212th",
+    "tb": "221st"
    },
    "pitchLine": {
     "bb9": "6.84",
@@ -2355,12 +2355,12 @@
     "tb": "2"
    },
    "hitRanks": {
-    "bb": "209th",
-    "h": "191st",
-    "k": "208th",
-    "r": "206th",
-    "rbi": "213th",
-    "tb": "196th"
+    "bb": "208th",
+    "h": "190th",
+    "k": "207th",
+    "r": "205th",
+    "rbi": "212th",
+    "tb": "195th"
    },
    "pitchLine": {
     "bb9": "11.81",
@@ -2431,12 +2431,12 @@
     "tb": "3"
    },
    "hitRanks": {
-    "h": "182nd",
+    "h": "181st",
     "hbp": "131st",
-    "k": "208th",
-    "r": "206th",
-    "rbi": "213th",
-    "tb": "186th"
+    "k": "207th",
+    "r": "205th",
+    "rbi": "212th",
+    "tb": "185th"
    },
    "team": "Abilene Flying Bison"
   },
@@ -2495,19 +2495,19 @@
     "tb": "10"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "avg": "108th",
     "bb": "100th",
     "cs": "26th",
-    "h": "121st",
+    "h": "120th",
     "hbp": "30th",
     "k": "28th",
     "obp": "105th",
-    "r": "135th",
-    "rbi": "98th",
-    "sb": "152nd",
+    "r": "134th",
+    "rbi": "97th",
+    "sb": "151st",
     "slg": "107th",
-    "tb": "132nd"
+    "tb": "131st"
    },
    "team": "Sherman Shadowcats"
   },
@@ -2574,10 +2574,10 @@
     "h": "76th",
     "hbp": "131st",
     "k": "143rd",
-    "r": "152nd",
-    "rbi": "142nd",
-    "sb": "81st",
-    "tb": "78th"
+    "r": "151st",
+    "rbi": "141st",
+    "sb": "82nd",
+    "tb": "77th"
    },
    "team": "Abilene Flying Bison"
   },
@@ -2597,7 +2597,7 @@
     "tb": "18"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "avg": "73rd",
     "bb": "4th",
     "h": "64th",
@@ -2605,10 +2605,10 @@
     "k": "62nd",
     "obp": "8th",
     "r": "11th",
-    "rbi": "157th",
+    "rbi": "156th",
     "sb": "14th",
     "slg": "96th",
-    "tb": "84th"
+    "tb": "83rd"
    },
    "team": "Acadiana Cane Cutters"
   },
@@ -2627,12 +2627,12 @@
    },
    "hitRanks": {
     "bb": "159th",
-    "h": "191st",
-    "k": "184th",
-    "r": "164th",
-    "rbi": "174th",
-    "sb": "152nd",
-    "tb": "196th"
+    "h": "190th",
+    "k": "183rd",
+    "r": "163rd",
+    "rbi": "173rd",
+    "sb": "151st",
+    "tb": "195th"
    },
    "pitchLine": {
     "bb9": "6.00",
@@ -2687,15 +2687,15 @@
     "tb": "7"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "bb": "147th",
-    "h": "153rd",
+    "h": "152nd",
     "hbp": "131st",
-    "k": "184th",
-    "r": "190th",
-    "rbi": "157th",
-    "sb": "152nd",
-    "tb": "159th"
+    "k": "183rd",
+    "r": "189th",
+    "rbi": "156th",
+    "sb": "151st",
+    "tb": "158th"
    },
    "team": "Baton Rouge Rougarou"
   },
@@ -2716,16 +2716,16 @@
     "tb": "9"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "bb": "159th",
     "cs": "63rd",
-    "h": "132nd",
+    "h": "131st",
     "hbp": "131st",
     "k": "151st",
-    "r": "180th",
-    "rbi": "192nd",
-    "sb": "152nd",
-    "tb": "143rd"
+    "r": "179th",
+    "rbi": "191st",
+    "sb": "151st",
+    "tb": "142nd"
    },
    "pitchLine": {
     "era": "18.00",
@@ -2782,12 +2782,12 @@
     "avg": "47th",
     "bb": "22nd",
     "cs": "63rd",
-    "h": "30th",
+    "h": "31st",
     "hbp": "20th",
     "k": "51st",
     "obp": "46th",
     "r": "59th",
-    "rbi": "19th",
+    "rbi": "20th",
     "slg": "75th",
     "tb": "46th"
    },
@@ -2853,15 +2853,15 @@
     "tb": "5"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "bb": "128th",
-    "h": "172nd",
+    "h": "171st",
     "hbp": "131st",
     "k": "101st",
-    "r": "135th",
-    "rbi": "157th",
-    "sb": "152nd",
-    "tb": "177th"
+    "r": "134th",
+    "rbi": "156th",
+    "sb": "151st",
+    "tb": "176th"
    },
    "team": "Abilene Flying Bison"
   },
@@ -2881,15 +2881,15 @@
     "tb": "17"
    },
    "hitRanks": {
-    "bb": "194th",
+    "bb": "193rd",
     "cs": "26th",
-    "h": "132nd",
+    "h": "131st",
     "hr": "8th",
     "k": "165th",
-    "r": "152nd",
-    "rbi": "142nd",
-    "sb": "152nd",
-    "tb": "90th"
+    "r": "151st",
+    "rbi": "141st",
+    "sb": "151st",
+    "tb": "89th"
    },
    "team": "Abilene Flying Bison"
   },
@@ -2909,18 +2909,18 @@
     "tb": "10"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "3b": "15th",
     "avg": "109th",
     "bb": "177th",
     "cs": "63rd",
-    "h": "145th",
+    "h": "144th",
     "k": "76th",
     "obp": "110th",
-    "r": "164th",
-    "rbi": "111th",
+    "r": "163rd",
+    "rbi": "110th",
     "slg": "104th",
-    "tb": "132nd"
+    "tb": "131st"
    },
    "team": "Abilene Flying Bison"
   },
@@ -2984,13 +2984,13 @@
    },
    "hitRanks": {
     "bb": "159th",
-    "h": "145th",
+    "h": "144th",
     "hbp": "89th",
-    "k": "184th",
-    "r": "135th",
-    "rbi": "142nd",
-    "sb": "96th",
-    "tb": "159th"
+    "k": "183rd",
+    "r": "134th",
+    "rbi": "141st",
+    "sb": "97th",
+    "tb": "158th"
    },
    "team": "Abilene Flying Bison"
   },
@@ -3016,7 +3016,7 @@
     "bb": "33rd",
     "h": "64th",
     "hbp": "43rd",
-    "hr": "41st",
+    "hr": "40th",
     "k": "70th",
     "obp": "31st",
     "r": "64th",
@@ -3044,17 +3044,17 @@
    },
    "hitRanks": {
     "2b": "39th",
-    "avg": "35th",
-    "bb": "77th",
+    "avg": "36th",
+    "bb": "78th",
     "h": "76th",
     "hbp": "20th",
     "k": "101st",
     "obp": "17th",
     "r": "64th",
-    "rbi": "79th",
+    "rbi": "78th",
     "sb": "42nd",
     "slg": "51st",
-    "tb": "84th"
+    "tb": "83rd"
    },
    "team": "Lake Charles Gumbeaux Gators"
   },
@@ -3082,12 +3082,12 @@
     "cs": "63rd",
     "h": "49th",
     "hbp": "89th",
-    "hr": "41st",
+    "hr": "40th",
     "k": "19th",
     "obp": "53rd",
     "r": "64th",
-    "rbi": "23rd",
-    "sb": "81st",
+    "rbi": "24th",
+    "sb": "82nd",
     "slg": "42nd",
     "tb": "46th"
    },
@@ -3136,12 +3136,12 @@
     "cs": "13th",
     "h": "41st",
     "hbp": "2nd",
-    "hr": "17th",
-    "k": "9th",
+    "hr": "18th",
+    "k": "10th",
     "obp": "35th",
-    "r": "28th",
-    "rbi": "29th",
-    "sb": "66th",
+    "r": "29th",
+    "rbi": "30th",
+    "sb": "67th",
     "slg": "45th",
     "tb": "34th"
    },
@@ -3188,16 +3188,16 @@
     "3b": "15th",
     "avg": "103rd",
     "bb": "118th",
-    "h": "102nd",
+    "h": "101st",
     "hbp": "61st",
-    "hr": "41st",
+    "hr": "40th",
     "k": "31st",
     "obp": "107th",
     "r": "64th",
     "rbi": "44th",
-    "sb": "96th",
+    "sb": "97th",
     "slg": "85th",
-    "tb": "78th"
+    "tb": "77th"
    },
    "pitchLine": {
     "bb9": "3.68",
@@ -3298,18 +3298,18 @@
     "tb": "24"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "3b": "15th",
     "avg": "16th",
     "bb": "58th",
     "cs": "63rd",
     "h": "64th",
     "hbp": "30th",
-    "hr": "41st",
+    "hr": "40th",
     "k": "110th",
     "obp": "9th",
     "r": "79th",
-    "rbi": "98th",
+    "rbi": "97th",
     "sb": "25th",
     "slg": "26th",
     "tb": "65th"
@@ -3361,9 +3361,9 @@
     "cs": "26th",
     "h": "49th",
     "hbp": "89th",
-    "hr": "41st",
+    "hr": "40th",
     "k": "37th",
-    "obp": "81st",
+    "obp": "80th",
     "r": "59th",
     "rbi": "71st",
     "sb": "49th",
@@ -3410,11 +3410,11 @@
    "hitRanks": {
     "2b": "29th",
     "avg": "22nd",
-    "bb": "77th",
+    "bb": "78th",
     "cs": "63rd",
     "h": "63rd",
     "hbp": "5th",
-    "hr": "41st",
+    "hr": "40th",
     "k": "82nd",
     "obp": "7th",
     "r": "64th",
@@ -3439,14 +3439,14 @@
     "tb": "3"
    },
    "hitRanks": {
-    "bb": "209th",
-    "h": "182nd",
+    "bb": "208th",
+    "h": "181st",
     "hbp": "131st",
-    "k": "194th",
-    "r": "206th",
-    "rbi": "142nd",
-    "sb": "152nd",
-    "tb": "186th"
+    "k": "193rd",
+    "r": "205th",
+    "rbi": "141st",
+    "sb": "151st",
+    "tb": "185th"
    },
    "pitchLine": {
     "bb9": "12.00",
@@ -3483,17 +3483,17 @@
    },
    "hitRanks": {
     "avg": "88th",
-    "bb": "77th",
-    "h": "111th",
+    "bb": "78th",
+    "h": "110th",
     "hbp": "89th",
-    "hr": "41st",
+    "hr": "40th",
     "k": "82nd",
     "obp": "67th",
     "r": "57th",
     "rbi": "63rd",
-    "sb": "118th",
+    "sb": "117th",
     "slg": "88th",
-    "tb": "110th"
+    "tb": "109th"
    },
    "team": "Brazos Valley Bombers"
   },
@@ -3516,17 +3516,17 @@
    "hitRanks": {
     "2b": "12th",
     "avg": "69th",
-    "bb": "77th",
-    "h": "33rd",
+    "bb": "78th",
+    "h": "34th",
     "hbp": "89th",
     "hr": "8th",
     "k": "39th",
     "obp": "95th",
-    "r": "43rd",
-    "rbi": "31st",
-    "sb": "66th",
+    "r": "44th",
+    "rbi": "32nd",
+    "sb": "67th",
     "slg": "39th",
-    "tb": "23rd"
+    "tb": "24th"
    },
    "pitchLine": {
     "bb9": "12.60",
@@ -3558,11 +3558,11 @@
     "tb": "7"
    },
    "hitRanks": {
-    "h": "145th",
-    "k": "201st",
-    "r": "206th",
-    "rbi": "142nd",
-    "tb": "159th"
+    "h": "144th",
+    "k": "200th",
+    "r": "205th",
+    "rbi": "141st",
+    "tb": "158th"
    },
    "pitchLine": {
     "bb9": "2.66",
@@ -3594,11 +3594,11 @@
     "tb": "0"
    },
    "hitRanks": {
-    "h": "222nd",
-    "k": "221st",
-    "r": "226th",
-    "rbi": "213th",
-    "tb": "222nd"
+    "h": "221st",
+    "k": "220th",
+    "r": "225th",
+    "rbi": "212th",
+    "tb": "221st"
    },
    "pitchLine": {
     "bb9": "11.25",
@@ -3640,15 +3640,15 @@
     "2b": "50th",
     "3b": "15th",
     "avg": "10th",
-    "bb": "77th",
+    "bb": "78th",
     "cs": "26th",
     "h": "49th",
     "hbp": "43rd",
-    "hr": "17th",
+    "hr": "18th",
     "k": "101st",
     "obp": "18th",
     "r": "57th",
-    "rbi": "31st",
+    "rbi": "32nd",
     "sb": "25th",
     "slg": "9th",
     "tb": "40th"
@@ -3666,10 +3666,10 @@
     "tb": "0"
    },
    "hitRanks": {
-    "h": "222nd",
-    "r": "226th",
-    "rbi": "213th",
-    "tb": "222nd"
+    "h": "221st",
+    "r": "225th",
+    "rbi": "212th",
+    "tb": "221st"
    },
    "pitchLine": {
     "bb9": "4.53",
@@ -3727,14 +3727,14 @@
     "tb": "4"
    },
    "hitRanks": {
-    "bb": "194th",
+    "bb": "193rd",
     "cs": "63rd",
-    "h": "172nd",
+    "h": "171st",
     "hbp": "89th",
-    "k": "221st",
-    "r": "190th",
-    "rbi": "157th",
-    "tb": "180th"
+    "k": "220th",
+    "r": "189th",
+    "rbi": "156th",
+    "tb": "179th"
    },
    "team": "Victoria Generals"
   },
@@ -3777,13 +3777,13 @@
     "tb": "1"
    },
    "hitRanks": {
-    "bb": "194th",
-    "h": "205th",
+    "bb": "193rd",
+    "h": "204th",
     "hbp": "131st",
-    "k": "184th",
-    "r": "190th",
-    "rbi": "213th",
-    "tb": "208th"
+    "k": "183rd",
+    "r": "189th",
+    "rbi": "212th",
+    "tb": "207th"
    },
    "team": "Acadiana Cane Cutters"
   },
@@ -3807,16 +3807,16 @@
     "2b": "50th",
     "avg": "99th",
     "bb": "147th",
-    "h": "111th",
+    "h": "110th",
     "hbp": "43rd",
-    "hr": "17th",
+    "hr": "18th",
     "k": "24th",
     "obp": "103rd",
-    "r": "135th",
+    "r": "134th",
     "rbi": "53rd",
-    "sb": "66th",
+    "sb": "67th",
     "slg": "65th",
-    "tb": "78th"
+    "tb": "77th"
    },
    "pitchLine": {
     "bb9": "18.00",
@@ -3851,15 +3851,15 @@
     "tb": "9"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "bb": "92nd",
-    "h": "145th",
+    "h": "144th",
     "hbp": "89th",
-    "k": "194th",
-    "r": "115th",
-    "rbi": "121st",
-    "sb": "152nd",
-    "tb": "143rd"
+    "k": "193rd",
+    "r": "114th",
+    "rbi": "120th",
+    "sb": "151st",
+    "tb": "142nd"
    },
    "pitchLine": {
     "bb9": "23.62",
@@ -3906,10 +3906,10 @@
     "tb": "0"
    },
    "hitRanks": {
-    "h": "222nd",
-    "r": "206th",
-    "rbi": "213th",
-    "tb": "222nd"
+    "h": "221st",
+    "r": "205th",
+    "rbi": "212th",
+    "tb": "221st"
    },
    "team": "Abilene Flying Bison"
   },
@@ -3930,19 +3930,19 @@
     "tb": "17"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "avg": "93rd",
     "bb": "52nd",
     "h": "89th",
     "hbp": "131st",
-    "hr": "41st",
+    "hr": "40th",
     "k": "76th",
-    "obp": "82nd",
+    "obp": "81st",
     "r": "79th",
     "rbi": "59th",
-    "sb": "152nd",
+    "sb": "151st",
     "slg": "92nd",
-    "tb": "90th"
+    "tb": "89th"
    },
    "team": "Baton Rouge Rougarou"
   },
@@ -3983,7 +3983,7 @@
     "tb": "63"
    },
    "hitRanks": {
-    "2b": "4th",
+    "2b": "5th",
     "3b": "15th",
     "avg": "11th",
     "bb": "52nd",
@@ -3993,7 +3993,7 @@
     "k": "42nd",
     "obp": "51st",
     "r": "2nd",
-    "rbi": "21st",
+    "rbi": "22nd",
     "sb": "2nd",
     "slg": "34th",
     "tb": "6th"
@@ -4029,14 +4029,14 @@
     "tb": "1"
    },
    "hitRanks": {
-    "bb": "194th",
-    "h": "205th",
+    "bb": "193rd",
+    "h": "204th",
     "hbp": "43rd",
     "k": "118th",
-    "r": "164th",
-    "rbi": "174th",
-    "sb": "118th",
-    "tb": "208th"
+    "r": "163rd",
+    "rbi": "173rd",
+    "sb": "117th",
+    "tb": "207th"
    },
    "team": "San Antonio River Monsters"
   },
@@ -4075,13 +4075,13 @@
    },
    "hitRanks": {
     "bb": "159th",
-    "h": "102nd",
+    "h": "101st",
     "hbp": "43rd",
     "k": "130th",
-    "r": "152nd",
-    "rbi": "121st",
-    "sb": "152nd",
-    "tb": "123rd"
+    "r": "151st",
+    "rbi": "120th",
+    "sb": "151st",
+    "tb": "122nd"
    },
    "team": "Lake Charles Gumbeaux Gators"
   },
@@ -4099,13 +4099,13 @@
     "tb": "0"
    },
    "hitRanks": {
-    "bb": "194th",
-    "h": "222nd",
+    "bb": "193rd",
+    "h": "221st",
     "hbp": "131st",
     "k": "143rd",
-    "r": "226th",
-    "rbi": "192nd",
-    "tb": "222nd"
+    "r": "225th",
+    "rbi": "191st",
+    "tb": "221st"
    },
    "team": "Brazos Valley Bombers"
   },
@@ -4124,14 +4124,14 @@
     "tb": "13"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "bb": "118th",
-    "h": "102nd",
+    "h": "101st",
     "hbp": "131st",
-    "k": "201st",
-    "r": "164th",
-    "rbi": "98th",
-    "tb": "110th"
+    "k": "200th",
+    "r": "163rd",
+    "rbi": "97th",
+    "tb": "109th"
    },
    "team": "Sherman Shadowcats"
   },
@@ -4146,10 +4146,10 @@
     "tb": "0"
    },
    "hitRanks": {
-    "h": "222nd",
-    "r": "226th",
-    "rbi": "213th",
-    "tb": "222nd"
+    "h": "221st",
+    "r": "225th",
+    "rbi": "212th",
+    "tb": "221st"
    },
    "pitchLine": {
     "bb9": "4.97",
@@ -4187,13 +4187,13 @@
    "hitRanks": {
     "2b": "50th",
     "bb": "16th",
-    "h": "153rd",
+    "h": "152nd",
     "hbp": "89th",
     "k": "55th",
     "r": "79th",
-    "rbi": "98th",
+    "rbi": "97th",
     "sb": "49th",
-    "tb": "143rd"
+    "tb": "142nd"
    },
    "team": "Brazos Valley Bombers"
   },
@@ -4257,11 +4257,11 @@
     "bb": "39th",
     "h": "49th",
     "hbp": "20th",
-    "hr": "17th",
+    "hr": "18th",
     "k": "82nd",
     "obp": "39th",
     "r": "50th",
-    "rbi": "31st",
+    "rbi": "32nd",
     "sb": "8th",
     "slg": "35th",
     "tb": "36th"
@@ -4304,10 +4304,10 @@
     "tb": "0"
    },
    "hitRanks": {
-    "h": "222nd",
-    "r": "226th",
-    "rbi": "174th",
-    "tb": "222nd"
+    "h": "221st",
+    "r": "225th",
+    "rbi": "173rd",
+    "tb": "221st"
    },
    "pitchLine": {
     "bb9": "13.50",
@@ -4372,10 +4372,10 @@
     "k": "46th",
     "obp": "21st",
     "r": "5th",
-    "rbi": "23rd",
+    "rbi": "24th",
     "sb": "33rd",
     "slg": "49th",
-    "tb": "15th"
+    "tb": "16th"
    },
    "team": "Acadiana Cane Cutters"
   },
@@ -4390,10 +4390,10 @@
     "tb": "1"
    },
    "hitRanks": {
-    "h": "205th",
-    "r": "226th",
-    "rbi": "213th",
-    "tb": "208th"
+    "h": "204th",
+    "r": "225th",
+    "rbi": "212th",
+    "tb": "207th"
    },
    "team": "Abilene Flying Bison"
   },
@@ -4470,15 +4470,15 @@
    "hitRanks": {
     "avg": "101st",
     "bb": "65th",
-    "h": "111th",
+    "h": "110th",
     "hbp": "89th",
     "k": "82nd",
     "obp": "89th",
-    "r": "123rd",
-    "rbi": "98th",
-    "sb": "118th",
+    "r": "122nd",
+    "rbi": "97th",
+    "sb": "117th",
     "slg": "106th",
-    "tb": "132nd"
+    "tb": "131st"
    },
    "team": "Lake Charles Gumbeaux Gators"
   },
@@ -4516,14 +4516,14 @@
     "tb": "10"
    },
    "hitRanks": {
-    "bb": "77th",
-    "h": "111th",
+    "bb": "78th",
+    "h": "110th",
     "hbp": "131st",
     "k": "94th",
     "r": "74th",
-    "rbi": "142nd",
+    "rbi": "141st",
     "sb": "42nd",
-    "tb": "132nd"
+    "tb": "131st"
    },
    "pitchLine": {
     "bb9": "7.71",
@@ -4562,21 +4562,21 @@
     "tb": "55"
    },
    "hitRanks": {
-    "2b": "4th",
+    "2b": "5th",
     "3b": "5th",
     "avg": "45th",
     "bb": "33rd",
     "cs": "63rd",
-    "h": "16th",
+    "h": "17th",
     "hbp": "30th",
     "hr": "8th",
     "k": "1st",
     "obp": "62nd",
-    "r": "25th",
+    "r": "26th",
     "rbi": "7th",
-    "sb": "96th",
+    "sb": "97th",
     "slg": "23rd",
-    "tb": "9th"
+    "tb": "10th"
    },
    "team": "Brazos Valley Bombers"
   },
@@ -4595,14 +4595,14 @@
     "tb": "5"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "bb": "159th",
-    "h": "172nd",
-    "k": "184th",
-    "r": "164th",
-    "rbi": "121st",
-    "sb": "118th",
-    "tb": "177th"
+    "h": "171st",
+    "k": "183rd",
+    "r": "163rd",
+    "rbi": "120th",
+    "sb": "117th",
+    "tb": "176th"
    },
    "team": "Brazos Valley Bombers"
   },
@@ -4662,13 +4662,13 @@
    "hitRanks": {
     "bb": "177th",
     "cs": "63rd",
-    "h": "172nd",
+    "h": "171st",
     "hbp": "30th",
     "k": "143rd",
-    "r": "152nd",
-    "rbi": "174th",
-    "sb": "118th",
-    "tb": "180th"
+    "r": "151st",
+    "rbi": "173rd",
+    "sb": "117th",
+    "tb": "179th"
    },
    "team": "Lake Charles Gumbeaux Gators"
   },
@@ -4688,15 +4688,15 @@
     "tb": "8"
    },
    "hitRanks": {
-    "2b": "115th",
-    "bb": "77th",
-    "h": "145th",
+    "2b": "114th",
+    "bb": "78th",
+    "h": "144th",
     "hbp": "89th",
     "k": "94th",
-    "r": "115th",
-    "rbi": "174th",
-    "sb": "152nd",
-    "tb": "149th"
+    "r": "114th",
+    "rbi": "173rd",
+    "sb": "151st",
+    "tb": "148th"
    },
    "team": "Victoria Generals"
   },
@@ -4746,7 +4746,7 @@
     "hr": "8th",
     "k": "24th",
     "obp": "77th",
-    "r": "37th",
+    "r": "38th",
     "rbi": "15th",
     "sb": "14th",
     "slg": "22nd",
@@ -4788,17 +4788,17 @@
     "tb": "31"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "3b": "15th",
     "avg": "13th",
     "bb": "29th",
     "cs": "26th",
-    "h": "27th",
+    "h": "28th",
     "hbp": "11th",
     "k": "62nd",
     "obp": "10th",
-    "r": "28th",
-    "rbi": "79th",
+    "r": "29th",
+    "rbi": "78th",
     "sb": "49th",
     "slg": "47th",
     "tb": "40th"
@@ -4819,13 +4819,13 @@
     "tb": "0"
    },
    "hitRanks": {
-    "bb": "194th",
-    "h": "222nd",
+    "bb": "193rd",
+    "h": "221st",
     "hbp": "131st",
-    "k": "208th",
-    "r": "190th",
-    "rbi": "192nd",
-    "tb": "222nd"
+    "k": "207th",
+    "r": "189th",
+    "rbi": "191st",
+    "tb": "221st"
    },
    "team": "Victoria Generals"
   },
@@ -4845,13 +4845,13 @@
    },
    "hitRanks": {
     "bb": "92nd",
-    "h": "205th",
+    "h": "204th",
     "hbp": "131st",
     "k": "165th",
-    "r": "152nd",
-    "rbi": "157th",
-    "sb": "152nd",
-    "tb": "208th"
+    "r": "151st",
+    "rbi": "156th",
+    "sb": "151st",
+    "tb": "207th"
    },
    "team": "Acadiana Cane Cutters"
   },
@@ -4888,13 +4888,13 @@
     "tb": "1"
    },
    "hitRanks": {
-    "bb": "209th",
-    "h": "205th",
+    "bb": "208th",
+    "h": "204th",
     "hbp": "89th",
-    "k": "175th",
-    "r": "190th",
-    "rbi": "213th",
-    "tb": "208th"
+    "k": "174th",
+    "r": "189th",
+    "rbi": "212th",
+    "tb": "207th"
    },
    "pitchLine": {
     "bb9": "27.00",
@@ -4931,17 +4931,17 @@
     "tb": "19"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "bb": "92nd",
     "cs": "26th",
     "h": "76th",
     "hbp": "30th",
-    "hr": "41st",
+    "hr": "40th",
     "k": "165th",
     "r": "98th",
     "rbi": "53rd",
     "sb": "42nd",
-    "tb": "78th"
+    "tb": "77th"
    },
    "pitchLine": {
     "era": "5.40",
@@ -4976,16 +4976,16 @@
     "tb": "14"
    },
    "hitRanks": {
-    "2b": "115th",
-    "bb": "194th",
-    "h": "145th",
+    "2b": "114th",
+    "bb": "193rd",
+    "h": "144th",
     "hbp": "89th",
-    "hr": "17th",
+    "hr": "18th",
     "k": "94th",
-    "r": "123rd",
-    "rbi": "157th",
-    "sb": "118th",
-    "tb": "108th"
+    "r": "122nd",
+    "rbi": "156th",
+    "sb": "117th",
+    "tb": "107th"
    },
    "team": "Victoria Generals"
   },
@@ -5008,21 +5008,21 @@
     "tb": "51"
    },
    "hitRanks": {
-    "2b": "10th",
+    "2b": "11th",
     "3b": "15th",
     "avg": "75th",
     "bb": "39th",
     "cs": "26th",
-    "h": "21st",
+    "h": "22nd",
     "hbp": "6th",
     "hr": "6th",
     "k": "7th",
     "obp": "73rd",
     "r": "15th",
     "rbi": "9th",
-    "sb": "81st",
+    "sb": "82nd",
     "slg": "38th",
-    "tb": "11th"
+    "tb": "12th"
    },
    "pitchLine": {
     "bb9": "7.36",
@@ -5076,14 +5076,14 @@
     "tb": "3"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "bb": "118th",
-    "h": "191st",
+    "h": "190th",
     "hbp": "131st",
     "k": "125th",
-    "r": "190th",
-    "rbi": "157th",
-    "tb": "186th"
+    "r": "189th",
+    "rbi": "156th",
+    "tb": "185th"
    },
    "team": "Acadiana Cane Cutters"
   },
@@ -5106,14 +5106,14 @@
    "hitRanks": {
     "bb": "137th",
     "cs": "63rd",
-    "h": "132nd",
+    "h": "131st",
     "hbp": "89th",
-    "hr": "41st",
+    "hr": "40th",
     "k": "151st",
-    "r": "135th",
-    "rbi": "174th",
-    "sb": "118th",
-    "tb": "123rd"
+    "r": "134th",
+    "rbi": "173rd",
+    "sb": "117th",
+    "tb": "122nd"
    },
    "pitchLine": {
     "bb9": "5.40",
@@ -5151,14 +5151,14 @@
     "avg": "105th",
     "bb": "44th",
     "cs": "63rd",
-    "h": "121st",
+    "h": "120th",
     "hbp": "89th",
     "k": "28th",
     "obp": "94th",
-    "r": "135th",
-    "rbi": "98th",
+    "r": "134th",
+    "rbi": "97th",
     "slg": "108th",
-    "tb": "143rd"
+    "tb": "142nd"
    },
    "team": "Baton Rouge Rougarou"
   },
@@ -5180,17 +5180,17 @@
     "tb": "10"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "bb": "108th",
     "cs": "63rd",
-    "h": "153rd",
+    "h": "152nd",
     "hbp": "89th",
-    "hr": "41st",
+    "hr": "40th",
     "k": "62nd",
-    "r": "152nd",
-    "rbi": "111th",
-    "sb": "118th",
-    "tb": "132nd"
+    "r": "151st",
+    "rbi": "110th",
+    "sb": "117th",
+    "tb": "131st"
    },
    "team": "Baton Rouge Rougarou"
   },
@@ -5232,12 +5232,12 @@
     "tb": "0"
    },
    "hitRanks": {
-    "h": "222nd",
-    "k": "221st",
-    "r": "206th",
-    "rbi": "213th",
-    "sb": "152nd",
-    "tb": "222nd"
+    "h": "221st",
+    "k": "220th",
+    "r": "205th",
+    "rbi": "212th",
+    "sb": "151st",
+    "tb": "221st"
    },
    "pitchLine": {
     "bb9": "2.84",
@@ -5294,17 +5294,17 @@
     "tb": "13"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "3b": "15th",
-    "bb": "77th",
+    "bb": "78th",
     "cs": "63rd",
-    "h": "111th",
+    "h": "110th",
     "hbp": "89th",
     "k": "82nd",
     "r": "90th",
-    "rbi": "98th",
-    "sb": "96th",
-    "tb": "110th"
+    "rbi": "97th",
+    "sb": "97th",
+    "tb": "109th"
    },
    "team": "Sherman Shadowcats"
   },
@@ -5389,14 +5389,14 @@
     "cs": "26th",
     "h": "76th",
     "hbp": "61st",
-    "hr": "41st",
+    "hr": "40th",
     "k": "19th",
     "obp": "88th",
     "r": "64th",
-    "rbi": "31st",
-    "sb": "81st",
+    "rbi": "32nd",
+    "sb": "82nd",
     "slg": "59th",
-    "tb": "70th"
+    "tb": "69th"
    },
    "team": "Victoria Generals"
   },
@@ -5424,14 +5424,14 @@
     "cs": "8th",
     "h": "10th",
     "hbp": "89th",
-    "hr": "41st",
+    "hr": "40th",
     "k": "5th",
     "obp": "86th",
-    "r": "28th",
-    "rbi": "19th",
-    "sb": "66th",
+    "r": "29th",
+    "rbi": "20th",
+    "sb": "67th",
     "slg": "74th",
-    "tb": "23rd"
+    "tb": "24th"
    },
    "pitchLine": {
     "bb9": "10.80",
@@ -5469,20 +5469,20 @@
     "tb": "17"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "3b": "15th",
     "avg": "102nd",
     "bb": "128th",
-    "h": "111th",
+    "h": "110th",
     "hbp": "61st",
-    "hr": "41st",
+    "hr": "40th",
     "k": "76th",
     "obp": "106th",
     "r": "90th",
-    "rbi": "98th",
-    "sb": "152nd",
+    "rbi": "97th",
+    "sb": "151st",
     "slg": "87th",
-    "tb": "90th"
+    "tb": "89th"
    },
    "team": "Sherman Shadowcats"
   },
@@ -5520,12 +5520,12 @@
    },
    "hitRanks": {
     "bb": "147th",
-    "h": "191st",
+    "h": "190th",
     "hbp": "131st",
-    "k": "208th",
-    "r": "164th",
-    "rbi": "157th",
-    "tb": "196th"
+    "k": "207th",
+    "r": "163rd",
+    "rbi": "156th",
+    "tb": "195th"
    },
    "team": "San Antonio River Monsters"
   },
@@ -5564,15 +5564,15 @@
     "tb": "13"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "bb": "147th",
-    "h": "102nd",
+    "h": "101st",
     "hbp": "61st",
-    "k": "208th",
-    "r": "135th",
-    "rbi": "88th",
-    "sb": "152nd",
-    "tb": "110th"
+    "k": "207th",
+    "r": "134th",
+    "rbi": "87th",
+    "sb": "151st",
+    "tb": "109th"
    },
    "team": "San Antonio River Monsters"
   },
@@ -5591,14 +5591,14 @@
     "tb": "4"
    },
    "hitRanks": {
-    "bb": "209th",
-    "h": "205th",
-    "hr": "41st",
-    "k": "208th",
-    "r": "180th",
-    "rbi": "174th",
-    "sb": "152nd",
-    "tb": "180th"
+    "bb": "208th",
+    "h": "204th",
+    "hr": "40th",
+    "k": "207th",
+    "r": "179th",
+    "rbi": "173rd",
+    "sb": "151st",
+    "tb": "179th"
    },
    "pitchLine": {
     "bb9": "3.38",
@@ -5638,16 +5638,16 @@
    "hitRanks": {
     "2b": "50th",
     "avg": "78th",
-    "bb": "194th",
+    "bb": "193rd",
     "cs": "63rd",
     "h": "67th",
     "hbp": "43rd",
-    "hr": "17th",
+    "hr": "18th",
     "k": "46th",
     "obp": "103rd",
     "r": "79th",
     "rbi": "59th",
-    "sb": "66th",
+    "sb": "67th",
     "slg": "56th",
     "tb": "61st"
    },
@@ -5663,11 +5663,11 @@
     "tb": "0"
    },
    "hitRanks": {
-    "h": "222nd",
+    "h": "221st",
     "hbp": "131st",
-    "r": "226th",
-    "rbi": "213th",
-    "tb": "222nd"
+    "r": "225th",
+    "rbi": "212th",
+    "tb": "221st"
    },
    "pitchLine": {
     "bb9": "11.65",
@@ -5704,16 +5704,16 @@
     "tb": "15"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "3b": "15th",
     "bb": "177th",
-    "h": "121st",
-    "hr": "41st",
+    "h": "120th",
+    "hr": "40th",
     "k": "130th",
-    "r": "115th",
-    "rbi": "121st",
+    "r": "114th",
+    "rbi": "120th",
     "sb": "56th",
-    "tb": "105th"
+    "tb": "104th"
    },
    "team": "San Antonio River Monsters"
   },
@@ -5732,14 +5732,14 @@
     "tb": "8"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "bb": "147th",
-    "h": "145th",
+    "h": "144th",
     "hbp": "43rd",
     "k": "143rd",
-    "r": "164th",
-    "rbi": "111th",
-    "tb": "149th"
+    "r": "163rd",
+    "rbi": "110th",
+    "tb": "148th"
    },
    "team": "San Antonio River Monsters"
   },
@@ -5769,7 +5769,7 @@
     "cs": "63rd",
     "h": "56th",
     "hbp": "43rd",
-    "hr": "41st",
+    "hr": "40th",
     "k": "101st",
     "obp": "3rd",
     "r": "15th",
@@ -5815,15 +5815,15 @@
     "tb": "5"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "bb": "159th",
     "cs": "26th",
-    "h": "172nd",
+    "h": "171st",
     "hbp": "61st",
     "k": "151st",
-    "r": "135th",
-    "rbi": "192nd",
-    "tb": "177th"
+    "r": "134th",
+    "rbi": "191st",
+    "tb": "176th"
    },
    "pitchLine": {
     "bb9": "5.85",
@@ -5962,11 +5962,11 @@
     "2b": "50th",
     "avg": "68th",
     "bb": "3rd",
-    "h": "25th",
+    "h": "26th",
     "hbp": "11th",
     "k": "4th",
     "obp": "30th",
-    "r": "28th",
+    "r": "29th",
     "rbi": "37th",
     "sb": "56th",
     "slg": "84th",
@@ -5987,12 +5987,12 @@
     "tb": "2"
    },
    "hitRanks": {
-    "2b": "115th",
-    "h": "205th",
-    "k": "184th",
-    "r": "226th",
-    "rbi": "213th",
-    "tb": "196th"
+    "2b": "114th",
+    "h": "204th",
+    "k": "183rd",
+    "r": "225th",
+    "rbi": "212th",
+    "tb": "195th"
    },
    "pitchLine": {
     "bb9": "15.30",
@@ -6050,12 +6050,12 @@
     "2b": "50th",
     "3b": "15th",
     "bb": "177th",
-    "h": "98th",
+    "h": "97th",
     "k": "130th",
     "r": "59th",
-    "rbi": "157th",
-    "sb": "81st",
-    "tb": "90th"
+    "rbi": "156th",
+    "sb": "82nd",
+    "tb": "89th"
    },
    "team": "Lake Charles Gumbeaux Gators"
   },
@@ -6137,17 +6137,17 @@
    "hitRanks": {
     "2b": "50th",
     "3b": "15th",
-    "avg": "37th",
+    "avg": "38th",
     "bb": "128th",
     "cs": "26th",
     "h": "41st",
     "hbp": "131st",
-    "hr": "41st",
+    "hr": "40th",
     "k": "62nd",
     "obp": "90th",
     "r": "98th",
     "rbi": "63rd",
-    "sb": "66th",
+    "sb": "67th",
     "slg": "46th",
     "tb": "46th"
    },
@@ -6198,14 +6198,14 @@
     "cs": "63rd",
     "h": "8th",
     "hbp": "30th",
-    "hr": "17th",
+    "hr": "18th",
     "k": "24th",
     "obp": "67th",
     "r": "11th",
     "rbi": "3rd",
-    "sb": "81st",
+    "sb": "82nd",
     "slg": "53rd",
-    "tb": "11th"
+    "tb": "12th"
    },
    "team": "Baton Rouge Rougarou"
   },
@@ -6227,16 +6227,16 @@
    "hitRanks": {
     "2b": "50th",
     "avg": "55th",
-    "bb": "77th",
+    "bb": "78th",
     "h": "76th",
     "hbp": "61st",
     "k": "110th",
     "obp": "46th",
     "r": "59th",
-    "rbi": "79th",
+    "rbi": "78th",
     "sb": "33rd",
     "slg": "69th",
-    "tb": "90th"
+    "tb": "89th"
    },
    "team": "Brazos Valley Bombers"
   },
@@ -6280,15 +6280,15 @@
    "hitRanks": {
     "2b": "50th",
     "3b": "5th",
-    "avg": "33rd",
+    "avg": "34th",
     "bb": "100th",
     "cs": "26th",
     "h": "56th",
     "hbp": "131st",
-    "hr": "41st",
+    "hr": "40th",
     "k": "31st",
     "obp": "64th",
-    "r": "43rd",
+    "r": "44th",
     "rbi": "71st",
     "sb": "25th",
     "slg": "29th",
@@ -6313,19 +6313,19 @@
     "tb": "13"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "avg": "106th",
-    "bb": "77th",
-    "h": "121st",
+    "bb": "78th",
+    "h": "120th",
     "hbp": "61st",
-    "hr": "41st",
+    "hr": "40th",
     "k": "19th",
     "obp": "102nd",
-    "r": "135th",
+    "r": "134th",
     "rbi": "53rd",
-    "sb": "118th",
+    "sb": "117th",
     "slg": "103rd",
-    "tb": "110th"
+    "tb": "109th"
    },
    "pitchLine": {
     "bb9": "13.50",
@@ -6381,10 +6381,10 @@
     "tb": "1"
    },
    "hitRanks": {
-    "h": "205th",
-    "r": "226th",
-    "rbi": "213th",
-    "tb": "208th"
+    "h": "204th",
+    "r": "225th",
+    "rbi": "212th",
+    "tb": "207th"
    },
    "pitchLine": {
     "bb9": "6.75",
@@ -6423,17 +6423,17 @@
    },
    "hitRanks": {
     "3b": "5th",
-    "avg": "40th",
+    "avg": "41st",
     "bb": "159th",
     "cs": "26th",
     "h": "56th",
     "hbp": "30th",
-    "hr": "17th",
+    "hr": "18th",
     "k": "110th",
     "obp": "85th",
     "r": "64th",
     "rbi": "63rd",
-    "sb": "81st",
+    "sb": "82nd",
     "slg": "33rd",
     "tb": "50th"
    },
@@ -6495,7 +6495,7 @@
     "tb": "23"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "3b": "15th",
     "avg": "28th",
     "bb": "33rd",
@@ -6505,10 +6505,10 @@
     "k": "76th",
     "obp": "12th",
     "r": "90th",
-    "rbi": "121st",
+    "rbi": "120th",
     "sb": "42nd",
     "slg": "54th",
-    "tb": "67th"
+    "tb": "66th"
    },
    "team": "Lake Charles Gumbeaux Gators"
   },
@@ -6528,15 +6528,15 @@
     "tb": "11"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "bb": "108th",
     "cs": "26th",
-    "h": "121st",
+    "h": "120th",
     "hbp": "20th",
     "k": "94th",
-    "r": "135th",
-    "rbi": "121st",
-    "tb": "123rd"
+    "r": "134th",
+    "rbi": "120th",
+    "tb": "122nd"
    },
    "pitchLine": {
     "era": "9.00",
@@ -6570,15 +6570,15 @@
     "tb": "12"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "3b": "15th",
     "bb": "58th",
-    "h": "132nd",
+    "h": "131st",
     "k": "110th",
     "r": "90th",
-    "rbi": "121st",
-    "sb": "118th",
-    "tb": "120th"
+    "rbi": "120th",
+    "sb": "117th",
+    "tb": "119th"
    },
    "team": "Brazos Valley Bombers"
   },
@@ -6603,16 +6603,16 @@
    "hitRanks": {
     "2b": "50th",
     "3b": "15th",
-    "avg": "41st",
+    "avg": "42nd",
     "bb": "44th",
     "cs": "13th",
-    "h": "21st",
+    "h": "22nd",
     "hbp": "89th",
-    "hr": "41st",
+    "hr": "40th",
     "k": "6th",
     "obp": "71st",
     "r": "15th",
-    "rbi": "31st",
+    "rbi": "32nd",
     "sb": "33rd",
     "slg": "58th",
     "tb": "30th"
@@ -6654,15 +6654,15 @@
     "tb": "8"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "bb": "177th",
-    "h": "153rd",
+    "h": "152nd",
     "hbp": "131st",
     "k": "125th",
-    "r": "123rd",
-    "rbi": "121st",
-    "sb": "118th",
-    "tb": "149th"
+    "r": "122nd",
+    "rbi": "120th",
+    "sb": "117th",
+    "tb": "148th"
    },
    "team": "Lake Charles Gumbeaux Gators"
   },
@@ -6682,15 +6682,15 @@
     "tb": "10"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "bb": "137th",
-    "h": "132nd",
+    "h": "131st",
     "hbp": "30th",
     "k": "125th",
     "r": "107th",
-    "rbi": "174th",
-    "sb": "66th",
-    "tb": "132nd"
+    "rbi": "173rd",
+    "sb": "67th",
+    "tb": "131st"
    },
    "team": "Acadiana Cane Cutters"
   },
@@ -6735,15 +6735,15 @@
     "tb": "3"
    },
    "hitRanks": {
-    "bb": "194th",
+    "bb": "193rd",
     "cs": "63rd",
-    "h": "182nd",
+    "h": "181st",
     "hbp": "89th",
-    "k": "194th",
-    "r": "180th",
-    "rbi": "213th",
-    "sb": "118th",
-    "tb": "186th"
+    "k": "193rd",
+    "r": "179th",
+    "rbi": "212th",
+    "sb": "117th",
+    "tb": "185th"
    },
    "team": "Abilene Flying Bison"
   },
@@ -6765,20 +6765,20 @@
     "tb": "23"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "avg": "97th",
     "bb": "92nd",
     "cs": "63rd",
-    "h": "98th",
+    "h": "97th",
     "hbp": "20th",
     "hr": "8th",
     "k": "70th",
     "obp": "90th",
     "r": "50th",
     "rbi": "44th",
-    "sb": "96th",
+    "sb": "97th",
     "slg": "57th",
-    "tb": "67th"
+    "tb": "66th"
    },
    "team": "Lake Charles Gumbeaux Gators"
   },
@@ -6800,20 +6800,20 @@
     "tb": "16"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "avg": "87th",
     "bb": "65th",
     "cs": "63rd",
-    "h": "102nd",
+    "h": "101st",
     "hbp": "61st",
-    "hr": "41st",
+    "hr": "40th",
     "k": "55th",
     "obp": "53rd",
     "r": "79th",
-    "rbi": "121st",
-    "sb": "118th",
+    "rbi": "120th",
+    "sb": "117th",
     "slg": "71st",
-    "tb": "96th"
+    "tb": "95th"
    },
    "team": "Baton Rouge Rougarou"
   },
@@ -6843,7 +6843,7 @@
     "cs": "63rd",
     "h": "41st",
     "hbp": "19th",
-    "hr": "17th",
+    "hr": "18th",
     "k": "70th",
     "obp": "25th",
     "r": "5th",
@@ -6909,12 +6909,12 @@
     "avg": "23rd",
     "bb": "33rd",
     "cs": "26th",
-    "h": "18th",
+    "h": "19th",
     "hbp": "61st",
-    "hr": "41st",
+    "hr": "40th",
     "k": "55th",
     "obp": "33rd",
-    "r": "25th",
+    "r": "26th",
     "rbi": "63rd",
     "sb": "22nd",
     "slg": "48th",
@@ -6957,15 +6957,15 @@
     "tb": "11"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "bb": "147th",
-    "h": "121st",
+    "h": "120th",
     "hbp": "131st",
     "k": "101st",
-    "r": "190th",
-    "rbi": "142nd",
-    "sb": "152nd",
-    "tb": "123rd"
+    "r": "189th",
+    "rbi": "141st",
+    "sb": "151st",
+    "tb": "122nd"
    },
    "pitchLine": {
     "bb9": "6.23",
@@ -7009,7 +7009,7 @@
     "tb": "26"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "3b": "15th",
     "avg": "49th",
     "bb": "29th",
@@ -7018,8 +7018,8 @@
     "hbp": "61st",
     "k": "55th",
     "obp": "43rd",
-    "r": "32nd",
-    "rbi": "88th",
+    "r": "33rd",
+    "rbi": "87th",
     "sb": "49th",
     "slg": "71st",
     "tb": "58th"
@@ -7106,10 +7106,10 @@
     "tb": "0"
    },
    "hitRanks": {
-    "h": "222nd",
-    "r": "206th",
-    "rbi": "213th",
-    "tb": "222nd"
+    "h": "221st",
+    "r": "205th",
+    "rbi": "212th",
+    "tb": "221st"
    },
    "pitchLine": {
     "bb9": "18.00",
@@ -7144,14 +7144,14 @@
     "tb": "7"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "3b": "15th",
     "bb": "177th",
-    "h": "182nd",
-    "k": "221st",
-    "r": "180th",
-    "rbi": "174th",
-    "tb": "159th"
+    "h": "181st",
+    "k": "220th",
+    "r": "179th",
+    "rbi": "173rd",
+    "tb": "158th"
    },
    "pitchLine": {
     "bb9": "11.74",
@@ -7228,19 +7228,19 @@
     "tb": "31"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "3b": "15th",
     "avg": "3rd",
     "bb": "128th",
     "cs": "26th",
-    "h": "33rd",
+    "h": "34th",
     "hbp": "43rd",
-    "hr": "41st",
-    "k": "175th",
+    "hr": "40th",
+    "k": "174th",
     "obp": "11th",
     "r": "107th",
     "rbi": "37th",
-    "sb": "66th",
+    "sb": "67th",
     "slg": "9th",
     "tb": "40th"
    },
@@ -7261,14 +7261,14 @@
     "tb": "8"
    },
    "hitRanks": {
-    "2b": "77th",
-    "bb": "77th",
-    "h": "153rd",
+    "2b": "76th",
+    "bb": "78th",
+    "h": "152nd",
     "hbp": "61st",
     "k": "82nd",
-    "r": "164th",
-    "rbi": "111th",
-    "tb": "149th"
+    "r": "163rd",
+    "rbi": "110th",
+    "tb": "148th"
    },
    "team": "Acadiana Cane Cutters"
   },
@@ -7328,7 +7328,7 @@
     "tb": "19"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "3b": "15th",
     "bb": "17th",
     "cs": "26th",
@@ -7336,9 +7336,9 @@
     "hbp": "131st",
     "k": "143rd",
     "r": "64th",
-    "rbi": "121st",
+    "rbi": "120th",
     "sb": "56th",
-    "tb": "78th"
+    "tb": "77th"
    },
    "team": "Baton Rouge Rougarou"
   },
@@ -7363,15 +7363,15 @@
     "3b": "15th",
     "avg": "81st",
     "bb": "52nd",
-    "h": "102nd",
+    "h": "101st",
     "hbp": "61st",
     "k": "110th",
     "obp": "41st",
-    "r": "43rd",
-    "rbi": "79th",
-    "sb": "81st",
+    "r": "44th",
+    "rbi": "78th",
+    "sb": "82nd",
     "slg": "67th",
-    "tb": "96th"
+    "tb": "95th"
    },
    "team": "Victoria Generals"
   },
@@ -7463,11 +7463,11 @@
     "tb": "0"
    },
    "hitRanks": {
-    "h": "222nd",
-    "k": "221st",
-    "r": "226th",
-    "rbi": "213th",
-    "tb": "222nd"
+    "h": "221st",
+    "k": "220th",
+    "r": "225th",
+    "rbi": "212th",
+    "tb": "221st"
    },
    "pitchLine": {
     "bb9": "9.85",
@@ -7567,13 +7567,13 @@
    "hitRanks": {
     "bb": "177th",
     "cs": "13th",
-    "h": "205th",
+    "h": "204th",
     "hbp": "131st",
-    "k": "201st",
-    "r": "206th",
-    "rbi": "213th",
-    "sb": "96th",
-    "tb": "208th"
+    "k": "200th",
+    "r": "205th",
+    "rbi": "212th",
+    "sb": "97th",
+    "tb": "207th"
    },
    "team": "Victoria Generals"
   },
@@ -7590,12 +7590,12 @@
     "tb": "0"
    },
    "hitRanks": {
-    "bb": "194th",
-    "h": "222nd",
-    "k": "194th",
-    "r": "190th",
-    "rbi": "192nd",
-    "tb": "222nd"
+    "bb": "193rd",
+    "h": "221st",
+    "k": "193rd",
+    "r": "189th",
+    "rbi": "191st",
+    "tb": "221st"
    },
    "pitchLine": {
     "bb9": "6.93",
@@ -7638,11 +7638,11 @@
     "hbp": "89th",
     "k": "70th",
     "obp": "99th",
-    "r": "123rd",
-    "rbi": "98th",
-    "sb": "96th",
+    "r": "122nd",
+    "rbi": "97th",
+    "sb": "97th",
     "slg": "63rd",
-    "tb": "73rd"
+    "tb": "72nd"
    },
    "team": "Abilene Flying Bison"
   },
@@ -7664,17 +7664,17 @@
     "tb": "29"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "avg": "1st",
     "bb": "100th",
     "cs": "26th",
-    "h": "33rd",
+    "h": "34th",
     "hbp": "131st",
-    "hr": "41st",
+    "hr": "40th",
     "k": "151st",
     "obp": "2nd",
     "r": "64th",
-    "rbi": "79th",
+    "rbi": "78th",
     "sb": "19th",
     "slg": "8th",
     "tb": "50th"
@@ -7717,7 +7717,7 @@
     "tb": "18"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "3b": "15th",
     "avg": "76th",
     "bb": "72nd",
@@ -7726,11 +7726,11 @@
     "hbp": "89th",
     "k": "37th",
     "obp": "69th",
-    "r": "37th",
-    "rbi": "98th",
-    "sb": "118th",
+    "r": "38th",
+    "rbi": "97th",
+    "sb": "117th",
     "slg": "79th",
-    "tb": "84th"
+    "tb": "83rd"
    },
    "team": "Lake Charles Gumbeaux Gators"
   },
@@ -7752,17 +7752,17 @@
     "tb": "29"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "3b": "15th",
     "avg": "29th",
     "bb": "17th",
     "cs": "63rd",
-    "h": "33rd",
+    "h": "34th",
     "hbp": "43rd",
     "k": "82nd",
     "obp": "28th",
-    "r": "43rd",
-    "rbi": "25th",
+    "r": "44th",
+    "rbi": "26th",
     "sb": "42nd",
     "slg": "59th",
     "tb": "50th"
@@ -7781,11 +7781,11 @@
     "tb": "0"
    },
    "hitRanks": {
-    "h": "222nd",
-    "k": "221st",
-    "r": "226th",
-    "rbi": "213th",
-    "tb": "222nd"
+    "h": "221st",
+    "k": "220th",
+    "r": "225th",
+    "rbi": "212th",
+    "tb": "221st"
    },
    "pitchLine": {
     "bb9": "1.59",
@@ -7817,11 +7817,11 @@
     "tb": "0"
    },
    "hitRanks": {
-    "h": "222nd",
-    "k": "221st",
-    "r": "226th",
-    "rbi": "213th",
-    "tb": "222nd"
+    "h": "221st",
+    "k": "220th",
+    "r": "225th",
+    "rbi": "212th",
+    "tb": "221st"
    },
    "pitchLine": {
     "bb9": "27.00",
@@ -7863,12 +7863,12 @@
     "bb": "22nd",
     "h": "46th",
     "hbp": "11th",
-    "hr": "41st",
+    "hr": "40th",
     "k": "8th",
     "obp": "70th",
-    "r": "37th",
+    "r": "38th",
     "rbi": "44th",
-    "sb": "152nd",
+    "sb": "151st",
     "slg": "85th",
     "tb": "54th"
    },
@@ -7892,20 +7892,20 @@
     "tb": "13"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "avg": "95th",
-    "bb": "77th",
+    "bb": "78th",
     "cs": "63rd",
-    "h": "121st",
+    "h": "120th",
     "hbp": "89th",
-    "hr": "41st",
+    "hr": "40th",
     "k": "101st",
     "obp": "74th",
     "r": "107th",
-    "rbi": "88th",
-    "sb": "66th",
+    "rbi": "87th",
+    "sb": "67th",
     "slg": "88th",
-    "tb": "110th"
+    "tb": "109th"
    },
    "team": "Abilene Flying Bison"
   },
@@ -7925,11 +7925,11 @@
    "hitRanks": {
     "2b": "50th",
     "bb": "177th",
-    "h": "172nd",
+    "h": "171st",
     "k": "143rd",
-    "r": "190th",
-    "rbi": "111th",
-    "tb": "159th"
+    "r": "189th",
+    "rbi": "110th",
+    "tb": "158th"
    },
    "team": "Acadiana Cane Cutters"
   },
@@ -7949,15 +7949,15 @@
     "tb": "7"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "bb": "159th",
-    "h": "153rd",
+    "h": "152nd",
     "hbp": "89th",
     "k": "130th",
-    "r": "164th",
-    "rbi": "157th",
-    "sb": "152nd",
-    "tb": "159th"
+    "r": "163rd",
+    "rbi": "156th",
+    "sb": "151st",
+    "tb": "158th"
    },
    "team": "Baton Rouge Rougarou"
   },
@@ -7977,11 +7977,11 @@
    "hitRanks": {
     "3b": "15th",
     "bb": "177th",
-    "h": "153rd",
+    "h": "152nd",
     "k": "76th",
-    "r": "180th",
-    "rbi": "174th",
-    "tb": "149th"
+    "r": "179th",
+    "rbi": "173rd",
+    "tb": "148th"
    },
    "pitchLine": {
     "bb9": "2.25",
@@ -8015,13 +8015,13 @@
     "tb": "2"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "bb": "147th",
-    "h": "205th",
-    "k": "201st",
-    "r": "206th",
-    "rbi": "213th",
-    "tb": "196th"
+    "h": "204th",
+    "k": "200th",
+    "r": "205th",
+    "rbi": "212th",
+    "tb": "195th"
    },
    "team": "Abilene Flying Bison"
   },
@@ -8077,14 +8077,14 @@
     "tb": "4"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "bb": "147th",
-    "h": "182nd",
+    "h": "181st",
     "k": "165th",
-    "r": "164th",
-    "rbi": "192nd",
-    "sb": "81st",
-    "tb": "180th"
+    "r": "163rd",
+    "rbi": "191st",
+    "sb": "82nd",
+    "tb": "179th"
    },
    "team": "Abilene Flying Bison"
   },
@@ -8104,11 +8104,11 @@
    "hitRanks": {
     "3b": "15th",
     "cs": "63rd",
-    "h": "167th",
-    "k": "175th",
-    "r": "190th",
-    "rbi": "142nd",
-    "tb": "159th"
+    "h": "166th",
+    "k": "174th",
+    "r": "189th",
+    "rbi": "141st",
+    "tb": "158th"
    },
    "team": "San Antonio River Monsters"
   },
@@ -8125,12 +8125,12 @@
     "tb": "2"
    },
    "hitRanks": {
-    "bb": "209th",
-    "h": "191st",
-    "k": "221st",
-    "r": "206th",
-    "rbi": "192nd",
-    "tb": "196th"
+    "bb": "208th",
+    "h": "190th",
+    "k": "220th",
+    "r": "205th",
+    "rbi": "191st",
+    "tb": "195th"
    },
    "team": "San Antonio River Monsters"
   },
@@ -8188,15 +8188,15 @@
     "tb": "7"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "bb": "108th",
-    "h": "153rd",
+    "h": "152nd",
     "hbp": "89th",
     "k": "94th",
-    "r": "123rd",
-    "rbi": "121st",
-    "sb": "118th",
-    "tb": "159th"
+    "r": "122nd",
+    "rbi": "120th",
+    "sb": "117th",
+    "tb": "158th"
    },
    "team": "Acadiana Cane Cutters"
   },
@@ -8215,14 +8215,14 @@
     "tb": "3"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "bb": "177th",
-    "h": "191st",
-    "k": "175th",
-    "r": "206th",
-    "rbi": "121st",
-    "sb": "118th",
-    "tb": "186th"
+    "h": "190th",
+    "k": "174th",
+    "r": "205th",
+    "rbi": "120th",
+    "sb": "117th",
+    "tb": "185th"
    },
    "pitchLine": {
     "era": "0.00",
@@ -8332,20 +8332,20 @@
     "tb": "23"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "3b": "15th",
     "avg": "60th",
     "bb": "52nd",
     "cs": "13th",
     "h": "67th",
-    "hr": "41st",
+    "hr": "40th",
     "k": "94th",
     "obp": "58th",
     "r": "74th",
     "rbi": "49th",
     "sb": "8th",
     "slg": "50th",
-    "tb": "67th"
+    "tb": "66th"
    },
    "pitchLine": {
     "bb9": "9.00",
@@ -8406,12 +8406,12 @@
    "hitRanks": {
     "bb": "108th",
     "cs": "63rd",
-    "h": "153rd",
-    "k": "184th",
-    "r": "135th",
-    "rbi": "157th",
-    "sb": "66th",
-    "tb": "174th"
+    "h": "152nd",
+    "k": "183rd",
+    "r": "134th",
+    "rbi": "156th",
+    "sb": "67th",
+    "tb": "173rd"
    },
    "team": "Abilene Flying Bison"
   },
@@ -8432,15 +8432,15 @@
    "hitRanks": {
     "avg": "107th",
     "bb": "118th",
-    "h": "132nd",
+    "h": "131st",
     "hbp": "131st",
     "k": "62nd",
     "obp": "108th",
-    "r": "152nd",
-    "rbi": "157th",
-    "sb": "118th",
+    "r": "151st",
+    "rbi": "156th",
+    "sb": "117th",
     "slg": "109th",
-    "tb": "149th"
+    "tb": "148th"
    },
    "team": "Baton Rouge Rougarou"
   },
@@ -8459,14 +8459,14 @@
     "tb": "16"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "bb": "22nd",
     "h": "76th",
     "hbp": "11th",
     "k": "130th",
-    "r": "123rd",
-    "rbi": "88th",
-    "tb": "96th"
+    "r": "122nd",
+    "rbi": "87th",
+    "tb": "95th"
    },
    "team": "Acadiana Cane Cutters"
   },
@@ -8514,9 +8514,9 @@
     "k": "151st",
     "obp": "25th",
     "r": "64th",
-    "rbi": "98th",
+    "rbi": "97th",
     "slg": "68th",
-    "tb": "78th"
+    "tb": "77th"
    },
    "team": "Brazos Valley Bombers"
   },
@@ -8558,21 +8558,21 @@
     "tb": "46"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "3b": "15th",
     "avg": "4th",
     "bb": "22nd",
     "cs": "1st",
     "h": "9th",
     "hbp": "131st",
-    "hr": "17th",
+    "hr": "18th",
     "k": "101st",
     "obp": "5th",
     "r": "21st",
     "rbi": "12th",
     "sb": "8th",
     "slg": "11th",
-    "tb": "20th"
+    "tb": "21st"
    },
    "pitchLine": {
     "era": "0.00",
@@ -8603,12 +8603,12 @@
     "tb": "0"
    },
    "hitRanks": {
-    "bb": "209th",
-    "h": "222nd",
-    "k": "201st",
-    "r": "206th",
-    "rbi": "213th",
-    "tb": "222nd"
+    "bb": "208th",
+    "h": "221st",
+    "k": "200th",
+    "r": "205th",
+    "rbi": "212th",
+    "tb": "221st"
    },
    "pitchLine": {
     "bb9": "16.20",
@@ -8680,13 +8680,13 @@
     "tb": "1"
    },
    "hitRanks": {
-    "bb": "194th",
-    "h": "205th",
+    "bb": "193rd",
+    "h": "204th",
     "hbp": "131st",
-    "k": "208th",
-    "r": "164th",
-    "rbi": "174th",
-    "tb": "208th"
+    "k": "207th",
+    "r": "163rd",
+    "rbi": "173rd",
+    "tb": "207th"
    },
    "team": "Abilene Flying Bison"
   },
@@ -8708,20 +8708,20 @@
     "tb": "18"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "avg": "84th",
     "bb": "128th",
     "cs": "63rd",
     "h": "89th",
     "hbp": "131st",
-    "hr": "41st",
+    "hr": "40th",
     "k": "39th",
     "obp": "98th",
-    "r": "123rd",
+    "r": "122nd",
     "rbi": "71st",
-    "sb": "118th",
+    "sb": "117th",
     "slg": "76th",
-    "tb": "84th"
+    "tb": "83rd"
    },
    "team": "Acadiana Cane Cutters"
   },
@@ -8741,18 +8741,18 @@
     "tb": "7"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "avg": "110th",
     "bb": "137th",
     "cs": "63rd",
-    "h": "153rd",
+    "h": "152nd",
     "hbp": "61st",
-    "k": "14th",
+    "k": "15th",
     "obp": "109th",
-    "r": "190th",
-    "rbi": "174th",
+    "r": "189th",
+    "rbi": "173rd",
     "slg": "110th",
-    "tb": "159th"
+    "tb": "158th"
    },
    "team": "San Antonio River Monsters"
   },
@@ -8863,14 +8863,14 @@
    "hitRanks": {
     "2b": "39th",
     "bb": "72nd",
-    "h": "98th",
+    "h": "97th",
     "hbp": "131st",
-    "hr": "17th",
+    "hr": "18th",
     "k": "130th",
     "r": "90th",
-    "rbi": "79th",
-    "sb": "96th",
-    "tb": "70th"
+    "rbi": "78th",
+    "sb": "97th",
+    "tb": "69th"
    },
    "team": "Abilene Flying Bison"
   },
@@ -8890,15 +8890,15 @@
     "tb": "7"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "bb": "118th",
-    "h": "167th",
+    "h": "166th",
     "hbp": "30th",
     "k": "143rd",
-    "r": "135th",
-    "rbi": "192nd",
-    "sb": "96th",
-    "tb": "159th"
+    "r": "134th",
+    "rbi": "191st",
+    "sb": "97th",
+    "tb": "158th"
    },
    "pitchLine": {
     "bb9": "7.71",
@@ -8935,7 +8935,7 @@
     "tb": "14"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "avg": "65th",
     "bb": "44th",
     "cs": "26th",
@@ -8944,45 +8944,47 @@
     "k": "42nd",
     "obp": "32nd",
     "r": "98th",
-    "rbi": "192nd",
+    "rbi": "191st",
     "sb": "56th",
     "slg": "90th",
-    "tb": "108th"
+    "tb": "107th"
    },
    "team": "Sherman Shadowcats"
   },
   "Matt Scott": {
    "hitLine": {
-    "2b": "8",
+    "2b": "11",
     "3b": "2",
-    "avg": ".264",
-    "bb": "12",
-    "h": "23",
+    "avg": ".283",
+    "bb": "13",
+    "cs": "2",
+    "h": "34",
     "hbp": "1",
-    "hr": "2",
-    "k": "30",
-    "obp": ".356",
-    "r": "18",
-    "rbi": "18",
-    "sb": "3",
-    "slg": ".471",
-    "tb": "41"
+    "hr": "3",
+    "k": "37",
+    "obp": ".353",
+    "r": "25",
+    "rbi": "25",
+    "sb": "6",
+    "slg": ".483",
+    "tb": "58"
    },
    "hitRanks": {
-    "2b": "10th",
+    "2b": "3rd",
     "3b": "5th",
-    "avg": "41st",
-    "bb": "77th",
-    "h": "39th",
+    "avg": "33rd",
+    "bb": "72nd",
+    "cs": "26th",
+    "h": "12th",
     "hbp": "131st",
-    "hr": "17th",
-    "k": "14th",
-    "obp": "77th",
-    "r": "43rd",
-    "rbi": "31st",
-    "sb": "96th",
-    "slg": "16th",
-    "tb": "23rd"
+    "hr": "8th",
+    "k": "9th",
+    "obp": "81st",
+    "r": "21st",
+    "rbi": "18th",
+    "sb": "56th",
+    "slg": "14th",
+    "tb": "8th"
    },
    "team": "Brazos Valley Bombers"
   },
@@ -9047,12 +9049,12 @@
    "hitRanks": {
     "bb": "128th",
     "cs": "63rd",
-    "h": "205th",
-    "k": "175th",
-    "r": "180th",
-    "rbi": "192nd",
-    "sb": "118th",
-    "tb": "208th"
+    "h": "204th",
+    "k": "174th",
+    "r": "179th",
+    "rbi": "191st",
+    "sb": "117th",
+    "tb": "207th"
    },
    "pitchLine": {
     "bb9": "9.35",
@@ -9069,38 +9071,6 @@
     "k": "131st",
     "sv": "47th",
     "w": "120th"
-   },
-   "team": "Lake Charles Gumbeaux Gators"
-  },
-  "Matthew Scott": {
-   "hitLine": {
-    "2b": "3",
-    "3b": "1",
-    "avg": ".361",
-    "bb": "3",
-    "cs": "2",
-    "h": "13",
-    "hr": "2",
-    "k": "7",
-    "obp": ".400",
-    "r": "9",
-    "rbi": "10",
-    "sb": "3",
-    "slg": ".667",
-    "tb": "24"
-   },
-   "hitRanks": {
-    "2b": "50th",
-    "3b": "15th",
-    "bb": "177th",
-    "cs": "26th",
-    "h": "89th",
-    "hr": "17th",
-    "k": "165th",
-    "r": "107th",
-    "rbi": "71st",
-    "sb": "96th",
-    "tb": "65th"
    },
    "team": "Lake Charles Gumbeaux Gators"
   },
@@ -9121,17 +9091,17 @@
    },
    "hitRanks": {
     "2b": "39th",
-    "avg": "38th",
+    "avg": "39th",
     "bb": "118th",
     "h": "76th",
     "hbp": "89th",
     "k": "118th",
     "obp": "62nd",
-    "r": "123rd",
+    "r": "122nd",
     "rbi": "71st",
-    "sb": "66th",
+    "sb": "67th",
     "slg": "55th",
-    "tb": "84th"
+    "tb": "83rd"
    },
    "team": "Acadiana Cane Cutters"
   },
@@ -9149,11 +9119,11 @@
    },
    "hitRanks": {
     "bb": "159th",
-    "h": "191st",
+    "h": "190th",
     "k": "151st",
-    "r": "206th",
-    "rbi": "192nd",
-    "tb": "196th"
+    "r": "205th",
+    "rbi": "191st",
+    "tb": "195th"
    },
    "team": "Baton Rouge Rougarou"
   },
@@ -9213,14 +9183,14 @@
     "2b": "50th",
     "avg": "98th",
     "bb": "100th",
-    "h": "111th",
-    "hr": "41st",
+    "h": "110th",
+    "hr": "40th",
     "k": "94th",
     "obp": "100th",
     "r": "107th",
-    "rbi": "121st",
+    "rbi": "120th",
     "slg": "80th",
-    "tb": "96th"
+    "tb": "95th"
    },
    "team": "Abilene Flying Bison"
   },
@@ -9241,12 +9211,12 @@
    "hitRanks": {
     "2b": "39th",
     "bb": "137th",
-    "h": "153rd",
+    "h": "152nd",
     "hbp": "89th",
-    "k": "184th",
-    "r": "135th",
-    "rbi": "111th",
-    "tb": "132nd"
+    "k": "183rd",
+    "r": "134th",
+    "rbi": "110th",
+    "tb": "131st"
    },
    "team": "San Antonio River Monsters"
   },
@@ -9314,10 +9284,10 @@
     "k": "76th",
     "obp": "34th",
     "r": "74th",
-    "rbi": "88th",
-    "sb": "96th",
+    "rbi": "87th",
+    "sb": "97th",
     "slg": "52nd",
-    "tb": "74th"
+    "tb": "73rd"
    },
    "team": "Lake Charles Gumbeaux Gators"
   },
@@ -9337,15 +9307,15 @@
     "tb": "11"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "bb": "44th",
     "cs": "26th",
-    "h": "121st",
+    "h": "120th",
     "k": "101st",
-    "r": "135th",
-    "rbi": "121st",
+    "r": "134th",
+    "rbi": "120th",
     "sb": "33rd",
-    "tb": "123rd"
+    "tb": "122nd"
    },
    "team": "Abilene Flying Bison"
   },
@@ -9365,13 +9335,13 @@
    },
    "hitRanks": {
     "bb": "128th",
-    "h": "191st",
+    "h": "190th",
     "hbp": "131st",
     "k": "165th",
-    "r": "152nd",
-    "rbi": "174th",
-    "sb": "152nd",
-    "tb": "196th"
+    "r": "151st",
+    "rbi": "173rd",
+    "sb": "151st",
+    "tb": "195th"
    },
    "team": "Baton Rouge Rougarou"
   },
@@ -9392,16 +9362,16 @@
     "tb": "13"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "bb": "128th",
-    "h": "121st",
+    "h": "120th",
     "hbp": "89th",
-    "hr": "41st",
+    "hr": "40th",
     "k": "39th",
     "r": "107th",
-    "rbi": "111th",
-    "sb": "118th",
-    "tb": "110th"
+    "rbi": "110th",
+    "sb": "117th",
+    "tb": "109th"
    },
    "team": "Victoria Generals"
   },
@@ -9444,10 +9414,10 @@
     "k": "62nd",
     "obp": "56th",
     "r": "79th",
-    "rbi": "142nd",
+    "rbi": "141st",
     "sb": "33rd",
     "slg": "102nd",
-    "tb": "110th"
+    "tb": "109th"
    },
    "team": "Baton Rouge Rougarou"
   },
@@ -9487,16 +9457,16 @@
     "tb": "8"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "bb": "118th",
     "cs": "63rd",
-    "h": "153rd",
+    "h": "152nd",
     "hbp": "131st",
     "k": "130th",
     "r": "98th",
-    "rbi": "121st",
+    "rbi": "120th",
     "sb": "49th",
-    "tb": "149th"
+    "tb": "148th"
    },
    "team": "Sherman Shadowcats"
   },
@@ -9511,10 +9481,10 @@
     "tb": "1"
    },
    "hitRanks": {
-    "h": "205th",
-    "r": "226th",
-    "rbi": "213th",
-    "tb": "208th"
+    "h": "204th",
+    "r": "225th",
+    "rbi": "212th",
+    "tb": "207th"
    },
    "pitchLine": {
     "bb9": "5.25",
@@ -9565,11 +9535,11 @@
     "tb": "0"
    },
    "hitRanks": {
-    "h": "222nd",
-    "k": "221st",
-    "r": "226th",
-    "rbi": "213th",
-    "tb": "222nd"
+    "h": "221st",
+    "k": "220th",
+    "r": "225th",
+    "rbi": "212th",
+    "tb": "221st"
    },
    "pitchLine": {
     "bb9": "12.15",
@@ -9604,14 +9574,14 @@
     "tb": "3"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "bb": "159th",
-    "h": "191st",
-    "k": "194th",
-    "r": "180th",
-    "rbi": "192nd",
-    "sb": "96th",
-    "tb": "186th"
+    "h": "190th",
+    "k": "193rd",
+    "r": "179th",
+    "rbi": "191st",
+    "sb": "97th",
+    "tb": "185th"
    },
    "team": "Brazos Valley Bombers"
   },
@@ -9627,11 +9597,11 @@
     "tb": "0"
    },
    "hitRanks": {
-    "h": "222nd",
-    "k": "221st",
-    "r": "226th",
-    "rbi": "213th",
-    "tb": "222nd"
+    "h": "221st",
+    "k": "220th",
+    "r": "225th",
+    "rbi": "212th",
+    "tb": "221st"
    },
    "pitchLine": {
     "bb9": "6.75",
@@ -9685,7 +9655,7 @@
     "k": "46th",
     "obp": "60th",
     "r": "74th",
-    "rbi": "79th",
+    "rbi": "78th",
     "sb": "25th",
     "slg": "66th",
     "tb": "61st"
@@ -9752,15 +9722,15 @@
     "avg": "99th",
     "bb": "72nd",
     "cs": "63rd",
-    "h": "111th",
+    "h": "110th",
     "hbp": "30th",
     "k": "51st",
     "obp": "74th",
     "r": "74th",
-    "rbi": "98th",
+    "rbi": "97th",
     "sb": "25th",
     "slg": "105th",
-    "tb": "132nd"
+    "tb": "131st"
    },
    "pitchLine": {
     "bb9": "4.50",
@@ -9797,16 +9767,16 @@
     "tb": "9"
    },
    "hitRanks": {
-    "2b": "115th",
-    "bb": "209th",
+    "2b": "114th",
+    "bb": "208th",
     "cs": "63rd",
-    "h": "132nd",
+    "h": "131st",
     "hbp": "131st",
     "k": "110th",
-    "r": "115th",
-    "rbi": "192nd",
-    "sb": "81st",
-    "tb": "143rd"
+    "r": "114th",
+    "rbi": "191st",
+    "sb": "82nd",
+    "tb": "142nd"
    },
    "pitchLine": {
     "bb9": "3.27",
@@ -9844,13 +9814,13 @@
     "tb": "27"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "bb": "137th",
     "cs": "26th",
     "h": "56th",
     "hbp": "131st",
-    "hr": "17th",
-    "k": "221st",
+    "hr": "18th",
+    "k": "220th",
     "r": "79th",
     "rbi": "59th",
     "sb": "42nd",
@@ -9920,16 +9890,16 @@
     "avg": "21st",
     "bb": "29th",
     "cs": "4th",
-    "h": "12th",
+    "h": "13th",
     "hbp": "131st",
-    "hr": "41st",
-    "k": "13th",
+    "hr": "40th",
+    "k": "14th",
     "obp": "49th",
     "r": "11th",
     "rbi": "18th",
     "sb": "33rd",
     "slg": "18th",
-    "tb": "14th"
+    "tb": "15th"
    },
    "team": "San Antonio River Monsters"
   },
@@ -9950,16 +9920,16 @@
     "tb": "7"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "3b": "15th",
-    "bb": "209th",
+    "bb": "208th",
     "cs": "63rd",
-    "h": "172nd",
+    "h": "171st",
     "hbp": "131st",
     "k": "125th",
-    "r": "180th",
-    "rbi": "192nd",
-    "tb": "159th"
+    "r": "179th",
+    "rbi": "191st",
+    "tb": "158th"
    },
    "pitchLine": {
     "bb9": "9.00",
@@ -10033,15 +10003,15 @@
     "tb": "1"
    },
    "hitRanks": {
-    "bb": "194th",
+    "bb": "193rd",
     "cs": "63rd",
-    "h": "205th",
+    "h": "204th",
     "hbp": "89th",
-    "k": "184th",
-    "r": "180th",
-    "rbi": "192nd",
-    "sb": "96th",
-    "tb": "208th"
+    "k": "183rd",
+    "r": "179th",
+    "rbi": "191st",
+    "sb": "97th",
+    "tb": "207th"
    },
    "team": "Abilene Flying Bison"
   },
@@ -10062,7 +10032,7 @@
     "tb": "16"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "3b": "15th",
     "avg": "63rd",
     "bb": "29th",
@@ -10071,10 +10041,10 @@
     "k": "130th",
     "obp": "19th",
     "r": "50th",
-    "rbi": "88th",
+    "rbi": "87th",
     "sb": "33rd",
     "slg": "71st",
-    "tb": "96th"
+    "tb": "95th"
    },
    "team": "Brazos Valley Bombers"
   },
@@ -10102,16 +10072,16 @@
     "avg": "29th",
     "bb": "92nd",
     "cs": "13th",
-    "h": "12th",
+    "h": "13th",
     "hbp": "61st",
-    "hr": "17th",
+    "hr": "18th",
     "k": "55th",
     "obp": "74th",
-    "r": "43rd",
-    "rbi": "26th",
+    "r": "44th",
+    "rbi": "27th",
     "sb": "49th",
     "slg": "31st",
-    "tb": "17th"
+    "tb": "18th"
    },
    "team": "Lake Charles Gumbeaux Gators"
   },
@@ -10131,18 +10101,18 @@
     "tb": "16"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "avg": "76th",
     "bb": "128th",
     "h": "76th",
     "hbp": "61st",
-    "k": "175th",
+    "k": "174th",
     "obp": "97th",
     "r": "98th",
     "rbi": "63rd",
-    "sb": "118th",
+    "sb": "117th",
     "slg": "92nd",
-    "tb": "96th"
+    "tb": "95th"
    },
    "team": "Sherman Shadowcats"
   },
@@ -10168,12 +10138,12 @@
     "h": "69th",
     "hbp": "61st",
     "k": "82nd",
-    "obp": "79th",
-    "r": "123rd",
+    "obp": "78th",
+    "r": "122nd",
     "rbi": "63rd",
-    "sb": "96th",
+    "sb": "97th",
     "slg": "94th",
-    "tb": "105th"
+    "tb": "104th"
    },
    "team": "Abilene Flying Bison"
   },
@@ -10198,10 +10168,10 @@
    "hitRanks": {
     "2b": "12th",
     "3b": "15th",
-    "avg": "34th",
+    "avg": "35th",
     "bb": "58th",
     "cs": "4th",
-    "h": "27th",
+    "h": "28th",
     "hbp": "30th",
     "hr": "1st",
     "k": "70th",
@@ -10210,7 +10180,7 @@
     "rbi": "5th",
     "sb": "49th",
     "slg": "2nd",
-    "tb": "8th"
+    "tb": "9th"
    },
    "team": "Victoria Generals"
   },
@@ -10251,17 +10221,17 @@
     "tb": "13"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "3b": "15th",
     "bb": "100th",
     "cs": "13th",
-    "h": "111th",
+    "h": "110th",
     "hbp": "131st",
     "k": "151st",
-    "r": "115th",
-    "rbi": "111th",
-    "sb": "96th",
-    "tb": "110th"
+    "r": "114th",
+    "rbi": "110th",
+    "sb": "97th",
+    "tb": "109th"
    },
    "team": "Abilene Flying Bison"
   },
@@ -10304,13 +10274,13 @@
     "2b": "50th",
     "bb": "108th",
     "cs": "63rd",
-    "h": "132nd",
+    "h": "131st",
     "hbp": "131st",
     "k": "151st",
-    "r": "115th",
-    "rbi": "98th",
+    "r": "114th",
+    "rbi": "97th",
     "sb": "56th",
-    "tb": "123rd"
+    "tb": "122nd"
    },
    "pitchLine": {
     "bb9": "0.00",
@@ -10341,11 +10311,11 @@
     "tb": "0"
    },
    "hitRanks": {
-    "h": "222nd",
-    "k": "221st",
-    "r": "226th",
-    "rbi": "213th",
-    "tb": "222nd"
+    "h": "221st",
+    "k": "220th",
+    "r": "225th",
+    "rbi": "212th",
+    "tb": "221st"
    },
    "pitchLine": {
     "bb9": "9.49",
@@ -10433,16 +10403,16 @@
     "avg": "25th",
     "bb": "5th",
     "cs": "63rd",
-    "h": "17th",
+    "h": "18th",
     "hbp": "1st",
-    "hr": "41st",
-    "k": "14th",
+    "hr": "40th",
+    "k": "15th",
     "obp": "6th",
     "r": "8th",
     "rbi": "9th",
-    "sb": "96th",
+    "sb": "97th",
     "slg": "40th",
-    "tb": "23rd"
+    "tb": "24th"
    },
    "team": "Sherman Shadowcats"
   },
@@ -10479,11 +10449,11 @@
    },
    "hitRanks": {
     "bb": "177th",
-    "h": "191st",
-    "k": "208th",
-    "r": "226th",
-    "rbi": "121st",
-    "tb": "196th"
+    "h": "190th",
+    "k": "207th",
+    "r": "225th",
+    "rbi": "120th",
+    "tb": "195th"
    },
    "team": "Baton Rouge Rougarou"
   },
@@ -10530,16 +10500,16 @@
     "avg": "80th",
     "bb": "10th",
     "cs": "63rd",
-    "h": "30th",
+    "h": "31st",
     "hbp": "43rd",
-    "hr": "17th",
+    "hr": "18th",
     "k": "3rd",
     "obp": "65th",
     "r": "21st",
-    "rbi": "29th",
+    "rbi": "30th",
     "sb": "25th",
     "slg": "43rd",
-    "tb": "22nd"
+    "tb": "23rd"
    },
    "pitchLine": {
     "bb9": "10.38",
@@ -10578,12 +10548,12 @@
     "2b": "50th",
     "3b": "15th",
     "bb": "118th",
-    "h": "132nd",
+    "h": "131st",
     "k": "55th",
     "r": "107th",
-    "rbi": "142nd",
-    "sb": "81st",
-    "tb": "110th"
+    "rbi": "141st",
+    "sb": "82nd",
+    "tb": "109th"
    },
    "team": "Abilene Flying Bison"
   },
@@ -10602,12 +10572,12 @@
    },
    "hitRanks": {
     "bb": "159th",
-    "h": "172nd",
+    "h": "171st",
     "k": "165th",
-    "r": "135th",
-    "rbi": "174th",
-    "sb": "118th",
-    "tb": "180th"
+    "r": "134th",
+    "rbi": "173rd",
+    "sb": "117th",
+    "tb": "179th"
    },
    "team": "Abilene Flying Bison"
   },
@@ -10651,12 +10621,12 @@
    },
    "hitRanks": {
     "bb": "159th",
-    "h": "205th",
+    "h": "204th",
     "hbp": "131st",
     "k": "130th",
-    "r": "190th",
-    "rbi": "174th",
-    "tb": "208th"
+    "r": "189th",
+    "rbi": "173rd",
+    "tb": "207th"
    },
    "team": "Lake Charles Gumbeaux Gators"
   },
@@ -10700,14 +10670,14 @@
     "tb": "9"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "bb": "33rd",
     "cs": "63rd",
-    "h": "132nd",
+    "h": "131st",
     "k": "31st",
     "r": "79th",
-    "rbi": "192nd",
-    "tb": "143rd"
+    "rbi": "191st",
+    "tb": "142nd"
    },
    "pitchLine": {
     "bb9": "5.03",
@@ -10747,13 +10717,13 @@
     "tb": "2"
    },
    "hitRanks": {
-    "bb": "209th",
-    "h": "191st",
+    "bb": "208th",
+    "h": "190th",
     "hbp": "131st",
-    "k": "208th",
-    "r": "226th",
-    "rbi": "174th",
-    "tb": "196th"
+    "k": "207th",
+    "r": "225th",
+    "rbi": "173rd",
+    "tb": "195th"
    },
    "pitchLine": {
     "bb9": "10.80",
@@ -10826,15 +10796,15 @@
     "tb": "3"
    },
    "hitRanks": {
-    "2b": "115th",
-    "bb": "194th",
-    "h": "191st",
+    "2b": "114th",
+    "bb": "193rd",
+    "h": "190th",
     "hbp": "131st",
-    "k": "194th",
-    "r": "206th",
-    "rbi": "142nd",
-    "sb": "118th",
-    "tb": "186th"
+    "k": "193rd",
+    "r": "205th",
+    "rbi": "141st",
+    "sb": "117th",
+    "tb": "185th"
    },
    "team": "Brazos Valley Bombers"
   },
@@ -10860,14 +10830,14 @@
     "3b": "15th",
     "avg": "29th",
     "bb": "6th",
-    "h": "21st",
+    "h": "22nd",
     "hbp": "43rd",
     "hr": "1st",
     "k": "19th",
     "obp": "16th",
     "r": "10th",
     "rbi": "15th",
-    "sb": "118th",
+    "sb": "117th",
     "slg": "3rd",
     "tb": "7th"
    },
@@ -10915,11 +10885,11 @@
     "avg": "5th",
     "bb": "58th",
     "cs": "26th",
-    "h": "33rd",
+    "h": "34th",
     "hbp": "11th",
     "k": "151st",
     "obp": "4th",
-    "r": "34th",
+    "r": "35th",
     "rbi": "53rd",
     "sb": "56th",
     "slg": "18th",
@@ -10964,13 +10934,13 @@
    "hitRanks": {
     "bb": "118th",
     "cs": "63rd",
-    "h": "182nd",
+    "h": "181st",
     "hbp": "89th",
     "k": "151st",
-    "r": "152nd",
-    "rbi": "142nd",
-    "sb": "152nd",
-    "tb": "186th"
+    "r": "151st",
+    "rbi": "141st",
+    "sb": "151st",
+    "tb": "185th"
    },
    "team": "Sherman Shadowcats"
   },
@@ -10990,13 +10960,13 @@
    },
    "hitRanks": {
     "bb": "159th",
-    "h": "132nd",
+    "h": "131st",
     "hbp": "89th",
     "k": "110th",
-    "r": "152nd",
-    "rbi": "157th",
-    "sb": "118th",
-    "tb": "149th"
+    "r": "151st",
+    "rbi": "156th",
+    "sb": "117th",
+    "tb": "148th"
    },
    "team": "Brazos Valley Bombers"
   },
@@ -11008,10 +10978,10 @@
     "tb": "0"
    },
    "hitRanks": {
-    "h": "222nd",
-    "r": "190th",
-    "rbi": "213th",
-    "tb": "222nd"
+    "h": "221st",
+    "r": "189th",
+    "rbi": "212th",
+    "tb": "221st"
    },
    "pitchLine": {
     "bb9": "8.03",
@@ -11048,7 +11018,7 @@
     "tb": "17"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "avg": "96th",
     "bb": "52nd",
     "cs": "26th",
@@ -11056,11 +11026,11 @@
     "hbp": "43rd",
     "k": "101st",
     "obp": "90th",
-    "r": "43rd",
-    "rbi": "88th",
+    "r": "44th",
+    "rbi": "87th",
     "sb": "33rd",
     "slg": "101st",
-    "tb": "90th"
+    "tb": "89th"
    },
    "team": "Baton Rouge Rougarou"
   },
@@ -11106,19 +11076,19 @@
     "tb": "47"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "avg": "17th",
     "bb": "22nd",
     "cs": "26th",
-    "h": "12th",
+    "h": "13th",
     "hr": "6th",
     "k": "118th",
     "obp": "45th",
-    "r": "27th",
+    "r": "28th",
     "rbi": "12th",
     "sb": "1st",
     "slg": "27th",
-    "tb": "19th"
+    "tb": "20th"
    },
    "pitchLine": {
     "era": "0.00",
@@ -11160,12 +11130,12 @@
     "cs": "63rd",
     "h": "41st",
     "hbp": "20th",
-    "hr": "17th",
+    "hr": "18th",
     "k": "31st",
     "obp": "23rd",
-    "r": "34th",
+    "r": "35th",
     "rbi": "53rd",
-    "sb": "66th",
+    "sb": "67th",
     "slg": "17th",
     "tb": "33rd"
    },
@@ -11186,14 +11156,14 @@
     "tb": "6"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "bb": "159th",
-    "h": "167th",
+    "h": "166th",
     "hbp": "131st",
-    "k": "208th",
-    "r": "135th",
-    "rbi": "142nd",
-    "tb": "174th"
+    "k": "207th",
+    "r": "134th",
+    "rbi": "141st",
+    "tb": "173rd"
    },
    "team": "Abilene Flying Bison"
   },
@@ -11212,14 +11182,14 @@
     "tb": "7"
    },
    "hitRanks": {
-    "bb": "194th",
-    "h": "172nd",
+    "bb": "193rd",
+    "h": "171st",
     "hbp": "61st",
-    "hr": "41st",
-    "k": "175th",
-    "r": "180th",
-    "rbi": "157th",
-    "tb": "159th"
+    "hr": "40th",
+    "k": "174th",
+    "r": "179th",
+    "rbi": "156th",
+    "tb": "158th"
    },
    "team": "Brazos Valley Bombers"
   },
@@ -11276,12 +11246,12 @@
    },
    "hitRanks": {
     "bb": "177th",
-    "h": "205th",
+    "h": "204th",
     "hbp": "131st",
-    "k": "175th",
-    "r": "152nd",
-    "rbi": "192nd",
-    "tb": "208th"
+    "k": "174th",
+    "r": "151st",
+    "rbi": "191st",
+    "tb": "207th"
    },
    "pitchLine": {
     "bb9": "10.80",
@@ -11339,21 +11309,21 @@
     "tb": "41"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "3b": "15th",
     "avg": "18th",
     "bb": "100th",
     "cs": "26th",
-    "h": "39th",
+    "h": "40th",
     "hbp": "61st",
     "hr": "3rd",
     "k": "165th",
     "obp": "53rd",
-    "r": "37th",
+    "r": "38th",
     "rbi": "15th",
     "sb": "22nd",
     "slg": "6th",
-    "tb": "23rd"
+    "tb": "24th"
    },
    "team": "Abilene Flying Bison"
   },
@@ -11376,7 +11346,7 @@
     "tb": "68"
    },
    "hitRanks": {
-    "2b": "7th",
+    "2b": "8th",
     "3b": "5th",
     "avg": "18th",
     "bb": "7th",
@@ -11431,20 +11401,20 @@
     "tb": "12"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "3b": "15th",
     "avg": "103rd",
     "bb": "108th",
     "cs": "26th",
-    "h": "121st",
+    "h": "120th",
     "hbp": "61st",
     "k": "82nd",
     "obp": "101st",
-    "r": "135th",
-    "rbi": "111th",
-    "sb": "118th",
+    "r": "134th",
+    "rbi": "110th",
+    "sb": "117th",
     "slg": "100th",
-    "tb": "120th"
+    "tb": "119th"
    },
    "pitchLine": {
     "bb9": "9.00",
@@ -11486,11 +11456,11 @@
     "avg": "67th",
     "bb": "44th",
     "cs": "13th",
-    "h": "38th",
+    "h": "39th",
     "hbp": "131st",
-    "hr": "41st",
+    "hr": "40th",
     "k": "31st",
-    "obp": "82nd",
+    "obp": "81st",
     "r": "50th",
     "rbi": "63rd",
     "sb": "19th",
@@ -11563,14 +11533,14 @@
     "cs": "63rd",
     "h": "10th",
     "hbp": "3rd",
-    "hr": "41st",
+    "hr": "40th",
     "k": "2nd",
     "obp": "52nd",
     "r": "21st",
     "rbi": "40th",
     "sb": "14th",
     "slg": "62nd",
-    "tb": "17th"
+    "tb": "18th"
    },
    "team": "Baton Rouge Rougarou"
   },
@@ -11592,13 +11562,13 @@
    "hitRanks": {
     "bb": "159th",
     "cs": "26th",
-    "h": "191st",
+    "h": "190th",
     "hbp": "131st",
-    "k": "201st",
-    "r": "206th",
-    "rbi": "213th",
-    "sb": "118th",
-    "tb": "196th"
+    "k": "200th",
+    "r": "205th",
+    "rbi": "212th",
+    "sb": "117th",
+    "tb": "195th"
    },
    "team": "Abilene Flying Bison"
   },
@@ -11633,11 +11603,11 @@
     "tb": "0"
    },
    "hitRanks": {
-    "h": "222nd",
-    "k": "221st",
-    "r": "226th",
-    "rbi": "213th",
-    "tb": "222nd"
+    "h": "221st",
+    "k": "220th",
+    "r": "225th",
+    "rbi": "212th",
+    "tb": "221st"
    },
    "pitchLine": {
     "bb9": "6.61",
@@ -11699,19 +11669,19 @@
     "tb": "54"
    },
    "hitRanks": {
-    "2b": "7th",
+    "2b": "8th",
     "avg": "7th",
     "bb": "58th",
-    "h": "18th",
+    "h": "19th",
     "hbp": "20th",
     "hr": "3rd",
-    "k": "9th",
+    "k": "10th",
     "obp": "15th",
-    "r": "34th",
-    "rbi": "26th",
-    "sb": "81st",
+    "r": "35th",
+    "rbi": "27th",
+    "sb": "82nd",
     "slg": "1st",
-    "tb": "10th"
+    "tb": "11th"
    },
    "team": "Sherman Shadowcats"
   },
@@ -11731,13 +11701,13 @@
    },
    "hitRanks": {
     "bb": "72nd",
-    "h": "102nd",
+    "h": "101st",
     "hbp": "89th",
     "k": "165th",
     "r": "79th",
     "rbi": "71st",
-    "sb": "96th",
-    "tb": "123rd"
+    "sb": "97th",
+    "tb": "122nd"
    },
    "pitchLine": {
     "bb9": "8.10",
@@ -11877,12 +11847,12 @@
     "tb": "3"
    },
    "hitRanks": {
-    "h": "182nd",
+    "h": "181st",
     "k": "165th",
-    "r": "206th",
-    "rbi": "174th",
-    "sb": "118th",
-    "tb": "186th"
+    "r": "205th",
+    "rbi": "173rd",
+    "sb": "117th",
+    "tb": "185th"
    },
    "team": "Baton Rouge Rougarou"
   },
@@ -11930,19 +11900,19 @@
     "tb": "25"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "3b": "15th",
     "avg": "25th",
-    "bb": "77th",
+    "bb": "78th",
     "cs": "26th",
     "h": "56th",
     "hbp": "43rd",
-    "hr": "41st",
+    "hr": "40th",
     "k": "118th",
     "obp": "38th",
-    "r": "123rd",
+    "r": "122nd",
     "rbi": "44th",
-    "sb": "152nd",
+    "sb": "151st",
     "slg": "41st",
     "tb": "61st"
    },
@@ -11984,7 +11954,7 @@
     "tb": "16"
    },
    "hitRanks": {
-    "2b": "77th",
+    "2b": "76th",
     "avg": "50th",
     "bb": "137th",
     "cs": "26th",
@@ -11994,9 +11964,9 @@
     "obp": "46th",
     "r": "98th",
     "rbi": "71st",
-    "sb": "118th",
+    "sb": "117th",
     "slg": "78th",
-    "tb": "96th"
+    "tb": "95th"
    },
    "team": "Lake Charles Gumbeaux Gators"
   },
@@ -12051,13 +12021,13 @@
     "tb": "7"
    },
    "hitRanks": {
-    "2b": "115th",
+    "2b": "114th",
     "bb": "177th",
-    "h": "153rd",
+    "h": "152nd",
     "k": "151st",
-    "r": "164th",
-    "rbi": "192nd",
-    "tb": "159th"
+    "r": "163rd",
+    "rbi": "191st",
+    "tb": "158th"
    },
    "team": "Acadiana Cane Cutters"
   },
