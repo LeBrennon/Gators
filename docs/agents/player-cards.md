@@ -268,6 +268,16 @@ applies a minimum-AB qualifier to the rate stats that the raw board does not.
 Landreneau's AVG rank came out 70th against Presto's 49th — small enough to look
 right and be wrong.
 
+**Two-way players carry no hitting ranks, and this is deliberate.** Presto's own
+player page shows only the pitching "Overall" table for a two-way player, so
+`fetch-ranks.py` gets a real hitting `line` back but an empty `ranks` — nothing
+to compare against, not a top-50 miss. Confirmed on Jack Garcille, Bryson
+Pierce, Matthew McKinley. `server.js` already has a fallback for exactly this
+on the live site (`computeLeagueHitRanks`, off the raw hitting leaderboard) —
+the owner was offered the same fallback for cards and declined it, on the same
+leaderboard-accuracy grounds as the paragraph above. Don't port it without
+asking again.
+
 ### wOBA and wRC+ (batter cards)
 
 In PRODUCTION, after the slash line, where Baseball Savant puts them: the rate
