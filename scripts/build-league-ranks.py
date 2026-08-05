@@ -60,7 +60,10 @@ HIT_KEYS = {'G': 'gp', 'PA': 'pa', 'AB': 'ab', 'H': 'h', '2B': '2b', '3B': '3b',
 HIT_RATE = {'avg', 'obp', 'slg'}   # need AB_MIN
 
 # label -> raw/derived key, for the pitching side.
-PITCH_KEYS = {'APP': 'app', 'GS': 'gs', 'W': 'w', 'SV': 'sv', 'IP': 'ip', 'BF': 'bf',
+# IP deliberately absent: owner's call, no rank wanted on innings pitched. It
+# still computes into every /9 rate (k9/bb9/h9/hr9) and gates the IP_MIN
+# qualifier below — only the IP badge itself is suppressed.
+PITCH_KEYS = {'APP': 'app', 'GS': 'gs', 'W': 'w', 'SV': 'sv', 'BF': 'bf',
               'ERA': 'era', 'WHIP': 'whip', 'K': 'k', 'BB': 'bb', 'H': 'h', 'HR': 'hr', 'HBP': 'hbp',
               'K/9': 'k9', 'BB/9': 'bb9', 'H/9': 'h9', 'HR/9': 'hr9',
               'K%': 'kpct', 'BB%': 'bbpct', 'K:BB': 'kbb'}

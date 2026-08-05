@@ -105,7 +105,8 @@ RANK_KEYS = {'G': 'gp', 'PA': 'pa', 'AB': 'ab', 'H': 'h', '2B': '2b', '3B': '3b'
              'OBP': 'obp', 'SLG': 'slg'}
 # Same idea for the pitching card. Keep in sync with PITCH_KEYS in
 # build-league-ranks.py by hand — no shared import between the two.
-PITCH_RANK_KEYS = {'APP': 'app', 'GS': 'gs', 'W': 'w', 'SV': 'sv', 'IP': 'ip', 'BF': 'bf',
+# IP deliberately absent: owner's call, no rank wanted on innings pitched.
+PITCH_RANK_KEYS = {'APP': 'app', 'GS': 'gs', 'W': 'w', 'SV': 'sv', 'BF': 'bf',
                     'ERA': 'era', 'WHIP': 'whip', 'K': 'k', 'BB': 'bb', 'H': 'h', 'HR': 'hr', 'HBP': 'hbp',
                     'K/9': 'k9', 'BB/9': 'bb9', 'H/9': 'h9', 'HR/9': 'hr9',
                     'K%': 'kpct', 'BB%': 'bbpct', 'K:BB': 'kbb'}
