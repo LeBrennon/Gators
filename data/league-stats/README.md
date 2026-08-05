@@ -2,8 +2,7 @@
 
 Every team's full season stats (batting, running, pitching, fielding), for all 8
 TCL clubs — 430 players total. Owner-provided CSV exports (PrestoSports team stat
-pages), merged one player per record by `scripts/lib/../league-stats/merge_team.py`-
-style logic now folded into `scripts/build-league-ranks.py`.
+pages), merged one player per record by `scripts/merge-team-stats.py`.
 
 This exists because `texasleaguestats.prestosports.com` is unreliable as a live
 source: its bulk leaderboard pages are Cloudflare-blocked from this environment,
@@ -20,5 +19,8 @@ league rank in every card-relevant stat — see that script and
 stat can rank) and the reasoning behind them.
 
 Re-fetching: there's no automated pull. When the owner sends new CSV exports
-(same four-file-per-team shape: batting, running, pitching, fielding), replace
-the corresponding `<team>.json` and rerun `build-league-ranks.py`.
+(same four-file-per-team shape: batting, running, pitching, fielding), save
+them as `<team>_batting.csv` / `_running.csv` / `_pitching.csv` / `_fielding.csv`
+in this directory, run `python3 scripts/merge-team-stats.py <team> "<Team
+Name>"` to rebuild that team's `<team>.json`, then rerun
+`python3 scripts/build-league-ranks.py` to recompute every rank in the league.
