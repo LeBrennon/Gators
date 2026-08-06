@@ -14,8 +14,12 @@ name: Refresh seed + post-game report
 # as a build artifact and by email; it is never committed and never on the website.
 
 on:
-  schedule:
-    - cron: '0 7 * * *'
+  # Off-season: no games, so the daily rebuild has nothing new to pick up.
+  # Re-enable the cron block before next season. repository_dispatch stays
+  # live in case a stray gators-final event ever fires; workflow_dispatch
+  # still works for a manual refresh if needed.
+  # schedule:
+  #   - cron: '0 7 * * *'
   repository_dispatch:
     types: [gators-final]
   workflow_dispatch:
