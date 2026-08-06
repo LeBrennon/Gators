@@ -6,8 +6,11 @@ name: Keep-alive ping
 # much idle time, so the live site stays warm for real visitors.
 
 on:
-  schedule:
-    - cron: '*/10 * * * *'
+  # Off-season: no visitors to keep the site warm for, so the schedule is
+  # paused to save Actions minutes. Re-enable the cron block before next
+  # season (or just leave workflow_dispatch for manual pings in the meantime).
+  # schedule:
+  #   - cron: '*/10 * * * *'
   workflow_dispatch: {}
 
 jobs:
