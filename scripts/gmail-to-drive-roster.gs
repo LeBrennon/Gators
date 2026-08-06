@@ -73,3 +73,19 @@ function installDailyTrigger() {
     .create();
   console.log('Installed daily saveTCLRoster trigger (11am CT).');
 }
+
+/**
+ * Off-season pause: removes the daily trigger without deleting the script, so
+ * the season-start step is just re-running installDailyTrigger(). Safe to run
+ * even if no trigger exists.
+ */
+function removeDailyTrigger() {
+  var removed = 0;
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'saveTCLRoster') {
+      ScriptApp.deleteTrigger(t);
+      removed++;
+    }
+  });
+  console.log('Removed ' + removed + ' saveTCLRoster trigger(s).');
+}
