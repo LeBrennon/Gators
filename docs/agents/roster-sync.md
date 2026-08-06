@@ -83,3 +83,17 @@ with no action.
 To verify: after a "TCL Updates" email with the roster attachment arrives, the folder
 should hold a `TCL GAMEDAY ROSTER <date>.pdf`. Re-running is safe — the script skips
 a date it has already saved.
+
+## Off-season pause
+
+The league stops sending "TCL Updates" emails once the season ends, so the daily
+trigger has nothing to do — but it still runs and burns Apps Script quota. To pause it:
+
+1. Go to <https://script.google.com> and open the project.
+2. Select `removeDailyTrigger` from the function dropdown and click **Run** (approve
+   the prompt if asked again). It deletes the `saveTCLRoster` trigger and leaves the
+   script itself untouched.
+3. Alternatively, without touching code: **Triggers** (clock icon in the left sidebar)
+   → find the `saveTCLRoster` row → the trash icon next to it.
+
+To resume next season, run `installDailyTrigger` once the same way.
