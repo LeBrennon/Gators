@@ -1,0 +1,57 @@
+name: Big Leagues postgame updater
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+    inputs:
+      force_refresh:
+        description: 'Force a full refresh for all tracked players'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: big-leagues-updater
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Refresh tracked players
+        env:
+          BIG_LEAGUES_SEASON: '2026'
+          BIG_LEAGUES_LOOKBACK_DAYS: '2'
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.force_refresh }}" = "true" ]; then
+            node scripts/big-leagues-updater.js --force
+          else
+            node scripts/big-leagues-updater.js
+          fi
+
+      - name: Commit refreshed profiles
+        run: |
+          if git diff --quiet -- data/big-leagues-state.json data/big-leagues-profiles; then
+            echo "No profile changes to commit."
+            exit 0
+          fi
+          git config user.name "big-leagues-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/big-leagues-state.json data/big-leagues-profiles
+          git commit -m "Update Big Leagues player profiles"
+          git push
