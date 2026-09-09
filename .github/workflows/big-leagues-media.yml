@@ -34,15 +34,27 @@ jobs:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         run: node scripts/big-leagues-media-scraper.js
 
-      - name: Commit media feed
+      - name: Commit new media only
+        shell: bash
         run: |
-          if git diff --quiet -- data/big-leagues-media; then
-            echo "No media changes to commit."
+          changed=0
+          for file in data/big-leagues-media/feed.json data/big-leagues-media/review.json; do
+            old=$(mktemp)
+            new=$(mktemp)
+            git show HEAD:"$file" | jq 'del(.updatedAt) | (.items[]? |= del(.discoveredAt))' -S > "$old"
+            jq 'del(.updatedAt) | (.items[]? |= del(.discoveredAt))' -S "$file" > "$new"
+            if ! cmp -s "$old" "$new"; then
+              changed=1
+            fi
+          done
+          if [ "$changed" -eq 0 ]; then
+            echo "No new publishable or review media."
+            git checkout -- data/big-leagues-media/feed.json data/big-leagues-media/review.json
             exit 0
           fi
           git config user.name "big-leagues-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/big-leagues-media
+          git add data/big-leagues-media/feed.json data/big-leagues-media/review.json
           git commit -m "Update Big Leagues media feed"
           git pull --rebase origin main
           git push origin HEAD:main
