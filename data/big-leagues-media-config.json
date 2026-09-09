@@ -1,0 +1,36 @@
+{
+  "scanMinutes": 20,
+  "maxFeedItems": 1000,
+  "maxReviewItems": 500,
+  "players": [
+    {
+      "mlbamId": 663767,
+      "name": "Chase Shugart",
+      "label": "Chase (55)",
+      "aliases": ["Chase Shugart", "Shugart", "55"],
+      "contextTerms": ["Phillies", "Philadelphia Phillies", "Lehigh Valley IronPigs", "IronPigs"],
+      "socialSearchTerms": ["Chase Shugart", "Chase Shugart Phillies", "Chase Shugart 55"]
+    },
+    {
+      "mlbamId": 806585,
+      "name": "Jack Dallas",
+      "label": "Jack (JD3)",
+      "aliases": ["Jack Dallas", "JD3"],
+      "contextTerms": ["Reading Fightin Phils", "Fightin Phils", "Phillies", "Philadelphia Phillies"],
+      "socialSearchTerms": ["Jack Dallas baseball", "Jack Dallas Reading", "JD3 baseball"]
+    },
+    {
+      "mlbamId": 689149,
+      "name": "Chad Dallas",
+      "label": "Chad (🧀)",
+      "aliases": ["Chad Dallas", "Cheese"],
+      "contextTerms": ["Buffalo Bisons", "Bisons", "Toronto Blue Jays", "Blue Jays"],
+      "socialSearchTerms": ["Chad Dallas baseball", "Chad Dallas Buffalo", "Chad Dallas Blue Jays", "Chad Dallas Cheese"]
+    }
+  ],
+  "socialDomains": ["x.com", "twitter.com", "instagram.com", "threads.net", "reddit.com", "tiktok.com", "facebook.com", "bsky.app"],
+  "videoDomains": ["youtube.com", "youtu.be"],
+  "positiveTerms": ["great", "good", "awesome", "amazing", "dominant", "filthy", "nasty", "electric", "elite", "clutch", "impressive", "solid", "strong", "love", "loving", "nice", "excellent", "outstanding", "stud", "deal", "dealing", "lights out", "locked in", "let's go", "lets go", "fire", "🔥", "💪", "👏", "🙌", "⭐", "ace", "shove", "shoving", "respect"],
+  "negativeTerms": ["sucks", "suck", "bum", "trash", "garbage", "terrible", "awful", "horrible", "fraud", "washed", "useless", "loser", "choke", "choked", "hate", "worst", "pathetic", "embarrassing", "dfa him", "designate him", "cut him", "release him", "send him down", "option him", "get rid of", "can't pitch", "cant pitch", "blowup", "meltdown"],
+  "ambiguousTerms": ["lol", "lmao", "smh", "supposedly", "somehow", "maybe", "i guess", "not sure", "really?", "seriously?"]
+}
