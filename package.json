@@ -11,16 +11,14 @@
     "report:game": "node scripts/postgame-report.js",
     "report:pdf": "node scripts/postgame-report.js latest --pdf",
     "report:box": "node scripts/box-score.js latest --pdf",
-    "report:mobile": "node scripts/player-season-card-mobile.js",
-    "big-leagues:media": "node scripts/big-leagues-media-scraper.js"
+    "report:mobile": "node scripts/player-season-card-mobile.js"
   },
   "engines": {
     "node": ">=18"
   },
   "dependencies": {
     "compression": "^1.8.1",
-    "cors": "^2.8.5",
-    "express": "^4.22.2",
+    "cors": "^4.22.2",
     "nodemailer": "^9.0.3",
     "web-push": "^3.6.7"
   },
